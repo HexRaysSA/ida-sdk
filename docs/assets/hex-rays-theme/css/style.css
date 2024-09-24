@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+html {
+    --primary-color: #346ddb;
+    --searchbar-border-radius: 6px;
+    --font-family: "Fira Sans", sans-serif;
+    --side-nav-background: #FDFDFE;
+    --separator-color: #F3F4F6;
+    --odd-color: #F3F4F6;
+    --primary-light-color: #5381dd;
+    --box-shadow: 0 4px 12px 0 #0000000d;
+    --page-foreground-color: #191919;
+
+    --spacing-small: 6px;
+    --spacing-medium: 12px;
+    --spacing-large: 24px;
+
+    --page-font-size: 16px;
+    --navigation-font-size: 14px;
+    --toc-font-size: 14px;
+    --code-font-size: 14px;
+    --title-font-size: 24px;
+}
+@media (prefers-color-scheme: dark) {
+    html:not(.light-mode) {
+        color-scheme: dark;
+        --side-nav-background: #252628;
+        --separator-color: #38393b;
+        --odd-color: rgba(100,100,100,.06);
+        --box-shadow: 0 2px 8px 0 rgba(0,0,0,.30);
+    }
+}
+html.dark-mode {
+    color-scheme: dark;
+    --side-nav-background: #252628;
+    --separator-color: #38393b;
+    --odd-color: rgba(100,100,100,.06);
+    --box-shadow: 0 2px 8px 0 rgba(0,0,0,.30);
+}
+
+body {
+    /* background-image: radial-gradient(circle, #dde 1px, #0000 0);
+    background-position: 50%;
+    background-repeat: repeat;
+    background-size: 15px 15px; */
+
+}
+
+#projectname,
+#nav-sync {
+    display: none;
+}
+
+div.header {
+    background-color: transparent;
+}
+
+div.directory {
+    border-top: none;
+    border-bottom: none;
+}
+
+img.footer {
+    width: 45px;    
+}
+

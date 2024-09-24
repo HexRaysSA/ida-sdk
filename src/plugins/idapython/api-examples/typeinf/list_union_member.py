@@ -1,0 +1,21 @@
+import ida_kernwin
+import ida_typeinf
+
+name = ida_kernwin.ask_str('Dummy union', 0, 'Enter a union name:')
+if name:
+    til = ida_typeinf.get_idati()
+    tif = ida_typeinf.tinfo_t()
+    if not tif.get_named_type(til, name, ida_typeinf.BTF_UNION, True, False):
+        print(f"'{name}' is not a union")
+    elif  tif.is_typedef():
+        print(f"'{name}' is not a (non typedefed) union.")
+    else:
+        udt = ida_typeinf.udt_type_data_t()
+        if tif.get_udt_details(udt):
+            idx = 0
+            print(f'Listing the {name} union {udt.size()} field names:')
+            for udm in udt:
+                print(f'Field {idx}: {udm.name}')
+                idx += 1
+        else:
+            print(f"Unable to get udt details for union '{name}'")

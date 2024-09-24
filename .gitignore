@@ -1,0 +1,30 @@
+# Compiled files
+*.a
+*.dll
+*.dylib
+*.exe
+*.la
+*.lib
+*.lo
+*.o
+*.obj
+*.out
+*.so
+*.so.*
+
+# Cache
+*.pyc
+__pycache__/
+
+# Build directories
+src/bin
+obj/
+
+# OS Files
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
