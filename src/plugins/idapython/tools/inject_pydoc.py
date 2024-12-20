@@ -1365,18 +1365,18 @@ class pydoc_patcher_t(object):
 
                     def replace(cmt):
                         for p in cmt.prototypes:
-                            n = assembled.match_prototype(p)
+                            n, matched_proto = assembled.match_prototype(p)
                             if n < 0:
                                 continue
-                            log_debug("==== Matched prototype # %d, replaced" % n)
+                            log_debug("==== Matched prototype # %d (\"%s\"), replaced" % (n, matched_proto.repr_proto()))
                             assembled.replace_after_prototype(n, p)
 
                     # SWIG has precedence
                     if swig_cmt.parsed:
-                        log_debug("==== Taking from swig:")
-                        replace(swig_cmt)
+                        log_debug("==== Relying on overrides:")
+                        assembled.override = swig_cmt
                     elif doxy_cmt.parsed:
-                        log_debug("==== Taking from doxygen:")
+                        log_debug("==== Importing data from doxygen:")
                         replace(doxy_cmt)
 
                     if info.parent:
@@ -1974,6 +1974,8 @@ class assembled_comment_t(object):
         self.case        = case
         self.text_before = ""
         self.prototypes  = []
+        # Override any computed prototype(s) & doc with
+        self.override = None
 
     def add_text_before(self, text):
         self.text_before += text
@@ -1984,7 +1986,7 @@ class assembled_comment_t(object):
     def match_prototype(self, given):
         for i in range(len(self.prototypes)):
             if self._match(self.prototypes[i], given):
-                return i
+                return i, self.prototypes[i]
         return -1
 
     # add more detail if needed
@@ -2145,6 +2147,8 @@ class assembled_comment_t(object):
         self.case.ignore_parameter(name)
 
     def total(self):
+        if self.override:
+            return self.override.total()
         self._clear_repeats()
         return self.text_before + "".join(p.total(self.case) \
                                           for p in self.prototypes)

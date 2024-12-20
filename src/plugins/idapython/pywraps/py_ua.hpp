@@ -12,8 +12,8 @@
 def decode_preceding_insn(ea):
     """
     Decodes the preceding instruction. Please check ua.hpp / decode_preceding_insn()
-    @param ea: current ea
     @param out: instruction storage
+    @param ea: current ea
     @return: tuple(preceeding_ea or BADADDR, farref = Boolean)
     """
     pass
@@ -30,9 +30,16 @@ PyObject *py_decode_preceding_insn(insn_t *out, ea_t ea)
 //-------------------------------------------------------------------------
 /*
 #<pydoc>
-def construct_macro(insn):
+def construct_macro(insn, enable, build_macro):
     """
     See ua.hpp's construct_macro().
+
+    @param insn: the instruction to build the macro for
+    @param enable: enable macro generation
+    @param build_macro: a callable with 2 arguments: an insn_t, and
+                        whether it is ok to consider the next instruction
+                        for the macro
+    @return: success
     """
     pass
 #</pydoc>

@@ -177,6 +177,35 @@ struct undo_records_t;
 %fill_director_method_errbuf(ev_cvt64_hashval);
 %fill_director_method_errbuf(ev_privrange_changed);
 
+%apply qstrvec_t *out { qstrvec_t *abi_names };
+%apply qstrvec_t *out_wrap_in_list_and_append { qstrvec_t *abi_opts };
+
+%typemap(directorout) int ev_get_abi_info
+{
+  // %typemap(directorout) int get_abi_info
+  if ( result != Py_None )
+  {
+    $result = PySequence_Check(result) && PySequence_Size(result) == 2;
+    if ( $result )
+    {
+      newref_t r0(PySequence_GetItem(result, 0));
+      newref_t r1(PySequence_GetItem(result, 1));
+      $result = PyW_PySeqToStrVec(abi_names, r0.o) && PyW_PySeqToStrVec(abi_opts, r1.o);
+    }
+
+    if ( !$result )
+    {
+      Swig::DirectorTypeMismatchException::raise(
+              SWIG_ErrorType(SWIG_TypeError),
+              "in output value of type '" "int" "'" " in method '$symname'");
+    }
+  }
+  else
+  {
+    $result = 0; // not implemented
+  }
+}
+
 // @arnaud ditch this once all modules are ported
 // temporary:
 %ignore out_old_data;

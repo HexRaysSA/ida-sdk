@@ -25,6 +25,21 @@ users will never see, and cannot be inspired from.)
   function/type/item being used, and makes it that much harder to
   group ideas by module
 * don't `from <something> import <whatever>`: for the same reason
+* use double-quotes for all string literals, unless there's a good
+  reason not to do so (e.g., the string literal contains some `"`
+  characters, and `\`-escaping them would be inconvenient & make the
+  code awkward to read).
+  Double-quoted string literals let us grep more predictably & reliably.
+
+## Example header
+
+Every example must have a valid header, holding a one-liner `summary:`,
+as well as a description further explaining what the example is about.
+
+Some notes:
+
+* `summary:`: the one-liner must not end with a `.`
+* `summary:`: prefer the `list something...` form over the `listing something...`
 
 ## Helping our customers, teaching IDAPython in the process
 

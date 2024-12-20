@@ -25,6 +25,16 @@
 /// \return success; fails if undo is disabled
 idaman bool ida_export create_undo_point(const uchar *bytes, size_t size);
 
+/// Get the label of the action that will be undone.
+/// This function returns the text that can be displayed in the undo menu
+/// \return success
+idaman bool ida_export get_undo_action_label(qstring *action_to_be_undone);
+
+/// Get the label of the action that will be redone.
+/// This function returns the text that can be displayed in the redo menu
+/// \return success
+idaman bool ida_export get_redo_action_label(qstring *action_to_be_redone);
+
 /// Perform undo.
 /// \return success
 idaman bool ida_export perform_undo();

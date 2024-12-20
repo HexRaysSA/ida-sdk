@@ -155,6 +155,7 @@
 %ignore tinfo_t::deserialize(const til_t *, const qtype *, const qtype *, const qtype *, const char *);
 %ignore tinfo_get_innermost_udm;
 %ignore save_tinfo2;
+
 // Let's declare our own version of `deserialize_tinfo` before
 // SWiG hits the one that's in `typeinf.hpp` (and cannot, alas,
 // enjoy the addition of the default value.)
@@ -202,7 +203,59 @@ idaman bool ida_export deserialize_tinfo(tinfo_t *tif, const til_t *til, const t
     return (n < 0 || n >= $self->nbases) ? nullptr : $self->base[n];
   }
 
+  bool operator==(const til_t *r)
+  {
+    return $self == r;
+  }
+
+  bool operator!=(const til_t *r)
+  {
+    return $self != r;
+  }
+
+  tinfo_t import_type(const tinfo_t &src)
+  {
+    tinfo_t tif;
+    if ( !src.empty() )
+    {
+      qstring src_name;
+      if ( src.get_type_name(&src_name) )
+      {
+        const til_t *src_til = src.get_til();
+        if ( src_til != nullptr )
+        {
+          uint32 ord = copy_named_type($self, src_til, src_name.c_str());
+          if ( ord != 0 )
+            tif.get_numbered_type($self, ord);
+        }
+      }
+    }
+    return tif;
+  }
+
     %pythoncode {
+        def named_types(self):
+            for name in self.type_names:
+                tif = tinfo_t() # a new type. Always
+                if tif.get_named_type(self, name):
+                    yield tif
+
+        def numbered_types(self):
+            for ord in range(1, get_ordinal_limit(self)):
+                tif = tinfo_t() # a new type. Always
+                if tif.get_numbered_type(self, ord):
+                    yield tif
+
+        def get_named_type(self, name):
+            tif = tinfo_t()
+            if tif.get_named_type(self, name):
+                return tif
+
+        def get_numbered_type(self, ordinal):
+            tif = tinfo_t()
+            if tif.get_numbered_type(self, ordinal):
+                return tif
+
         def get_type_names(self):
             n = first_named_type(self, NTF_TYPE)
             while n:
@@ -305,7 +358,58 @@ idaman bool ida_export deserialize_tinfo(tinfo_t *tif, const til_t *til, const t
 }
 %template(udtmembervec_template_t) qvector<udm_t>;
 %ignore udt_type_data_t::VERSION;
-%ignore udt_type_data_old_t;
+%ignore udt_type_data_t::get_best_fit_member(asize_t) const;
+
+%feature("shadow") tinfo_t::tinfo_t %{
+def __init__(self, *args, ordinal=None, name=None, tid=None, til=None):
+    _ida_typeinf.tinfo_t_swiginit(self, _ida_typeinf.new_tinfo_t(*args))
+    if args and self.empty():
+        raise ValueError("Invalid input data: %s" % str(args))
+    elif ordinal is not None:
+        if not self.get_numbered_type(til, ordinal):
+            raise ValueError("No type with ordinal %s in type library %s" % (ordinal, til))
+    elif name is not None:
+        if not self.get_named_type(til, name):
+            raise ValueError("No type with name %s in type library %s" % (name, til))
+    elif tid is not None:
+        if not self.get_type_by_tid(tid):
+            raise ValueError("No type with ID %s in type library %s" % (name, til))
+%}
+
+// We want to make it possible to support both:
+//   tinfo_t::get_edm(size_t idx)
+//   tinfo_t::get_edm(edm_t *out, size_t idx)
+// but to do that, we cannot just apply an out typemap to `edm_t *`:
+// SWiG will collapse the 2 methods into 1. So we resort to a
+// made-up type!
+%inline %{
+  typedef edm_t out_edm_t;
+%}
+
+%typemap(in,numinputs=0) out_edm_t *out_edm (out_edm_t temp)
+{
+  // %typemap(in,numinputs=0) out_edm_t *out_edm (out_edm_t temp)
+  $1 = &temp;
+}
+%typemap(argout) out_edm_t *out_edm
+{
+  // %typemap(argout) out_edm_t *out_edm
+  if ( result > -1 )
+  {
+    PyObject *py_edm = SWIG_NewPointerObj(new out_edm_t(*($1)), $1_descriptor, SWIG_POINTER_OWN | 0);
+    $result = SWIG_Python_AppendOutput($result, py_edm);
+  }
+  else
+  {
+    Py_INCREF(Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None);
+  }
+}
+%typemap(freearg) out_edm_t *out_edm
+{
+  // %typemap(freearg) out_edm_t *out_edm
+  // Nothing. We certainly don't want 'temp' to be deleted.
+}
 
 %extend tinfo_t {
   PyObject *get_attr(const qstring &key, bool all_attrs=true)
@@ -315,6 +419,75 @@ idaman bool ida_export deserialize_tinfo(tinfo_t *tif, const til_t *til, const t
       return PyUnicode_FromStringAndSize((const char *) bv.begin(), bv.size());
     else
       Py_RETURN_NONE;
+  }
+
+  int get_edm(out_edm_t *out_edm, size_t idx) const
+  {
+    tinfo_code_t rc = $self->get_edm((edm_t *) out_edm, idx);
+    return rc == TERR_OK ? idx : -1;
+  }
+
+  // bw-compat
+  ssize_t find_edm(edm_t *edm, uint64 value, bmask64_t bmask=DEFMASK64, uchar serial=0) const
+  { return $self->get_edm_by_value(edm, value, bmask, serial); }
+
+  // bw-compat
+  ssize_t find_edm(edm_t *edm, const char *name) const
+  { return $self->get_edm(edm, name); }
+
+  %pythoncode {
+
+    def __repr__(self):
+        if self.present():
+            til = self.get_til()
+            if til == get_idati():
+                name = self.get_type_name()
+                if name:
+                    return f'{self.__class__.__module__}.{self.__class__.__name__}(get_idati(), "{name}")'
+                else:
+                    ord = self.get_ordinal()
+                    if ord > 0:
+                        return f'{self.__class__.__module__}.{self.__class__.__name__}(get_idati(), {ord})'
+            return f'{self.__class__.__module__}.{self.__class__.__name__}("""{self._print()}""")'
+        return f'{self.__class__.__module__}.{self.__class__.__name__}()'
+
+    def iter_struct(self):
+        udt = udt_type_data_t()
+        if not self.is_struct() or not self.get_udt_details(udt):
+            raise TypeError("Type is not a structure")
+        for udm in udt:
+            yield udm_t(udm)
+
+
+    def iter_union(self):
+        udt = udt_type_data_t()
+        if not self.is_union() or not self.get_udt_details(udt):
+            raise TypeError("Type is not a union")
+        for udm in udt:
+            yield udm_t(udm)
+
+    def iter_udt(self):
+        udt = udt_type_data_t()
+        if not self.is_udt() or not self.get_udt_details(udt):
+            raise TypeError("Type is not a structure or union")
+        for udm in udt:
+            yield udm_t(udm)
+
+    def iter_enum(self):
+        edt = enum_type_data_t()
+        if not self.is_enum() or not self.get_enum_details(edt):
+            raise TypeError("Type is not a structure")
+        for edm in edt:
+            yield edm_t(edm)
+
+    def iter_func(self):
+        fdt = func_type_data_t()
+        if not self.is_func() or not self.get_func_details(fdt):
+            raise TypeError("Type is not a function")
+        for arg in fdt:
+            yield funcarg_t(arg)
+
+    get_edm_by_name = get_by_edm_name # bw-compat
   }
 }
 %ignore tinfo_t::get_attr;
@@ -408,7 +581,52 @@ idaman bool ida_export deserialize_tinfo(tinfo_t *tif, const til_t *til, const t
   delete $1;
 }
 
+//-------------------------------------------------------------------------
+%feature("pythonappend") udm_t::udm_t %{
+    if args and self.empty():
+        raise ValueError("Invalid input data: %s" % str(args))
+%}
+
+%feature("pythonappend") funcarg_t::funcarg_t %{
+    if args and self.type.empty():
+        raise ValueError("Invalid input data: %s" % str(args))
+%}
+
+%feature("pythonappend") tinfo_t::add_udm %{
+    if val != 0:
+        raise ValueError("Invalid input data: %s" % tinfo_errstr(val))
+%}
+
+%feature("pythonappend") tinfo_t::add_edm %{
+    if val != 0:
+        raise ValueError("Invalid input data: %s" % tinfo_errstr(val))
+%}
+
 %include "typeinf.hpp"
+
+%extend udm_t {
+
+  udm_t(const udm_t &r)
+  {
+    return new udm_t(r);
+  }
+}
+
+%extend edm_t {
+
+  edm_t(const edm_t &r)
+  {
+    return new edm_t(r);
+  }
+}
+
+%extend funcarg_t {
+
+  funcarg_t(const funcarg_t &r)
+  {
+    return new funcarg_t(r);
+  }
+}
 
 // Custom wrappers
 

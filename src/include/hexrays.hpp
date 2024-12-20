@@ -2427,9 +2427,9 @@ struct stkvar_ref_t
   }
   /// Retrieve the referenced stack variable.
   /// \param[out] udm  stkvar, may be nullptr
-  /// \param p_off if specified, will hold IDA stkoff after the call.
+  /// \param p_idaoff if specified, will hold IDA stkoff after the call.
   /// \return index of stkvar in the frame or -1
-  ssize_t hexapi get_stkvar(udm_t *udm=nullptr, uval_t *p_off=nullptr) const;
+  ssize_t hexapi get_stkvar(udm_t *udm=nullptr, uval_t *p_idaoff=nullptr) const;
 };
 
 //-------------------------------------------------------------------------
@@ -2980,16 +2980,19 @@ public:
   //-----------------------------------------------------------------------
   /// Retrieve the referenced stack variable.
   /// \param[out] udm  stkvar, may be nullptr
-  /// \param p_off if specified, will hold IDA stkoff after the call.
+  /// \param p_idaoff if specified, will hold IDA stkoff after the call.
   /// \return index of stkvar in the frame or -1
-  ssize_t get_stkvar(udm_t *udm=nullptr, uval_t *p_off=nullptr) const { return s->get_stkvar(udm, p_off); }
+  ssize_t get_stkvar(udm_t *udm=nullptr, uval_t *p_idaoff=nullptr) const
+  {
+    return s->get_stkvar(udm, p_idaoff);
+  }
 
   /// Get the referenced stack offset.
   /// This function can also handle mop_sc if it is entirely mapped into
   /// a continuous stack region.
-  /// \param p_off the output buffer
+  /// \param p_vdoff the output buffer
   /// \return success
-  bool hexapi get_stkoff(sval_t *p_off) const;
+  bool hexapi get_stkoff(sval_t *p_vdoff) const;
 
   //-----------------------------------------------------------------------
   // Working with mop_d operands
@@ -4774,7 +4777,11 @@ public:
   {
     return v.is_stk_var() && v.get_stkoff() >= inargoff;
   }
-  ssize_t get_stkvar(udm_t *udm, sval_t vd_stkoff, uval_t *poff=nullptr) const;
+  ssize_t get_stkvar(
+        udm_t *udm,
+        sval_t vd_stkoff,
+        uval_t *p_idaoff=nullptr,
+        tinfo_t *p_frame=nullptr) const;
   // get lvar location
   argloc_t get_ida_argloc(const lvar_t &v) const
   {
@@ -10782,9 +10789,9 @@ inline int stkvar_ref_t::compare(const stkvar_ref_t &r) const
 }
 
 //--------------------------------------------------------------------------
-inline ssize_t stkvar_ref_t::get_stkvar(udm_t *udm, uval_t *p_off) const
+inline ssize_t stkvar_ref_t::get_stkvar(udm_t *udm, uval_t *p_idaoff) const
 {
-  return (ssize_t)HEXDSP(hx_stkvar_ref_t_get_stkvar, this, udm, p_off);
+  return (ssize_t)HEXDSP(hx_stkvar_ref_t_get_stkvar, this, udm, p_idaoff);
 }
 
 //--------------------------------------------------------------------------
@@ -10962,9 +10969,9 @@ inline bool mop_t::is_constant(uint64 *out, bool is_signed) const
 }
 
 //--------------------------------------------------------------------------
-inline bool mop_t::get_stkoff(sval_t *p_off) const
+inline bool mop_t::get_stkoff(sval_t *p_vdoff) const
 {
-  return (uchar)(size_t)HEXDSP(hx_mop_t_get_stkoff, this, p_off) != 0;
+  return (uchar)(size_t)HEXDSP(hx_mop_t_get_stkoff, this, p_vdoff) != 0;
 }
 
 //--------------------------------------------------------------------------

@@ -222,7 +222,8 @@ with open(args.input) as f:
             elif line.find("varargs") > -1:
                 current_function_uses_varargs = True
 
-            if line.find("SWIG_Python_AppendOutput") > -1:
+            if line.find("SWIG_Python_AppendOutput") > -1 \
+               or line.find("Will be tuplified") > -1:
                 current_function_uses_AppendOutput = True
             elif line.find("return resultobj;") > -1:
                 if current_function_uses_AppendOutput:

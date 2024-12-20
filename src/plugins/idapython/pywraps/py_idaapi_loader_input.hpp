@@ -20,17 +20,29 @@ class loader_input_t(pyidc_opaque_object_t):
     def open(self, filename, remote = False):
         """
         Opens a file (or a remote file)
+
+        @param filename: the file name
+        @param remote: whether the file is local, or remote
         @return: Boolean
         """
         pass
 
     def set_linput(self, linput):
-        """Links the current loader_input_t instance to a linput_t instance"""
+        """
+        Links the current loader_input_t instance to a linput_t instance
+
+        @param linput: the linput_t to link to
+        """
         pass
 
     @staticmethod
     def from_fp(fp):
-        """A static method to construct an instance from a FILE*"""
+        """
+        A static method to construct an instance from a FILE*
+
+        @param fp: a FILE pointer
+        @return: a new instance, or None
+        """
         pass
 
     def open_memory(self, start, size):
@@ -43,9 +55,12 @@ class loader_input_t(pyidc_opaque_object_t):
         """
         pass
 
-    def seek(self, pos, whence = SEEK_SET):
+    def seek(self, offset, whence = SEEK_SET):
         """
         Set input source position
+
+        @param offset: the seek offset
+        @param whence: the position to seek from
         @return: the new position (not 0 as fseek!)
         """
         pass
@@ -64,15 +79,31 @@ class loader_input_t(pyidc_opaque_object_t):
         pass
 
     def gets(self, len):
-        """Reads a line from the input file. Returns the read line or None"""
+        """
+        Reads a line from the input file. Returns the read line or None
+
+        @param len: the maximum line length
+        @return: a str, or None
+        """
         pass
 
     def read(self, size):
-        """Read up to size bytes (all data if size is negative). Return an empty bytes object on EOF."""
+        """
+        Read up to size bytes (all data if size is negative). Return an empty bytes object on EOF.
+
+        @param size: the maximum number of bytes to read
+        @return a bytes object
+        """
         pass
 
     def readbytes(self, size, big_endian):
-        """Similar to read() but it respect the endianness"""
+        """
+        Similar to read() but it respect the endianness
+
+        @param size: the maximum number of bytes to read
+        @param big_endian: endianness
+        @return a str, or None
+        """
         pass
 
     def file2base(self, pos, ea1, ea2, patchable):

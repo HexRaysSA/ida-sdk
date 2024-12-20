@@ -715,8 +715,8 @@ struct proc_def_t
   void set_thunk_name(
         ea_t ea,
         ea_t name_ea,
-        const char *prefix = ".",
-        const char *postfix = "");
+        const char *_prefix = ".",
+        const char *_postfix = "");
 };
 
 //----------------------------------------------------------------------------
@@ -3192,6 +3192,14 @@ struct elf_loader_t
 
   gnu_debugdata_t gnu_debugdata;
 
+  // program header map (from PHT)
+  struct phdr_map_t
+  {
+    range64_t part; // file region
+    ea_t ea;        // mapped to address
+  };
+  qvector<phdr_map_t> phdr_maps;
+
   elf_loader_t(linput_t *li, ushort neflags);
   ~elf_loader_t();
   void load_file();
@@ -3421,6 +3429,7 @@ struct elf_loader_t
     }
     return false;
   }
+  bool validate_section_mapping(const elf_shdr_t &section, const char *sh_name, ea_t *to_ea/*[inout]*/);
 };
 
 //--------------------------------------------------------------------------

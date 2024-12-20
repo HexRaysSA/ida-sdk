@@ -3,19 +3,19 @@ IDA Plugin Project Template:
 
 IDAPlugin is a Visual Studio C++ Project template.
 
-This template can be used for x64 platform with the following configurations:
+This template can be used for x64 platforms with the following configurations:
 
-* x64 - Debug: will produce debug plugins for IDA64
-* x64 - Realease: will produce release plugins for IDA64
+* x64 - Debug: will produce debug plugins for IDA
+* x64 - Release: will produce release plugins for IDA
 
 Installation:
 -------------
 
-* It it does not exist create IDASDK environment variable. Make it point to the 
+* If it does not exist create IDASDK environment variable. Make it point to the 
   IDA SDK root directory. The generated projects will use it find the include,
   library and binary output directories.
-* Copy IDAPlugin.zip in $(VisualStudioDir)\Templates\ProjectTemplates\Visual 
-  C++ Projects
+* Copy the zip files in the directory shown in Tools > Options > Project and 
+  Solutions > Locations > User project template Location.
 * Start Visual Studio
 * Create a new project. If the new project template does not appear, Type IDA
   in the search for template edit box.

@@ -753,28 +753,6 @@ static void send_modules_lifecycle_notification(module_lifecycle_notification_t 
 }
 
 //-------------------------------------------------------------------------
-static wchar_t *utf8_wchar_t(qvector<wchar_t> *out, const char *in)
-{
-#ifdef __NT__
-  qwstring tmp;
-  utf8_utf16(&tmp, in);
-  out->qclear();
-  out->insert(out->begin(), tmp.begin(), tmp.end());
-#else
-  const char *p = in;
-  while ( *p != '\0' )
-  {
-    wchar32_t cp = get_utf8_char(&p);
-    if ( cp == 0 || cp == BADCP )
-      break;
-    out->push_back(cp);
-  }
-  out->push_back(0); // we're not dealing with a qstring; have to do it ourselves
-#endif
-  return out->begin();
-}
-
-//-------------------------------------------------------------------------
 idapython_plugin_t::idapython_plugin_t()
   : initialized(false),
     ui_ready(false)
@@ -964,31 +942,6 @@ bool idapython_plugin_t::init()
     warning("Couldn't initialize IDAPython: %s", errbuf.c_str());
     return false;
   }
-
-#ifdef __MAC__
-  if ( !extapi.lib_path.empty() )
-  {
-    // On OSX we should explicitly call Py_SetPythonHome().
-    // When using the system Python installation, sys.path will contain paths to other
-    // Python installations if they appear in $PATH. This can cause fatal errors during
-    // the system python's initialization.
-    //
-    // Note: The path will be something like:
-    // /System/Library/Frameworks/Python.framework/Versions/2.5/Python
-    // We need to strip the last part.
-    //
-    // Also, use a permanent buffer because Py_SetPythonHome() just stores a pointer
-    char utf8_pyhomepath[MAXSTR];
-    qstrncpy(utf8_pyhomepath, extapi.lib_path.c_str(), sizeof(utf8_pyhomepath));
-    char *lastslash = strrchr(utf8_pyhomepath, '/');
-    if ( lastslash != nullptr )
-    {
-      *lastslash = 0;
-      utf8_wchar_t(&pyhomepath, utf8_pyhomepath);
-      Py_SetPythonHome(pyhomepath.begin()); //lint !e2586 Function 'Py_SetPythonHome' is deprecated
-    }
-  }
-#endif
 
   if ( config.alert_auto_scripts )
   {
@@ -2184,7 +2137,7 @@ void idapython_plugin_t::_prepare_sys_path()
   if ( !path || !PySequence_Check(path.o) )
     return;
 
-  qstring new_path;
+  qstrvec_t new_path;
   Py_ssize_t path_len = PySequence_Size(path.o);
   if ( path_len > 0 )
   {
@@ -2196,19 +2149,18 @@ void idapython_plugin_t::_prepare_sys_path()
         && PyUnicode_Check(path_el.o)
         && PyUnicode_as_qstring(&path_el_utf8, path_el.o) )
       {
-        if ( path_el_utf8.empty() )
-          continue; // skip empty entry
-        if ( !new_path.empty() )
-          new_path.append(DELIMITER);
-        new_path.append(path_el_utf8);
+        if ( !path_el_utf8.empty() ) // skip empty entry
+          new_path.push_back(path_el_utf8);
       }
     }
   }
-  if ( !new_path.empty() )
-    new_path.append(DELIMITER);
-  new_path.append(idadir("python"));
-  qvector<wchar_t> wpath;
-  PySys_SetPath(utf8_wchar_t(&wpath, new_path.c_str()));
+  new_path.push_back(idadir("python"));
+
+  ref_t py_new_path(PyW_StrVecToPyList(new_path));
+  // Since `PySys_GetObject` returns a borrowed reference,
+  // I'm guessing `PySys_SetObject` steals one...
+  py_new_path.incref();
+  PySys_SetObject("path", py_new_path.o);
 }
 
 //-------------------------------------------------------------------------

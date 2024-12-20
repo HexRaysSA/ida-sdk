@@ -28,7 +28,7 @@ To build:
 
 To use the SDK:
 
-- **IDA 9.0**
+- **IDA 9.0sp1**
 
 ## Repository fundamentals 
 

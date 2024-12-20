@@ -46,9 +46,11 @@ static int idaapi py_import_enum_cb(
 //-------------------------------------------------------------------------
 /*
 #<pydoc>
-def get_import_module_name(path, fname, callback):
+def get_import_module_name(mod_index):
     """
     Returns the name of an imported module given its index
+
+    @param mod_index: the module index
     @return: None or the module name
     """
     pass

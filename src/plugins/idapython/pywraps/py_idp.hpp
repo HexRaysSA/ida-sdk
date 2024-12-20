@@ -427,6 +427,15 @@ static ssize_t ph_get_reg_accesses(
   return processor_t::get_reg_accesses(accvec, insn, flags);
 }
 
+//-------------------------------------------------------------------------
+static ssize_t ph_get_abi_info(
+        qstrvec_t *abi_names,
+        qstrvec_t *abi_opts,
+        comp_t comp)
+{
+  return processor_t::get_abi_info(abi_names, abi_opts, comp);
+}
+
 //---------------------------------------------------------------------------
 // IDP hooks
 //---------------------------------------------------------------------------

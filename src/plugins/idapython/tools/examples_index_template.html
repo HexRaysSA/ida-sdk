@@ -23,10 +23,10 @@ Used keywords:
     </div>
 
     <h1>IDAPython examples:</h1>
-% for category in sorted(examples):
-    <h2>Category: {{category}}</h2>
+% for category in sorted(grouped):
+    <h2>{{category}}</h2>
     <div class="c_list" onclick="handle_click()">
-  % for example in sorted(examples[category], key=lambda e: e.name):
+  % for example in sorted(grouped[category], key=lambda e: e.name):
       <div class="example-entry collapsed-entry" name="{{example.name}}">
         <div>
           <span class="exp-col expander">&#x25B9;</span>
@@ -36,7 +36,7 @@ Used keywords:
         <div class="details" id="DIV_{{example.name}}">
 
 <pre>
-{{example.description if example.description else example.summary}}
+{{example.description}}
 </pre>
 
           <ul>

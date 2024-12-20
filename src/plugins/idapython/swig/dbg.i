@@ -65,33 +65,43 @@
 
 //-------------------------------------------------------------------------
 //                       get_process_options()
-%define %get_process_options_out_qstring(ARG_NAME)
+%rename (get_process_options2) get_process_options;
+%rename (get_process_options) get_process_options_noenv;
+
+%define %get_process_options_out_arg(ARG_NAME)
 %typemap(in, numinputs=0) qstring *ARG_NAME (qstring temp)
 {
-  // %get_process_options_out_qstring %typemap(in, numinputs=0) qstring *ARG_NAME
+  // %get_process_options_out_arg %typemap(in, numinputs=0) qstring *ARG_NAME
   $1 = &temp;
 }
 %typemap(argout) qstring *ARG_NAME
 {
-  // %get_process_options_out_qstring %typemap(argout) qstring *ARG_NAME
+  // %get_process_options_out_arg %typemap(argout) qstring *ARG_NAME
   $result = SWIG_Python_AppendOutput($result, PyUnicode_FromString($1->c_str()));
 }
 %typemap(freearg) qstring* ARG_NAME
 {
-  // %get_process_options_out_qstring %typemap(freearg) qstring* ARG_NAME
+  // %get_process_options_out_arg %typemap(freearg) qstring* ARG_NAME
   // Nothing. We certainly don't want 'temp' to be deleted.
 }
-%enddef
-%get_process_options_out_qstring(path);
-%get_process_options_out_qstring(args);
-%get_process_options_out_qstring(sdir);
-%get_process_options_out_qstring(host);
-%get_process_options_out_qstring(pass);
-%typemap(in, numinputs=0) launch_env_t *envs (launch_env_t temp)
+%typemap(in, numinputs=0) launch_env_t *out_envs (launch_env_t temp)
 {
-  // %typemap(in, numinputs=0) launch_env_t *envs (launch_envs_t temp)
+  // %get_process_options_out_arg %typemap(in, numinputs=0) launch_env_t *ARG_NAME
   $1 = &temp;
 }
+%typemap(argout) launch_env_t *out_envs
+{
+  // %get_process_options_out_arg %typemap(argout) launch_env_t *ARG_NAME
+  PyObject *py_launch_env = SWIG_NewPointerObj(new launch_env_t(*($1)), $1_descriptor, SWIG_POINTER_OWN | 0);
+  $result = SWIG_Python_AppendOutput($result, py_launch_env);
+}
+%enddef
+%get_process_options_out_arg(path);
+%get_process_options_out_arg(args);
+%get_process_options_out_arg(envs);
+%get_process_options_out_arg(sdir);
+%get_process_options_out_arg(host);
+%get_process_options_out_arg(pass);
 %apply int *OUTPUT { int *port };
 
 // specialize for 'get_process_options()'s first output

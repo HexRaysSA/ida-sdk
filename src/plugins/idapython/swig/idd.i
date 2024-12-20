@@ -163,6 +163,23 @@
   }
 }
 
+//-------------------------------------------------------------------------
+%extend launch_env_t
+{
+  void set(const char *envvar, const char *value)
+  {
+    qstring envline = envvar;
+    envline += "=";
+    envline += value;
+    $self->push_back(envline);
+  }
+
+  PyObject *envs()
+  {
+    return qstrvec2pylist(*$self, S2LF_EMPTY_NONE);
+  }
+}
+
 %{
 //<code(py_idd)>
 //</code(py_idd)>

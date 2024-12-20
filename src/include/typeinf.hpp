@@ -2,15 +2,6 @@
  *      Interactive disassembler (IDA)
  *      Copyright (c) 1990-2024 Hex-Rays
  *      ALL RIGHTS RESERVED.
- *
- *      Type Information.
- *
- *      Glossary:
- *        udt (user-defined type): a structure or a union. enums are not included!
- *        udm (udt member): a udt member, i.e. a structure or union field.
- *                          this includes base classes but no functions at all
- *        edm (enum member): a enum member, i.e. a symbolic constant
- *
  */
 
 #ifndef _TYPEINF_HPP
@@ -21,16 +12,81 @@
 
 /*! \file typeinf.hpp
 
-  \brief Describes the type information records in IDA.
+  \brief Manipulate type information in IDA.
 
-  The recommended way of using type info is to use the ::tinfo_t class.
-  The type information is internally kept as an array of bytes terminated by 0.
+  In IDA, types are represented by, and manipulated
+  through ::tinfo_t objects.
 
-  Items in brackets [] are optional and sometimes are omitted.
-  ::type_t... means a sequence of ::type_t bytes which defines a type.
+  A ::tinfo_t can represent a simple type (e.g., `int`, `float`),
+  a complex types (structures, enums, unions, typedefs), or even
+  an arrays, or a function prototype.
 
-  \note to work with the types of instructions or data in the database,
-  use get_tinfo()/set_tinfo() and similar functions.
+  The key types in this file are:
+
+  * ::til_t - a type info library. Holds ::tinfo_t objects
+  * ::tinfo_t - information about a type (simple, complex, ...)
+
+  # Glossary
+
+  All throughout this file, there are certain terms that will keep
+  appearing. Let's go through them:
+
+  * udt: "user-defined type": a structure or union - but not enums. See ::udt_type_data_t
+  * udm: "udt member": i.e., a structure or union member. See ::udm_t
+  * edm: "enum member": i.e., an enumeration member - i.e., an enumerator. See ::edm_t
+
+  # Under the hood
+
+  The ::tinfo_t type provides a lot of useful methods already,
+  but it's possible to achieve even more by "unpacking" its
+  contents into the container classes:
+
+  * ::udt_type_data_t - for structures & unions. See ::tinfo_t::get_udt_details . Essentially, a vector of ::udm_t
+  * ::enum_type_data_t - for enumerations. See ::tinfo_t::get_enum_details . Essentially, a vector of ::edm_t
+  * ::ptr_type_data_t - for pointers. See ::tinfo_t::get_ptr_details
+  * ::array_type_data_t - for arrays. See ::tinfo_t::get_array_details
+  * ::func_type_data_t - for function prototypes. See ::tinfo_t::get_func_details
+
+  # Attached & detached tinfo_t objects
+
+  While a ::til_t hosts ::tinfo_t instances, it's possible to create tinfo_t
+  objects that are not registered in a til_t.
+
+  Here is an example, assigning a function prototype:
+
+       func_type_data_t func_info;
+
+       funcarg_t argc;
+       argc.name = "argc";
+       argc.type = tinfo_t(BT_INT);
+       func_info.push_back(argc);
+
+       funcarg_t argv;
+       argc.name = "argv";
+       argc.type = tinfo_t("const char **");
+       func_info.push_back(argv)
+
+       tinfo_t tif;
+       if ( tif.create_func(func_info) )
+       {
+         ea_t ea = // get address of "main"
+         apply_tinfo(ea, tif, TINFO_DEFINITE);
+       }
+
+  This code manipulates "detached" ::tinfo_t objects.
+
+  On the other hand, the following code manipulates an "attached"
+  ::tinfo_t object, and any operation that modifies it, will
+  also modify it in the hosting ::til_t:
+
+       tinfo_t tif;
+       // Load type from the "Local Types" til_t.
+       // Note: we could have used `get_idati()` instead of nullptr
+       if ( tif.get_named_type(nullptr, "my_struct_t") )
+         tif.add_udm("extra_field", "unsigned long long");
+
+  You can check a ::tinfo_t instance is attached, by
+  calling ::tinfo_t::is_typeref
 */
 
 /// byte sequence used to describe a type in IDA (see \ref tf)
@@ -1751,19 +1807,20 @@ enum sclass_t    ///< storage class
                                        ///< be used if you want to remember an explicit
                                        ///< pack value for each structure/union type.
                                        ///< See #HTI_PAK... definitions
-#define HTI_PAKDEF  0x00000000         ///<   default pack value
-#define HTI_PAK1    0x00001000         ///<   #pragma pack(1)
-#define HTI_PAK2    0x00002000         ///<   #pragma pack(2)
-#define HTI_PAK4    0x00003000         ///<   #pragma pack(4)
-#define HTI_PAK8    0x00004000         ///<   #pragma pack(8)
-#define HTI_PAK16   0x00005000         ///<   #pragma pack(16)
+#define HTI_PAKDEF    0x00000000       ///<   default pack value
+#define HTI_PAK1      0x00001000       ///<   #pragma pack(1)
+#define HTI_PAK2      0x00002000       ///<   #pragma pack(2)
+#define HTI_PAK4      0x00003000       ///<   #pragma pack(4)
+#define HTI_PAK8      0x00004000       ///<   #pragma pack(8)
+#define HTI_PAK16     0x00005000       ///<   #pragma pack(16)
 
-#define HTI_HIGH    0x00008000         ///< assume high level prototypes
+#define HTI_HIGH      0x00008000       ///< assume high level prototypes
                                        ///< (with hidden args, etc)
-#define HTI_LOWER   0x00010000         ///< lower the function prototypes
-#define HTI_RAWARGS 0x00020000         ///< leave argument names unchanged (do not remove underscores)
-#define HTI_RELAXED 0x00080000         ///< accept references to unknown namespaces
-#define HTI_NOBASE  0x00100000         ///< do not inspect base tils
+#define HTI_LOWER     0x00010000       ///< lower the function prototypes
+#define HTI_RAWARGS   0x00020000       ///< leave argument names unchanged (do not remove underscores)
+#define HTI_RELAXED   0x00080000       ///< accept references to unknown namespaces
+#define HTI_NOBASE    0x00100000       ///< do not inspect base tils
+#define HTI_SEMICOLON 0x00200000       ///< do not complain if the terminated semicolon is absent
 ///@}
 
 
@@ -1857,6 +1914,7 @@ idaman bool ida_export parse_decl(
 #define PT_RAWARGS   0x0400  ///< leave argument names unchanged (do not remove underscores)
 #define PT_RELAXED   0x1000  ///< accept references to unknown namespaces
 #define PT_EMPTY     0x2000  ///< accept empty decl
+#define PT_SEMICOLON 0x4000  ///< append the terminated semicolon
 ///@}
 
 
@@ -2033,7 +2091,8 @@ enum tinfo_code_t
   TERR_TYPE_WORSE  = -35, ///< the new type is worse than the old type
   TERR_BAD_FX_SIZE = -36, ///< cannot extend struct beyond fixed size
   TERR_STRUCT_SIZE = -37, ///< bad fixed structure size
-  TERR_COUNT       =  38,
+  TERR_NOT_FOUND   = -38, ///< member not found
+  TERR_COUNT       =  39,
 };
 
 /// Helper function to convert an error code into a printable string.
@@ -2848,6 +2907,13 @@ public:
   tinfo_t() : typid(BT_UNK) {}
   /// Constructor - can only be used to initialize simple types!
   explicit tinfo_t(type_t decl_type) : typid(decl_type) {}
+  /// Constructor - will attempt to parse the provided C declaration
+  explicit tinfo_t(const char *decl, til_t *til=nullptr, int pt_flags=0)
+     : typid(0)
+  {
+    parse(decl, til, pt_flags | PT_SEMICOLON);
+  }
+
   /// Constructor
   tinfo_t(const tinfo_t &r) : typid(0) { copy(r); }
   /// Copy contents of given tinfo into this one
@@ -2863,11 +2929,11 @@ public:
   /// Create a tinfo_t object for an existing named type.
   /// \param til          type library to use
   /// \param name         name of the type to link to
-  /// \param decl_type    if the reference was explicitly specified with the type tag         \n
-  ///                     (::BTF_STRUCT/::BTF_UNION/::BTF_ENUM) you may specify it.           \n
-  ///                     the kernel will accept only the specified tag after resolving       \n
-  ///                     the type. If the resolved type does not correspond to the           \n
-  ///                     explicitly specified tag, the type will be considered as undefined  \n
+  /// \param decl_type    if the reference was explicitly specified with the type tag
+  ///                     (::BTF_STRUCT/::BTF_UNION/::BTF_ENUM) you may specify it.
+  ///                     the kernel will accept only the specified tag after resolving
+  ///                     the type. If the resolved type does not correspond to the
+  ///                     explicitly specified tag, the type will be considered as undefined
   /// \param resolve      true: immediately resolve the type and return success code.
   ///                     false: return true but do not immediately resolve the type
   /// \param try_ordinal  true: try to replace name reference by an ordinal reference
@@ -3287,7 +3353,7 @@ public:
   ///   - with the specified type  (#STRMEM_TYPE)
   ///   - with the specified name  (#STRMEM_NAME)
   /// \return the index of the found member or -1
-  int find_udm(struct udm_t *udm, int strmem_flags) const { return find_tinfo_udt_member(udm, typid, strmem_flags); }
+  int find_udm(udm_t *udm, int strmem_flags) const { return find_tinfo_udt_member(udm, typid, strmem_flags); }
 /// \defgroup STRMEM_ Find UDT member flags
 /// used by 'strmem_flags' parameter to find_udm()
 ///@{
@@ -3339,6 +3405,24 @@ public:
   /// \return the index of the found member or -1
   inline int find_udm(const char *name, int strmem_flags=0) const;
 
+  /// Retrieve a structure/union member with the specified name
+  /// \param[out] out  udm_t storage. Must not be nullptr
+  /// \param name      member name. Must not be nullptr
+  /// \return the index of the found member, or -1
+  inline int get_udm(udm_t *out, const char *name) const;
+
+  /// Retrieve a structure/union member with the specified index
+  /// \param[out] out  udm_t storage. Must not be nullptr
+  /// \param index    the member index
+  /// \return the index of the found member, or -1
+  inline int get_udm(udm_t *out, size_t index) const;
+
+  /// Retrieve a structure/union member with the specified offset
+  /// \param[out] out  udm_t storage. Must not be nullptr
+  /// \param offset    member bit offset
+  /// \return the index of the found member, or -1
+  inline int get_udm_by_offset(udm_t *out, uint64 offset) const;
+
   /// Get number of udt members. -1-error
   int get_udt_nmembers() const { return get_tinfo_property(typid, GTA_UDT_NMEMBERS); }
 
@@ -3349,9 +3433,9 @@ public:
   bool is_small_udt() const { return get_tinfo_property(typid, GTA_IS_SMALL_UDT) != 0; }
 
   /// Requires full qualifier? (name is not unique)
-  /// \param out    qualifier. may be nullptr
-  /// \param name   field name
-  /// \param offset field offset in bits
+  /// \param[out] out qualifier. may be nullptr
+  /// \param      name   field name
+  /// \param      offset field offset in bits
   /// \return if the name is not unique, returns true
   bool requires_qualifier(qstring *out, const char *name, uint64 offset) const { return name_requires_qualifier(out, typid, name, offset); }
 
@@ -3414,24 +3498,24 @@ public:
   int get_enum_width() const { return get_tinfo_property(typid, GTA_ENUM_WIDTH); }
   uint64 calc_enum_mask() const { return make_mask<uint64>(get_enum_width()*8); }
 
-  /// Get enum member
+  /// Get enum member by its name
+  /// \param[out] out enum type member, may be nullptr
+  /// \param      name enum member name. Must not be nullptr
+  /// \return member index, otherwise returns -1.
+  ssize_t get_edm(edm_t *out, const char *name) const { return get_tinfo_property4(typid, GTA_EDM_BYNAME, size_t(out), size_t(name), 0, 0); }
+
+  /// Get enum member by its index
   /// \param[out] edm  enum type member
   /// \param      idx  enum member index
   tinfo_code_t get_edm(edm_t *edm, size_t idx) const { return tinfo_code_t(get_tinfo_property4(typid, GTA_EDM, size_t(edm), idx, 0, 0)); }
 
-  /// Find enum member
-  /// \param[out] edm  enum type member, may be nullptr
+  /// Get enum member by its value
+  /// \param[out] out  enum type member, may be nullptr
   /// \param      value
   /// \param      serial
   /// \param      bmask, in case of DEFMASK64 the bitmask enum property is ignored
   /// \return member index, otherwise returns -1.
-  ssize_t find_edm(edm_t *edm, uint64 value, bmask64_t bmask=DEFMASK64, uchar serial=0) const { return get_tinfo_property4(typid, GTA_EDM_BYVAL, size_t(edm), value, bmask, serial); }
-
-  /// Find enum member
-  /// \param[out] edm  enum type member, may be nullptr
-  /// \param      name
-  /// \return member index, otherwise returns -1.
-  ssize_t find_edm(edm_t *edm, const char *name) const { return get_tinfo_property4(typid, GTA_EDM_BYNAME, size_t(edm), size_t(name), 0, 0); }
+  ssize_t get_edm_by_value(edm_t *out, uint64 value, bmask64_t bmask=DEFMASK64, uchar serial=0) const { return get_tinfo_property4(typid, GTA_EDM_BYVAL, size_t(out), value, bmask, serial); }
 
   /// Get enum member TID
   /// \param idx  enum member index
@@ -3533,6 +3617,12 @@ public:
     return ::parse_decl(this, nullptr, til, decl, pt_flags);
   }
 
+  /// Create an empty structure/union
+  inline bool create_udt(bool is_union=false);
+
+  /// Create an empty enum
+  inline bool create_enum(bte_t bte=BTE_ALWAYS|BTE_HEX);
+
   /// \name Warning
   /// These functions consume 'p' (make it empty)
   ///@{
@@ -3560,7 +3650,7 @@ public:
   /// \param mname  enum type member name
   /// \return member index, otherwise returns -1.
   ///         If the function fails, THIS object becomes empty.
-  ssize_t get_edm_by_name(const char *mname, const til_t *til=nullptr) { return ::get_tinfo_by_edm_name(this, til, mname); }
+  ssize_t get_by_edm_name(const char *mname, const til_t *til=nullptr) { return ::get_tinfo_by_edm_name(this, til, mname); }
 
   /// \name Store type
   /// Store the type info in the type library as a named or numbered type.
@@ -3726,6 +3816,79 @@ public:
     return tinfo_code_t(set_tinfo_property4(this, STA_ADD_UDM, size_t(&udm), times, idx, etf_flags));
   }
 
+  /// Add a structure/union member.
+  ///
+  /// The member's size will be computed automatically.
+  ///
+  /// \param name   Member name. Must not be nullptr or empty.
+  /// \param type   Member type. Must not be empty. Can be any valid
+  ///               udt member type, like a pointer, array, etc.
+  /// \param offset Member offset in bits. It is the caller's
+  ///               responsibility to specify correct offsets.
+  /// \param etf_flags \ref ETF_ flags
+  /// \param times how many times to add. if times > 1, the member name will be
+  ///              appended a suffix like "_2" and so on
+  /// \param idx   the index in the udm array where the new udm should be placed.
+  ///              if the specified index cannot be honored because it would spoil
+  ///              the udm sorting order, it is silently ignored.
+  /// \note ETF_NO_SAVE is ignored
+  inline tinfo_code_t add_udm(
+        const char *name,
+        const tinfo_t &type,
+        uint64 offset=0,
+        uint etf_flags=0,
+        size_t times=1,
+        ssize_t idx=-1);
+
+  /// Add a structure/union member.
+  ///
+  /// The member's type will be created from 'type', and
+  /// its size will be computed automatically.
+  ///
+  /// \param name   Member name. Must not be nullptr or empty.
+  /// \param type   Member type.
+  ///               Can be only a simple type (integral/floating/bool).
+  /// \param offset Member offset in bits. It is the caller's
+  ///               responsibility to specify correct offsets.
+  /// \param etf_flags \ref ETF_ flags
+  /// \param times how many times to add. if times > 1, the member name will be
+  ///              appended a suffix like "_2" and so on
+  /// \param idx   the index in the udm array where the new udm should be placed.
+  ///              if the specified index cannot be honored because it would spoil
+  ///              the udm sorting order, it is silently ignored.
+  /// \note ETF_NO_SAVE is ignored
+  inline tinfo_code_t add_udm(
+        const char *name,
+        type_t type,
+        uint64 offset=0,
+        uint etf_flags=0,
+        size_t times=1,
+        ssize_t idx=-1);
+
+  /// Add a structure/union member.
+  ///
+  /// The member's type will be created by parsing 'type', and
+  /// its size will be computed automatically.
+  ///
+  /// \param name   Member name. Must not be nullptr or empty.
+  /// \param type   Member type. A valid C type declaration.
+  /// \param offset Member offset in bits. It is the caller's
+  ///               responsibility to specify correct offsets.
+  /// \param etf_flags \ref ETF_ flags
+  /// \param times how many times to add. if times > 1, the member name will be
+  ///              appended a suffix like "_2" and so on
+  /// \param idx   the index in the udm array where the new udm should be placed.
+  ///              if the specified index cannot be honored because it would spoil
+  ///              the udm sorting order, it is silently ignored.
+  /// \note ETF_NO_SAVE is ignored
+  inline tinfo_code_t add_udm(
+        const char *name,
+        const char *type,
+        uint64 offset=0,
+        uint etf_flags=0,
+        size_t times=1,
+        ssize_t idx=-1);
+
   /// Delete a structure/union member.
   tinfo_code_t del_udm(size_t index, uint etf_flags=0)
   {
@@ -3797,17 +3960,28 @@ public:
   /// Is a structure with fixed offsets?
   bool is_fixed_struct() const { return get_tinfo_property4(typid, GTA_IS_FIXED, 0, 0, 0, 0) != 0; }
 
-  /// Expand/shrink a structure by adding/removing a gap before the specified member.
+  /// Expand/shrink a structure by adding/removing a gap
+  /// before the specified member.
+  ///
+  /// For regular structures, either the gap can be accommodated by
+  /// aligning the next member with an alignment directive, or an
+  /// explicit "gap" member will be inserted.
+  /// Also note that it is impossible to add a gap at the
+  /// end of a regular structure.
+  ///
+  /// When it comes to fixed-layout structures, there is no need to
+  /// either add new "gap" members or align existing members, since
+  /// all members have a fixed offset.
+  /// It is possible to add a gap at the end of a fixed-layout
+  /// structure, by passing `-1` as index.
+  ///
   /// \param idx index of the member
   /// \param delta number of bytes to add or remove
   /// \param etf_flags  \ref etf_flag_t
-  /// Please note that it is impossible to add a gap at the very end of a structure.
-  /// However, adding before a regular member is possible.
+  ///
+  /// \note
   /// This function can be used to remove gaps in the middle of a structure by
   /// specifying a negative delta value.
-  /// \note
-  /// It is possible to add/remove a gap at the end of a fixed structure.
-  /// Use IDX equal to the number of members for that.
   tinfo_code_t expand_udt(size_t idx, adiff_t delta, uint etf_flags=0)
   {
     return tinfo_code_t(set_tinfo_property4(this, STA_EXPAND_UDT, idx, delta, 0, etf_flags));
@@ -3903,19 +4077,33 @@ public:
   ///              if the specified index cannot be honored because it would spoil
   ///              the edm sorting order, it is silently ignored.
   /// \note
-  /// 1. For non-bitmask enum push back constant,
-  ///    BMASK is not used (set it ot -1), never failed
-  /// 2. For bitmask enum:
-  ///    - if VAL and BMASK are not agreed,
-  ///      return TERR_BAD_MSKVAL
-  ///    - if group with BMASK exists,
-  ///      push back constant to group
+  /// 1. For non-bitmask enums, `bmask` is ignored
+  /// 2. For bitmask enums:
+  ///    - `edm.value` must be covered by `bmask`
+  ///    - if `bmask` is equal to DEFMASK64 then `edm.value` is used as `bmask`
+  ///    - if group with `bmask` exists, the member will be added to that group
   ///    - otherwise use constant as bitmask for a new group
   /// \note ETF_NO_SAVE is ignored
   tinfo_code_t add_edm(const edm_t &edm, bmask64_t bmask=DEFMASK64, uint etf_flags=0, ssize_t idx=-1)
   {
     return tinfo_code_t(set_tinfo_property4(this, STA_ADD_EDM, size_t(&edm), bmask, idx, etf_flags));
   }
+
+  /// Add a new enum member (a new symbolic constant)
+  /// \param name   the constant name
+  /// \param value  the constant value
+  /// \param bmask bmask of the group to add the constant to
+  /// \param etf_flags \ref etf_flag_t
+  ///              ETF_FORCENAME may be used in case of TERR_ALIEN_NAME
+  /// \param idx   the index in the edm array where the new edm should be placed.
+  ///              if the specified index cannot be honored because it would spoil
+  ///              the edm sorting order, it is silently ignored.
+  inline tinfo_code_t add_edm(
+        const char *name,
+        uint64 value,
+        bmask64_t bmask=DEFMASK64,
+        uint etf_flags=0,
+        ssize_t idx=-1);
 
   /// Delete enum members
   /// \param idx1 index in edmvec_t
@@ -3932,6 +4120,22 @@ public:
     return tinfo_code_t(set_tinfo_property4(this, STA_DEL_EDMS, idx1, idx2, 0, etf_flags));
   }
   tinfo_code_t del_edm(size_t idx, uint etf_flags=0) { return del_edms(idx, idx+1, etf_flags); }
+
+  /// Delete enum member by its name
+  ///
+  /// \param name the enumerator name (cannot be nullptr)
+  /// \param etf_flags \ref etf_flag_t
+  /// \return \ref tinfo_code_t
+  inline tinfo_code_t del_edm(const char *name, uint etf_flags=0);
+
+  /// Delete enum member by its value
+  ///
+  /// \param value the enumerator value
+  /// \param etf_flags \ref etf_flag_t
+  /// \param bmask, in case of DEFMASK64 the bitmask enum property is ignored
+  /// \param serial
+  /// \return \ref tinfo_code_t
+  inline tinfo_code_t del_edm_by_value(uint64 value, uint etf_flags=0, bmask64_t bmask=DEFMASK64, uchar serial=0);
 
   /// Rename a enum member
   /// \param idx        index in edmvec_t
@@ -4183,6 +4387,44 @@ struct funcarg_t
                            ///< to determine the original type
 #define FAI_UNUSED  0x0010 ///< argument is not used by the function
 ///@}
+
+  funcarg_t() = default;
+
+  /// Create a function argument, with the specified name and arbitrary type.
+  ///
+  /// \param _name   Argument name. May be empty
+  /// \param _type   Argument type. Must not be empty.
+  /// \param _argloc Argument location. Can be empty.
+  funcarg_t(const char *_name, const tinfo_t &_type, const argloc_t &_argloc=argloc_t())
+    : argloc(_argloc), name(_name), type(_type)
+  {
+  }
+
+  /// Create a function argument, with the specified name and simple type.
+  ///
+  /// \param _name   Argument name. May be empty
+  /// \param _type   Argument type.
+  ///                Can be only a simple type (integral/floating/bool).
+  /// \param _argloc Argument location. Can be empty.
+  funcarg_t(const char *_name, const type_t _type, const argloc_t &_argloc=argloc_t())
+    : argloc(_argloc), name(_name), type(_type)
+  {
+  }
+
+  /// Create a function argument, with the specified name and type.
+  ///
+  /// The 'type' object will be created by parsing the '_type' type
+  /// declaration.
+  ///
+  /// \param _name   Argument name. May be empty
+  /// \param _type   Member type. Must not a valid C type declaration.
+  /// \param _argloc Argument location. Can be empty.
+  funcarg_t(const char *_name, const char *_type, const argloc_t &_argloc=argloc_t())
+    : argloc(_argloc), name(_name)
+  {
+    type.parse(_type, nullptr, PT_SEMICOLON);
+  }
+
   bool operator == (const funcarg_t &r) const
   {
     return argloc == r.argloc
@@ -4228,7 +4470,7 @@ struct func_type_data_t : public funcargvec_t // #func
   reginfovec_t spoiled;     ///< spoiled register information.
                             ///< if spoiled register info is present, it overrides
                             ///< the standard spoil info (eax, edx, ecx for x86)
-  cm_t cc = 0;              ///< calling convention
+  cm_t cc = CM_CC_UNKNOWN;  ///< calling convention
   void swap(func_type_data_t &r) { qswap(*this, r); }
   bool is_high() const        { return (flags & FTI_HIGH) != 0; }
   bool is_noret() const       { return (flags & FTI_NORET) != 0; }
@@ -4317,7 +4559,19 @@ struct edm_t // #edm
   qstring cmt;    // repeatable comment
   uint64 value;
 
-  DEFINE_MEMORY_ALLOCATION_FUNCS()
+  edm_t() = default;
+
+  /// Create an enumeration value with the specified name and value
+  ///
+  /// \param _name  Enumerator name. Must not be empty.
+  /// \param _value Enumerator value
+  /// \param _cmt   Enumerator repeatable comment. May be empty.
+  edm_t(const char *_name, uint64 _value, const char *_cmt=nullptr)
+    : name(_name), cmt(_cmt), value(_value) {}
+
+  // a enum constant must at least have a name
+  bool empty() const { return name.empty(); }
+
   bool operator == (const edm_t &r) const
   {
     return name == r.name
@@ -4328,6 +4582,8 @@ struct edm_t // #edm
   void swap(edm_t &r) { qswap(*this, r); }
   inline tid_t get_tid() const;
 
+
+  DEFINE_MEMORY_ALLOCATION_FUNCS()
 };
 DECLARE_TYPE_AS_MOVABLE(edm_t);
 /// vector of enum values. for regular enums, no sorting order is defined.
@@ -4760,6 +5016,62 @@ struct udm_t // #udm
   uint32 tafld_bits = 0;///< TAH bits
   uchar fda = 0;        ///< field alignment (shift amount)
 
+  udm_t() = default;
+
+  /// Create a structure/union member, with the specified name and arbitrary type.
+  ///
+  /// The 'size' will be set automatically.
+  ///
+  /// \param      _name    Member name. Must not be empty.
+  /// \param      _type    Member type. Must not be empty. Can be any valid
+  ///                      udt member type, like a pointer, array, etc.
+  /// \param[in]  _offset  Member offset in bits. It is the caller's
+  ///                      responsibility to specify correct offsets.
+  udm_t(const char *_name, const tinfo_t &_type, uint64 _offset = 0)
+    : offset(_offset), name(_name), type(_type)
+  {
+    size = _type.get_size() * 8;
+  }
+
+  /// Create a structure/union member, with the specified name and simple type.
+  ///
+  /// The 'type' will be created from type_t, and the 'size' will
+  /// be set automatically.
+  ///
+  /// \param      _name    Member name. Must not be empty.
+  /// \param      _type    Member type. Must not be empty.
+  ///                      Can be only a simple type (integral/floating/bool).
+  /// \param[in]  _offset  Member offset in bits. It is the caller's
+  ///                      responsibility to specify correct offsets.
+  udm_t(const char *_name, const type_t _type, uint64 _offset = 0)
+    : offset(_offset), name(_name)
+  {
+    if ( is_type_arithmetic(_type) )
+    {
+      type = tinfo_t(_type);
+      size = type.get_size() * 8;
+    }
+  }
+
+  /// Create a structure/union member, with the specified name and type.
+  ///
+  /// The 'type' object will be created by parsing the '_type' type
+  /// declaration, and the 'size' will be set automatically.
+  ///
+  /// \param      _name    Member name. Must not be empty.
+  /// \param      _type    Member type. Must not a valid C type declaration.
+  /// \param[in]  _offset  Member offset in bits. It is the caller's
+  ///                      responsibility to specify correct offsets.
+  udm_t(const char *_name, const char *_type, uint64 _offset = 0)
+    : offset(_offset), name(_name)
+  {
+    if ( type.parse(_type, nullptr, PT_SEMICOLON) )
+      size = type.get_size() * 8;
+  }
+
+  // a udt member must at least have a type
+  bool empty() const { return type.empty(); }
+
   bool is_bitfield() const { return type.is_decl_bitfield(); }
   bool is_zero_bitfield() const { return size == 0 && is_bitfield(); }
   bool is_unaligned() const { return (tafld_bits & TAFLD_UNALIGNED) != 0; }
@@ -4859,6 +5171,24 @@ struct udt_type_data_t : public udtmembervec_t // #udt
         && (idx+1 == size() || !at(idx+1).is_baseclass());
   }
 
+  /// Add a new member to a structure or union.
+  /// This function just pushes a new member to the back of the structure/union member vector.
+  ///
+  /// \param      _name  Member name. Must not be nullptr.
+  /// \param      _type    Member type. Must not be empty.
+  /// \param[in]  _offset  Member offset in bits. It is the caller's responsibility to specify correct offsets.
+  ///
+  /// \return     { Reference to the newly added member }
+  udm_t &add_member(const char *_name, const tinfo_t &_type, uint64 _offset = 0)
+  {
+    udm_t &udm = push_back();
+    udm.name = _name;
+    udm.type = _type;
+    udm.size = _type.get_size() * 8;
+    udm.offset = _offset;
+    return udm;
+  }
+
   /// \ref tinfo_t::find_udm
   /// \note STRMEM_VFTABLE is not supported
   /// \return the index of the found member or -1
@@ -4878,9 +5208,15 @@ struct udt_type_data_t : public udtmembervec_t // #udt
     return find_member(&udm, STRMEM_OFFSET);
   }
 
-  /// Get member that is most likely referenced by the specified offset.
+  /// Get the member that is most likely referenced by the specified offset.
   /// Useful for offsets > sizeof(struct).
   ssize_t get_best_fit_member(asize_t disp) const { return udt_type_data_t__get_best_fit_member(this, disp); }
+
+  /// Get the member that is most likely referenced by the specified offset.
+  /// Useful for offsets > sizeof(struct).
+  /// \param[out] out udm_t storage. Must not be nullptr
+  /// \param disp the byte offset
+  inline ssize_t get_best_fit_member(udm_t *out, asize_t disp) const;
 
 };
 DECLARE_TYPE_AS_MOVABLE(udt_type_data_t);
@@ -5129,9 +5465,23 @@ inline bool tinfo_t::get_numbered_type(
   return create_typedef(tp, decl_type, false);
 }
 
+inline bool tinfo_t::create_udt(bool is_union)
+{
+  udt_type_data_t p;
+  p.is_union = is_union;
+  return create_udt(p);
+}
+
 inline bool tinfo_t::create_udt(udt_type_data_t &p)
 {
   return create_udt(p, p.is_union ? BTF_UNION : BTF_STRUCT);
+}
+
+inline bool tinfo_t::create_enum(bte_t bte)
+{
+  enum_type_data_t p;
+  p.bte = BTE_ALWAYS | bte;
+  return create_enum(p);
 }
 
 inline bool tinfo_t::create_ptr(
@@ -5179,6 +5529,39 @@ inline bool tinfo_t::convert_array_to_ptr()
   return ok;
 }
 
+inline tinfo_code_t tinfo_t::add_udm(
+        const char *name,
+        const tinfo_t &type,
+        uint64 offset,
+        uint etf_flags,
+        size_t times,
+        ssize_t idx)
+{
+  return add_udm(udm_t(name, type, offset), etf_flags, times, idx);
+}
+
+inline tinfo_code_t tinfo_t::add_udm(
+        const char *name,
+        type_t type,
+        uint64 offset,
+        uint etf_flags,
+        size_t times,
+        ssize_t idx)
+{
+  return add_udm(udm_t(name, type, offset), etf_flags, times, idx);
+}
+
+inline tinfo_code_t tinfo_t::add_udm(
+        const char *name,
+        const char *type,
+        uint64 offset,
+        uint etf_flags,
+        size_t times,
+        ssize_t idx)
+{
+  return add_udm(udm_t(name, type, offset), etf_flags, times, idx);
+}
+
 inline int tinfo_t::find_udm(uint64 offset, int strmem_flags) const
 {
   udm_t udm;
@@ -5191,6 +5574,75 @@ inline int tinfo_t::find_udm(const char *name, int strmem_flags) const
   udm_t udm;
   udm.name = name;
   return find_tinfo_udt_member(&udm, typid, STRMEM_NAME|strmem_flags);
+}
+
+inline int tinfo_t::get_udm(udm_t *out, const char *name) const
+{
+  udm_t tmp;
+  tmp.name = name;
+  int rc = find_udm(&tmp, STRMEM_NAME);
+  if ( rc >= 0 )
+    out->swap(tmp);
+  return rc;
+}
+
+inline int tinfo_t::get_udm(udm_t *out, size_t index) const
+{
+  udm_t tmp;
+  tmp.offset = index;
+  int rc = find_udm(&tmp, STRMEM_INDEX);
+  if ( rc >= 0 )
+    out->swap(tmp);
+  return rc;
+
+}
+
+inline int tinfo_t::get_udm_by_offset(udm_t *out, uint64 offset) const
+{
+  udm_t tmp;
+  tmp.offset = offset;
+  int rc = find_udm(&tmp, STRMEM_OFFSET);
+  if ( rc >= 0 )
+    out->swap(tmp);
+  return rc;
+}
+
+inline tinfo_code_t tinfo_t::add_edm(
+        const char *name,
+        uint64 value,
+        bmask64_t bmask,
+        uint etf_flags,
+        ssize_t idx)
+{
+  return add_edm(edm_t(name, value), bmask, etf_flags, idx);
+}
+
+inline tinfo_code_t tinfo_t::del_edm(
+        const char *name,
+        uint etf_flags)
+{
+  edm_t edm;
+  ssize_t idx = get_edm(&edm, name);
+  return idx < 0 ? TERR_NOT_FOUND : del_edm(idx, etf_flags);
+}
+
+inline tinfo_code_t tinfo_t::del_edm_by_value(
+        uint64 value,
+        uint etf_flags,
+        bmask64_t bmask,
+        uchar serial)
+{
+  edm_t edm;
+  ssize_t idx = get_edm_by_value(&edm, value, bmask, serial);
+  return idx < 0 ? TERR_NOT_FOUND : del_edm(idx, etf_flags);
+}
+
+inline ssize_t udt_type_data_t::get_best_fit_member(udm_t *out, asize_t disp) const
+{
+  ssize_t rc = get_best_fit_member(disp);
+  if ( rc >= 0 )
+    *out = at(rc);
+  return rc;
 }
 
 /// ::BT_PTR: If the current type is a pointer, return the pointed object.

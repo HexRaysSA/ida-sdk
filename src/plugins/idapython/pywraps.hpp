@@ -502,6 +502,7 @@ idaman Py_ssize_t ida_export pyvar_walk_seq(
 idaman ref_t ida_export PyW_SizeVecToPyList(const sizevec_t &vec);
 idaman ref_t ida_export PyW_UvalVecToPyList(const uvalvec_t &vec);
 idaman ref_t ida_export PyW_StrVecToPyList(const qstrvec_t &vec);
+idaman ref_t ida_export PyW_TidVecToPyList(const qvector<tid_t> &vec);
 
 // Converts a Python list, to a vector of the given type.
 // An exception will be raised in case:

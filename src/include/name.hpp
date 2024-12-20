@@ -201,25 +201,6 @@ inline bool is_visible_cp(wchar32_t cp)
 idaman bool ida_export is_ident(const char *name);
 
 
-inline bool is_valid_name(const char *name, bool cpuregs_permitted)
-{
-  if ( cpuregs_permitted )
-  {
-    // udms may have register names, there is no ambiguity
-    qstring tmp = name;
-    if ( !validate_name(&tmp, VNT_UDTMEM, SN_NOWARN) )
-      return false;
-  }
-  else
-  {
-    // stkvar names must be regular idents (e.g. register names cannot be used for them)
-    // otherwise we can end up with something like "mov [ebp+ebp], 1"
-    if ( !is_ident(name) )
-      return false;
-  }
-  return true;
-}
-
 /// Is valid user-specified name? (valid name & !dummy prefix).
 /// \param name  name to test. may be nullptr.
 /// \retval 1  yes

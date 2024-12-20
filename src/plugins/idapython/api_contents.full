@@ -420,11 +420,10 @@ ida_hexrays.Hexrays_Hooks.cmt_changed (method)
     @param cmt: (const char *)
 
 ida_hexrays.Hexrays_Hooks.collect_warnings (method)
-    collect_warnings(self, warnings, cfunc) -> int
+    collect_warnings(self, cfunc) -> int
     Collect warning messages from plugins. These warnings will be displayed at the
     function header, after the user-defined comments.
     
-    @param warnings: (qstrvec_t *)
     @param cfunc: (cfunc_t *)
 
 ida_hexrays.Hexrays_Hooks.combine (method)
@@ -1894,6 +1893,11 @@ ida_hexrays.array_of_bitsets.add_unique (method)
     
     @param x: bitset_t const &
 
+ida_hexrays.array_of_bitsets.append (method)
+    append(self, x)
+    
+    @param x: bitset_t const &
+
 ida_hexrays.array_of_bitsets.at (method)
     at(self, _idx) -> bitset_t
     
@@ -1923,6 +1927,11 @@ ida_hexrays.array_of_bitsets.erase (method)
     
     @param first: qvector< bitset_t >::iterator
     @param last: qvector< bitset_t >::iterator
+
+ida_hexrays.array_of_bitsets.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< bitset_t > const &
 
 ida_hexrays.array_of_bitsets.extract (method)
     extract(self) -> bitset_t
@@ -2038,6 +2047,11 @@ ida_hexrays.array_of_ivlsets.add_unique (method)
     
     @param x: ivlset_t const &
 
+ida_hexrays.array_of_ivlsets.append (method)
+    append(self, x)
+    
+    @param x: ivlset_t const &
+
 ida_hexrays.array_of_ivlsets.at (method)
     at(self, _idx) -> ivlset_t
     
@@ -2067,6 +2081,11 @@ ida_hexrays.array_of_ivlsets.erase (method)
     
     @param first: qvector< ivlset_t >::iterator
     @param last: qvector< ivlset_t >::iterator
+
+ida_hexrays.array_of_ivlsets.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< ivlset_t > const &
 
 ida_hexrays.array_of_ivlsets.extract (method)
     extract(self) -> ivlset_t
@@ -2489,6 +2508,11 @@ ida_hexrays.block_chains_vec_t.__setitem__ (method)
     @param i: size_t
     @param v: block_chains_t const &
 
+ida_hexrays.block_chains_vec_t.append (method)
+    append(self, x)
+    
+    @param x: block_chains_t const &
+
 ida_hexrays.block_chains_vec_t.at (method)
     at(self, _idx) -> block_chains_t
     
@@ -2518,6 +2542,11 @@ ida_hexrays.block_chains_vec_t.erase (method)
     
     @param first: qvector< block_chains_t >::iterator
     @param last: qvector< block_chains_t >::iterator
+
+ida_hexrays.block_chains_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< block_chains_t > const &
 
 ida_hexrays.block_chains_vec_t.extract (method)
     extract(self) -> block_chains_t
@@ -2938,6 +2967,11 @@ ida_hexrays.cblock_posvec_t.__setitem__ (method)
     @param i: size_t
     @param v: cblock_pos_t const &
 
+ida_hexrays.cblock_posvec_t.append (method)
+    append(self, x)
+    
+    @param x: cblock_pos_t const &
+
 ida_hexrays.cblock_posvec_t.at (method)
     at(self, _idx) -> cblock_pos_t
     
@@ -2967,6 +3001,11 @@ ida_hexrays.cblock_posvec_t.erase (method)
     
     @param first: qvector< cblock_pos_t >::iterator
     @param last: qvector< cblock_pos_t >::iterator
+
+ida_hexrays.cblock_posvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< cblock_pos_t > const &
 
 ida_hexrays.cblock_posvec_t.extract (method)
     extract(self) -> cblock_pos_t
@@ -5031,6 +5070,11 @@ ida_hexrays.cinsnptrvec_t.add_unique (method)
     
     @param x: cinsn_t *const &
 
+ida_hexrays.cinsnptrvec_t.append (method)
+    append(self, x)
+    
+    @param x: cinsn_t *const &
+
 ida_hexrays.cinsnptrvec_t.at (method)
     at(self, _idx) -> cinsn_t
     
@@ -5062,6 +5106,11 @@ ida_hexrays.cinsnptrvec_t.erase (method)
     
     @param first: qvector< cinsn_t * >::iterator
     @param last: qvector< cinsn_t * >::iterator
+
+ida_hexrays.cinsnptrvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< cinsn_t * > const &
 
 ida_hexrays.cinsnptrvec_t.extract (method)
     extract(self) -> cinsn_t **
@@ -6159,6 +6208,11 @@ ida_hexrays.ctree_items_t.add_unique (method)
     
     @param x: citem_t *const &
 
+ida_hexrays.ctree_items_t.append (method)
+    append(self, x)
+    
+    @param x: citem_t *const &
+
 ida_hexrays.ctree_items_t.at (method)
     at(self, _idx) -> citem_t
     
@@ -6190,6 +6244,11 @@ ida_hexrays.ctree_items_t.erase (method)
     
     @param first: qvector< citem_t * >::iterator
     @param last: qvector< citem_t * >::iterator
+
+ida_hexrays.ctree_items_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< citem_t * > const &
 
 ida_hexrays.ctree_items_t.extract (method)
     extract(self) -> citem_t **
@@ -7086,6 +7145,11 @@ ida_hexrays.hexwarns_t.add_unique (method)
     
     @param x: hexwarn_t const &
 
+ida_hexrays.hexwarns_t.append (method)
+    append(self, x)
+    
+    @param x: hexwarn_t const &
+
 ida_hexrays.hexwarns_t.at (method)
     at(self, _idx) -> hexwarn_t
     
@@ -7115,6 +7179,11 @@ ida_hexrays.hexwarns_t.erase (method)
     
     @param first: qvector< hexwarn_t >::iterator
     @param last: qvector< hexwarn_t >::iterator
+
+ida_hexrays.hexwarns_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< hexwarn_t > const &
 
 ida_hexrays.hexwarns_t.extract (method)
     extract(self) -> hexwarn_t
@@ -8339,6 +8408,11 @@ ida_hexrays.lvar_saved_infos_t.add_unique (method)
     
     @param x: lvar_saved_info_t const &
 
+ida_hexrays.lvar_saved_infos_t.append (method)
+    append(self, x)
+    
+    @param x: lvar_saved_info_t const &
+
 ida_hexrays.lvar_saved_infos_t.at (method)
     at(self, _idx) -> lvar_saved_info_t
     
@@ -8368,6 +8442,11 @@ ida_hexrays.lvar_saved_infos_t.erase (method)
     
     @param first: qvector< lvar_saved_info_t >::iterator
     @param last: qvector< lvar_saved_info_t >::iterator
+
+ida_hexrays.lvar_saved_infos_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< lvar_saved_info_t > const &
 
 ida_hexrays.lvar_saved_infos_t.extract (method)
     extract(self) -> lvar_saved_info_t
@@ -10208,6 +10287,11 @@ ida_hexrays.mcallargs_t.add_unique (method)
     
     @param x: mcallarg_t const &
 
+ida_hexrays.mcallargs_t.append (method)
+    append(self, x)
+    
+    @param x: mcallarg_t const &
+
 ida_hexrays.mcallargs_t.at (method)
     at(self, _idx) -> mcallarg_t
     
@@ -10237,6 +10321,11 @@ ida_hexrays.mcallargs_t.erase (method)
     
     @param first: qvector< mcallarg_t >::iterator
     @param last: qvector< mcallarg_t >::iterator
+
+ida_hexrays.mcallargs_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< mcallarg_t > const &
 
 ida_hexrays.mcallargs_t.extract (method)
     extract(self) -> mcallarg_t
@@ -11686,19 +11775,19 @@ ida_hexrays.mop_t.get_insn (method)
     @param code: enum mcode_t
 
 ida_hexrays.mop_t.get_stkoff (method)
-    get_stkoff(self, p_off) -> bool
+    get_stkoff(self, p_vdoff) -> bool
     Get the referenced stack offset. This function can also handle mop_sc if it is
     entirely mapped into a continuous stack region.
     
-    @param p_off: (C++: sval_t *) the output buffer
+    @param p_vdoff: (C++: sval_t *) the output buffer
     @return: success
 
 ida_hexrays.mop_t.get_stkvar (method)
-    get_stkvar(self, udm=None, p_off=None) -> ssize_t
+    get_stkvar(self, udm=None, p_idaoff=None) -> ssize_t
     Retrieve the referenced stack variable.
     
     @param udm: (C++: udm_t *) stkvar, may be nullptr
-    @param p_off: (C++: uval_t *) if specified, will hold IDA stkoff after the call.
+    @param p_idaoff: (C++: uval_t *) if specified, will hold IDA stkoff after the call.
     @return: index of stkvar in the frame or -1
 
 ida_hexrays.mop_t.has_side_effects (method)
@@ -12107,6 +12196,11 @@ ida_hexrays.mopvec_t.add_unique (method)
     
     @param x: mop_t const &
 
+ida_hexrays.mopvec_t.append (method)
+    append(self, x)
+    
+    @param x: mop_t const &
+
 ida_hexrays.mopvec_t.at (method)
     at(self, _idx) -> mop_t
     
@@ -12136,6 +12230,11 @@ ida_hexrays.mopvec_t.erase (method)
     
     @param first: qvector< mop_t >::iterator
     @param last: qvector< mop_t >::iterator
+
+ida_hexrays.mopvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< mop_t > const &
 
 ida_hexrays.mopvec_t.extract (method)
     extract(self) -> mop_t
@@ -12571,6 +12670,11 @@ ida_hexrays.qvector_carg_t.add_unique (method)
     
     @param x: carg_t const &
 
+ida_hexrays.qvector_carg_t.append (method)
+    append(self, x)
+    
+    @param x: carg_t const &
+
 ida_hexrays.qvector_carg_t.at (method)
     at(self, _idx) -> carg_t
     
@@ -12600,6 +12704,11 @@ ida_hexrays.qvector_carg_t.erase (method)
     
     @param first: qvector< carg_t >::iterator
     @param last: qvector< carg_t >::iterator
+
+ida_hexrays.qvector_carg_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< carg_t > const &
 
 ida_hexrays.qvector_carg_t.extract (method)
     extract(self) -> carg_t
@@ -12715,6 +12824,11 @@ ida_hexrays.qvector_catchexprs_t.add_unique (method)
     
     @param x: catchexpr_t const &
 
+ida_hexrays.qvector_catchexprs_t.append (method)
+    append(self, x)
+    
+    @param x: catchexpr_t const &
+
 ida_hexrays.qvector_catchexprs_t.at (method)
     at(self, _idx) -> catchexpr_t
     
@@ -12744,6 +12858,11 @@ ida_hexrays.qvector_catchexprs_t.erase (method)
     
     @param first: qvector< catchexpr_t >::iterator
     @param last: qvector< catchexpr_t >::iterator
+
+ida_hexrays.qvector_catchexprs_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< catchexpr_t > const &
 
 ida_hexrays.qvector_catchexprs_t.extract (method)
     extract(self) -> catchexpr_t
@@ -12859,6 +12978,11 @@ ida_hexrays.qvector_ccase_t.add_unique (method)
     
     @param x: ccase_t const &
 
+ida_hexrays.qvector_ccase_t.append (method)
+    append(self, x)
+    
+    @param x: ccase_t const &
+
 ida_hexrays.qvector_ccase_t.at (method)
     at(self, _idx) -> ccase_t
     
@@ -12888,6 +13012,11 @@ ida_hexrays.qvector_ccase_t.erase (method)
     
     @param first: qvector< ccase_t >::iterator
     @param last: qvector< ccase_t >::iterator
+
+ida_hexrays.qvector_ccase_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< ccase_t > const &
 
 ida_hexrays.qvector_ccase_t.extract (method)
     extract(self) -> ccase_t
@@ -13003,6 +13132,11 @@ ida_hexrays.qvector_ccatchvec_t.add_unique (method)
     
     @param x: ccatch_t const &
 
+ida_hexrays.qvector_ccatchvec_t.append (method)
+    append(self, x)
+    
+    @param x: ccatch_t const &
+
 ida_hexrays.qvector_ccatchvec_t.at (method)
     at(self, _idx) -> ccatch_t
     
@@ -13032,6 +13166,11 @@ ida_hexrays.qvector_ccatchvec_t.erase (method)
     
     @param first: qvector< ccatch_t >::iterator
     @param last: qvector< ccatch_t >::iterator
+
+ida_hexrays.qvector_ccatchvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< ccatch_t > const &
 
 ida_hexrays.qvector_ccatchvec_t.extract (method)
     extract(self) -> ccatch_t
@@ -13147,6 +13286,11 @@ ida_hexrays.qvector_history_t.add_unique (method)
     
     @param x: history_item_t const &
 
+ida_hexrays.qvector_history_t.append (method)
+    append(self, x)
+    
+    @param x: history_item_t const &
+
 ida_hexrays.qvector_history_t.at (method)
     at(self, _idx) -> history_item_t
     
@@ -13176,6 +13320,11 @@ ida_hexrays.qvector_history_t.erase (method)
     
     @param first: qvector< history_item_t >::iterator
     @param last: qvector< history_item_t >::iterator
+
+ida_hexrays.qvector_history_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< history_item_t > const &
 
 ida_hexrays.qvector_history_t.extract (method)
     extract(self) -> history_item_t
@@ -13291,6 +13440,11 @@ ida_hexrays.qvector_lvar_t.add_unique (method)
     
     @param x: lvar_t const &
 
+ida_hexrays.qvector_lvar_t.append (method)
+    append(self, x)
+    
+    @param x: lvar_t const &
+
 ida_hexrays.qvector_lvar_t.at (method)
     at(self, _idx) -> lvar_t
     
@@ -13320,6 +13474,11 @@ ida_hexrays.qvector_lvar_t.erase (method)
     
     @param first: qvector< lvar_t >::iterator
     @param last: qvector< lvar_t >::iterator
+
+ida_hexrays.qvector_lvar_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< lvar_t > const &
 
 ida_hexrays.qvector_lvar_t.extract (method)
     extract(self) -> lvar_t
@@ -13715,11 +13874,11 @@ ida_hexrays.stkvar_ref_t.compare (method)
     @param r: stkvar_ref_t const &
 
 ida_hexrays.stkvar_ref_t.get_stkvar (method)
-    get_stkvar(self, udm=None, p_off=None) -> ssize_t
+    get_stkvar(self, udm=None, p_idaoff=None) -> ssize_t
     Retrieve the referenced stack variable.
     
     @param udm: (C++: udm_t *) stkvar, may be nullptr
-    @param p_off: (C++: uval_t *) if specified, will hold IDA stkoff after the call.
+    @param p_idaoff: (C++: uval_t *) if specified, will hold IDA stkoff after the call.
     @return: index of stkvar in the frame or -1
 
 ida_hexrays.stkvar_ref_t.mba (variable)
@@ -14036,6 +14195,11 @@ ida_hexrays.ui_stroff_ops_t.add_unique (method)
     
     @param x: ui_stroff_op_t const &
 
+ida_hexrays.ui_stroff_ops_t.append (method)
+    append(self, x)
+    
+    @param x: ui_stroff_op_t const &
+
 ida_hexrays.ui_stroff_ops_t.at (method)
     at(self, _idx) -> ui_stroff_op_t
     
@@ -14065,6 +14229,11 @@ ida_hexrays.ui_stroff_ops_t.erase (method)
     
     @param first: qvector< ui_stroff_op_t >::iterator
     @param last: qvector< ui_stroff_op_t >::iterator
+
+ida_hexrays.ui_stroff_ops_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< ui_stroff_op_t > const &
 
 ida_hexrays.ui_stroff_ops_t.extract (method)
     extract(self) -> ui_stroff_op_t
@@ -16588,7 +16757,6 @@ ida_bytes.bin_flag (function)
     num_flag()
 
 ida_bytes.bin_search (function)
-    bin_search(start_ea, end_ea, data, flags) -> ea_t
     Search for a set of bytes in the program
     
     @param start_ea: linear address, start of range to search
@@ -16596,14 +16764,6 @@ ida_bytes.bin_search (function)
     @param data: the prepared data to search for (see parse_binpat_str())
     @param flags: combination of BIN_SEARCH_* flags
     @return: the address of a match, or ida_idaapi.BADADDR if not found
-    bin_search(start_ea, end_ea, image, mask, len, flags) -> ea_t
-    
-    @param start_ea: ea_t
-    @param end_ea: ea_t
-    @param image: uchar const *
-    @param mask: uchar const *
-    @param len: size_t
-    @param flags: int
 
 ida_bytes.byte_flag (function)
     byte_flag() -> flags64_t
@@ -16798,6 +16958,11 @@ ida_bytes.compiled_binpat_vec_t.add_unique (method)
     
     @param x: compiled_binpat_t const &
 
+ida_bytes.compiled_binpat_vec_t.append (method)
+    append(self, x)
+    
+    @param x: compiled_binpat_t const &
+
 ida_bytes.compiled_binpat_vec_t.at (method)
     at(self, _idx) -> compiled_binpat_t
     
@@ -16827,6 +16992,11 @@ ida_bytes.compiled_binpat_vec_t.erase (method)
     
     @param first: qvector< compiled_binpat_t >::iterator
     @param last: qvector< compiled_binpat_t >::iterator
+
+ida_bytes.compiled_binpat_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< compiled_binpat_t > const &
 
 ida_bytes.compiled_binpat_vec_t.extract (method)
     extract(self) -> compiled_binpat_t
@@ -17520,22 +17690,20 @@ ida_bytes.get_byte (function)
     @param ea: (C++: ea_t)
 
 ida_bytes.get_bytes (function)
-    get_bytes(ea, size, gmb_flags=0x01) -> PyObject
     Get the specified number of bytes of the program.
     
     @param ea: program address
     @param size: number of bytes to return
-    @param gmb_flags: int
+    @param gmb_flags: OR'ed combination of GMB_* values (defaults to GMB_READALL)
     @return: the bytes (as bytes object), or None in case of failure
 
 ida_bytes.get_bytes_and_mask (function)
-    get_bytes_and_mask(ea, size, gmb_flags=0x01) -> PyObject
     Get the specified number of bytes of the program, and a bitmask
     specifying what bytes are defined and what bytes are not.
     
     @param ea: program address
     @param size: number of bytes to return
-    @param gmb_flags: int
+    @param gmb_flags: OR'ed combination of GMB_* values (defaults to GMB_READALL)
     @return: a tuple (bytes, mask), or None in case of failure.
              Both 'bytes' and 'mask' are 'str' instances.
 
@@ -17910,7 +18078,6 @@ ida_bytes.get_radix (function)
     @return: 2, 8, 10, 16
 
 ida_bytes.get_strlit_contents (function)
-    get_strlit_contents(ea, py_len, type, flags=0) -> PyObject
     Get contents of string literal, as UTF-8-encoded codepoints.
     It works even if the string has not been created in the database yet.
     
@@ -17919,21 +18086,23 @@ ida_bytes.get_strlit_contents (function)
     strings), you should probably be using the idautils.Strings class.
     
     @param ea: linear address of the string
-    @param py_len: length of the string in bytes (including terminating 0)
+    @param len: length of the string in bytes (including terminating 0)
     @param type: type of the string. Represents both the character encoding,
                  <u>and</u> the 'type' of string at the given location.
     @param flags: combination of STRCONV_..., to perform output conversion.
     @return: a bytes-filled str object.
 
 ida_bytes.get_stroff_path (function)
-    get_stroff_path(path, delta, ea, n) -> int
-    Get struct path of operand.
+    Get the structure offset path for operand `n`, at the
+    specified address.
     
-    @param path: (C++: tid_t *) buffer for structure path (strpath). see nalt.hpp for more info.
-    @param delta: (C++: adiff_t *) struct offset delta
-    @param ea: (C++: ea_t) linear address
-    @param n: (C++: int) 0..UA_MAXOP-1 operand number, OPND_ALL one of the operands
-    @return: length of strpath
+    Note: for backward-compatibility reasons, this function also supports the prototype:
+    
+    get_stroff_path(path : tid_array, delta : sval_pointer, ea : int, n : int)
+    
+    @param ea: address where the operand holds a path to a structure offset
+    @param n: operand number
+    @return: a tuple holding a (list_of_tid_t's, delta_within_the_last_type), or (None, None)
 
 ida_bytes.get_wide_byte (function)
     get_wide_byte(ea) -> uint64
@@ -18973,18 +19142,16 @@ ida_bytes.qword_flag (function)
     Get a flags64_t representing a quad word.
 
 ida_bytes.register_custom_data_format (function)
-    register_custom_data_format(py_df) -> int
     Registers a custom data format with a given data type.
     
-    @param py_df: an instance of data_format_t
+    @param df: an instance of data_format_t
     @return:     < 0 if failed to register
         > 0 data format id
 
 ida_bytes.register_custom_data_type (function)
-    register_custom_data_type(py_dt) -> int
     Registers a custom data type.
     
-    @param py_dt: an instance of the data_type_t class
+    @param dt: an instance of the data_type_t class
     @return:     < 0 if failed to register
         > 0 data type id
 
@@ -19143,14 +19310,12 @@ ida_bytes.toggle_sign (function)
     @param n: (C++: int)
 
 ida_bytes.unregister_custom_data_format (function)
-    unregister_custom_data_format(dfid) -> bool
     Unregisters a custom data format
     
     @param dfid: data format id
     @return: Boolean
 
 ida_bytes.unregister_custom_data_type (function)
-    unregister_custom_data_type(dtid) -> bool
     Unregisters a custom data type.
     
     @param dtid: the data type id
@@ -19180,12 +19345,11 @@ ida_bytes.use_mapping (function)
     @return: translated address
 
 ida_bytes.visit_patched_bytes (function)
-    visit_patched_bytes(ea1, ea2, py_callable) -> int
     Enumerates patched bytes in the given range and invokes a callable
     
     @param ea1: start address
     @param ea2: end address
-    @param py_callable: a Python callable with the following prototype:
+    @param callable: a Python callable with the following prototype:
                      callable(ea, fpos, org_val, patch_val).
                      If the callable returns non-zero then that value will be
                      returned to the caller and the enumeration will be
@@ -19982,6 +20146,11 @@ ida_dbg.bpt_vec_t.__setitem__ (method)
     @param i: size_t
     @param v: bpt_t const &
 
+ida_dbg.bpt_vec_t.append (method)
+    append(self, x)
+    
+    @param x: bpt_t const &
+
 ida_dbg.bpt_vec_t.at (method)
     at(self, _idx) -> bpt_t
     
@@ -20011,6 +20180,11 @@ ida_dbg.bpt_vec_t.erase (method)
     
     @param first: qvector< bpt_t >::iterator
     @param last: qvector< bpt_t >::iterator
+
+ida_dbg.bpt_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< bpt_t > const &
 
 ida_dbg.bpt_vec_t.extract (method)
     extract(self) -> bpt_t
@@ -20224,7 +20398,6 @@ ida_dbg.dbg_bpt_changed (variable)
     @param bpt: (bpt_t *)
 
 ida_dbg.dbg_can_query (function)
-    dbg_can_query() -> bool
     This function can be used to check if the debugger can be queried:
       - debugger is loaded
       - process is suspended
@@ -20255,7 +20428,6 @@ ida_dbg.dbg_information (variable)
     @param event: (const debug_event_t *)
 
 ida_dbg.dbg_is_loaded (function)
-    dbg_is_loaded() -> bool
     Checks if a debugger is loaded
     
     @return: Boolean
@@ -20643,13 +20815,9 @@ ida_dbg.get_local_vars (function)
     @param out: source_items_t *
 
 ida_dbg.get_manual_regions (function)
-    get_manual_regions(ranges)
     Returns the manual memory regions
     
-    @param ranges: meminfo_vec_t *
-    
     @return: list(start_ea, end_ea, name, sclass, sbase, bitness, perm)
-    get_manual_regions() -> [(int, int, str, str, int, int, int), ...] or None
 
 ida_dbg.get_module_info (function)
     get_module_info(ea, modinfo) -> bool
@@ -20665,6 +20833,9 @@ ida_dbg.get_next_module (function)
 ida_dbg.get_process_options (function)
     get_process_options()
     Get process options. Any of the arguments may be nullptr
+
+ida_dbg.get_process_options2 (function)
+    get_process_options2()
 
 ida_dbg.get_process_state (function)
     get_process_state() -> int
@@ -20698,7 +20869,6 @@ ida_dbg.get_reg_val (function)
     @param regname: char const *
 
 ida_dbg.get_reg_vals (function)
-    get_reg_vals(tid, clsmask=-1) -> regvals_t
     Fetch live registers values for the thread
     
     @param tid: The ID of the thread to read registers for
@@ -20876,11 +21046,10 @@ ida_dbg.hide_all_bpts (function)
     hide_all_bpts() -> int
 
 ida_dbg.internal_get_sreg_base (function)
-    internal_get_sreg_base(tid, sreg_value) -> ea_t
     Get the sreg base, for the given thread.
     
-    @param tid: thid_t
-    @param sreg_value: int
+    @param tid: the thread ID
+    @param sreg_value: the sreg value
     @return: The sreg base, or BADADDR on failure.
 
 ida_dbg.internal_ioctl (function)
@@ -21041,6 +21210,11 @@ ida_dbg.memreg_infos_t.__setitem__ (method)
     @param i: size_t
     @param v: memreg_info_t const &
 
+ida_dbg.memreg_infos_t.append (method)
+    append(self, x)
+    
+    @param x: memreg_info_t const &
+
 ida_dbg.memreg_infos_t.at (method)
     at(self, _idx) -> memreg_info_t
     
@@ -21070,6 +21244,11 @@ ida_dbg.memreg_infos_t.erase (method)
     
     @param first: qvector< memreg_info_t >::iterator
     @param last: qvector< memreg_info_t >::iterator
+
+ida_dbg.memreg_infos_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< memreg_info_t > const &
 
 ida_dbg.memreg_infos_t.extract (method)
     extract(self) -> memreg_info_t
@@ -21146,7 +21325,6 @@ ida_dbg.read_dbg_memory (function)
     @param size: size_t
 
 ida_dbg.refresh_debugger_memory (function)
-    refresh_debugger_memory() -> PyObject *
     Refreshes the debugger memory
     
     @return: Nothing
@@ -21483,16 +21661,26 @@ ida_dbg.set_manual_regions (function)
     @param ranges: meminfo_vec_t const *
 
 ida_dbg.set_process_options (function)
-    set_process_options(path, args, sdir, host, _pass, port)
+    set_process_options(path, args, envs, sdir, host, _pass, port)
     Set process options. Any of the arguments may be nullptr, which means 'do not
     modify'
     
     @param path: (C++: const char *) char const *
     @param args: (C++: const char *) char const *
+    @param envs: (C++: const launch_env_t *) launch_env_t const *
     @param sdir: (C++: const char *) char const *
     @param host: (C++: const char *) char const *
     @param pass: (C++: const char *) char const *
     @param port: (C++: int)
+    
+    set_process_options(path, args, sdir, host, _pass, port)
+    
+    @param path: char const *
+    @param args: char const *
+    @param sdir: char const *
+    @param host: char const *
+    @param pass: char const *
+    @param port: int
 
 ida_dbg.set_process_state (function)
     set_process_state(newstate, p_thid, dbginv) -> int
@@ -21738,6 +21926,11 @@ ida_dbg.tev_reg_values_t.__setitem__ (method)
     @param i: size_t
     @param v: tev_reg_value_t const &
 
+ida_dbg.tev_reg_values_t.append (method)
+    append(self, x)
+    
+    @param x: tev_reg_value_t const &
+
 ida_dbg.tev_reg_values_t.at (method)
     at(self, _idx) -> tev_reg_value_t
     
@@ -21767,6 +21960,11 @@ ida_dbg.tev_reg_values_t.erase (method)
     
     @param first: qvector< tev_reg_value_t >::iterator
     @param last: qvector< tev_reg_value_t >::iterator
+
+ida_dbg.tev_reg_values_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< tev_reg_value_t > const &
 
 ida_dbg.tev_reg_values_t.extract (method)
     extract(self) -> tev_reg_value_t
@@ -21853,6 +22051,11 @@ ida_dbg.tevinforeg_vec_t.__setitem__ (method)
     @param i: size_t
     @param v: tev_info_reg_t const &
 
+ida_dbg.tevinforeg_vec_t.append (method)
+    append(self, x)
+    
+    @param x: tev_info_reg_t const &
+
 ida_dbg.tevinforeg_vec_t.at (method)
     at(self, _idx) -> tev_info_reg_t
     
@@ -21882,6 +22085,11 @@ ida_dbg.tevinforeg_vec_t.erase (method)
     
     @param first: qvector< tev_info_reg_t >::iterator
     @param last: qvector< tev_info_reg_t >::iterator
+
+ida_dbg.tevinforeg_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< tev_info_reg_t > const &
 
 ida_dbg.tevinforeg_vec_t.extract (method)
     extract(self) -> tev_info_reg_t
@@ -22071,7 +22279,6 @@ ida_diskio.create_memory_linput (function)
                  passed as 0
 
 ida_diskio.enumerate_files (function)
-    enumerate_files(path, fname, callback) -> PyObject *
     Enumerate files in the specified directory while the callback returns 0.
     
     @param path: directory to enumerate files in
@@ -22387,6 +22594,11 @@ ida_dirtree.direntry_vec_t.add_unique (method)
     
     @param x: direntry_t const &
 
+ida_dirtree.direntry_vec_t.append (method)
+    append(self, x)
+    
+    @param x: direntry_t const &
+
 ida_dirtree.direntry_vec_t.at (method)
     at(self, _idx) -> direntry_t
     
@@ -22416,6 +22628,11 @@ ida_dirtree.direntry_vec_t.erase (method)
     
     @param first: qvector< direntry_t >::iterator
     @param last: qvector< direntry_t >::iterator
+
+ida_dirtree.direntry_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< direntry_t > const &
 
 ida_dirtree.direntry_vec_t.extract (method)
     extract(self) -> direntry_t
@@ -22642,6 +22859,11 @@ ida_dirtree.dirtree_cursor_vec_t.add_unique (method)
     
     @param x: dirtree_cursor_t const &
 
+ida_dirtree.dirtree_cursor_vec_t.append (method)
+    append(self, x)
+    
+    @param x: dirtree_cursor_t const &
+
 ida_dirtree.dirtree_cursor_vec_t.at (method)
     at(self, _idx) -> dirtree_cursor_t
     
@@ -22671,6 +22893,11 @@ ida_dirtree.dirtree_cursor_vec_t.erase (method)
     
     @param first: qvector< dirtree_cursor_t >::iterator
     @param last: qvector< dirtree_cursor_t >::iterator
+
+ida_dirtree.dirtree_cursor_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< dirtree_cursor_t > const &
 
 ida_dirtree.dirtree_cursor_vec_t.extract (method)
     extract(self) -> dirtree_cursor_t
@@ -23602,6 +23829,11 @@ ida_expr.idc_values_t.__setitem__ (method)
     @param i: size_t
     @param v: idc_value_t const &
 
+ida_expr.idc_values_t.append (method)
+    append(self, x)
+    
+    @param x: idc_value_t const &
+
 ida_expr.idc_values_t.at (method)
     at(self, _idx) -> idc_value_t
     
@@ -23631,6 +23863,11 @@ ida_expr.idc_values_t.erase (method)
     
     @param first: qvector< idc_value_t >::iterator
     @param last: qvector< idc_value_t >::iterator
+
+ida_expr.idc_values_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< idc_value_t > const &
 
 ida_expr.idc_values_t.extract (method)
     extract(self) -> idc_value_t
@@ -24245,7 +24482,6 @@ ida_fpro.qfile_t.__init__ (method)
     @param pycapsule: PyObject *
 
 ida_fpro.qfile_t.close (method)
-    close(self)
     Closes the file
 
 ida_fpro.qfile_t.filename (method)
@@ -24265,20 +24501,17 @@ ida_fpro.qfile_t.from_fp (method)
     @param fp: FILE *
 
 ida_fpro.qfile_t.get_byte (method)
-    get_byte(self) -> PyObject *
     Reads a single byte from the file. Returns None if EOF or the read byte
 
 ida_fpro.qfile_t.get_fp (method)
     get_fp(self) -> FILE *
 
 ida_fpro.qfile_t.gets (method)
-    gets(self, size) -> PyObject *
     Reads a line from the input file. Returns the read line or None
     
-    @param size: int
+    @param len: the maximum line length
 
 ida_fpro.qfile_t.open (method)
-    open(self, filename, mode) -> bool
     Opens a file
     
     @param filename: the file name
@@ -24286,14 +24519,12 @@ ida_fpro.qfile_t.open (method)
     @return: Boolean
 
 ida_fpro.qfile_t.opened (method)
-    opened(self) -> bool
     Checks if the file is opened or not
 
 ida_fpro.qfile_t.put_byte (method)
-    put_byte(self, chr) -> int
     Writes a single byte to the file
     
-    @param chr: int
+    @param chr: the byte value
 
 ida_fpro.qfile_t.puts (method)
     puts(self, str) -> int
@@ -24301,49 +24532,46 @@ ida_fpro.qfile_t.puts (method)
     @param str: char const *
 
 ida_fpro.qfile_t.read (method)
-    read(self, size) -> PyObject *
     Reads from the file. Returns the buffer or None
     
-    @param size: int
+    @param size: the maximum number of bytes to read
+    @return: a str, or None
 
 ida_fpro.qfile_t.readbytes (method)
-    readbytes(self, size, big_endian) -> PyObject *
     Similar to read() but it respect the endianness
     
-    @param size: int
-    @param big_endian: bool
+    @param size: the maximum number of bytes to read
+    @param big_endian: endianness
+    @return: a str, or None
 
 ida_fpro.qfile_t.seek (method)
-    seek(self, offset, whence=SEEK_SET) -> int
     Set input source position
     
-    @param offset: int64
-    @param whence: int
+    @param offset: the seek offset
+    @param whence: the position to seek from
     @return: the new position (not 0 as fseek!)
 
 ida_fpro.qfile_t.size (method)
     size(self) -> int64
 
 ida_fpro.qfile_t.tell (method)
-    tell(self) -> int64
     Returns the current position
 
 ida_fpro.qfile_t.tmpfile (method)
-    tmpfile() -> qfile_t
     A static method to construct an instance using a temporary file
 
 ida_fpro.qfile_t.write (method)
-    write(self, py_buf) -> int
     Writes to the file. Returns 0 or the number of bytes written
     
-    @param py_buf: PyObject *
+    @param buf: the str to write
+    @return: result code
 
 ida_fpro.qfile_t.writebytes (method)
-    writebytes(self, py_buf, big_endian) -> int
     Similar to write() but it respect the endianness
     
-    @param py_buf: PyObject *
-    @param big_endian: bool
+    @param buf: the str to write
+    @param big_endian: endianness
+    @return: result code
 
 ida_frame (module)
     Routines to manipulate function stack frames, stack variables, register
@@ -24988,6 +25216,11 @@ ida_frame.xreflist_t.add_unique (method)
     
     @param x: xreflist_entry_t const &
 
+ida_frame.xreflist_t.append (method)
+    append(self, x)
+    
+    @param x: xreflist_entry_t const &
+
 ida_frame.xreflist_t.at (method)
     at(self, _idx) -> xreflist_entry_t
     
@@ -25017,6 +25250,11 @@ ida_frame.xreflist_t.erase (method)
     
     @param first: qvector< xreflist_entry_t >::iterator
     @param last: qvector< xreflist_entry_t >::iterator
+
+ida_frame.xreflist_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< xreflist_entry_t > const &
 
 ida_frame.xreflist_t.extract (method)
     extract(self) -> xreflist_entry_t
@@ -25721,6 +25959,33 @@ ida_funcs.func_t.frsize (variable)
     the frame pointer (EBP) is assumed to point to the top of the local variables
     range.
 
+ida_funcs.func_t.get_frame_object (method)
+    Retrieve the function frame, in the form of a structure
+    where frame offsets that are accessed by the program, as well
+    as areas for "saved registers" and "return address", are
+    represented by structure members.
+    
+    If the function has no associated frame, return None
+    
+    @return: a ida_typeinf.tinfo_t object representing the frame, or None
+
+ida_funcs.func_t.get_name (method)
+    Get the function name
+    
+    @return: the function name
+
+ida_funcs.func_t.get_prototype (method)
+    Retrieve the function prototype.
+    
+    Once you have obtained the prototype, you can:
+    
+    * retrieve the return type through ida_typeinf.tinfo_t.get_rettype()
+    * iterate on the arguments using ida_typeinf.tinfo_t.iter_func()
+    
+    If the function has no associated prototype, return None
+    
+    @return: a ida_typeinf.tinfo_t object representing the prototype, or None
+
 ida_funcs.func_t.head_items (method)
     Alias for func_item_iterator_t(self).head_items()
 
@@ -25949,7 +26214,6 @@ ida_funcs.get_func_ranges (function)
     @return: end address of the last function range (BADADDR-error)
 
 ida_funcs.get_idasgn_desc (function)
-    get_idasgn_desc(n) -> (str, str)
     Get information about a signature in the list.
     It returns: (name of signature, names of optional libraries)
     
@@ -25959,7 +26223,6 @@ ida_funcs.get_idasgn_desc (function)
     @return: None on failure or tuple(signame, optlibs)
 
 ida_funcs.get_idasgn_desc_with_matches (function)
-    get_idasgn_desc_with_matches(n) -> (str, str, int)
     Get information about a signature in the list.
     It returns: (name of signature, names of optional libraries, number of matches)
     
@@ -27985,6 +28248,11 @@ ida_graph.node_layout_t.add_unique (method)
     
     @param x: rect_t const &
 
+ida_graph.node_layout_t.append (method)
+    append(self, x)
+    
+    @param x: rect_t const &
+
 ida_graph.node_layout_t.at (method)
     at(self, _idx) -> rect_t
     
@@ -28014,6 +28282,11 @@ ida_graph.node_layout_t.erase (method)
     
     @param first: qvector< rect_t >::iterator
     @param last: qvector< rect_t >::iterator
+
+ida_graph.node_layout_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< rect_t > const &
 
 ida_graph.node_layout_t.extract (method)
     extract(self) -> rect_t
@@ -28168,6 +28441,11 @@ ida_graph.pointvec_t.add_unique (method)
     
     @param x: point_t const &
 
+ida_graph.pointvec_t.append (method)
+    append(self, x)
+    
+    @param x: point_t const &
+
 ida_graph.pointvec_t.at (method)
     at(self, _idx) -> point_t
     
@@ -28197,6 +28475,11 @@ ida_graph.pointvec_t.erase (method)
     
     @param first: qvector< point_t >::iterator
     @param last: qvector< point_t >::iterator
+
+ida_graph.pointvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< point_t > const &
 
 ida_graph.pointvec_t.extract (method)
     extract(self) -> point_t
@@ -28438,6 +28721,11 @@ ida_graph.screen_graph_selection_base_t.add_unique (method)
     
     @param x: selection_item_t const &
 
+ida_graph.screen_graph_selection_base_t.append (method)
+    append(self, x)
+    
+    @param x: selection_item_t const &
+
 ida_graph.screen_graph_selection_base_t.at (method)
     at(self, _idx) -> selection_item_t
     
@@ -28467,6 +28755,11 @@ ida_graph.screen_graph_selection_base_t.erase (method)
     
     @param first: qvector< selection_item_t >::iterator
     @param last: qvector< selection_item_t >::iterator
+
+ida_graph.screen_graph_selection_base_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< selection_item_t > const &
 
 ida_graph.screen_graph_selection_base_t.extract (method)
     extract(self) -> selection_item_t
@@ -31478,14 +31771,12 @@ ida_idaapi.copy_bits (function)
     @param e: ending bit
 
 ida_idaapi.disable_script_timeout (function)
-    disable_script_timeout()
     Disables the script timeout and hides the script wait box.
     Calling L{set_script_timeout} will not have any effects until the script is compiled and executed again
     
     @return: None
 
 ida_idaapi.enable_extlang_python (function)
-    enable_extlang_python(enable)
     Enables or disables Python extlang.
     When enabled, all expressions will be evaluated by Python.
     
@@ -31511,17 +31802,15 @@ ida_idaapi.loader_input_t.__init__ (method)
     @param pycapsule: PyObject *
 
 ida_idaapi.loader_input_t.close (method)
-    close(self)
     Closes the file
 
 ida_idaapi.loader_input_t.file2base (method)
-    file2base(self, pos, ea1, ea2, patchable) -> int
     Load portion of file into the database
     This function will include (ea1..ea2) into the addressing space of the
     program (make it enabled)
     
+    @param li: pointer ot input source
     @param pos: position in the file
-    @param ea1: ..ea2): range of destination linear addresses
     @param ea1: ..ea2): range of destination linear addresses
     @param patchable: should the kernel remember correspondance of
                       file offsets to linear addresses.
@@ -31536,10 +31825,10 @@ ida_idaapi.loader_input_t.from_capsule (method)
     @param pycapsule: PyObject *
 
 ida_idaapi.loader_input_t.from_fp (method)
-    from_fp(fp) -> loader_input_t
     A static method to construct an instance from a FILE*
     
-    @param fp: FILE *
+    @param fp: a FILE pointer
+    @return: a new instance, or None
 
 ida_idaapi.loader_input_t.from_linput (method)
     from_linput(linput) -> loader_input_t
@@ -31547,20 +31836,18 @@ ida_idaapi.loader_input_t.from_linput (method)
     @param linput: linput_t *
 
 ida_idaapi.loader_input_t.get_byte (method)
-    get_byte(self) -> PyObject *
     Reads a single byte from the file. Returns None if EOF or the read byte
 
 ida_idaapi.loader_input_t.get_linput (method)
     get_linput(self) -> linput_t *
 
 ida_idaapi.loader_input_t.gets (method)
-    gets(self, len) -> str
     Reads a line from the input file. Returns the read line or None
     
-    @param len: size_t
+    @param len: the maximum line length
+    @return: a str, or None
 
 ida_idaapi.loader_input_t.getz (method)
-    getz(self, sz, fpos=-1) -> PyObject
     Returns a zero terminated string at the given position
     
     @param sz: maximum size of the string
@@ -31568,15 +31855,13 @@ ida_idaapi.loader_input_t.getz (method)
     @return: The string or None on failure.
 
 ida_idaapi.loader_input_t.open (method)
-    open(self, filename, remote=False) -> bool
     Opens a file (or a remote file)
     
-    @param filename: char const *
-    @param remote: bool
+    @param filename: the file name
+    @param remote: whether the file is local, or remote
     @return: Boolean
 
 ida_idaapi.loader_input_t.open_memory (method)
-    open_memory(self, start, size=0) -> bool
     Create a linput for process memory (By internally calling idaapi.create_memory_linput())
     This linput will use dbg->read_memory() to read data
     
@@ -31585,41 +31870,37 @@ ida_idaapi.loader_input_t.open_memory (method)
                 if unknown, may be passed as 0
 
 ida_idaapi.loader_input_t.opened (method)
-    opened(self) -> bool
     Checks if the file is opened or not
 
 ida_idaapi.loader_input_t.read (method)
-    read(self, size=size_t(-1)) -> PyObject
     Read up to size bytes (all data if size is negative). Return an empty bytes object on EOF.
     
-    @param size: size_t
+    @param size: the maximum number of bytes to read
+    @return: a bytes object
 
 ida_idaapi.loader_input_t.readbytes (method)
-    readbytes(self, size, big_endian) -> PyObject *
     Similar to read() but it respect the endianness
     
-    @param size: size_t
-    @param big_endian: bool
+    @param size: the maximum number of bytes to read
+    @param big_endian: endianness
+    @return: a str, or None
 
 ida_idaapi.loader_input_t.seek (method)
-    seek(self, pos, whence=SEEK_SET) -> int64
     Set input source position
     
-    @param pos: int64
-    @param whence: int
+    @param offset: the seek offset
+    @param whence: the position to seek from
     @return: the new position (not 0 as fseek!)
 
 ida_idaapi.loader_input_t.set_linput (method)
-    set_linput(self, linput)
     Links the current loader_input_t instance to a linput_t instance
     
-    @param linput: linput_t *
+    @param linput: the linput_t to link to
 
 ida_idaapi.loader_input_t.size (method)
     size(self) -> int64
 
 ida_idaapi.loader_input_t.tell (method)
-    tell(self) -> int64
     Returns the current position
 
 ida_idaapi.notify_when (function)
@@ -31767,7 +32048,6 @@ ida_idaapi.require (function)
     For more information, see: <http://www.hexblog.com/?p=749>.
 
 ida_idaapi.set_script_timeout (function)
-    set_script_timeout(timeout) -> int
     Changes the script timeout value. The script wait box dialog will be hidden and shown again when the timeout elapses.
     See also L{disable_script_timeout}.
     
@@ -32634,6 +32914,11 @@ ida_idd.call_stack_info_vec_t.add_unique (method)
     
     @param x: call_stack_info_t const &
 
+ida_idd.call_stack_info_vec_t.append (method)
+    append(self, x)
+    
+    @param x: call_stack_info_t const &
+
 ida_idd.call_stack_info_vec_t.at (method)
     at(self, _idx) -> call_stack_info_t
     
@@ -32663,6 +32948,11 @@ ida_idd.call_stack_info_vec_t.erase (method)
     
     @param first: qvector< call_stack_info_t >::iterator
     @param last: qvector< call_stack_info_t >::iterator
+
+ida_idd.call_stack_info_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< call_stack_info_t > const &
 
 ida_idd.call_stack_info_vec_t.extract (method)
     extract(self) -> call_stack_info_t
@@ -32778,20 +33068,17 @@ ida_idd.dbg_appcall (function)
     @return: eOk if successful, otherwise an error code
 
 ida_idd.dbg_get_memory_info (function)
-    dbg_get_memory_info() -> PyObject *
     This function returns the memory configuration of a debugged process.
     
     @return:     None if no debugger is active
         tuple(start_ea, end_ea, name, sclass, sbase, bitness, perm)
 
 ida_idd.dbg_get_name (function)
-    dbg_get_name() -> PyObject *
     This function returns the current debugger's name.
     
     @return: Debugger name or None if no debugger is active
 
 ida_idd.dbg_get_registers (function)
-    dbg_get_registers() -> PyObject *
     This function returns the register definition from the currently loaded debugger.
     Basically, it returns an array of structure similar to to idd.hpp / register_info_t
     
@@ -32800,7 +33087,6 @@ ida_idd.dbg_get_registers (function)
         The bit_strings can be a tuple of strings or None (if the register does not have bit_strings)
 
 ida_idd.dbg_get_thread_sreg_base (function)
-    dbg_get_thread_sreg_base(tid, sreg_value) -> PyObject *
     Returns the segment register base value
     
     @param tid: thread id
@@ -32809,20 +33095,18 @@ ida_idd.dbg_get_thread_sreg_base (function)
         - Or None on failure
 
 ida_idd.dbg_read_memory (function)
-    dbg_read_memory(ea, sz) -> PyObject *
     Reads from the debugee's memory at the specified ea
     
-    @param ea: ea_t
-    @param sz: size_t
+    @param ea: the debuggee's memory address
+    @param sz: the amount of data to read
     @return:     - The read buffer (as bytes)
         - Or None on failure
 
 ida_idd.dbg_write_memory (function)
-    dbg_write_memory(ea, buf) -> bool
     Writes a buffer to the debugee's memory
     
-    @param ea: ea_t
-    @param buf: bytevec_t const &
+    @param ea: the debuggee's memory address
+    @param buf: a bytes object to write
     @return: Boolean
 
 ida_idd.debapp_attrs_t (class)
@@ -33847,6 +34131,11 @@ ida_idd.excvec_t.__setitem__ (method)
     @param i: size_t
     @param v: exception_info_t const &
 
+ida_idd.excvec_t.append (method)
+    append(self, x)
+    
+    @param x: exception_info_t const &
+
 ida_idd.excvec_t.at (method)
     at(self, _idx) -> exception_info_t
     
@@ -33876,6 +34165,11 @@ ida_idd.excvec_t.erase (method)
     
     @param first: qvector< exception_info_t >::iterator
     @param last: qvector< exception_info_t >::iterator
+
+ida_idd.excvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< exception_info_t > const &
 
 ida_idd.excvec_t.extract (method)
     extract(self) -> exception_info_t
@@ -33994,6 +34288,15 @@ ida_idd.launch_env_t (class)
 ida_idd.launch_env_t.__init__ (method)
     __init__(self) -> launch_env_t
 
+ida_idd.launch_env_t.envs (method)
+    envs(self) -> PyObject *
+
+ida_idd.launch_env_t.set (method)
+    set(self, envvar, value)
+    
+    @param envvar: char const *
+    @param value: char const *
+
 ida_idd.meminfo_vec_t (class)
     Proxy of C++ meminfo_vec_t class.
 
@@ -34045,6 +34348,11 @@ ida_idd.meminfo_vec_template_t.add_unique (method)
     
     @param x: memory_info_t const &
 
+ida_idd.meminfo_vec_template_t.append (method)
+    append(self, x)
+    
+    @param x: memory_info_t const &
+
 ida_idd.meminfo_vec_template_t.at (method)
     at(self, _idx) -> memory_info_t
     
@@ -34074,6 +34382,11 @@ ida_idd.meminfo_vec_template_t.erase (method)
     
     @param first: qvector< memory_info_t >::iterator
     @param last: qvector< memory_info_t >::iterator
+
+ida_idd.meminfo_vec_template_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< memory_info_t > const &
 
 ida_idd.meminfo_vec_template_t.extract (method)
     extract(self) -> memory_info_t
@@ -34229,6 +34542,11 @@ ida_idd.procinfo_vec_t.__setitem__ (method)
     @param i: size_t
     @param v: process_info_t const &
 
+ida_idd.procinfo_vec_t.append (method)
+    append(self, x)
+    
+    @param x: process_info_t const &
+
 ida_idd.procinfo_vec_t.at (method)
     at(self, _idx) -> process_info_t
     
@@ -34258,6 +34576,11 @@ ida_idd.procinfo_vec_t.erase (method)
     
     @param first: qvector< process_info_t >::iterator
     @param last: qvector< process_info_t >::iterator
+
+ida_idd.procinfo_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< process_info_t > const &
 
 ida_idd.procinfo_vec_t.extract (method)
     extract(self) -> process_info_t
@@ -34486,6 +34809,11 @@ ida_idd.regvals_t.add_unique (method)
     
     @param x: regval_t const &
 
+ida_idd.regvals_t.append (method)
+    append(self, x)
+    
+    @param x: regval_t const &
+
 ida_idd.regvals_t.at (method)
     at(self, _idx) -> regval_t
     
@@ -34515,6 +34843,11 @@ ida_idd.regvals_t.erase (method)
     
     @param first: qvector< regval_t >::iterator
     @param last: qvector< regval_t >::iterator
+
+ida_idd.regvals_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< regval_t > const &
 
 ida_idd.regvals_t.extract (method)
     extract(self) -> regval_t
@@ -34803,14 +35136,13 @@ ida_idp.AS_XTRNTYPE (variable)
     Assembler understands type of extern symbols as ":type" suffix.
 
 ida_idp.AssembleLine (function)
-    AssembleLine(ea, cs, ip, use32, nonnul_line) -> bytes
     Assemble an instruction to a string (display a warning if an error is found)
     
     @param ea: linear address of instruction
     @param cs: cs of instruction
     @param ip: ip of instruction
     @param use32: is 32bit segment
-    @param nonnul_line: char const *
+    @param line: line to assemble
     @return:     - None on failure
         - or a string containing the assembled instruction
 
@@ -35237,6 +35569,14 @@ ida_idp.IDB_Hooks.idasgn_loaded (method)
     startup sequences).
     
     @param short_sig_name: (const char *)
+
+ida_idp.IDB_Hooks.idasgn_matched_ea (method)
+    idasgn_matched_ea(self, ea, name, lib_name)
+    A FLIRT match has been found
+    
+    @param ea: (::ea_t) the matching address
+    @param name: (::const char *) the matched name
+    @param lib_name: (::const char *) library name extracted from signature file
 
 ida_idp.IDB_Hooks.item_color_changed (method)
     item_color_changed(self, ea, color)
@@ -36043,14 +36383,10 @@ ida_idp.IDP_Hooks.ev_gen_stkvar_def (method)
     @retval 0: not implemented
 
 ida_idp.IDP_Hooks.ev_get_abi_info (method)
-    ev_get_abi_info(self, abi_names, abi_opts, comp) -> int
+    ev_get_abi_info(self, comp) -> int
     Get all possible ABI names and optional extensions for given compiler
     abiname/option is a string entirely consisting of letters, digits and underscore
     
-    @param abi_names: (qstrvec_t *) - all possible ABis each in form abiname-
-                      opt1-opt2-...
-    @param abi_opts: (qstrvec_t *) - array of all possible options in form
-                     "opt:description" or opt:hint-line#description
     @param comp: (comp_t) - compiler ID
     @retval 0: not implemented
     @retval 1: ok
@@ -37698,12 +38034,10 @@ ida_idp._processor_t.gen_stkvar_def (method)
     tid: tid_t
 
 ida_idp._processor_t.get_abi_info (method)
-    get_abi_info(abi_names, abi_opts, comp) -> ssize_t
+    get_abi_info(comp) -> ssize_t
     
     Parameters
     ----------
-    abi_names: qstrvec_t *
-    abi_opts: qstrvec_t *
     comp: comp_t
 
 ida_idp._processor_t.get_autocmt (method)
@@ -38524,7 +38858,6 @@ ida_idp.asm_t.uflag (variable)
     user defined flags (local only for IDP) you may define and use your own bits
 
 ida_idp.assemble (function)
-    assemble(ea, cs, ip, use32, line) -> bool
     Assemble an instruction into the database (display a warning if an error is found)
     
     @param ea: linear address of instruction
@@ -38715,41 +39048,37 @@ ida_idp.ph_find_reg_value (function)
     @param insn: an ida_ua.insn_t, or an address (C++: const insn_t &)
     @param reg: int
 
+ida_idp.ph_get_abi_info (function)
+    ph_get_abi_info(comp) -> ssize_t
+    
+    @param comp: comp_t
+
 ida_idp.ph_get_cnbits (function)
-    ph_get_cnbits() -> size_t
     Returns the 'ph.cnbits'
 
 ida_idp.ph_get_dnbits (function)
-    ph_get_dnbits() -> size_t
     Returns the 'ph.dnbits'
 
 ida_idp.ph_get_flag (function)
-    ph_get_flag() -> size_t
     Returns the 'ph.flag'
 
 ida_idp.ph_get_icode_return (function)
-    ph_get_icode_return() -> size_t
     Returns the 'ph.icode_return'
 
 ida_idp.ph_get_id (function)
-    ph_get_id() -> size_t
     Returns the 'ph.id' field
 
 ida_idp.ph_get_instruc (function)
-    ph_get_instruc() -> [(str, int), ...]
     Returns a list of tuples (instruction_name, instruction_feature) containing the
     instructions list as defined in he processor module
 
 ida_idp.ph_get_instruc_end (function)
-    ph_get_instruc_end() -> size_t
     Returns the 'ph.instruc_end'
 
 ida_idp.ph_get_instruc_start (function)
-    ph_get_instruc_start() -> size_t
     Returns the 'ph.instruc_start'
 
 ida_idp.ph_get_operand_info (function)
-    ph_get_operand_info(ea, n) -> (int, int, int, int, int) or None
     Returns the operand information given an ea and operand number.
     
     @param ea: address
@@ -38766,35 +39095,27 @@ ida_idp.ph_get_reg_accesses (function)
     @param flags: int
 
 ida_idp.ph_get_reg_code_sreg (function)
-    ph_get_reg_code_sreg() -> size_t
     Returns the 'ph.reg_code_sreg'
 
 ida_idp.ph_get_reg_data_sreg (function)
-    ph_get_reg_data_sreg() -> size_t
     Returns the 'ph.reg_data_sreg'
 
 ida_idp.ph_get_reg_first_sreg (function)
-    ph_get_reg_first_sreg() -> size_t
     Returns the 'ph.reg_first_sreg'
 
 ida_idp.ph_get_reg_last_sreg (function)
-    ph_get_reg_last_sreg() -> size_t
     Returns the 'ph.reg_last_sreg'
 
 ida_idp.ph_get_regnames (function)
-    ph_get_regnames() -> [str, ...]
     Returns the list of register names as defined in the processor module
 
 ida_idp.ph_get_segreg_size (function)
-    ph_get_segreg_size() -> size_t
     Returns the 'ph.segreg_size'
 
 ida_idp.ph_get_tbyte_size (function)
-    ph_get_tbyte_size() -> size_t
     Returns the 'ph.tbyte_size' field as defined in he processor module
 
 ida_idp.ph_get_version (function)
-    ph_get_version() -> size_t
     Returns the 'ph.version'
 
 ida_idp.process_config_directive (function)
@@ -39067,6 +39388,11 @@ ida_idp.reg_access_vec_t.add_unique (method)
     
     @param x: reg_access_t const &
 
+ida_idp.reg_access_vec_t.append (method)
+    append(self, x)
+    
+    @param x: reg_access_t const &
+
 ida_idp.reg_access_vec_t.at (method)
     at(self, _idx) -> reg_access_t
     
@@ -39096,6 +39422,11 @@ ida_idp.reg_access_vec_t.erase (method)
     
     @param first: qvector< reg_access_t >::iterator
     @param last: qvector< reg_access_t >::iterator
+
+ida_idp.reg_access_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< reg_access_t > const &
 
 ida_idp.reg_access_vec_t.extract (method)
     extract(self) -> reg_access_t
@@ -39249,7 +39580,13 @@ ida_idp.sizeof_ldbl (function)
 
 ida_idp.str2reg (function)
     str2reg(p) -> int
-    Get any reg number (-1 on error)
+    Get any register number (-1 on error)
+    
+    @param p: (C++: const char *) char const *
+
+ida_idp.str2sreg (function)
+    str2sreg(p) -> int
+    Get the segment register number (-1 on error)
     
     @param p: (C++: const char *) char const *
 
@@ -39863,6 +40200,9 @@ ida_kernwin.BWN_TILS (variable)
 
 ida_kernwin.BWN_TILVIEW (variable)
     local types
+
+ida_kernwin.BWN_TIL_VIEW (variable)
+    a type library's toplevel widget
 
 ida_kernwin.BWN_TRACE (variable)
     tracing view
@@ -41421,6 +41761,9 @@ ida_kernwin.IWID_TILS (variable)
 ida_kernwin.IWID_TILVIEW (variable)
     local types
 
+ida_kernwin.IWID_TIL_VIEW (variable)
+    type library's toplevel widget
+
 ida_kernwin.IWID_TRACE (variable)
     tracing view
 
@@ -42311,7 +42654,6 @@ ida_kernwin.activate_widget (function)
     @param take_focus: (C++: bool) give focus to given widget
 
 ida_kernwin.add_hotkey (function)
-    add_hotkey(hotkey, pyfunc) -> PyCapsule
     Associates a function call with a hotkey.
     Callable pyfunc will be called each time the hotkey is pressed
     
@@ -42437,7 +42779,6 @@ ida_kernwin.ask_seg (function)
     @retval 1: ok, the user entered an segment name
 
 ida_kernwin.ask_str (function)
-    ask_str(defval, hist, prompt) -> str or None
     Asks for a long text
     
     @param defval: The default value
@@ -42446,7 +42787,6 @@ ida_kernwin.ask_str (function)
     @return: None or the entered string
 
 ida_kernwin.ask_text (function)
-    ask_text(max_size, defval, prompt) -> str
     Asks for a long text
     
     @param max_size: Maximum text length, 0 for unlimited
@@ -42517,7 +42857,6 @@ ida_kernwin.attach_action_to_toolbar (function)
     @return: success
 
 ida_kernwin.attach_dynamic_action_to_popup (function)
-    attach_dynamic_action_to_popup(unused, popup_handle, desc, popuppath=None, flags=0) -> bool
     Create & insert an action into the widget's popup menu
     (::ui_attach_dynamic_action_to_popup).
     Note: The action description in the 'desc' parameter is modified by
@@ -42548,13 +42887,12 @@ ida_kernwin.beep (function)
     @param beep_type: (C++: beep_t)
 
 ida_kernwin.call_nav_colorizer (function)
-    call_nav_colorizer(dict, ea, nbytes) -> uint32
     To be used with the IDA-provided colorizer, that is
     returned as result of the first call to set_nav_colorizer().
     
-    @param dict: PyObject *
-    @param ea: ea_t
-    @param nbytes: asize_t
+    @param colorizer: the Python colorizer to call
+    @param ea: the address to colorize
+    @param nbytes: the size of the range to colorize
 
 ida_kernwin.cancel_exec_request (function)
     cancel_exec_request(req_id) -> bool
@@ -42641,7 +42979,6 @@ ida_kernwin.choose_get_widget (function)
     @param self: PyObject *
 
 ida_kernwin.choose_idasgn (function)
-    choose_idasgn() -> PyObject *
     Opens the signature chooser
     
     @return: None or the selected signature name
@@ -42947,6 +43284,11 @@ ida_kernwin.chooser_row_info_vec_t.add_unique (method)
     
     @param x: chooser_row_info_t const &
 
+ida_kernwin.chooser_row_info_vec_t.append (method)
+    append(self, x)
+    
+    @param x: chooser_row_info_t const &
+
 ida_kernwin.chooser_row_info_vec_t.at (method)
     at(self, _idx) -> chooser_row_info_t
     
@@ -42976,6 +43318,11 @@ ida_kernwin.chooser_row_info_vec_t.erase (method)
     
     @param first: qvector< chooser_row_info_t >::iterator
     @param last: qvector< chooser_row_info_t >::iterator
+
+ida_kernwin.chooser_row_info_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< chooser_row_info_t > const &
 
 ida_kernwin.chooser_row_info_vec_t.extract (method)
     extract(self) -> chooser_row_info_t
@@ -43258,7 +43605,6 @@ ida_kernwin.custom_viewer_jump (function)
     @return: success
 
 ida_kernwin.del_hotkey (function)
-    del_hotkey(pyctx) -> bool
     Deletes a previously registered function hotkey
     
     @param ctx: Hotkey context previously returned by add_hotkey()
@@ -43348,6 +43694,11 @@ ida_kernwin.disasm_text_t.__setitem__ (method)
     @param i: size_t
     @param v: disasm_line_t const &
 
+ida_kernwin.disasm_text_t.append (method)
+    append(self, x)
+    
+    @param x: disasm_line_t const &
+
 ida_kernwin.disasm_text_t.at (method)
     at(self, _idx) -> disasm_line_t
     
@@ -43377,6 +43728,11 @@ ida_kernwin.disasm_text_t.erase (method)
     
     @param first: qvector< disasm_line_t >::iterator
     @param last: qvector< disasm_line_t >::iterator
+
+ida_kernwin.disasm_text_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< disasm_line_t > const &
 
 ida_kernwin.disasm_text_t.extract (method)
     extract(self) -> disasm_line_t
@@ -43486,23 +43842,20 @@ ida_kernwin.enable_chooser_item_attrs (function)
     @return: success
 
 ida_kernwin.error (function)
-    error(format)
     Display a fatal message in a message box and quit IDA
     
     @param format: message to print
 
 ida_kernwin.execute_sync (function)
-    execute_sync(py_callable, reqf) -> ssize_t
     Executes a function in the context of the main thread.
     If the current thread not the main thread, then the call is queued and
     executed afterwards.
     
-    @param py_callable: A python callable object, must return an integer value
+    @param callable: A python callable object, must return an integer value
     @param reqf: one of MFF_ flags
     @return: -1 or the return value of the callable
 
 ida_kernwin.execute_ui_requests (function)
-    execute_ui_requests(py_list) -> bool
     Inserts a list of callables into the UI message processing queue.
     When the UI is ready it will call one callable.
     A callable can request to be called more than once if it returns True.
@@ -43583,10 +43936,9 @@ ida_kernwin.formchgcbfa_show_field (function)
     @param show: bool
 
 ida_kernwin.free_custom_icon (function)
-    free_custom_icon(icon_id)
     Frees an icon loaded with load_custom_icon()
     
-    @param icon_id: int
+    @param icon_id: The ID of the icon to free
 
 ida_kernwin.gen_disasm_text (function)
     gen_disasm_text(text, ea1, ea2, truncate_lines)
@@ -43796,7 +44148,6 @@ ida_kernwin.get_hexdump_ea (function)
     @param hexdump_num: (C++: int) number of hexview window
 
 ida_kernwin.get_highlight (function)
-    get_highlight(v, in_flags=0) -> PyObject
     Returns the currently highlighted identifier and flags
     
     @param v: The UI widget to operate on
@@ -43835,7 +44186,6 @@ ida_kernwin.get_navband_ea (function)
     @param pixel: (C++: int)
 
 ida_kernwin.get_navband_pixel (function)
-    get_navband_pixel(ea) -> int
     Maps an address, onto a pixel coordinate within the navigation band
     
     @param ea: The address to map
@@ -44067,7 +44417,6 @@ ida_kernwin.is_ida_library (function)
     @param handle: void **
 
 ida_kernwin.is_idaq (function)
-    is_idaq() -> bool
     Returns True or False depending if IDAPython is hosted by IDAQ
 
 ida_kernwin.is_idaview (function)
@@ -44190,6 +44539,11 @@ ida_kernwin.line_rendering_output_entries_refs_t.add_unique (method)
     
     @param x: line_rendering_output_entry_t *const &
 
+ida_kernwin.line_rendering_output_entries_refs_t.append (method)
+    append(self, x)
+    
+    @param x: line_rendering_output_entry_t *const &
+
 ida_kernwin.line_rendering_output_entries_refs_t.at (method)
     at(self, _idx) -> line_rendering_output_entry_t
     
@@ -44221,6 +44575,11 @@ ida_kernwin.line_rendering_output_entries_refs_t.erase (method)
     
     @param first: qvector< line_rendering_output_entry_t * >::iterator
     @param last: qvector< line_rendering_output_entry_t * >::iterator
+
+ida_kernwin.line_rendering_output_entries_refs_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< line_rendering_output_entry_t * > const &
 
 ida_kernwin.line_rendering_output_entries_refs_t.extract (method)
     extract(self) -> line_rendering_output_entry_t **
@@ -44505,7 +44864,6 @@ ida_kernwin.mbox_internal (variable)
     internal error
 
 ida_kernwin.msg (function)
-    msg(message) -> int
     Display an UTF-8 string in the message window
     
     The result of the stringification of the arguments
@@ -44655,7 +45013,7 @@ ida_kernwin.open_imports_window (function)
 
 ida_kernwin.open_loctypes_window (function)
     open_loctypes_window(ordinal, cursor=None) -> TWidget
-    Open the local types window (ui_open_builtin).
+    Open the local types window (ui_open_builtin2).
     
     @param ordinal: (C++: int) ordinal of type to select by default
     @param cursor: (C++: const tif_cursor_t *) cursor to the type member
@@ -44740,6 +45098,14 @@ ida_kernwin.open_threads_window (function)
     open_threads_window() -> TWidget *
     Open the threads window (ui_open_builtin).
     
+    @return: pointer to resulting window
+
+ida_kernwin.open_til_view_window (function)
+    open_til_view_window(tif, cursor=None) -> TWidget
+    Open the sub-til window (ui_open_builtin2).
+    
+    @param tif: (C++: tinfo_t *) tif to open
+    @param cursor: (C++: const tif_cursor_t *) cursor to the type member
     @return: pointer to resulting window
 
 ida_kernwin.open_tils_window (function)
@@ -44975,11 +45341,10 @@ ida_kernwin.plgform_show (function)
     @param options: int
 
 ida_kernwin.process_ui_action (function)
-    process_ui_action(name, flags=0) -> bool
     Invokes an IDA UI action by name
     
     @param name: action name
-    @param flags: int
+    @param flags: reserved
     @return: Boolean
 
 ida_kernwin.py_chooser_base_t_get_row (function)
@@ -45180,7 +45545,6 @@ ida_kernwin.read_range_selection (function)
     @retval 1: ok, start ea and end ea are filled
 
 ida_kernwin.read_selection (function)
-    read_selection(v, p1, p2) -> bool
     Read the user selection, and store its information in p0 (from) and p1 (to).
     
     This can be used as follows:
@@ -45207,7 +45571,7 @@ ida_kernwin.read_selection (function)
     disassembly, structures, enums, ...)
     
     @param view: The view to retrieve the selection for.
-    @param p1: Storage for the "to" part of the selection.
+    @param p0: Storage for the "from" part of the selection.
     @param p1: Storage for the "to" part of the selection.
     @return: a bool value indicating success.
 
@@ -45284,11 +45648,10 @@ ida_kernwin.register_and_attach_to_menu (function)
     @param action_desc_t_flags: (C++: int)
 
 ida_kernwin.register_timer (function)
-    register_timer(interval, py_callback) -> PyCapsule
     Register a timer
     
     @param interval: Interval in milliseconds
-    @param py_callback: A Python callable that takes no parameters and returns an integer.
+    @param callback: A Python callable that takes no parameters and returns an integer.
                      The callback may return:
                      -1   : to unregister the timer
                      >= 0 : the new or same timer interval
@@ -45410,6 +45773,11 @@ ida_kernwin.section_lines_refs_t.add_unique (method)
     
     @param x: twinline_t const *const &
 
+ida_kernwin.section_lines_refs_t.append (method)
+    append(self, x)
+    
+    @param x: twinline_t const *const &
+
 ida_kernwin.section_lines_refs_t.at (method)
     at(self, _idx) -> twinline_t
     
@@ -45441,6 +45809,11 @@ ida_kernwin.section_lines_refs_t.erase (method)
     
     @param first: qvector< twinline_t const * >::iterator
     @param last: qvector< twinline_t const * >::iterator
+
+ida_kernwin.section_lines_refs_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< twinline_t const * > const &
 
 ida_kernwin.section_lines_refs_t.extract (method)
     extract(self) -> twinline_t const **
@@ -45555,6 +45928,11 @@ ida_kernwin.sections_lines_refs_t.add_unique (method)
     
     @param x: section_lines_refs_t const &
 
+ida_kernwin.sections_lines_refs_t.append (method)
+    append(self, x)
+    
+    @param x: section_lines_refs_t const &
+
 ida_kernwin.sections_lines_refs_t.at (method)
     at(self, _idx) -> section_lines_refs_t
     
@@ -45586,6 +45964,11 @@ ida_kernwin.sections_lines_refs_t.erase (method)
     
     @param first: qvector< section_lines_refs_t >::iterator
     @param last: qvector< section_lines_refs_t >::iterator
+
+ida_kernwin.sections_lines_refs_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< section_lines_refs_t > const &
 
 ida_kernwin.sections_lines_refs_t.extract (method)
     extract(self) -> section_lines_refs_t
@@ -45728,19 +46111,14 @@ ida_kernwin.set_custom_viewer_qt_aware (function)
     @param custom_viewer: (C++: TWidget *)
 
 ida_kernwin.set_dock_pos (function)
-    set_dock_pos(src_ctrl, dest_ctrl, orient, left=0, top=0, right=0, bottom=0) -> bool
     Sets the dock orientation of a window relatively to another window.
     
     Use the left, top, right, bottom parameters if DP_FLOATING is used,
     or if you want to specify the width of docked windows.
     
-    @param src_ctrl: char const *
-    @param dest_ctrl: char const *
+    @param src: Source docking control
+    @param dest: Destination docking control
     @param orient: One of DP_XXXX constants
-    @param left: int
-    @param top: int
-    @param right: int
-    @param bottom: int
     @return: Boolean
     
     Example:
@@ -45768,7 +46146,6 @@ ida_kernwin.set_highlight (function)
     @return: false if an error occurred
 
 ida_kernwin.set_nav_colorizer (function)
-    set_nav_colorizer(new_py_colorizer) -> dict or None
     Set a new colorizer for the navigation band.
     
     The 'callback' is a function of 2 arguments:
@@ -45795,7 +46172,7 @@ ida_kernwin.set_nav_colorizer (function)
     
         ida_colorizer = idaapi.set_nav_colorizer(my_colorizer)
     
-    @param new_py_colorizer: PyObject *
+    @param callback: the new colorizer
 
 ida_kernwin.set_view_renderer_type (function)
     set_view_renderer_type(v, rt)
@@ -46087,6 +46464,11 @@ ida_kernwin.sync_source_vec_t.add_unique (method)
     
     @param x: sync_source_t const &
 
+ida_kernwin.sync_source_vec_t.append (method)
+    append(self, x)
+    
+    @param x: sync_source_t const &
+
 ida_kernwin.sync_source_vec_t.at (method)
     at(self, _idx) -> sync_source_t
     
@@ -46116,6 +46498,11 @@ ida_kernwin.sync_source_vec_t.erase (method)
     
     @param first: qvector< sync_source_t >::iterator
     @param last: qvector< sync_source_t >::iterator
+
+ida_kernwin.sync_source_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< sync_source_t > const &
 
 ida_kernwin.sync_source_vec_t.extract (method)
     extract(self) -> sync_source_t
@@ -46284,6 +46671,11 @@ ida_kernwin.text_t.__setitem__ (method)
     @param i: size_t
     @param v: twinline_t const &
 
+ida_kernwin.text_t.append (method)
+    append(self, x)
+    
+    @param x: twinline_t const &
+
 ida_kernwin.text_t.at (method)
     at(self, _idx) -> twinline_t
     
@@ -46313,6 +46705,11 @@ ida_kernwin.text_t.erase (method)
     
     @param first: qvector< twinline_t >::iterator
     @param last: qvector< twinline_t >::iterator
+
+ida_kernwin.text_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< twinline_t > const &
 
 ida_kernwin.text_t.extract (method)
     extract(self) -> twinline_t
@@ -46646,7 +47043,6 @@ ida_kernwin.unregister_action (function)
     @return: success
 
 ida_kernwin.unregister_timer (function)
-    unregister_timer(py_timerctx) -> bool
     Unregister a timer
     
     @param timer_obj: a timer object previously returned by a register_timer()
@@ -46828,7 +47224,6 @@ ida_kernwin.view_switched (variable)
     @param rt: (tcc_renderer_type_t)
 
 ida_kernwin.warning (function)
-    warning(format) -> ssize_t
     Display a message in a message box
     
     @param format: message to print (formatting is done in Python)
@@ -46836,6 +47231,30 @@ ida_kernwin.warning (function)
     This function can be used to debug IDAPython scripts
     The user will be able to hide messages if they appear twice in a row on
     the screen
+
+ida_libfuncs (module)
+    
+
+ida_libfuncs.get_idasgn_header_by_short_name (function)
+    get_idasgn_header_by_short_name(out_header, name) -> str
+    Get idasgn header by a short signature name.
+    
+    @param out_header: (C++: idasgn_header_t *) buffer for the signature file header
+    @param name: (C++: const char *) short name of a signature
+    @return: true in case of success
+
+ida_libfuncs.get_idasgn_path_by_short_name (function)
+    get_idasgn_path_by_short_name(name) -> str
+    Get idasgn full path by a short signature name.
+    
+    @param name: (C++: const char *) short name of a signature
+    @return: true in case of success
+
+ida_libfuncs.idasgn_header_t (class)
+    Proxy of C++ idasgn_header_t class.
+
+ida_libfuncs.idasgn_header_t.__init__ (method)
+    __init__(self) -> idasgn_header_t
 
 ida_lines (module)
     High level functions that deal with the generation of the disassembled text
@@ -47283,13 +47702,11 @@ ida_lines.generate_disasm_line (function)
     @param flags: int
 
 ida_lines.generate_disassembly (function)
-    generate_disassembly(ea, max_lines, as_stack, notags) -> (int, [str, ...])
     Generate disassembly lines (many lines) and put them into a buffer
     
     @param ea: address to generate disassembly for
     @param max_lines: how many lines max to generate
     @param as_stack: Display undefined items as 2/4/8 bytes
-    @param notags: bool
     @return:     - None on failure
         - tuple(most_important_line_number, list(lines)) : Returns a tuple containing
           the most important line number and a list of generated lines
@@ -47813,10 +48230,10 @@ ida_loader.load_ids_module (function)
                no message is displayed
 
 ida_loader.load_plugin (function)
-    load_plugin(name) -> PyCapsule or None
     Loads a plugin
     
-    @param name: char const *
+    @param name: short plugin name without path and extension,
+                 or absolute path to the file name
     @return:     - None if plugin could not be loaded
         - An opaque object representing the loaded plugin
 
@@ -47833,10 +48250,9 @@ ida_loader.loader_t.version (variable)
     api version, should be IDP_INTERFACE_VERSION
 
 ida_loader.mem2base (function)
-    mem2base(py_mem, ea, fpos=-1) -> int
     Load database from the memory.
     
-    @param py_mem: the buffer
+    @param mem: the buffer
     @param ea: start linear addresses
     @param fpos: position in the input file the data is taken from.
                  if == -1, then no file position correspond to the data.
@@ -47940,6 +48356,11 @@ ida_loader.qvector_snapshotvec_t.add_unique (method)
     
     @param x: snapshot_t *const &
 
+ida_loader.qvector_snapshotvec_t.append (method)
+    append(self, x)
+    
+    @param x: snapshot_t *const &
+
 ida_loader.qvector_snapshotvec_t.at (method)
     at(self, _idx) -> snapshot_t
     
@@ -47971,6 +48392,11 @@ ida_loader.qvector_snapshotvec_t.erase (method)
     
     @param first: qvector< snapshot_t * >::iterator
     @param last: qvector< snapshot_t * >::iterator
+
+ida_loader.qvector_snapshotvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< snapshot_t * > const &
 
 ida_loader.qvector_snapshotvec_t.extract (method)
     extract(self) -> snapshot_t **
@@ -48053,11 +48479,10 @@ ida_loader.reload_file (function)
     @return: success
 
 ida_loader.run_plugin (function)
-    run_plugin(plg, arg) -> bool
     Runs a plugin
     
     @param plg: A plugin object (returned by load_plugin())
-    @param arg: size_t
+    @param arg: the code to pass to the plugin's "run()" function
     @return: Boolean
 
 ida_loader.save_database (function)
@@ -48474,6 +48899,11 @@ ida_moves.segm_move_info_vec_t.add_unique (method)
     
     @param x: segm_move_info_t const &
 
+ida_moves.segm_move_info_vec_t.append (method)
+    append(self, x)
+    
+    @param x: segm_move_info_t const &
+
 ida_moves.segm_move_info_vec_t.at (method)
     at(self, _idx) -> segm_move_info_t
     
@@ -48503,6 +48933,11 @@ ida_moves.segm_move_info_vec_t.erase (method)
     
     @param first: qvector< segm_move_info_t >::iterator
     @param last: qvector< segm_move_info_t >::iterator
+
+ida_moves.segm_move_info_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< segm_move_info_t > const &
 
 ida_moves.segm_move_info_vec_t.extract (method)
     extract(self) -> segm_move_info_t
@@ -49535,7 +49970,6 @@ ida_nalt.enum_const_t.__init__ (method)
     __init__(self) -> enum_const_t
 
 ida_nalt.enum_import_names (function)
-    enum_import_names(mod_index, py_cb) -> int
     Enumerate imports from a specific module.
     Please refer to list_imports.py example.
     
@@ -49655,10 +50089,9 @@ ida_nalt.get_imagebase (function)
     Get image base address.
 
 ida_nalt.get_import_module_name (function)
-    get_import_module_name(mod_index) -> str
     Returns the name of an imported module given its index
     
-    @param mod_index: int
+    @param mod_index: the module index
     @return: None or the module name
 
 ida_nalt.get_import_module_qty (function)
@@ -51195,6 +51628,11 @@ ida_name.ea_name_vec_t.__setitem__ (method)
     @param i: size_t
     @param v: ea_name_t const &
 
+ida_name.ea_name_vec_t.append (method)
+    append(self, x)
+    
+    @param x: ea_name_t const &
+
 ida_name.ea_name_vec_t.at (method)
     at(self, _idx) -> ea_name_t
     
@@ -51224,6 +51662,11 @@ ida_name.ea_name_vec_t.erase (method)
     
     @param first: qvector< ea_name_t >::iterator
     @param last: qvector< ea_name_t >::iterator
+
+ida_name.ea_name_vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< ea_name_t > const &
 
 ida_name.ea_name_vec_t.extract (method)
     extract(self) -> ea_name_t
@@ -51565,12 +52008,6 @@ ida_name.is_valid_cp (function)
     @param cp: (C++: wchar32_t)
     @param kind: (C++: nametype_t) enum nametype_t
     @param data: (C++: void *)
-
-ida_name.is_valid_name (function)
-    is_valid_name(name, cpuregs_permitted) -> bool
-    
-    @param name: char const *
-    @param cpuregs_permitted: bool
 
 ida_name.is_valid_typename (function)
     is_valid_typename(name) -> bool
@@ -53058,6 +53495,11 @@ ida_pro.boolvec_t.add_unique (method)
     
     @param x: bool const &
 
+ida_pro.boolvec_t.append (method)
+    append(self, x)
+    
+    @param x: bool const &
+
 ida_pro.boolvec_t.at (method)
     at(self, _idx) -> bool const &
     
@@ -53089,6 +53531,11 @@ ida_pro.boolvec_t.erase (method)
     
     @param first: qvector< bool >::iterator
     @param last: qvector< bool >::iterator
+
+ida_pro.boolvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< bool > const &
 
 ida_pro.boolvec_t.extract (method)
     extract(self) -> bool *
@@ -53523,6 +53970,11 @@ ida_pro.int64vec_t.add_unique (method)
     
     @param x: long long const &
 
+ida_pro.int64vec_t.append (method)
+    append(self, x)
+    
+    @param x: long long const &
+
 ida_pro.int64vec_t.at (method)
     at(self, _idx) -> long long const &
     
@@ -53554,6 +54006,11 @@ ida_pro.int64vec_t.erase (method)
     
     @param first: qvector< long long >::iterator
     @param last: qvector< long long >::iterator
+
+ida_pro.int64vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< long long > const &
 
 ida_pro.int64vec_t.extract (method)
     extract(self) -> long long *
@@ -53712,6 +54169,11 @@ ida_pro.intvec_t.add_unique (method)
     
     @param x: int const &
 
+ida_pro.intvec_t.append (method)
+    append(self, x)
+    
+    @param x: int const &
+
 ida_pro.intvec_t.at (method)
     at(self, _idx) -> int const &
     
@@ -53743,6 +54205,11 @@ ida_pro.intvec_t.erase (method)
     
     @param first: qvector< int >::iterator
     @param last: qvector< int >::iterator
+
+ida_pro.intvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< int > const &
 
 ida_pro.intvec_t.extract (method)
     extract(self) -> int *
@@ -54170,6 +54637,11 @@ ida_pro.sizevec_t.add_unique (method)
     
     @param x: size_t const &
 
+ida_pro.sizevec_t.append (method)
+    append(self, x)
+    
+    @param x: size_t const &
+
 ida_pro.sizevec_t.at (method)
     at(self, _idx) -> size_t const &
     
@@ -54201,6 +54673,11 @@ ida_pro.sizevec_t.erase (method)
     
     @param first: qvector< size_t >::iterator
     @param last: qvector< size_t >::iterator
+
+ida_pro.sizevec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< size_t > const &
 
 ida_pro.sizevec_t.extract (method)
     extract(self) -> size_t *
@@ -54298,11 +54775,10 @@ ida_pro.ssize_pointer.value (method)
     value(self) -> ssize_t
 
 ida_pro.str2user (function)
-    str2user(str) -> str or None
     Insert C-style escape characters to string
     
-    @param str: char const *
-    @return: new string with escape characters inserted
+    @param str: the input string
+    @return: new string with escape characters inserted, or None
 
 ida_pro.strvec_t (class)
     Proxy of C++ qvector< simpleline_t > class.
@@ -54326,6 +54802,11 @@ ida_pro.strvec_t.__setitem__ (method)
     
     @param i: size_t
     @param v: simpleline_t const &
+
+ida_pro.strvec_t.append (method)
+    append(self, x)
+    
+    @param x: simpleline_t const &
 
 ida_pro.strvec_t.at (method)
     at(self, _idx) -> simpleline_t const &
@@ -54358,6 +54839,11 @@ ida_pro.strvec_t.erase (method)
     
     @param first: qvector< simpleline_t >::iterator
     @param last: qvector< simpleline_t >::iterator
+
+ida_pro.strvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< simpleline_t > const &
 
 ida_pro.strvec_t.extract (method)
     extract(self) -> simpleline_t *
@@ -54649,6 +55135,11 @@ ida_pro.uint64vec_t.add_unique (method)
     
     @param x: unsigned long long const &
 
+ida_pro.uint64vec_t.append (method)
+    append(self, x)
+    
+    @param x: unsigned long long const &
+
 ida_pro.uint64vec_t.at (method)
     at(self, _idx) -> unsigned long long const &
     
@@ -54680,6 +55171,11 @@ ida_pro.uint64vec_t.erase (method)
     
     @param first: qvector< unsigned long long >::iterator
     @param last: qvector< unsigned long long >::iterator
+
+ida_pro.uint64vec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< unsigned long long > const &
 
 ida_pro.uint64vec_t.extract (method)
     extract(self) -> unsigned long long *
@@ -54838,6 +55334,11 @@ ida_pro.uintvec_t.add_unique (method)
     
     @param x: unsigned int const &
 
+ida_pro.uintvec_t.append (method)
+    append(self, x)
+    
+    @param x: unsigned int const &
+
 ida_pro.uintvec_t.at (method)
     at(self, _idx) -> unsigned int const &
     
@@ -54869,6 +55370,11 @@ ida_pro.uintvec_t.erase (method)
     
     @param first: qvector< unsigned int >::iterator
     @param last: qvector< unsigned int >::iterator
+
+ida_pro.uintvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< unsigned int > const &
 
 ida_pro.uintvec_t.extract (method)
     extract(self) -> unsigned int *
@@ -55203,6 +55709,11 @@ ida_range.array_of_rangesets.add_unique (method)
     
     @param x: rangeset_t const &
 
+ida_range.array_of_rangesets.append (method)
+    append(self, x)
+    
+    @param x: rangeset_t const &
+
 ida_range.array_of_rangesets.at (method)
     at(self, _idx) -> rangeset_t
     
@@ -55232,6 +55743,11 @@ ida_range.array_of_rangesets.erase (method)
     
     @param first: qvector< rangeset_t >::iterator
     @param last: qvector< rangeset_t >::iterator
+
+ida_range.array_of_rangesets.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< rangeset_t > const &
 
 ida_range.array_of_rangesets.extract (method)
     extract(self) -> rangeset_t
@@ -55627,6 +56143,11 @@ ida_range.rangevec_base_t.add_unique (method)
     
     @param x: range_t const &
 
+ida_range.rangevec_base_t.append (method)
+    append(self, x)
+    
+    @param x: range_t const &
+
 ida_range.rangevec_base_t.at (method)
     at(self, _idx) -> range_t
     
@@ -55656,6 +56177,11 @@ ida_range.rangevec_base_t.erase (method)
     
     @param first: qvector< range_t >::iterator
     @param last: qvector< range_t >::iterator
+
+ida_range.rangevec_base_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< range_t > const &
 
 ida_range.rangevec_base_t.extract (method)
     extract(self) -> range_t
@@ -56256,6 +56782,14 @@ ida_regfinder.reg_value_info_t.is_unknown (method)
     is_unknown(self) -> bool
     Return 'true' if the value is unknown.
 
+ida_regfinder.reg_value_info_t.is_unkvals (method)
+    is_unkvals(self) -> bool
+    Return 'true' if the value is unknown because the register has too many values.
+
+ida_regfinder.reg_value_info_t.is_unkxref (method)
+    is_unkxref(self) -> bool
+    Return 'true' if the value is unknown because there are too many xrefs.
+
 ida_regfinder.reg_value_info_t.is_value_unique (method)
     is_value_unique(self) -> bool
     Check that the value is unique.
@@ -56328,6 +56862,20 @@ ida_regfinder.reg_value_info_t.make_unkmult (method)
     make_unkmult(bblk_ea) -> reg_value_info_t
     Return the unknown value if the register has incompatible values.
     @see: is_unkmult()
+    
+    @param bblk_ea: (C++: ea_t)
+
+ida_regfinder.reg_value_info_t.make_unkvals (method)
+    make_unkvals(bblk_ea) -> reg_value_info_t
+    Return the unknown value if the register has too many values.
+    @see: is_unkvals()
+    
+    @param bblk_ea: (C++: ea_t)
+
+ida_regfinder.reg_value_info_t.make_unkxref (method)
+    make_unkxref(bblk_ea) -> reg_value_info_t
+    Return the unknown value if there are too many xrefs.
+    @see: is_unkxref()
     
     @param bblk_ea: (C++: ea_t)
 
@@ -56412,6 +56960,20 @@ ida_regfinder.reg_value_info_t.set_unkmult (method)
     set_unkmult(self, bblk_ea)
     Set the value to be unknown because the register has incompatible values.
     @see: is_unkmult()
+    
+    @param bblk_ea: (C++: ea_t)
+
+ida_regfinder.reg_value_info_t.set_unkvals (method)
+    set_unkvals(self, bblk_ea)
+    Set the value to be unknown because the register has too many values.
+    @see: is_unkvals()
+    
+    @param bblk_ea: (C++: ea_t)
+
+ida_regfinder.reg_value_info_t.set_unkxref (method)
+    set_unkxref(self, bblk_ea)
+    Set the value to be unknown because there are too many xrefs.
+    @see: is_unkxref()
     
     @param bblk_ea: (C++: ea_t)
 
@@ -56984,12 +57546,8 @@ ida_segment.find_selector (function)
     @return: selector value or base
 
 ida_segment.get_defsr (function)
-    get_defsr(s, reg) -> sel_t
     Deprecated, use instead:
         value = s.defsr[reg]
-    
-    @param s: segment_t *
-    @param reg: int
 
 ida_segment.get_first_seg (function)
     get_first_seg() -> segment_t
@@ -57527,13 +58085,8 @@ ida_segment.sel2para (function)
              returns 'selector'.
 
 ida_segment.set_defsr (function)
-    set_defsr(s, reg, value)
     Deprecated, use instead:
         s.defsr[reg] = value
-    
-    @param s: segment_t *
-    @param reg: int
-    @param value: sel_t
 
 ida_segment.set_group_selector (function)
     set_group_selector(grp, sel) -> int
@@ -57752,7 +58305,8 @@ ida_segregs.get_sreg (function)
     
     @param ea: (C++: ea_t) linear address in the program
     @param rg: (C++: int) number of the segment register
-    @return: value of the segment register, BADSEL if value is unknown.
+    @return: value of the segment register, BADSEL if value is unknown or rg is not
+             a segment register.
 
 ida_segregs.get_sreg_range (function)
     get_sreg_range(out, ea, rg) -> bool
@@ -58092,6 +58646,11 @@ ida_tryblks.catchvec_t.add_unique (method)
     
     @param x: catch_t const &
 
+ida_tryblks.catchvec_t.append (method)
+    append(self, x)
+    
+    @param x: catch_t const &
+
 ida_tryblks.catchvec_t.at (method)
     at(self, _idx) -> catch_t
     
@@ -58121,6 +58680,11 @@ ida_tryblks.catchvec_t.erase (method)
     
     @param first: qvector< catch_t >::iterator
     @param last: qvector< catch_t >::iterator
+
+ida_tryblks.catchvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< catch_t > const &
 
 ida_tryblks.catchvec_t.extract (method)
     extract(self) -> catch_t
@@ -58319,6 +58883,11 @@ ida_tryblks.tryblks_t.add_unique (method)
     
     @param x: tryblk_t const &
 
+ida_tryblks.tryblks_t.append (method)
+    append(self, x)
+    
+    @param x: tryblk_t const &
+
 ida_tryblks.tryblks_t.at (method)
     at(self, _idx) -> tryblk_t
     
@@ -58348,6 +58917,11 @@ ida_tryblks.tryblks_t.erase (method)
     
     @param first: qvector< tryblk_t >::iterator
     @param last: qvector< tryblk_t >::iterator
+
+ida_tryblks.tryblks_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< tryblk_t > const &
 
 ida_tryblks.tryblks_t.extract (method)
     extract(self) -> tryblk_t
@@ -58419,16 +58993,68 @@ ida_tryblks.tryblks_t.truncate (method)
     truncate(self)
 
 ida_typeinf (module)
-    Describes the type information records in IDA.
+    Manipulate type information in IDA.
     
-    The recommended way of using type info is to use the tinfo_t class. The type
-    information is internally kept as an array of bytes terminated by 0.
+    In IDA, types are represented by, and manipulated through tinfo_t objects.
     
-    Items in brackets [] are optional and sometimes are omitted. type_t... means a
-    sequence of type_t bytes which defines a type.
+    A tinfo_t can represent a simple type (e.g., `int`, `float`), a complex types
+    (structures, enums, unions, typedefs), or even an arrays, or a function
+    prototype.
     
-    @note: to work with the types of instructions or data in the database, use
-           get_tinfo()/set_tinfo() and similar functions.
+    The key types in this file are:
+    
+    til_t - a type info library. Holds tinfo_t objects tinfo_t - information about a
+    type (simple, complex, ...)
+    
+    # Glossary
+    
+    All throughout this file, there are certain terms that will keep appearing.
+    Let's go through them:
+    
+    udt: "user-defined type": a structure or union - but not enums. See
+    udt_type_data_t udm: "udt member": i.e., a structure or union member. See udm_t
+    edm: "enum member": i.e., an enumeration member - i.e., an enumerator. See edm_t
+    
+    # Under the hood
+    
+    The tinfo_t type provides a lot of useful methods already, but it's possible to
+    achieve even more by "unpacking" its contents into the container classes:
+    
+    udt_type_data_t - for structures & unions. See tinfo_t::get_udt_details .
+    Essentially, a vector of udm_t enum_type_data_t - for enumerations. See
+    tinfo_t::get_enum_details . Essentially, a vector of edm_t ptr_type_data_t - for
+    pointers. See tinfo_t::get_ptr_details array_type_data_t - for arrays. See
+    tinfo_t::get_array_details func_type_data_t - for function prototypes. See
+    tinfo_t::get_func_details
+    
+    # Attached & detached tinfo_t objects
+    
+    While a til_t hosts tinfo_t instances, it's possible to create tinfo_t objects
+    that are not registered in a til_t.
+    
+    Here is an example, assigning a function prototype:
+    
+    func_type_data_t func_info;
+    
+    funcarg_t argc; argc.name = "argc"; argc.type = tinfo_t(BT_INT);
+    func_info.push_back(argc);
+    
+    funcarg_t argv; argc.name = "argv"; argc.type = tinfo_t("const char **");
+    func_info.push_back(argv)
+    
+    tinfo_t tif; if ( tif.create_func(func_info) ) { ea_t ea = // get address of
+    "main" apply_tinfo(ea, tif, TINFO_DEFINITE); }
+    
+    This code manipulates "detached" tinfo_t objects.
+    
+    On the other hand, the following code manipulates an "attached" tinfo_t object,
+    and any operation that modifies it, will also modify it in the hosting til_t:
+    
+    tinfo_t tif; Load type from the "Local Types" til_t. Note: we could have used
+    `get_idati()` instead of nullptr if ( tif.get_named_type(nullptr, "my_struct_t")
+    ) tif.add_udm("extra_field", "unsigned long long");
+    
+    You can check a tinfo_t instance is attached, by calling tinfo_t::is_typeref
 
 ida_typeinf.ADDTIL_ABORTED (variable)
     til was not loaded (incompatible til rejected by user)
@@ -59260,6 +59886,9 @@ ida_typeinf.HTI_RAWARGS (variable)
 ida_typeinf.HTI_RELAXED (variable)
     accept references to unknown namespaces
 
+ida_typeinf.HTI_SEMICOLON (variable)
+    do not complain if the terminated semicolon is absent
+
 ida_typeinf.HTI_TST (variable)
     test mode: discard the result
 
@@ -59423,6 +60052,9 @@ ida_typeinf.PT_RELAXED (variable)
 
 ida_typeinf.PT_REPLACE (variable)
     replace the old type (used in idc)
+
+ida_typeinf.PT_SEMICOLON (variable)
+    append the terminated semicolon
 
 ida_typeinf.PT_SIL (variable)
     silent, no messages
@@ -59870,6 +60502,9 @@ ida_typeinf.TERR_NESTED (variable)
 ida_typeinf.TERR_NOT_COMPAT (variable)
     the new type is not compatible with the old type
 
+ida_typeinf.TERR_NOT_FOUND (variable)
+    member not found
+
 ida_typeinf.TERR_NOT_IMPL (variable)
     not implemented
 
@@ -60132,12 +60767,11 @@ ida_typeinf.apply_tinfo_to_stkarg (function)
     @param name: (C++: const char *) char const *
 
 ida_typeinf.apply_type (function)
-    apply_type(ti, type, fields, ea, flags) -> bool
     Apply the specified type to the address
     
     @param ti: Type info library. 'None' can be used.
-    @param type: type_t const *
-    @param fields: p_list const *
+    @param type: type string
+    @param fields: fields string (may be empty or None)
     @param ea: the address of the object
     @param flags: combination of TINFO_... constants or 0
     @return: Boolean
@@ -60502,6 +61136,11 @@ ida_typeinf.argpartvec_t.add_unique (method)
     
     @param x: argpart_t const &
 
+ida_typeinf.argpartvec_t.append (method)
+    append(self, x)
+    
+    @param x: argpart_t const &
+
 ida_typeinf.argpartvec_t.at (method)
     at(self, _idx) -> argpart_t
     
@@ -60531,6 +61170,11 @@ ida_typeinf.argpartvec_t.erase (method)
     
     @param first: qvector< argpart_t >::iterator
     @param last: qvector< argpart_t >::iterator
+
+ida_typeinf.argpartvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< argpart_t > const &
 
 ida_typeinf.argpartvec_t.extract (method)
     extract(self) -> argpart_t
@@ -60765,7 +61409,6 @@ ida_typeinf.calc_tinfo_gaps (function)
     @param typid: typid_t
 
 ida_typeinf.calc_type_size (function)
-    calc_type_size(ti, tp) -> PyObject *
     Returns the size of a type
     
     @param ti: Type info library. 'None' can be passed.
@@ -61067,12 +61710,19 @@ ida_typeinf.edm_t.__eq__ (method)
     @param r: edm_t const &
 
 ida_typeinf.edm_t.__init__ (method)
-    __init__(self) -> edm_t
+    Create a structure/union member, with the specified name and value
+    
+    @param name: Enumerator name. Must not be empty.
+    @param value: Enumerator value
+    @param cmt: Enumerator repeatable comment. May be empty.
 
 ida_typeinf.edm_t.__ne__ (method)
     __ne__(self, r) -> bool
     
     @param r: edm_t const &
+
+ida_typeinf.edm_t.empty (method)
+    empty(self) -> bool
 
 ida_typeinf.edm_t.get_tid (method)
     get_tid(self) -> tid_t
@@ -61127,6 +61777,11 @@ ida_typeinf.edmvec_t.add_unique (method)
     
     @param x: edm_t const &
 
+ida_typeinf.edmvec_t.append (method)
+    append(self, x)
+    
+    @param x: edm_t const &
+
 ida_typeinf.edmvec_t.at (method)
     at(self, _idx) -> edm_t
     
@@ -61156,6 +61811,11 @@ ida_typeinf.edmvec_t.erase (method)
     
     @param first: qvector< edm_t >::iterator
     @param last: qvector< edm_t >::iterator
+
+ida_typeinf.edmvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< edm_t > const &
 
 ida_typeinf.edmvec_t.extract (method)
     extract(self) -> edm_t
@@ -61584,7 +62244,19 @@ ida_typeinf.funcarg_t.__eq__ (method)
     @param r: funcarg_t const &
 
 ida_typeinf.funcarg_t.__init__ (method)
-    __init__(self) -> funcarg_t
+    Create a function argument, with the specified name and type.
+    
+    The 'type' descriptor, can be one of:
+    
+    * type_t: if the type is simple (integral/floating/bool). E.g., `BTF_INT`
+    * tinfo_t: can handle more complex types (structures, pointers, arrays, ...)
+    * str: a C type declaration
+    
+    If an input argument is incorrect, the constructor may raise an exception
+    
+    @param name: a valid argument name. May not be empty.
+    @param type: the member type
+    @param argloc: the argument location. Can be empty.
 
 ida_typeinf.funcarg_t.__ne__ (method)
     __ne__(self, r) -> bool
@@ -61651,6 +62323,11 @@ ida_typeinf.funcargvec_t.add_unique (method)
     
     @param x: funcarg_t const &
 
+ida_typeinf.funcargvec_t.append (method)
+    append(self, x)
+    
+    @param x: funcarg_t const &
+
 ida_typeinf.funcargvec_t.at (method)
     at(self, _idx) -> funcarg_t
     
@@ -61680,6 +62357,11 @@ ida_typeinf.funcargvec_t.erase (method)
     
     @param first: qvector< funcarg_t >::iterator
     @param last: qvector< funcarg_t >::iterator
+
+ida_typeinf.funcargvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< funcarg_t > const &
 
 ida_typeinf.funcargvec_t.extract (method)
     extract(self) -> funcarg_t
@@ -61787,7 +62469,6 @@ ida_typeinf.get_alias_target (function)
     @param ordinal: (C++: uint32)
 
 ida_typeinf.get_arg_addrs (function)
-    get_arg_addrs(caller) -> PyObject *
     Retrieve addresses of argument initialization instructions
     
     @param caller: the address of the call instruction
@@ -61859,12 +62540,13 @@ ida_typeinf.get_idainfo_by_type (function)
     @param tif: (C++: const tinfo_t &) the type to inspect
 
 ida_typeinf.get_idainfo_by_udm (function)
-    get_idainfo_by_udm(flags, ti, udm) -> bool
+    get_idainfo_by_udm(flags, ti, udm, refinfo_ea=BADADDR) -> bool
     Calculate IDA info from udt member
     
     @param flags: (C++: flags64_t *) [out]: flags (see bytes.hpp) for udt member
     @param ti: (C++: opinfo_t *) [out]: additional representation information, see set_opinfo()
     @param udm: (C++: const udm_t &) udt member
+    @param refinfo_ea: (C++: ea_t) if specified will be used to adjust the refinfo_t data
     @note: any output argument may be nullptr
 
 ida_typeinf.get_idati (function)
@@ -61873,7 +62555,6 @@ ida_typeinf.get_idati (function)
     Functions that accept til_t* default to `idati` when is nullptr provided.
 
 ida_typeinf.get_named_type (function)
-    get_named_type(til, name, ntf_flags) -> (int, bytes, bytes, NoneType, NoneType, int, int)
     Get a type data by its name.
     
     @param til: the type library
@@ -62671,12 +63352,10 @@ ida_typeinf.pack_idcobj_to_idb (function)
     @param pio_flags: (C++: int)
 
 ida_typeinf.pack_object_to_bv (function)
-    pack_object_to_bv(py_obj, ti, type, fields, base_ea, pio_flags=0) -> PyObject
     Packs a typed object to a string
     
-    @param py_obj: PyObject *
     @param ti: Type info. 'None' can be passed.
-    @param type: type_t const *
+    @param tp: type string
     @param fields: fields string (may be empty or None)
     @param base_ea: base ea used to relocate the pointers in the packed object
     @param pio_flags: flags used while unpacking
@@ -62684,14 +63363,12 @@ ida_typeinf.pack_object_to_bv (function)
         tuple(1, packed_buf) on success
 
 ida_typeinf.pack_object_to_idb (function)
-    pack_object_to_idb(py_obj, ti, type, fields, ea, pio_flags=0) -> PyObject
     Write a typed object to the database.
     Raises an exception if wrong parameters were passed or conversion fails
     Returns the error_t returned by idaapi.pack_object_to_idb
     
-    @param py_obj: PyObject *
     @param ti: Type info. 'None' can be passed.
-    @param type: type_t const *
+    @param tp: type string
     @param fields: fields string (may be empty or None)
     @param ea: ea to be used while packing
     @param pio_flags: flags used while unpacking
@@ -62883,6 +63560,11 @@ ida_typeinf.reginfovec_t.add_unique (method)
     
     @param x: reg_info_t const &
 
+ida_typeinf.reginfovec_t.append (method)
+    append(self, x)
+    
+    @param x: reg_info_t const &
+
 ida_typeinf.reginfovec_t.at (method)
     at(self, _idx) -> reg_info_t
     
@@ -62912,6 +63594,11 @@ ida_typeinf.reginfovec_t.erase (method)
     
     @param first: qvector< reg_info_t >::iterator
     @param last: qvector< reg_info_t >::iterator
+
+ida_typeinf.reginfovec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< reg_info_t > const &
 
 ida_typeinf.reginfovec_t.extract (method)
     extract(self) -> reg_info_t
@@ -63026,6 +63713,11 @@ ida_typeinf.regobjvec_t.__setitem__ (method)
     @param i: size_t
     @param v: regobj_t const &
 
+ida_typeinf.regobjvec_t.append (method)
+    append(self, x)
+    
+    @param x: regobj_t const &
+
 ida_typeinf.regobjvec_t.at (method)
     at(self, _idx) -> regobj_t
     
@@ -63055,6 +63747,11 @@ ida_typeinf.regobjvec_t.erase (method)
     
     @param first: qvector< regobj_t >::iterator
     @param last: qvector< regobj_t >::iterator
+
+ida_typeinf.regobjvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< regobj_t > const &
 
 ida_typeinf.regobjvec_t.extract (method)
     extract(self) -> regobj_t
@@ -63415,8 +64112,18 @@ ida_typeinf.til_symbol_t.til (variable)
 ida_typeinf.til_t (class)
     Proxy of C++ til_t class.
 
+ida_typeinf.til_t.__eq__ (method)
+    __eq__(self, r) -> bool
+    
+    @param r: til_t const *
+
 ida_typeinf.til_t.__init__ (method)
     __init__(self) -> til_t
+
+ida_typeinf.til_t.__ne__ (method)
+    __ne__(self, r) -> bool
+    
+    @param r: til_t const *
 
 ida_typeinf.til_t.base (method)
     base(self, n) -> til_t
@@ -63440,7 +64147,25 @@ ida_typeinf.til_t.find_base (method)
 ida_typeinf.til_t.flags (variable)
     Type info library property bits
 
+ida_typeinf.til_t.get_named_type (method)
+    Retrieves a tinfo_t representing the named type in this type library.
+    
+    @param name: a type name
+    @return: a new tinfo_t object, or None if not found
+
+ida_typeinf.til_t.get_numbered_type (method)
+    Retrieves a tinfo_t representing the numbered type in this type library.
+    
+    @param ordinal: a type ordinal
+    @return: a new tinfo_t object, or None if not found
+
 ida_typeinf.til_t.get_type_names (method)
+
+ida_typeinf.til_t.import_type (method)
+    Import a type (and all its dependencies) into this type info library.
+    
+    @param src: The type to import
+    @return: the imported copy, or None
 
 ida_typeinf.til_t.is_dirty (method)
     is_dirty(self) -> bool
@@ -63448,6 +64173,14 @@ ida_typeinf.til_t.is_dirty (method)
 
 ida_typeinf.til_t.name (variable)
     short file name (without path and extension)
+
+ida_typeinf.til_t.named_types (method)
+    Returns a generator over the named types contained in this
+    type library.
+    
+    Every iteration returns a fresh new tinfo_t object
+    
+    @return: a tinfo_t-producing generator
 
 ida_typeinf.til_t.nbases (variable)
     number of base tils
@@ -63457,6 +64190,14 @@ ida_typeinf.til_t.nrefs (variable)
 
 ida_typeinf.til_t.nstreams (variable)
     number of extra streams
+
+ida_typeinf.til_t.numbered_types (method)
+    Returns a generator over the numbered types contained in this
+    type library.
+    
+    Every iteration returns a fresh new tinfo_t object
+    
+    @return: a tinfo_t-producing generator
 
 ida_typeinf.til_t.set_dirty (method)
     set_dirty(self)
@@ -63539,14 +64280,38 @@ ida_typeinf.tinfo_t.__gt__ (method)
     @param r: tinfo_t const &
 
 ida_typeinf.tinfo_t.__init__ (method)
-    __init__(self) -> tinfo_t
-    __init__(self, decl_type) -> tinfo_t
+    Create a type object with the provided argumens.
     
-    @param decl_type: type_t
+    This constructor has the following signatures:
     
-    __init__(self, r) -> tinfo_t
+    * tinfo_t(decl_type: type_t)
+    * tinfo_t(decl: str, til: til_t = None, pt_flags: int = 0)
     
-    @param r: tinfo_t const &
+    The latter form will create the type object by parsing the type declaration
+    
+    Alternatively, you can use a form accepting the following keyword arguments:
+    
+    * ordinal: int
+    * name: str
+    * tid: int
+    * til: til_t=None # `None` means `get_idati()`
+    
+    E.g.,
+    
+    * tinfo_t(ordinal=3)
+    * tinfo_t(ordinal=10, til=get_idati())
+    * tinfo_t(name="mytype_t")
+    * tinfo_t(name="thattype_t", til=my_other_til)
+    * tinfo_t(tid=ida_nalt.get_strid(some_address))
+    
+    The constructor may raise an exception if data was invalid, or if parsing failed.
+    
+    @param decl_type: A simple type
+    @param decl: A valid C declaration
+    @param til: A type library, or `None` to use the (`get_idati()`) default
+    @param ordinal: An ordinal in the type library
+    @param name: A valid type name
+    @param pt_flags: Parsing flags
 
 ida_typeinf.tinfo_t.__le__ (method)
     __le__(self, r) -> bool
@@ -63562,6 +64327,8 @@ ida_typeinf.tinfo_t.__ne__ (method)
     __ne__(self, r) -> bool
     
     @param r: tinfo_t const &
+
+ida_typeinf.tinfo_t.__repr__ (method)
 
 ida_typeinf.tinfo_t.__str__ (method)
     __str__(self) -> qstring
@@ -63579,17 +64346,26 @@ ida_typeinf.tinfo_t._print (method)
     cmt: char const *
 
 ida_typeinf.tinfo_t.add_edm (method)
-    add_edm(self, edm, bmask=bmask64_t(-1), etf_flags=0, idx=-1) -> tinfo_code_t
-    Add a new enum member (a new symbolic constant)
+    Add an enumerator to the current enumeration.
     
-    @param edm: (C++: const edm_t &) the constant name, value, and comment
-    @param bmask: (C++: bmask64_t) bmask of the group to add the constant to
-    @note: 1. For non-bitmask enum push back constant, BMASK is not used (set it ot
-           -1), never failed 2. For bitmask enum:
-    * if VAL and BMASK are not agreed, return TERR_BAD_MSKVAL
-    * if group with BMASK exists, push back constant to group
-    * otherwise use constant as bitmask for a new group
-    @note: ETF_NO_SAVE is ignored
+    When creating a new enumeration from scratch, you might
+    want to first call `create_enum()`
+    
+    This method has the following signatures:
+    
+    * add_edm(edm: edm_t, bmask: int = -1, etf_flags: int = 0, idx: int = -1)
+    * add_edm(name: str, value: int, bmask: int = -1, etf_flags: int = 0, idx: int = -1)
+    
+    If an input argument is incorrect, the constructor may raise an exception
+    
+    @param edm: The member, fully initialized (first form)
+    @param name: Enumerator name - must not be empty
+    @param value: Enumerator value
+    @param bmask: A bitmask to which the enumerator belongs
+    @param etf_flags: an OR'ed combination of ETF_ flags
+    @param idx: the index in the edm array where the new udm should be placed.
+                     If the specified index cannot be honored because it would spoil
+                     the edm sorting order, it is silently ignored.
 
 ida_typeinf.tinfo_t.add_funcarg (method)
     add_funcarg(self, farg, etf_flags=0, idx=-1) -> tinfo_code_t
@@ -63603,17 +64379,34 @@ ida_typeinf.tinfo_t.add_funcarg (method)
     @note: ETF_NO_SAVE is ignored
 
 ida_typeinf.tinfo_t.add_udm (method)
-    add_udm(self, udm, etf_flags=0, times=1, idx=-1) -> tinfo_code_t
-    Add a structure/union member.
+    Add a member to the current structure/union.
     
-    @param udm: (C++: const udm_t &) member to add
-    @param etf_flags: (C++: uint) type changing flags flags
-    @param times: (C++: size_t) how many times to add. if times > 1, the member name will be
-                  appended a suffix like "_2" and so on
-    @param idx: (C++: ssize_t) the index in the udm array where the new udm should be placed. if
-                the specified index cannot be honored because it would spoil the udm
-                sorting order, it is silently ignored.
-    @note: ETF_NO_SAVE is ignored
+    When creating a new structure/union from scratch, you might
+    want to first call `create_udt()`
+    
+    This method has the following signatures:
+    
+    * add_udm(udm: udm_t, etf_flags: int = 0, times: int = 1, idx: int = -1)
+    * add_udm(name: str, type: type_t | tinfo_t | str, offset: int = 0, etf_flags: int = 0, times: int = 1, idx: int = -1)
+    
+    In the second form, the 'type' descriptor, can be one of:
+    
+    * type_t: if the type is simple (integral/floating/bool). E.g., `BTF_INT`
+    * tinfo_t: can handle more complex types (structures, pointers, arrays, ...)
+    * str: a C type declaration
+    
+    If an input argument is incorrect, the constructor may raise an exception
+    
+    @param udm: The member, fully initialized (first form)
+    @param name: Member name - must not be empty
+    @param type: Member type
+    @param offset: the member offset in bits. It is the caller's responsibility
+           to specify correct offsets.
+    @param etf_flags: an OR'ed combination of ETF_ flags
+    @param times: how many times to add the new member
+    @param idx: the index in the udm array where the new udm should be placed.
+                     If the specified index cannot be honored because it would spoil
+                     the udm sorting order, it is silently ignored.
 
 ida_typeinf.tinfo_t.append_covered (method)
     append_covered(self, out, offset=0) -> bool
@@ -63721,6 +64514,11 @@ ida_typeinf.tinfo_t.create_bitfield (method)
     @param decl_type: type_t
 
 ida_typeinf.tinfo_t.create_enum (method)
+    create_enum(self, bte=BTE_ALWAYS|BTE_HEX) -> bool
+    Create an empty enum.
+    
+    @param bte: (C++: bte_t)
+    
     create_enum(self, p, decl_type=BTF_ENUM) -> bool
     
     @param p: enum_type_data_t &
@@ -63779,6 +64577,11 @@ ida_typeinf.tinfo_t.create_typedef (method)
     @param decl_type: type_t
 
 ida_typeinf.tinfo_t.create_udt (method)
+    create_udt(self, is_union=False) -> bool
+    Create an empty structure/union.
+    
+    @param is_union: (C++: bool)
+    
     create_udt(self, p) -> bool
     
     @param p: udt_type_data_t &
@@ -63800,10 +64603,18 @@ ida_typeinf.tinfo_t.del_attrs (method)
     Del all type attributes. typerefs cannot be modified by this function.
 
 ida_typeinf.tinfo_t.del_edm (method)
-    del_edm(self, idx, etf_flags=0) -> tinfo_code_t
+    Delete an enumerator with the specified name
+    or the specified index, in the specified tinfo_t object.
     
-    @param idx: size_t
-    @param etf_flags: uint
+    @param data: either an enumerator name, or index
+    @return: TERR_OK in case of success, or another TERR_* value in case of error
+
+ida_typeinf.tinfo_t.del_edm_by_value (method)
+    Delete an enumerator with the specified value,
+    in the specified tinfo_t object.
+    
+    @param value: the enumerator value
+    @return: TERR_OK in case of success, or another TERR_* value in case of error
 
 ida_typeinf.tinfo_t.del_edms (method)
     del_edms(self, idx1, idx2, etf_flags=0) -> tinfo_code_t
@@ -63896,24 +64707,30 @@ ida_typeinf.tinfo_t.expand_udt (method)
     expand_udt(self, idx, delta, etf_flags=0) -> tinfo_code_t
     Expand/shrink a structure by adding/removing a gap before the specified member.
     
+    For regular structures, either the gap can be accommodated by aligning the next
+    member with an alignment directive, or an explicit "gap" member will be
+    inserted. Also note that it is impossible to add a gap at the end of a regular
+    structure.
+    
+    When it comes to fixed-layout structures, there is no need to either add new
+    "gap" members or align existing members, since all members have a fixed offset.
+    It is possible to add a gap at the end of a fixed-layout structure, by passing
+    `-1` as index.
+    
     @param idx: (C++: size_t) index of the member
     @param delta: (C++: adiff_t) number of bytes to add or remove
-    @param etf_flags: (C++: uint) etf_flag_t Please note that it is impossible to add a gap at
-                      the very end of a structure. However, adding before a regular
-                      member is possible. This function can be used to remove gaps
-                      in the middle of a structure by specifying a negative delta
-                      value.
-    @note: It is possible to add/remove a gap at the end of a fixed structure. Use
-           IDX equal to the number of members for that.
+    @param etf_flags: (C++: uint) etf_flag_t
+    @note: This function can be used to remove gaps in the middle of a structure by
+           specifying a negative delta value.
 
 ida_typeinf.tinfo_t.find_edm (method)
-    find_edm(self, edm, value, bmask=bmask64_t(-1), serial=0) -> ssize_t
-    Find enum member
+    find_edm(self, edm, value, bmask=DEFMASK64, serial=0) -> ssize_t
     
-    @param edm: (C++: edm_t *) enum type member, may be nullptr
+    @param edm: edm_t *
     @param value: uint64
     @param bmask: bmask64_t
-    @return: member index, otherwise returns -1.
+    @param serial: uchar
+    
     find_edm(self, edm, name) -> ssize_t
     
     @param edm: edm_t *
@@ -63989,6 +64806,15 @@ ida_typeinf.tinfo_t.get_bitfield_details (method)
     
     @param bi: (C++: bitfield_type_data_t *)
 
+ida_typeinf.tinfo_t.get_by_edm_name (method)
+    get_by_edm_name(self, mname, til=None) -> ssize_t
+    Retrieve enum tinfo using enum member name
+    
+    @param mname: (C++: const char *) enum type member name
+    @param til: (C++: const til_t *) type library
+    @return: member index, otherwise returns -1. If the function fails, THIS object
+             becomes empty.
+
 ida_typeinf.tinfo_t.get_declalign (method)
     get_declalign(self) -> uchar
     Get declared alignment of the type.
@@ -64001,26 +64827,24 @@ ida_typeinf.tinfo_t.get_decltype (method)
     return BTF_TYPEDEF. To determine if a typeref is a typedef, use is_typedef()
 
 ida_typeinf.tinfo_t.get_edm (method)
-    get_edm(self, edm, idx) -> tinfo_code_t
-    Get enum member
+    Retrieve an enumerator with either the specified name
+    or the specified index, in the specified tinfo_t object.
     
-    @param edm: (C++: edm_t *) enum type member
-    @param idx: (C++: size_t) enum member index
-
-ida_typeinf.tinfo_t.get_edm_by_name (method)
-    get_edm_by_name(self, mname, til=None) -> ssize_t
-    Retrieve enum tinfo using enum member name
-    
-    @param mname: (C++: const char *) enum type member name
-    @param til: (C++: const til_t *) type library
-    @return: member index, otherwise returns -1. If the function fails, THIS object
-             becomes empty.
+    @param data: either an enumerator name, or index
+    @return: a tuple (int, edm_t), or (-1, None) if member not found
 
 ida_typeinf.tinfo_t.get_edm_by_tid (method)
     get_edm_by_tid(self, edm, tid) -> ssize_t
     
     @param edm: edm_t *
     @param tid: tid_t
+
+ida_typeinf.tinfo_t.get_edm_by_value (method)
+    Retrieve an enumerator with the specified value,
+    in the specified tinfo_t object.
+    
+    @param value: the enumerator value
+    @return: a tuple (int, edm_t), or (-1, None) if member not found
 
 ida_typeinf.tinfo_t.get_edm_tid (method)
     get_edm_tid(self, idx) -> tid_t
@@ -64296,6 +65120,20 @@ ida_typeinf.tinfo_t.get_type_name (method)
 ida_typeinf.tinfo_t.get_type_rptcmt (method)
     get_type_rptcmt(self) -> bool
     Get type comment only if it is repeatable.
+
+ida_typeinf.tinfo_t.get_udm (method)
+    Retrieve a structure/union member with either the specified name
+    or the specified index, in the specified tinfo_t object.
+    
+    @param data: either a member name, or a member index
+    @return: a tuple (int, udm_t), or (-1, None) if member not found
+
+ida_typeinf.tinfo_t.get_udm_by_offset (method)
+    Retrieve a structure/union member with the specified offset,
+    in the specified tinfo_t object.
+    
+    @param offset: the member offset
+    @return: a tuple (int, udm_t), or (-1, None) if member not found
 
 ida_typeinf.tinfo_t.get_udm_by_tid (method)
     get_udm_by_tid(self, udm, tid) -> ssize_t
@@ -64801,6 +65639,77 @@ ida_typeinf.tinfo_t.is_well_defined (method)
     is_well_defined(self) -> bool
     !(empty()) && !(is_decl_partial()) && !(is_punknown())
 
+ida_typeinf.tinfo_t.iter_enum (method)
+    Iterate on the members composing this enumeration.
+    
+    Example:
+    
+        til = ida_typeinf.get_idati()
+        tif = til.get_named_type("my_enum")
+        for edm in tif.iter_enum():
+            print(f"{edm.name} = {edm.value}")
+    
+    Will raise an exception if this type is not an enumeration
+    
+    @return: a edm_t-producing generator
+
+ida_typeinf.tinfo_t.iter_func (method)
+    Iterate on the arguments contained in this function prototype
+    
+    Example:
+    
+        address = ...
+        func = ida_funcs.get_func(address)
+        func_type = func.prototype
+        for arg in func_type.iter_func():
+            print(f"{arg.name}, of type {arg.type}")
+    
+    Will raise an exception if this type is not a function
+    
+    @return: a funcarg_t-producing generator
+
+ida_typeinf.tinfo_t.iter_struct (method)
+    Iterate on the members composing this structure.
+    
+    Example:
+    
+        til = ida_typeinf.get_idati()
+        tif = til.get_named_type("my_struc")
+        for udm in tif.iter_struct():
+            print(f"{udm.name} at bit offset {udm.offset}")
+    
+    Will raise an exception if this type is not a structure.
+    
+    @return: a udm_t-producing generator
+
+ida_typeinf.tinfo_t.iter_udt (method)
+    Iterate on the members composing this structure, or union.
+    
+    Example:
+    
+        til = ida_typeinf.get_idati()
+        tif = til.get_named_type("my_type")
+        for udm in tif.iter_udt():
+            print(f"{udm.name} at bit offset {udm.offset} with type {udm.type}")
+    
+    Will raise an exception if this type is not a structure, or union
+    
+    @return: a udm_t-producing generator
+
+ida_typeinf.tinfo_t.iter_union (method)
+    Iterate on the members composing this union.
+    
+    Example:
+    
+        til = ida_typeinf.get_idati()
+        tif = til.get_named_type("my_union")
+        for udm in tif.iter_union():
+            print(f"{udm.name}, with type {udm.type}")
+    
+    Will raise an exception if this type is not a union.
+    
+    @return: a udm_t-producing generator
+
 ida_typeinf.tinfo_t.parse (method)
     parse(self, decl, til=None, pt_flags=0) -> bool
     Convenience function to parse a string with a type declaration
@@ -65222,6 +66131,11 @@ ida_typeinf.type_attrs_t.__setitem__ (method)
     @param i: size_t
     @param v: type_attr_t const &
 
+ida_typeinf.type_attrs_t.append (method)
+    append(self, x)
+    
+    @param x: type_attr_t const &
+
 ida_typeinf.type_attrs_t.at (method)
     at(self, _idx) -> type_attr_t
     
@@ -65251,6 +66165,11 @@ ida_typeinf.type_attrs_t.erase (method)
     
     @param first: qvector< type_attr_t >::iterator
     @param last: qvector< type_attr_t >::iterator
+
+ida_typeinf.type_attrs_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< type_attr_t > const &
 
 ida_typeinf.type_attrs_t.extract (method)
     extract(self) -> type_attr_t
@@ -65417,7 +66336,27 @@ ida_typeinf.udm_t.__eq__ (method)
     @param r: udm_t const &
 
 ida_typeinf.udm_t.__init__ (method)
-    __init__(self) -> udm_t
+    Create a structure/union member, with the specified name and type.
+    
+    This constructor has the following signatures:
+    
+    * udm_t(udm: udm_t)
+    * udm_t(name: str, type, offset: int)
+    
+    The 'type' descriptor, can be one of:
+    
+    * type_t: if the type is simple (integral/floating/bool). E.g., `BTF_INT`
+    * tinfo_t: can handle more complex types (structures, pointers, arrays, ...)
+    * str: a C type declaration
+    
+    If an input argument is incorrect, the constructor may raise an exception
+    The size will be computed automatically.
+    
+    @param udm: a source udm_t
+    @param name: a valid member name. Must not be empty.
+    @param type: the member type
+    @param offset: the member offset in bits. It is the caller's responsibility
+           to specify correct offsets.
 
 ida_typeinf.udm_t.__lt__ (method)
     __lt__(self, r) -> bool
@@ -65458,6 +66397,9 @@ ida_typeinf.udm_t.cmt (variable)
 
 ida_typeinf.udm_t.effalign (variable)
     effective field alignment (in bytes)
+
+ida_typeinf.udm_t.empty (method)
+    empty(self) -> bool
 
 ida_typeinf.udm_t.end (method)
     end(self) -> uint64
@@ -65617,6 +66559,17 @@ ida_typeinf.udt_type_data_t (class)
 ida_typeinf.udt_type_data_t.__init__ (method)
     __init__(self) -> udt_type_data_t
 
+ida_typeinf.udt_type_data_t.add_member (method)
+    add_member(self, _name, _type, _offset=0) -> udm_t
+    Add a new member to a structure or union. This function just pushes a new member
+    to the back of the structure/union member vector.
+    
+    @param _name: (C++: const char *) char const *
+    @param _type: (C++: const tinfo_t &) tinfo_t const &
+    @param _offset: (C++: uint64) Member offset in bits. It is the caller's responsibility to
+                    specify correct offsets.
+    @return: { Reference to the newly added member }
+
 ida_typeinf.udt_type_data_t.effalign (variable)
     effective structure alignment (in bytes)
 
@@ -65635,11 +66588,10 @@ ida_typeinf.udt_type_data_t.find_member (method)
     @param bit_offset: uint64
 
 ida_typeinf.udt_type_data_t.get_best_fit_member (method)
-    get_best_fit_member(self, disp) -> ssize_t
-    Get member that is most likely referenced by the specified offset. Useful for
-    offsets > sizeof(struct).
+    Get the member that is most likely referenced by the specified offset.
     
-    @param disp: (C++: asize_t)
+    @param disp: the byte offset
+    @return: a tuple (int, udm_t), or (-1, None) if member not found
 
 ida_typeinf.udt_type_data_t.is_cppobj (method)
     is_cppobj(self) -> bool
@@ -65761,6 +66713,11 @@ ida_typeinf.udtmembervec_template_t.add_unique (method)
     
     @param x: udm_t const &
 
+ida_typeinf.udtmembervec_template_t.append (method)
+    append(self, x)
+    
+    @param x: udm_t const &
+
 ida_typeinf.udtmembervec_template_t.at (method)
     at(self, _idx) -> udm_t
     
@@ -65790,6 +66747,11 @@ ida_typeinf.udtmembervec_template_t.erase (method)
     
     @param first: qvector< udm_t >::iterator
     @param last: qvector< udm_t >::iterator
+
+ida_typeinf.udtmembervec_template_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< udm_t > const &
 
 ida_typeinf.udtmembervec_template_t.extract (method)
     extract(self) -> udm_t
@@ -65882,12 +66844,11 @@ ida_typeinf.unpack_idcobj_from_idb (function)
     @param pio_flags: (C++: int)
 
 ida_typeinf.unpack_object_from_bv (function)
-    unpack_object_from_bv(ti, type, fields, bytes, pio_flags=0) -> PyObject
     Unpacks a buffer into an object.
     Returns the error_t returned by idaapi.pack_object_to_idb
     
     @param ti: Type info. 'None' can be passed.
-    @param type: type_t const *
+    @param tp: type string
     @param fields: fields string (may be empty or None)
     @param bytes: the bytes to unpack
     @param pio_flags: flags used while unpacking
@@ -65957,6 +66918,11 @@ ida_typeinf.valstrvec_t.__setitem__ (method)
     @param i: size_t
     @param v: valstr_t const &
 
+ida_typeinf.valstrvec_t.append (method)
+    append(self, x)
+    
+    @param x: valstr_t const &
+
 ida_typeinf.valstrvec_t.at (method)
     at(self, _idx) -> valstr_t
     
@@ -65986,6 +66952,11 @@ ida_typeinf.valstrvec_t.erase (method)
     
     @param first: qvector< valstr_t >::iterator
     @param last: qvector< valstr_t >::iterator
+
+ida_typeinf.valstrvec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< valstr_t > const &
 
 ida_typeinf.valstrvec_t.extract (method)
     extract(self) -> valstr_t
@@ -66494,18 +67465,14 @@ ida_ua.can_decode (function)
              instruction
 
 ida_ua.construct_macro (function)
-    construct_macro(_this, insn, enable) -> bool
     See ua.hpp's construct_macro().
     
-    @param _this: macro_constructor_t *
-    @param insn: insn_t *
-    @param enable: bool
-    
-    construct_macro(insn, enable, build_macro) -> bool
-    
-    @param insn: insn_t &
-    @param enable: bool
-    @param build_macro: PyObject *
+    @param insn: the instruction to build the macro for
+    @param enable: enable macro generation
+    @param build_macro: a callable with 2 arguments: an insn_t, and
+                        whether it is ok to consider the next instruction
+                        for the macro
+    @return: success
 
 ida_ua.create_insn (function)
     create_insn(ea, out=None) -> int
@@ -66538,7 +67505,6 @@ ida_ua.decode_insn (function)
     @return: the length of the (possible) instruction or 0
 
 ida_ua.decode_preceding_insn (function)
-    decode_preceding_insn(out, ea) -> (int, int)
     Decodes the preceding instruction. Please check ua.hpp / decode_preceding_insn()
     
     @param out: instruction storage
@@ -67730,7 +68696,6 @@ ida_xref.add_dref (function)
     @return: success (may fail if user-defined xref exists from->to)
 
 ida_xref.calc_switch_cases (function)
-    calc_switch_cases(ea, si) -> cases_and_targets_t
     Get information about a switch's cases.
     
     The returned information can be used as follows:
@@ -67797,6 +68762,11 @@ ida_xref.casevec_t.add_unique (method)
     
     @param x: qvector< signed-ea-like-numeric-type > const &
 
+ida_xref.casevec_t.append (method)
+    append(self, x)
+    
+    @param x: qvector< signed-ea-like-numeric-type > const &
+
 ida_xref.casevec_t.at (method)
     at(self, _idx) -> qvector< signed-ea-like-numeric-type > const &
     
@@ -67828,6 +68798,11 @@ ida_xref.casevec_t.erase (method)
     
     @param first: qvector< qvector< signed-ea-like-numeric-type > >::iterator
     @param last: qvector< qvector< signed-ea-like-numeric-type > >::iterator
+
+ida_xref.casevec_t.extend (method)
+    extend(self, x)
+    
+    @param x: qvector< qvector< signed-ea-like-numeric-type > > const &
 
 ida_xref.casevec_t.extract (method)
     extract(self) -> qvector< signed-ea-like-numeric-type > *
@@ -67903,7 +68878,6 @@ ida_xref.casevec_t.truncate (method)
     truncate(self)
 
 ida_xref.create_switch_table (function)
-    create_switch_table(ea, si) -> bool
     Create switch table from the switch information
     
     @param ea: address of the 'indirect jump' instruction
@@ -67912,7 +68886,6 @@ ida_xref.create_switch_table (function)
     @return: Boolean
 
 ida_xref.create_switch_xrefs (function)
-    create_switch_xrefs(ea, si) -> bool
     This function creates xrefs from the indirect jump.
     
     Usually there is no need to call this function directly because the kernel
@@ -69040,14 +70013,29 @@ ida_undo (module)
     
 
 ida_undo.create_undo_point (function)
-    create_undo_point(input_bytes) -> bool
+    create_undo_point(action_name, label) -> bool
     Create a new restore point. The user can undo to this point in the future.
     
     @param bytes: (C++: const uchar *) body of the record for UNDO_ACTION_START
+    @param size: (C++: size_t) size of the record for UNDO_ACTION_START
     @return: success; fails if undo is disabled
-    create_undo_point(bytes, size) -> bool
+    create_undo_point(bytes) -> bool
     
     @param bytes: uchar const *
+
+ida_undo.get_redo_action_label (function)
+    get_redo_action_label() -> str
+    Get the label of the action that will be redone. This function returns the text
+    that can be displayed in the redo menu
+    
+    @return: success
+
+ida_undo.get_undo_action_label (function)
+    get_undo_action_label() -> str
+    Get the label of the action that will be undone. This function returns the text
+    that can be displayed in the undo menu
+    
+    @return: success
 
 ida_undo.perform_redo (function)
     perform_redo() -> bool

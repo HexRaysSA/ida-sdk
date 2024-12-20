@@ -40,6 +40,9 @@ static int py_mem2base(PyObject *py_mem, ea_t ea, qoff64_t fpos = -1)
 def load_plugin(name):
     """
     Loads a plugin
+
+    @param name: short plugin name without path and extension,
+                 or absolute path to the file name
     @return:
         - None if plugin could not be loaded
         - An opaque object representing the loaded plugin
@@ -63,10 +66,11 @@ static PyObject *py_load_plugin(const char *name)
 //------------------------------------------------------------------------
 /*
 #<pydoc>
-def run_plugin(plg):
+def run_plugin(plg, arg):
     """
     Runs a plugin
     @param plg: A plugin object (returned by load_plugin())
+    @param arg: the code to pass to the plugin's "run()" function
     @return: Boolean
     """
     pass

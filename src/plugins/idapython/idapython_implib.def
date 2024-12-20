@@ -7,6 +7,7 @@ EXPORTS
   PyW_SizeVecToPyList
   PyW_UvalVecToPyList
   PyW_StrVecToPyList
+  PyW_TidVecToPyList
   PyW_IsSequenceType
   PyW_ObjectToString
   PyW_PySeqToEaVec

@@ -32,9 +32,12 @@ class qfile_t(pyidc_opaque_object_t):
         """A static method to construct an instance using a temporary file"""
         pass
 
-    def seek(self, pos, whence = SEEK_SET):
+    def seek(self, offset, whence = SEEK_SET):
         """
         Set input source position
+
+        @param offset: the seek offset
+        @param whence: the position to seek from
         @return: the new position (not 0 as fseek!)
         """
         pass
@@ -44,23 +47,49 @@ class qfile_t(pyidc_opaque_object_t):
         pass
 
     def gets(self, len):
-        """Reads a line from the input file. Returns the read line or None"""
+        """
+        Reads a line from the input file. Returns the read line or None
+
+        @param len: the maximum line length
+        """
         pass
 
     def read(self, size):
-        """Reads from the file. Returns the buffer or None"""
+        """
+        Reads from the file. Returns the buffer or None
+
+        @param size: the maximum number of bytes to read
+        @return: a str, or None
+        """
         pass
 
     def write(self, buf):
-        """Writes to the file. Returns 0 or the number of bytes written"""
+        """
+        Writes to the file. Returns 0 or the number of bytes written
+
+        @param buf: the str to write
+        @return: result code
+        """
         pass
 
     def readbytes(self, size, big_endian):
-        """Similar to read() but it respect the endianness"""
+        """
+        Similar to read() but it respect the endianness
+
+        @param size: the maximum number of bytes to read
+        @param big_endian: endianness
+        @return a str, or None
+        """
         pass
 
     def writebytes(self, size, big_endian):
-        """Similar to write() but it respect the endianness"""
+        """
+        Similar to write() but it respect the endianness
+
+        @param buf: the str to write
+        @param big_endian: endianness
+        @return: result code
+        """
         pass
 
     def flush(self):
@@ -71,7 +100,11 @@ class qfile_t(pyidc_opaque_object_t):
         pass
 
     def put_byte(self):
-        """Writes a single byte to the file"""
+        """
+        Writes a single byte to the file
+
+        @param chr: the byte value
+        """
         pass
 
     def opened(self):

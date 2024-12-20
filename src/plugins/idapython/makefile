@@ -267,6 +267,7 @@ MODULES_NAMES += idd
 MODULES_NAMES += idp
 MODULES_NAMES += ieee
 MODULES_NAMES += kernwin
+MODULES_NAMES += libfuncs
 MODULES_NAMES += lines
 MODULES_NAMES += loader
 ifdef TESTABLE_BUILD
@@ -386,7 +387,7 @@ ifeq ($(OUT_OF_TREE_BUILD),)
 	$(Q)$(CP) $? $@
   DEST_SIP += $(DEST_SIP38_PYDLL) $(DEST_SIP38_PYI)
 
-  # sip for Python [3.9, 3.10)
+  # sip for Python 3.9
   DEST_SIP39_DIR:=$(DEST_PYQT_DIR)/python_3.9
   $(DEST_SIP39_DIR):
 	-$(Q)if [ ! -d "$(DEST_SIP39_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP39_DIR) ; fi
@@ -398,7 +399,7 @@ ifeq ($(OUT_OF_TREE_BUILD),)
 	$(Q)$(CP) $? $@
   DEST_SIP += $(DEST_SIP39_PYDLL) $(DEST_SIP39_PYI)
 
-  # sip for Python [3.10, 3.11)
+  # sip for Python 3.10
   DEST_SIP310_DIR:=$(DEST_PYQT_DIR)/python_3.10
   $(DEST_SIP310_DIR):
 	-$(Q)if [ ! -d "$(DEST_SIP310_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP310_DIR) ; fi
@@ -410,7 +411,7 @@ ifeq ($(OUT_OF_TREE_BUILD),)
 	$(Q)$(CP) $? $@
   DEST_SIP += $(DEST_SIP310_PYDLL) $(DEST_SIP310_PYI)
 
-  # sip for Python [3.11, 3.12)
+  # sip for Python 3.11
   DEST_SIP311_DIR:=$(DEST_PYQT_DIR)/python_3.11
   $(DEST_SIP311_DIR):
 	-$(Q)if [ ! -d "$(DEST_SIP311_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP311_DIR) ; fi
@@ -422,7 +423,7 @@ ifeq ($(OUT_OF_TREE_BUILD),)
 	$(Q)$(CP) $? $@
   DEST_SIP += $(DEST_SIP311_PYDLL) $(DEST_SIP311_PYI)
 
-  # sip for Python [3.12, ...
+  # sip for Python 3.12
   DEST_SIP312_DIR:=$(DEST_PYQT_DIR)/python_3.12
   $(DEST_SIP312_DIR):
 	-$(Q)if [ ! -d "$(DEST_SIP312_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP312_DIR) ; fi
@@ -434,6 +435,19 @@ ifeq ($(OUT_OF_TREE_BUILD),)
 	$(Q)$(CP) $? $@
   DEST_SIP += $(DEST_SIP312_PYDLL) $(DEST_SIP312_PYI)
 
+ifdef SIP313_TREE
+  # sip for Python 3.13
+  DEST_SIP313_DIR:=$(DEST_PYQT_DIR)/python_3.13
+  $(DEST_SIP313_DIR):
+	-$(Q)if [ ! -d "$(DEST_SIP313_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP313_DIR) ; fi
+  DEST_SIP313_PYDLL:=$(DEST_SIP313_DIR)/$(SIP_PYDLL_FNAME)
+  DEST_SIP313_PYI:=$(DEST_SIP313_DIR)/$(SIP_PYI_FNAME)
+  $(DEST_SIP313_PYDLL): $(wildcard $(SIP313_TREE)/lib/python*/PyQt5/$(SIP_PYDLL_FNAME)) | $(DEST_SIP313_DIR)
+	$(Q)$(CP) $? $@
+  $(DEST_SIP313_PYI): $(wildcard $(SIP313_TREE)/lib/python*/PyQt5/$(SIP_PYI_FNAME)) | $(DEST_SIP313_DIR)
+	$(Q)$(CP) $? $@
+  DEST_SIP += $(DEST_SIP313_PYDLL) $(DEST_SIP313_PYI)
+endif
 endif
 
 pyqt: $(DEST_PYQT)
@@ -803,32 +817,46 @@ ifdef __LINUX__
 endif
 
 #----------------------------------------------------------------------
-ifdef TESTABLE_BUILD
-  API_CONTENTS = api_contents$(EXTRASUF1).brief
-else
-  API_CONTENTS = api_contents$(EXTRASUF1).full
-  API_CONTENTS_OPTS := --dump-doc
-endif
-ST_API_CONTENTS = $(F)$(API_CONTENTS)
-ST_API_CONTENTS_SUCCESS = $(ST_API_CONTENTS).success
-.PRECIOUS: $(ST_API_CONTENTS)
 
-api_contents: $(ST_API_CONTENTS_SUCCESS)
-ifeq ($(or $(__CODE_CHECKER__),$(NO_CMP_API),$(__ASAN__),$(IDAHOME),$(IDACLASS),$(DEMO_OR_FREE)),)
-$(ST_API_CONTENTS_SUCCESS): $(ALL_ST_WRAP_PY_FINAL) $(API_CONTENTS) tools/py_scanner.py
-	$(QDUMPAPI)$(PYTHON) tools/py_scanner.py --dump-kind $(API_CONTENTS_OPTS) --paths $(subst $(space),$(comma),$(ALL_ST_WRAP_PY_FINAL)) > $(ST_API_CONTENTS)
-  ifeq ($(OUT_OF_TREE_BUILD),)
-	$(Q)((diff -w $(API_CONTENTS) $(ST_API_CONTENTS)) > /dev/null && touch $@) || \
-          (echo "API CONTENTS CHANGED! update $(API_CONTENTS) or fix the API" && \
-           echo "(New API: $(ST_API_CONTENTS)) ***" && \
-           (diff -U 1 -w $(API_CONTENTS) $(ST_API_CONTENTS); true))
-  else
-	$(Q)touch $@
-  endif
+API_CONTENTS_BRIEF = api_contents$(EXTRASUF1).brief
+API_CONTENTS_FULL  = api_contents$(EXTRASUF1).full
+
+ST_API_CONTENTS_BRIEF = $(F)$(API_CONTENTS_BRIEF)
+ST_API_CONTENTS_FULL  = $(F)$(API_CONTENTS_FULL)
+ST_API_CONTENTS_BRIEF_SUCCESS = $(ST_API_CONTENTS_BRIEF).success
+ST_API_CONTENTS_FULL_SUCCESS  = $(ST_API_CONTENTS_FULL).success
+
+.PRECIOUS: $(ST_API_CONTENTS_BRIEF) $(ST_API_CONTENTS_FULL)
+
+ifdef TESTABLE_BUILD
+  DEFAULT_API_CONTENTS = $(API_CONTENTS_BRIEF)
 else
-$(ST_API_CONTENTS_SUCCESS): $(ALL_ST_WRAP_PY_FINAL) tools/py_scanner.py
-	$(Q)touch $@
+  DEFAULT_API_CONTENTS = $(API_CONTENTS_FULL)
 endif
+
+api_contents: $(DEFAULT_API_CONTENTS)
+
+define make-api-contents-rule
+  $(1): $(3)
+  ifeq ($(or $(__CODE_CHECKER__),$(NO_CMP_API),$(__ASAN__),$(IDAHOME),$(IDACLASS),$(IDAFREE)),)
+  $(3): $(ALL_ST_WRAP_PY_FINAL) tools/py_scanner.py
+	$(QDUMPAPI)$(PYTHON) tools/py_scanner.py --dump-kind $(4) --paths $(subst $(space),$(comma),$(ALL_ST_WRAP_PY_FINAL)) > $(2)
+    ifeq ($(OUT_OF_TREE_BUILD),)
+	$(Q)((diff -w $(1) $(2)) > /dev/null && touch $$@) || \
+          (echo "API CONTENTS CHANGED! update $(1) or fix the API" && \
+           echo "(New API: $(2)) ***" && \
+           (diff -U 1 -w $(1) $(2); true))
+    else
+	$(Q)touch $$@
+    endif
+  else
+  $(3): $(ALL_ST_WRAP_PY_FINAL) tools/py_scanner.py
+	$(Q)touch $$@
+  endif
+endef
+
+$(eval $(call make-api-contents-rule,$(API_CONTENTS_BRIEF),$(ST_API_CONTENTS_BRIEF),$(ST_API_CONTENTS_BRIEF_SUCCESS),))
+$(eval $(call make-api-contents-rule,$(API_CONTENTS_FULL),$(ST_API_CONTENTS_FULL),$(ST_API_CONTENTS_FULL_SUCCESS),--dump-doc))
 
 #-------------------------------------------------------------------------
 ST_API_CHECK_SUCCESS := $(F)api_check.success
@@ -978,39 +1006,39 @@ else
   GEN_EXAMPLES_TOOL := tools/gen_examples_index.py
   GEN_EXAMPLES_CFG  := tools/gen_examples_index.cfg
 
-  ST_EXAMPLES_INDEX_HTML := $(F)examples/index.html
-  ST_EXAMPLES_INDEX_MD   := $(F)examples/index.md
+  EXAMPLES_INDEX_HTML := examples/index.html
+  EXAMPLES_INDEX_MD   := examples/index.md
+
+  ST_EXAMPLES_INDEX_HTML = $(F)$(EXAMPLES_INDEX_HTML)
+  ST_EXAMPLES_INDEX_MD = $(F)$(EXAMPLES_INDEX_MD)
+  ST_EXAMPLES_INDEX_HTML_SUCCESS = $(ST_EXAMPLES_INDEX_HTML).success
+  ST_EXAMPLES_INDEX_MD_SUCCESS = $(ST_EXAMPLES_INDEX_MD).success
+
+  .PRECIOUS: $(ST_EXAMPLES_INDEX_HTML) $(ST_EXAMPLES_INDEX_MD)
 
   define make-examples-index-rules
 
-    $(eval EXAMPLES_INDEX    := examples/index.$(1))
-    $(eval ST_EXAMPLES_INDEX := $(2))
-    $(eval EXAMPLES_TEMPLATE := tools/examples_index_template.$(1))
-
-    .PRECIOUS: $(ST_EXAMPLES_INDEX)
-
     $(eval EXAMPLES_INDEX_CMD := $(PYTHON) $(GEN_EXAMPLES_TOOL) write \
-	-t $(EXAMPLES_TEMPLATE) \
+	-t $(4) \
 	-e examples \
-	-o $(ST_EXAMPLES_INDEX) \
+	-o $(2) \
 	   )
 
-    $(ST_EXAMPLES_INDEX): $(GEN_EXAMPLES_TOOL) $(GEN_EXAMPLES_CFG) \
-                          $(EXAMPLES_TEMPLATE) $(EXAMPLES)
+    $(1): $(3)
+    $(3): $(GEN_EXAMPLES_TOOL) $(GEN_EXAMPLES_CFG) $(4) $(EXAMPLES)
 	-$(Q)if [ ! -d "$(F)examples" ] ; then mkdir -p 2>/dev/null $(F)examples ; fi
 	$(QGEN_EXAMPLES_INDEX)$(EXAMPLES_INDEX_CMD) \
 	  || echo FAILED: $(EXAMPLES_INDEX_CMD)
-	$(Q)diff -w $(EXAMPLES_INDEX) $(ST_EXAMPLES_INDEX) > /dev/null \
-	  || (echo "EXAMPLES INDEX CHANGED! update $(EXAMPLES_INDEX)" \
-	   && echo "(New examples: $(ST_EXAMPLES_INDEX)) ***" \
-	   && diff -U 1 -w $(EXAMPLES_INDEX) $(ST_EXAMPLES_INDEX) \
-	   && false)
+	$(Q)diff -w $(1) $(2) > /dev/null && touch $$@ \
+	  || (echo "EXAMPLES INDEX CHANGED! update $(1)" \
+	   && echo "(New examples: $(2)) ***" \
+	   && diff -U 1 -w $(1) $(2); true)
   endef
 
-  $(eval $(call make-examples-index-rules,html,$(ST_EXAMPLES_INDEX_HTML)))
-  $(eval $(call make-examples-index-rules,md,$(ST_EXAMPLES_INDEX_MD)))
+  # $(eval $(call make-examples-index-rules,$(EXAMPLES_INDEX_HTML),$(ST_EXAMPLES_INDEX_HTML),$(ST_EXAMPLES_INDEX_HTML_SUCCESS),tools/examples_index_template.html,html))
+  $(eval $(call make-examples-index-rules,$(EXAMPLES_INDEX_MD),$(ST_EXAMPLES_INDEX_MD),$(ST_EXAMPLES_INDEX_MD_SUCCESS),tools/examples_index_template.md,md))
 
-  examples_index: $(ST_EXAMPLES_INDEX_HTML) $(ST_EXAMPLES_INDEX_MD)
+  examples_index: $(EXAMPLES_INDEX_HTML) $(EXAMPLES_INDEX_MD)
 
 endif
 

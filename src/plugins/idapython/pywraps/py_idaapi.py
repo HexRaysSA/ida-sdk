@@ -1249,7 +1249,7 @@ class __IDAPython_Completion_Util(object):
 
             results, hints, docs = self.build_hints(results, ns)
 
-            docs = [ "    " + d.replace("\n", "\n    ") for d in docs ]
+            docs = [ "    " + d.replace("\n", "\n    ") if len(d) > 0 else "" for d in docs ]
 
             results = map(lambda r: self.maybe_extend_syntactically(ns, r, line, match_syntax_char), results)
 
@@ -1388,7 +1388,7 @@ class IDAPython_displayhook:
                 self.format_item(num_printer, storage, pair[1])
             storage.append('}')
         else:
-            storage.append(str(item))
+            storage.append(repr(item))
 
     def _print_hex(self, x):
         return hex(x)

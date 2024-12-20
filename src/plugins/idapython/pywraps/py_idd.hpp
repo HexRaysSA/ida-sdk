@@ -246,6 +246,9 @@ static PyObject *dbg_get_thread_sreg_base(thid_t tid, int sreg_value)
 def dbg_read_memory(ea, sz):
     """
     Reads from the debugee's memory at the specified ea
+
+    @param ea: the debuggee's memory address
+    @param sz: the amount of data to read
     @return:
         - The read buffer (as bytes)
         - Or None on failure
@@ -283,6 +286,9 @@ static PyObject *dbg_read_memory(ea_t ea, size_t sz)
 def dbg_write_memory(ea, buffer):
     """
     Writes a buffer to the debugee's memory
+
+    @param ea: the debuggee's memory address
+    @param buf: a bytes object to write
     @return: Boolean
     """
     pass

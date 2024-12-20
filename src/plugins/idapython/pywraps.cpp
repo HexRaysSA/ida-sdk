@@ -110,7 +110,17 @@ ref_t ida_export PyW_StrVecToPyList(const qstrvec_t &vec)
   for ( size_t i = 0; i < n; ++i )
     PyList_SetItem(py_list.o, i, PyUnicode_from_qstring(vec[i]));
   return ref_t(py_list);
+}
 
+//-------------------------------------------------------------------------
+ref_t ida_export PyW_TidVecToPyList(const qvector<tid_t> &vec)
+{
+  size_t n = vec.size();
+  PYW_GIL_CHECK_LOCKED_SCOPE();
+  newref_t py_list(PyList_New(n));
+  for ( size_t i = 0; i < n; ++i )
+    PyList_SetItem(py_list.o, i, PyLong_FromUnsignedLongLong(vec[i]));
+  return ref_t(py_list);
 }
 
 //-------------------------------------------------------------------------

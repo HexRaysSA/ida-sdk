@@ -58,7 +58,7 @@ DECLARE_TYPE_AS_MOVABLE(sreg_range_t);
 /// values stored in the segment structure.
 /// \param ea  linear address in the program
 /// \param rg  number of the segment register
-/// \return value of the segment register, #BADSEL if value is unknown.
+/// \return value of the segment register, #BADSEL if value is unknown or rg is not a segment register.
 
 idaman sel_t ida_export get_sreg(ea_t ea, int rg);
 

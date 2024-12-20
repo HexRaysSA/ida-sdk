@@ -1,40 +1,22 @@
 %{
 #include <undo.hpp>
-%}  
+%}
 
-%include "typemaps.i"  
+// Apply a well-known recipe to `create_undo_point(const uchar *, size_t)`
+%const_void_pointer_and_size(const uchar, bytes, size);
 
-// Typemap to convert Python bytes to `const unsigned char*` and `size_t` for create_undo_point
-%typemap(in) (const unsigned char *bytes, size_t size) {
-    Py_ssize_t length;
-    const char *temp;
-    if (PyBytes_Check($input)) {
-        if (PyBytes_AsStringAndSize($input, (char**)&temp, &length) == -1) {
-            SWIG_fail;
-        }
-    } else {
-        SWIG_exception_fail(SWIG_TypeError, "Expected a bytes object");
-    }
-
-    $1 = (const unsigned char *)temp;  // Cast to const unsigned char* from const char*
-    $2 = (size_t)length;
-}
+// Make the label output argument for `get_undo_action_label/get_redo_action_label`
+%apply qstring *result { qstring *action_to_be_undone, qstring *action_to_be_redone};
 
 %inline %{
-    bool create_undo_point(PyObject *input_bytes) {
-        const unsigned char *bytes;
-        size_t size;
-        if (!PyBytes_Check(input_bytes)) {
-            PyErr_SetString(PyExc_TypeError, "Expected a bytes object");
-            return false;
-        }
-        // Perform the conversion from python bytes to unsigned char *
-        bytes = (const unsigned char *)PyBytes_AsString(input_bytes);
-        size = (size_t)PyBytes_Size(input_bytes);
-
-        // Call the original C++ function
-        return ::create_undo_point(bytes, size);
-    }
+// And define our own wrapper, too
+bool create_undo_point(const char *action_name, const char *label)
+{
+  bytevec_t rec;
+  rec.pack_ds(action_name);
+  rec.pack_ds(label);
+  return create_undo_point(rec.begin(), rec.size());
+}
 %}
 
 %include "undo.hpp"

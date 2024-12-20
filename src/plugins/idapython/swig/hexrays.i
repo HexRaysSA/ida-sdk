@@ -177,6 +177,7 @@ SWIGINTERN void __raise_vdf(const vd_failure_t &e)
 %method_sets_type_and_gains_ownership_of_regular_object_argument(mop_t, _make_callinfo, fi)
 %method_sets_type_and_gains_ownership_of_regular_object_argument(mop_t, _make_pair, _pair)
 %method_sets_type_and_gains_ownership_of_regular_object_argument(mop_t, _make_insn, ins)
+%method_sets_type_and_gains_ownership_of_regular_object_argument(mop_t, make_insn, ins)
 
 %template(mcallargs_t) qvector<mcallarg_t>;
 
@@ -255,6 +256,10 @@ SWIGINTERN void __raise_vdf(const vd_failure_t &e)
 %apply uint64 *OUTPUT { uvlr_t *v };    // valrng_t::cvt_to_single_value
 %apply uint64 *OUTPUT { uvlr_t *val };  // valrng_t::cvt_to_cmp
 %apply int    *OUTPUT { cmpop_t *cmp }; // valrng_t::cvt_to_cmp
+
+%apply qstrvec_t *out { qstrvec_t *warnings };
+
+%hooks_director_handle_qstrvec_t_output(collect_warnings, warnings);
 
 %define %def_opt_handler(TypeName, Install, Remove, Hxclr)
 %ignore Install;

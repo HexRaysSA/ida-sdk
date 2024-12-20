@@ -145,6 +145,8 @@ intel.hpp       Header file from the IBM PC module. For information only.
 
 lex.hpp         Tools for parsing C-like input.
 
+libfuncs.hpp    Routines and data structures for working with library signatures.
+
 lines.hpp       High level functions that deal with the generation of the
                 disassembled text lines.
 
@@ -183,6 +185,8 @@ segregs.hpp     Functions that deal with the segment registers.
 strlist.hpp     Functions that deal with the strings list.
 
 typeinf.hpp     Describes the type information records in IDA.
+
+undo.hpp        Undo related functions
 
 xref.hpp        Functions that deal with cross-references.
 

@@ -149,6 +149,16 @@ import ida_idaapi
     $self->at(i) = v;
   }
 
+  inline void append(const T &x)
+  {
+    $self->push_back(x);
+  }
+
+  inline void extend(const qvector<T> &x)
+  {
+    $self->insert($self->end(), x.begin(), x.end());
+  }
+
   %pythoncode {
     front = ida_idaapi._qvector_front
     back = ida_idaapi._qvector_back
@@ -691,6 +701,52 @@ SWIGINTERN PyObject *_maybe_byte_array_or_none_result(
   // %typemap(freearg) qstrvec_t* out
   // Nothing. We certainly don't want 'temp' to be deleted.
 }
+
+// Same, but for tuple-appending
+%typemap(in,numinputs=0) qstrvec_t *out_wrap_in_list_and_append (qstrvec_t temp)
+{
+  // %typemap(in,numinputs=0) qstrvec_t *out_wrap_in_list_and_append (qstrvec_t temp)
+  $1 = &temp;
+}
+%typemap(argout) qstrvec_t *out_wrap_in_list_and_append
+{
+  // %typemap(argout) qstrvec_t *out_wrap_in_list_and_append
+  PyObject *was = $result;
+  $result = PyList_New(0); // Will be tuplified
+
+  PyList_Append($result, was);
+  newref_t _nl(qstrvec2pylist(*($1)));
+  PyList_Append($result, _nl.o);
+}
+%typemap(freearg) qstrvec_t* out_wrap_in_list_and_append
+{
+  // %typemap(freearg) qstrvec_t* out_wrap_in_list_and_append
+  // Nothing. We certainly don't want 'temp' to be deleted.
+}
+
+//-------------------------------------------------------------------------
+// Director helpers
+%define %hooks_director_handle_qstrvec_t_output(METHOD_NAME, STORAGE_QSTRVEC_T)
+%typemap(directorout) int METHOD_NAME
+{ // %typemap(directorout) int METHOD_NAME
+  if ( PySequence_Check(result) )
+  {
+    $result = PyW_PySeqToStrVec(STORAGE_QSTRVEC_T, result);
+
+    if ( !$result )
+    {
+      Swig::DirectorTypeMismatchException::raise(
+        SWIG_ErrorType(SWIG_TypeError),
+        "in output value of type 'qstrvec_t' in method '$symname'");
+    }
+  }
+  else
+  {
+    $result = 0; // not implemented
+  }
+}
+%enddef
+
 
 //-------------------------------------------------------------------------
 //          md5/sha256 hash retrieval (as hex representation)
@@ -1314,6 +1370,62 @@ struct dynamic_wrapped_array_t {
 {
   // %typemap(out) tinfo_t *type (specialization for member tinfo_t)
   $result = SWIG_NewPointerObj($1, $1_descriptor, 0);
+}
+
+//-------------------------------------------------------------------------
+//                             udm_t *out
+//-------------------------------------------------------------------------
+%typemap(in,numinputs=0) udm_t *out (udm_t temp)
+{
+  // %typemap(in,numinputs=0) udm_t *out (udm_t temp)
+  $1 = &temp;
+}
+%typemap(argout) udm_t *out
+{
+  // %typemap(argout) udm_t *out
+  if ( result > -1 )
+  {
+    PyObject *py_udm = SWIG_NewPointerObj(new udm_t(*($1)), $1_descriptor, SWIG_POINTER_OWN | 0);
+    $result = SWIG_Python_AppendOutput($result, py_udm);
+  }
+  else
+  {
+    Py_INCREF(Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None);
+  }
+}
+%typemap(freearg) udm_t *out
+{
+  // %typemap(freearg) udm_t *out
+  // Nothing. We certainly don't want 'temp' to be deleted.
+}
+
+//-------------------------------------------------------------------------
+//                             edm_t *out
+//-------------------------------------------------------------------------
+%typemap(in,numinputs=0) edm_t *out (edm_t temp)
+{
+  // %typemap(in,numinputs=0) edm_t *out (edm_t temp)
+  $1 = &temp;
+}
+%typemap(argout) edm_t *out
+{
+  // %typemap(argout) edm_t *out
+  if ( result > -1 )
+  {
+    PyObject *py_edm = SWIG_NewPointerObj(new edm_t(*($1)), $1_descriptor, SWIG_POINTER_OWN | 0);
+    $result = SWIG_Python_AppendOutput($result, py_edm);
+  }
+  else
+  {
+    Py_INCREF(Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None);
+  }
+}
+%typemap(freearg) edm_t *out
+{
+  // %typemap(freearg) edm_t *out
+  // Nothing. We certainly don't want 'temp' to be deleted.
 }
 
 // Convert all of these

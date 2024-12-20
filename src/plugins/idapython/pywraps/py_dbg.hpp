@@ -34,6 +34,30 @@ static PyObject *_from_reg_val(
 
 //<inline(py_dbg)>
 
+inline void idaapi set_process_options(
+        const char *path,
+        const char *args,
+        const char *sdir,
+        const char *host,
+        const char *pass,
+        int port)
+{
+  launch_env_t envs;
+  return set_process_options(path, args, &envs, sdir, host, pass, port);
+}
+
+inline void idaapi get_process_options_noenv(
+        qstring *path,
+        qstring *args,
+        qstring *sdir,
+        qstring *host,
+        qstring *pass,
+        int *port)
+{
+  launch_env_t envs;
+  get_process_options(path, args, &envs, sdir, host, pass, port);
+}
+
 //-------------------------------------------------------------------------
 /*
 #<pydoc>
@@ -173,6 +197,8 @@ def internal_get_sreg_base():
     """
     Get the sreg base, for the given thread.
 
+    @param tid: the thread ID
+    @param sreg_value: the sreg value
     @return: The sreg base, or BADADDR on failure.
     """
     pass

@@ -67,9 +67,10 @@ PyObject *py_calc_type_size(const til_t *ti, PyObject *tp)
 def apply_type(ti, ea, tp_name, py_type, py_fields, flags):
     """
     Apply the specified type to the address
+
     @param ti: Type info library. 'None' can be used.
-    @param py_type: type string
-    @param py_fields: fields string (may be empty or None)
+    @param type: type string
+    @param fields: fields string (may be empty or None)
     @param ea: the address of the object
     @param flags: combination of TINFO_... constants or 0
     @return: Boolean
@@ -597,6 +598,376 @@ static tinfo_code_t py_set_numbered_type(
        ? tif.set_numbered_type(ti, ordinal, ntf_flags, name)
        : TERR_BAD_TYPE;
 }
+
+/*
+#<pydoc>
+class tinfo_t(object):
+    def __init__(self, *args):
+        """
+        Create a type object with the provided argumens.
+
+        This constructor has the following signatures:
+
+        * tinfo_t(decl_type: type_t)
+        * tinfo_t(decl: str, til: til_t = None, pt_flags: int = 0)
+
+        The latter form will create the type object by parsing the type declaration
+
+        Alternatively, you can use a form accepting the following keyword arguments:
+
+        * ordinal: int
+        * name: str
+        * tid: int
+        * til: til_t=None # `None` means `get_idati()`
+
+        E.g.,
+
+        * tinfo_t(ordinal=3)
+        * tinfo_t(ordinal=10, til=get_idati())
+        * tinfo_t(name="mytype_t")
+        * tinfo_t(name="thattype_t", til=my_other_til)
+        * tinfo_t(tid=ida_nalt.get_strid(some_address))
+
+        The constructor may raise an exception if data was invalid, or if parsing failed.
+
+        @param decl_type A simple type
+        @param decl A valid C declaration
+        @param til A type library, or `None` to use the (`get_idati()`) default
+        @param ordinal An ordinal in the type library
+        @param name A valid type name
+        @param pt_flags Parsing flags
+        """
+        pass
+
+    def get_udm(self, data: int | str):
+        """
+        Retrieve a structure/union member with either the specified name
+        or the specified index, in the specified tinfo_t object.
+
+        @param data either a member name, or a member index
+        @return a tuple (int, udm_t), or (-1, None) if member not found
+        """
+        pass
+
+    def get_udm_by_offset(self, offset: int):
+        """
+        Retrieve a structure/union member with the specified offset,
+        in the specified tinfo_t object.
+
+        @param offset the member offset
+        @return a tuple (int, udm_t), or (-1, None) if member not found
+        """
+        pass
+
+    def add_udm(self, *args):
+        """
+        Add a member to the current structure/union.
+
+        When creating a new structure/union from scratch, you might
+        want to first call `create_udt()`
+
+        This method has the following signatures:
+
+        * add_udm(udm: udm_t, etf_flags: int = 0, times: int = 1, idx: int = -1)
+        * add_udm(name: str, type: type_t | tinfo_t | str, offset: int = 0, etf_flags: int = 0, times: int = 1, idx: int = -1)
+
+        In the second form, the 'type' descriptor, can be one of:
+
+        * type_t: if the type is simple (integral/floating/bool). E.g., `BTF_INT`
+        * tinfo_t: can handle more complex types (structures, pointers, arrays, ...)
+        * str: a C type declaration
+
+        If an input argument is incorrect, the constructor may raise an exception
+
+        @param udm       The member, fully initialized (first form)
+        @param name      Member name - must not be empty
+        @param type      Member type
+        @param offset    the member offset in bits. It is the caller's responsibility
+               to specify correct offsets.
+        @param etf_flags an OR'ed combination of ETF_ flags
+        @param times     how many times to add the new member
+        @param idx       the index in the udm array where the new udm should be placed.
+                         If the specified index cannot be honored because it would spoil
+                         the udm sorting order, it is silently ignored.
+        """
+        pass
+
+    def get_edm(self, data: int | str):
+        """
+        Retrieve an enumerator with either the specified name
+        or the specified index, in the specified tinfo_t object.
+
+        @param data either an enumerator name, or index
+        @return a tuple (int, edm_t), or (-1, None) if member not found
+        """
+        pass
+
+    def get_edm_by_value(self, value: int, bmask: int = DEFMASK64, serial: int = 0):
+        """
+        Retrieve an enumerator with the specified value,
+        in the specified tinfo_t object.
+
+        @param value the enumerator value
+        @return a tuple (int, edm_t), or (-1, None) if member not found
+        """
+        pass
+
+    def add_edm(self, *args):
+        """
+        Add an enumerator to the current enumeration.
+
+        When creating a new enumeration from scratch, you might
+        want to first call `create_enum()`
+
+        This method has the following signatures:
+
+        * add_edm(edm: edm_t, bmask: int = -1, etf_flags: int = 0, idx: int = -1)
+        * add_edm(name: str, value: int, bmask: int = -1, etf_flags: int = 0, idx: int = -1)
+
+        If an input argument is incorrect, the constructor may raise an exception
+
+        @param edm       The member, fully initialized (first form)
+        @param name      Enumerator name - must not be empty
+        @param value     Enumerator value
+        @param bmask     A bitmask to which the enumerator belongs
+        @param etf_flags an OR'ed combination of ETF_ flags
+        @param idx       the index in the edm array where the new udm should be placed.
+                         If the specified index cannot be honored because it would spoil
+                         the edm sorting order, it is silently ignored.
+        """
+        pass
+
+    def del_edm(self, data: int | str):
+        """
+        Delete an enumerator with the specified name
+        or the specified index, in the specified tinfo_t object.
+
+        @param data either an enumerator name, or index
+        @return TERR_OK in case of success, or another TERR_* value in case of error
+        """
+
+    def del_edm_by_value(self, value: int, bmask: int = DEFMASK64, serial: int = 0):
+        """
+        Delete an enumerator with the specified value,
+        in the specified tinfo_t object.
+
+        @param value the enumerator value
+        @return TERR_OK in case of success, or another TERR_* value in case of error
+        """
+
+    def iter_struct(self):
+        """
+        Iterate on the members composing this structure.
+
+        Example:
+
+            til = ida_typeinf.get_idati()
+            tif = til.get_named_type("my_struc")
+            for udm in tif.iter_struct():
+                print(f"{udm.name} at bit offset {udm.offset}")
+
+        Will raise an exception if this type is not a structure.
+
+        @return a udm_t-producing generator
+        """
+        pass
+
+    def iter_union(self):
+        """
+        Iterate on the members composing this union.
+
+        Example:
+
+            til = ida_typeinf.get_idati()
+            tif = til.get_named_type("my_union")
+            for udm in tif.iter_union():
+                print(f"{udm.name}, with type {udm.type}")
+
+        Will raise an exception if this type is not a union.
+
+        @return a udm_t-producing generator
+        """
+        pass
+
+    def iter_udt(self):
+        """
+        Iterate on the members composing this structure, or union.
+
+        Example:
+
+            til = ida_typeinf.get_idati()
+            tif = til.get_named_type("my_type")
+            for udm in tif.iter_udt():
+                print(f"{udm.name} at bit offset {udm.offset} with type {udm.type}")
+
+        Will raise an exception if this type is not a structure, or union
+
+        @return a udm_t-producing generator
+        """
+        pass
+
+    def iter_enum(self):
+        """
+        Iterate on the members composing this enumeration.
+
+        Example:
+
+            til = ida_typeinf.get_idati()
+            tif = til.get_named_type("my_enum")
+            for edm in tif.iter_enum():
+                print(f"{edm.name} = {edm.value}")
+
+        Will raise an exception if this type is not an enumeration
+
+        @return a edm_t-producing generator
+        """
+        pass
+
+    def iter_func(self):
+        """
+        Iterate on the arguments contained in this function prototype
+
+        Example:
+
+            address = ...
+            func = ida_funcs.get_func(address)
+            func_type = func.prototype
+            for arg in func_type.iter_func():
+                print(f"{arg.name}, of type {arg.type}")
+
+        Will raise an exception if this type is not a function
+
+        @return a funcarg_t-producing generator
+        """
+        pass
+
+class edm_t(object):
+    def __init__(self, name, value, cmt=None):
+        """
+        Create a structure/union member, with the specified name and value
+
+        @param name  Enumerator name. Must not be empty.
+        @param value Enumerator value
+        @param cmt   Enumerator repeatable comment. May be empty.
+        """
+        pass
+
+class udm_t(object):
+    def __init__(self, *args):
+        """
+        Create a structure/union member, with the specified name and type.
+
+        This constructor has the following signatures:
+
+        * udm_t(udm: udm_t)
+        * udm_t(name: str, type, offset: int)
+
+        The 'type' descriptor, can be one of:
+
+        * type_t: if the type is simple (integral/floating/bool). E.g., `BTF_INT`
+        * tinfo_t: can handle more complex types (structures, pointers, arrays, ...)
+        * str: a C type declaration
+
+        If an input argument is incorrect, the constructor may raise an exception
+        The size will be computed automatically.
+
+        @param udm a source udm_t
+        @param name a valid member name. Must not be empty.
+        @param type the member type
+        @param offset the member offset in bits. It is the caller's responsibility
+               to specify correct offsets.
+        """
+        pass
+
+    def copy(self, src):
+        """
+        Copy the src, into this instance
+
+        @param src The source udm_t
+        """
+        pass
+
+class udt_type_data_t(object):
+    def get_best_fit_member(self, byte_offset):
+        """
+        Get the member that is most likely referenced by the specified offset.
+
+        @param disp the byte offset
+        @return a tuple (int, udm_t), or (-1, None) if member not found
+        """
+        pass
+
+
+class funcarg_t(object):
+    def __init__(self, name, type, argloc):
+        """
+        Create a function argument, with the specified name and type.
+
+        The 'type' descriptor, can be one of:
+
+        * type_t: if the type is simple (integral/floating/bool). E.g., `BTF_INT`
+        * tinfo_t: can handle more complex types (structures, pointers, arrays, ...)
+        * str: a C type declaration
+
+        If an input argument is incorrect, the constructor may raise an exception
+
+        @param name a valid argument name. May not be empty.
+        @param type the member type
+        @param argloc the argument location. Can be empty.
+        """
+        pass
+
+class til_t(object):
+    def import_type(self, src):
+        """
+        Import a type (and all its dependencies) into this type info library.
+
+        @param src The type to import
+        @return the imported copy, or None
+        """
+
+    def numbered_types(self):
+        """
+        Returns a generator over the numbered types contained in this
+        type library.
+
+        Every iteration returns a fresh new tinfo_t object
+
+        @return a tinfo_t-producing generator
+        """
+        pass
+
+    def named_types(self):
+        """
+        Returns a generator over the named types contained in this
+        type library.
+
+        Every iteration returns a fresh new tinfo_t object
+
+        @return a tinfo_t-producing generator
+        """
+        pass
+
+    def get_named_type(self, name):
+        """
+        Retrieves a tinfo_t representing the named type in this type library.
+
+        @param name a type name
+        @return a new tinfo_t object, or None if not found
+        """
+        pass
+
+    def get_numbered_type(self, ordinal):
+        """
+        Retrieves a tinfo_t representing the numbered type in this type library.
+
+        @param ordinal a type ordinal
+        @return a new tinfo_t object, or None if not found
+        """
+        pass
+
+#</pydoc>
+*/
 
 //</inline(py_typeinf)>
 

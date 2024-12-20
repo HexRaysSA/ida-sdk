@@ -161,6 +161,7 @@ def get_bytes(ea, size):
     Get the specified number of bytes of the program.
     @param ea: program address
     @param size: number of bytes to return
+    @param gmb_flags: OR'ed combination of GMB_* values (defaults to GMB_READALL)
     @return: the bytes (as bytes object), or None in case of failure
     """
     pass
@@ -184,6 +185,7 @@ def get_bytes_and_mask(ea, size, mask):
     specifying what bytes are defined and what bytes are not.
     @param ea: program address
     @param size: number of bytes to return
+    @param gmb_flags: OR'ed combination of GMB_* values (defaults to GMB_READALL)
     @return: a tuple (bytes, mask), or None in case of failure.
              Both 'bytes' and 'mask' are 'str' instances.
     """
@@ -267,6 +269,45 @@ static bool ida_export py_op_stroff(
         adiff_t delta)
 {
   return op_stroff(insn, n, path.begin(), path.size(), delta);
+}
+
+//-------------------------------------------------------------------------
+/*
+#<pydoc>
+def get_stroff_path(ea : int, n : int):
+    """
+    Get the structure offset path for operand `n`, at the
+    specified address.
+
+    Note: for backward-compatibility reasons, this function also supports the prototype:
+    get_stroff_path(path : tid_array, delta : sval_pointer, ea : int, n : int)
+
+    @param ea address where the operand holds a path to a structure offset
+    @param n operand number
+    @return a tuple holding a (list_of_tid_t's, delta_within_the_last_type), or (None, None)
+    """
+    pass
+#</pydoc>
+ */
+static int get_stroff_path(
+        qvector<tid_t> *out_path,
+        adiff_t *out_delta,
+        ea_t ea,
+        int n)
+{
+  if ( !is_stroff(get_flags(ea), n) )
+    return -1;
+  tid_t path[MAXSTRUCPATH];
+  const int path_size = get_stroff_path(path, out_delta, ea, n);
+  if ( path_size > 0 )
+  {
+    qvector<tid_t> storage;
+    storage.reserve(path_size);
+    for ( int i = 0; i < path_size; ++i )
+      storage.push_back(path[i]);
+    out_path->swap(storage);
+  }
+  return path_size;
 }
 
 //-------------------------------------------------------------------------

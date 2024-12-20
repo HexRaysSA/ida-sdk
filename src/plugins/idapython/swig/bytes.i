@@ -45,6 +45,59 @@
 
 %apply uchar * OUTPUT { uchar *out }; // get_octet
 
+//-------------------------------------------------------------------------
+//                       get_stroff_path
+//-------------------------------------------------------------------------
+
+%typemap(in,numinputs=0) (qvector<tid_t> *out_path) (qvector<tid_t> temp) {
+  // %typemap(in,numinputs=0) (qvector<tid_t> *out_path) (qvector<tid_t> temp)
+  $1 = &temp;
+}
+
+%typemap(argout) qvector<tid_t> *out_path
+{
+  // %typemap(argout) qvector<tid_t> *out_path
+  if ( result > 0 )
+  {
+    ref_t py_list(PyW_TidVecToPyList(*($1)));
+    py_list.incref();
+    $result = SWIG_Python_AppendOutput($result, py_list.o);
+  }
+  else
+  {
+    Py_INCREF(Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None);
+  }
+}
+
+%typemap(in,numinputs=0) (adiff_t *out_delta) (adiff_t temp) {
+  // %typemap(in,numinputs=0) (adiff_t *out_delta) (adiff_t temp)
+  $1 = &temp;
+}
+
+%typemap(argout) adiff_t *out_delta
+{
+  // %typemap(argout) adiff_t *out_delta
+  if ( result > 0 )
+  {
+    newref_t py_delta(PyLong_FromUnsignedLongLong(*($1)));
+    py_delta.incref();
+    $result = SWIG_Python_AppendOutput($result, py_delta.o);
+  }
+  else
+  {
+    Py_INCREF(Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None);
+  }
+}
+
+%feature("pythonappend") get_stroff_path %{
+    if isinstance(val, tuple): # "modern" form; let's drop the count
+        val = (val[1], val[2])
+%}
+
+//-------------------------------------------------------------------------
+
 %template(compiled_binpat_vec_t) qvector<compiled_binpat_t>;
 %ignore parse_binpat_str(compiled_binpat_vec_t *,ea_t,char const *,int,int);
 

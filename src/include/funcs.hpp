@@ -954,16 +954,6 @@ idaman int32 ida_export get_idasgn_desc(
         qstring *optlibs,
         int n);
 
-
-class idasgn_t;
-
-/// Get idasgn header by a short signature name.
-/// \param name  short name of a signature
-/// \return nullptr if can't find the signature
-
-idaman idasgn_t *ida_export get_idasgn_header_by_short_name(const char *name);
-
-
 /// Get full description of the signature by its short name.
 /// \param buf      the output buffer
 /// \param name     short name of a signature

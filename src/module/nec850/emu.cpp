@@ -84,7 +84,7 @@ const op_t *nec850_find_vec_reg(const insn_t &insn)
   for ( int i = 1; i < 3; ++i )
   {
     const op_t *op = &insn.ops[i];
-    if ( op->reg >= rVR0 || op->reg <= rVR31 )
+    if ( op->reg >= rVR0 && op->reg <= rVR31 )
       return op;
   }
 
@@ -591,8 +591,11 @@ bool nec850_t::find_lp_definition(
         offset_info_t *offinfo,
         ea_t ea) const
 {
+  // look for the first defining insn in the linear flow (linear_insn=20)
   reg_value_info_t lp;
-  if ( !find_rvi(&lp, ea, rLP, 1) || !lp.is_num() || !lp.is_value_unique() )
+  if ( !find_rvi(&lp, ea, rLP, 0, 20) )
+    return false;
+  if ( !lp.is_num() || !lp.is_value_unique() )
     return false;
   const reg_value_def_t &lp_val = *lp.vals_begin();
   switch ( lp_val.def_itype )
