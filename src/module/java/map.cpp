@@ -427,8 +427,8 @@ uchar java_t::loadDialog(bool manual)
     "\n"
     "\n";
 
-  CASSERT(((MLD__DEFAULT & MLD_METHREF) == 0 || (MLD__DEFAULT & MLD_VARREF) != 0)); //-V590
-  CASSERT(((MLD__DEFAULT & MLD_VARREF)  == 0 || (MLD__DEFAULT & MLD_EXTREF) != 0)); //-V590
+  CASSERT(((MLD__DEFAULT & MLD_METHREF) == 0 || (MLD__DEFAULT & MLD_VARREF) != 0));
+  CASSERT(((MLD__DEFAULT & MLD_VARREF)  == 0 || (MLD__DEFAULT & MLD_EXTREF) != 0));
 
   if ( !manual )
     return MLD__DEFAULT;

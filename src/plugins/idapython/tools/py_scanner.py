@@ -8,7 +8,6 @@ import os
 p = argparse.ArgumentParser()
 p.add_argument("-p", "--paths", type=str, required=True, help="Path(s) to the file(s) to parse")
 p.add_argument("-c", "--dump-doc", default=False, action="store_true", help="Dump python docstrings")
-p.add_argument("-k", "--dump-kind", default=False, action="store_true", help="Dump scopes kinds (class, method, ...)")
 args = p.parse_args()
 
 class scope_t(object):
@@ -29,9 +28,6 @@ class scope_t(object):
 
     def new_class(self, node):
         return self._new_scope(class_t, node)
-
-    def new_method(self, node):
-        return self._new_scope(method_t, node)
 
     def new_function(self, node):
         return self._new_scope(function_t, node)
@@ -64,9 +60,6 @@ class module_t(scope_t):
 class class_t(scope_t):
     pass
 
-class method_t(scope_t):
-    pass
-
 class function_t(scope_t):
     pass
 
@@ -76,15 +69,102 @@ class variable_t(scope_t):
 
 
 DF_DOC  = 0x1
-DF_KIND = 0x2
+
+# https://gist.github.com/MineRobber9000/485e648da3a77d5894fa1fe9189b5728
+def produce_function_prototype(node, name):
+
+    def get_value(node):
+        if type(node) == ast.Name:
+            return node.id
+        if type(node) == ast.Num:
+            return str(node.n)
+        if type(node) == ast.Subscript:
+            return get_value(node.value)+"["+get_value(node.slice)+"]"
+        if type(node) == ast.Index:
+            return get_value(node.value)
+        if type(node) == ast.Tuple:
+            return ", ".join(map(get_value,node.elts))
+        if type(node) == ast.Ellipsis:
+            return "..."
+        if type(node) == ast.NameConstant:
+            return str(node.value)
+        if type(node) == ast.Attribute:
+            return get_value(node.value)+"."+node.attr
+        if type(node) == ast.Constant:
+            value = str(node.value)
+            if isinstance(node.value, str):
+                value = f'"{value}"'
+            return value
+        if type(node) == ast.List:
+            pieces = map(get_value, node.elts)
+            return "[" + ", ".join(pieces) + "]"
+        if type(node) == ast.UnaryOp:
+            return get_value(node.op) + get_value(node.operand)
+        if type(node) == ast.BinOp:
+            return get_value(node.left) + get_value(node.op) + get_value(node.right)
+        if type(node) == ast.USub:
+            return "-"
+        if type(node) == ast.BitOr:
+            return "|"
+        print(type(node))
+        return "???"
+
+    out = [name, "("]
+    def put(what):
+        if what is not None:
+            out.append(what)
+
+    defs = len(node.args.args) - len(node.args.defaults)
+    for n, arg in enumerate(node.args.args):
+        put(arg.arg)
+        if arg.annotation:
+            put(": ")
+            put(get_value(arg.annotation))
+        if n >= defs:
+            put(" = ")
+            put(get_value(node.args.defaults[n-defs]))
+        put(", ")
+    if node.args.vararg:
+        put("*")
+        put(node.args.vararg.arg)
+        if node.args.vararg.annotation:
+            put(": ")
+            put(get_value(node.args.vararg.annotation))
+        put(", ")
+    if node.args.kwarg:
+        put("**")
+        put(node.args.kwarg.arg)
+        if node.args.kwarg.annotation:
+            put(": ")
+            put(get_value(node.args.kwarg.annotation))
+        put(", ")
+    if node.args.kwonlyargs:
+        if not node.args.vararg:
+            put("*, ")
+        for n, arg in enumerate(node.args.kwonlyargs):
+            put(arg.arg)
+            if arg.annotation:
+                put(": ")
+                put(get_value(arg.annotation))
+            if node.args.kw_defaults[n]:
+                put(" = ")
+                put(get_value(node.args.kw_defaults[n]))
+            put(", ")
+    out = "".join(out)
+    out = (out[:-2] if (node.args.args or node.args.vararg or node.args.kwarg or node.args.kwonlyargs) else out)+")"
+    if node.returns:
+        out += " -> "+get_value(node.returns)
+
+    return out
 
 def dump(scope, flags=0, sort=True):
     lines = []
     def dump1(s):
         name = s.get_full_name()
-        line = [name]
-        if (flags & DF_KIND) != 0:
-            line.append("(%s)" % s.kind())
+        if (flags & DF_DOC) != 0 and isinstance(s, function_t):
+            line = [produce_function_prototype(s.node, name)]
+        else:
+            line = [name]
         lines.append(" ".join(line))
         if (flags & DF_DOC) != 0:
             if s.doc is not None:
@@ -135,10 +215,7 @@ class collector_t(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node):
         if self.accept(node):
-            if self.in_class():
-                s = self.scope.new_method(node)
-            else:
-                s = self.scope.new_function(node)
+            s = self.scope.new_function(node)
             with self.temp_scope_t(self, s):
                 self.generic_visit(node)
 
@@ -213,6 +290,10 @@ class docfixing_collector_t(collector_t):
         "ida_kernwin.__ask_form_callable",
         "ida_kernwin.__call_form_callable",
         "ida_kernwin.__open_form_callable",
+        "ida_kernwin.PluginForm.TWidgetToQtPythonWidget",
+        "ida_kernwin.PluginForm.TWidgetToPyQtWidget",
+        "ida_kernwin.PluginForm.TWidgetToPySideWidget",
+        "ida_kernwin.PluginForm.FormToPyQtWidget",
         "*._SwigNonDynamicMeta",
         "*._swig_add_metaclass",
         "*._swig_add_metaclass.wrapper",
@@ -532,7 +613,6 @@ for path in args.paths.split(","):
     vc.visit(tree)
     toplevel_scopes.append(vc.scope)
 
-flags = (DF_DOC if args.dump_doc else 0) \
-      | (DF_KIND if args.dump_kind else 0)
+flags = (DF_DOC if args.dump_doc else 0)
 for s in toplevel_scopes:
     print(dump(s, flags=flags))

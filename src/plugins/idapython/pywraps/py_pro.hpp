@@ -108,18 +108,6 @@ static bool qstrvec_t_remove(PyObject *self, size_t idx)
 
 
 //------------------------------------------------------------------------
-/*
-#<pydoc>
-def str2user(str):
-    """
-    Insert C-style escape characters to string
-
-    @param str: the input string
-    @return: new string with escape characters inserted, or None
-    """
-    pass
-#</pydoc>
-*/
 PyObject *py_str2user(const char *str)
 {
   if ( str == nullptr )

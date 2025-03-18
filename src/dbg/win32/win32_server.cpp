@@ -15,6 +15,10 @@ bool ida_export idb_utf8(qstring *, const char *, int, int) { return false; }
 #include "tilfuncs.hpp"
 
 //---------------------------------------------------------- main thread ---
+win32_cfg_t win32_cfg;
+win32_cfg_t &get_win32_cfg() { return win32_cfg; }
+
+//---------------------------------------------------------- main thread ---
 static AS_PRINTF(3, 4) int pdb_ioctl_error(void **poutbuf, ssize_t *poutsize, const char *format, ...)
 {
   char buf[MAXSTR];

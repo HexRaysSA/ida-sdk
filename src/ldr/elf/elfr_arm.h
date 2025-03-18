@@ -528,10 +528,11 @@ enum eabi_tags_t
   Tag_CPU_arch_profile,           // (=7), uleb128
   Tag_ARM_ISA_use,                // (=8), uleb128
   Tag_THUMB_ISA_use,              // (=9), uleb128
-  Tag_FP_arch,                   // (=10), uleb128 (formerly Tag_VFP_arch = 10)
+  Tag_FP_arch,                    // (=10), uleb128 (formerly Tag_VFP_arch)
   Tag_VFP_arch = Tag_FP_arch,
   Tag_WMMX_arch,                  // (=11), uleb128
-  Tag_NEON_arch,                  // (=12), uleb128
+  Tag_Advanced_SIMD_arch,         // (=12), uleb128 (formerly Tag_NEON_arch)
+  Tag_NEON_arch = Tag_Advanced_SIMD_arch,
   Tag_PCS_config,                 // (=13), uleb128
   Tag_ABI_PCS_R9_use,             // (=14), uleb128
   Tag_ABI_PCS_RW_data,            // (=15), uleb128
@@ -555,12 +556,13 @@ enum eabi_tags_t
   Tag_ABI_FP_optimization_goals,  // (=31), uleb128
   Tag_compatibility,              // (=32), uleb128: flag, NTBS: vendor-name
   Tag_CPU_unaligned_access=34,    // (=34), uleb128
-  Tag_FP_HP_extension=36,         // (=36), uleb128 (formerly Tag_VFP_HP_extension = 36)
+  Tag_FP_HP_extension=36,         // (=36), uleb128 (formerly Tag_VFP_HP_extension)
   Tag_VFP_HP_extension = Tag_FP_HP_extension,
   Tag_ABI_FP_16bit_format=38,     // (=38), uleb128
   Tag_MPextension_use=42,         // (=42), uleb128
   Tag_DIV_use=44,                 // (=44), uleb128
   Tag_DSP_extension=46,           // (=46), uleb128
+  Tag_MVE_arch=48,                // (=48), uleb128
   Tag_PAC_extension=50,           // (=50), uleb128
   Tag_BTI_extension=52,           // (=52), uleb128
   Tag_nodefaults=64,              // (=64), uleb128: ignored (write as 0)

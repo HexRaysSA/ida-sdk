@@ -129,6 +129,7 @@ def main():
 
         if curr_insn.itype == ida_allins.NN_lea:
             if curr_insn.Op1.type == ida_ua.o_reg and curr_insn.Op1.is_reg(R_r9):
+                lea_insn = curr_insn
                 continue
 
         if curr_insn.itype != ida_allins.NN_call:

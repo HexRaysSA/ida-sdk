@@ -1,6 +1,7 @@
 /*
 This is main source code for the local win32 debugger module
 */
+//lint -e528 not referenced
 
 static const char wanted_name[] = "Local Windows debugger";
 
@@ -16,17 +17,6 @@ static const char wanted_name[] = "Local Windows debugger";
                       | DBG_FLAG_MERGE_ENVS)
 #define DEBUGGER_RESMOD (DBG_RESMOD_STEP_INTO)
 
-#define HAVE_APPCALL
-#define S_FILETYPE     f_PE
-
-// We must rename those method because common files
-// refer to them as init_plugin/term_plugin
-// Some other debugger modules compatible with win32
-// have their own init/term and still call win32_init/term
-// (since no renaming takes place)
-#define win32_init_plugin       init_plugin
-#define win32_term_plugin       term_plugin
-
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <objidl.h>
@@ -35,14 +25,83 @@ static const char wanted_name[] = "Local Windows debugger";
 #include <ua.hpp>
 #include <idd.hpp>
 #include <loader.hpp>
+#include <dbg.hpp>
+#include "dbg_plugmod.hpp"
 #include "win32_debmod.h"
 #include "w32sehch.h"
+#include "pc_regs.hpp"
+#include "deb_pc.hpp"
 
-win32_debmod_t g_dbgmod;
 #include "common_stub_impl.cpp"
-
-#include "pc_local_impl.cpp"
 #include "win32_local_impl.cpp"
-#include "common_local_impl.cpp"
 
+struct dbg_plugmod_t : public dbg_plugmod_user_t
+{
+  virtual ~dbg_plugmod_t() override;
+
+  win32_debmod_t g_dbgmod;
+  virtual debmod_t &get_debmod() override { return g_dbgmod; }
+
+  win32_cfg_t cfg;
+
+  //--------------------------------------------------------------------------
+  bool init_plugin()
+  {
+    bool ok = win32_init_plugin(&debugger);
+    if ( ok )
+    {
+      debugger.flags |= DBG_HAS_APPCALL;
+      debugger.filetype = f_PE;
+    }
+    return ok;
+  }
+
+  void term_plugin()
+  {
+    term_subsystem();
+  }
+};
+win32_debmod_t &get_win32_debmod() { return *static_cast<win32_debmod_t *>(&get_debmod()); }
+win32_cfg_t &get_win32_cfg() { return get_dbg_plugmod()->cfg; }
+
+//--------------------------------------------------------------------------
+static const char idc_win32_rdmsr_args[] = { VT_LONG, 0 };
+static error_t idaapi idc_win32_rdmsr(idc_value_t *argv, idc_value_t *res)
+{
+  uint64 value = 0; // shut up the compiler
+  uval_t reg = argv[0].num;
+  int code = get_win32_debmod().rdmsr(reg, &value);
+  if ( FAILED(code) )
+  {
+    res->num = code;
+    return set_qerrno(eExecThrow); // read error, raise exception
+  }
+  res->set_int64(value);
+  return eOk;
+}
+
+//--------------------------------------------------------------------------
+static const char idc_win32_wrmsr_args[] = { VT_LONG, VT_INT64, 0 };
+static error_t idaapi idc_win32_wrmsr(idc_value_t *argv, idc_value_t *res)
+{
+  win32_wrmsr_t msr;
+  msr.reg = argv[0].num;
+  msr.value = argv[1].i64;
+  res->num = get_win32_debmod().wrmsr(msr.reg, msr.value);
+  return eOk;
+}
+
+//--------------------------------------------------------------------------
+// Installs or uninstalls debugger specific idc functions
+static bool register_idc_funcs(bool reg)
+{
+  static const ext_idcfunc_t idcfuncs[] =
+  {
+    { IDC_READ_MSR,  idc_win32_rdmsr, idc_win32_rdmsr_args, nullptr, 0, 0 },
+    { IDC_WRITE_MSR, idc_win32_wrmsr, idc_win32_wrmsr_args, nullptr, 0, 0 },
+  };
+  return add_idc_funcs(idcfuncs, qnumber(idcfuncs), reg);
+}
+
+#include "common_local_impl.cpp"
 #include "win32_server_stub.cpp"

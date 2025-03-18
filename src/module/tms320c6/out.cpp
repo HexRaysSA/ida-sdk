@@ -19,6 +19,7 @@
 class out_tms320c6_t : public outctx_t
 {
   out_tms320c6_t(void) = delete; // not used
+  void handle_indent_cmts();
 public:
   bool out_operand(const op_t &x);
   void out_insn(void);
@@ -44,7 +45,7 @@ static bool is_first_insn_in_exec_packet(ea_t ea)
   // we can't just simply skip the fph above the insn,
   // because there might be a compact instruction where bit0 is set
   // example: .text:00000020 5A A3 20 02       ||      MVK     .L2    8, B4
-  if ( is_fph(get_dword(ea)) )
+  if ( is_fph(ea, get_dword(ea)) )
   {
     // skip the fph
     ea_t above_fph = prev_not_tail(ea);
@@ -56,8 +57,10 @@ static bool is_first_insn_in_exec_packet(ea_t ea)
       uint32 fph = 0;
       if ( get_fph(&fph, above_fph_pos) && above_fph_pos == ea ) // if its the same fph
       {
-        if ( !fph_is_compact_insn(fph, get_word_pos(above_fph, false)) )
-          return (get_dword(above_fph) & BIT0) == 0;
+        if ( fph_is_compact_insn(fph, get_word_pos(above_fph, false)) )
+          return !fph_has_pbit(fph, fph_layout_pos(fph, above_fph));
+
+        return (get_dword(above_fph) & BIT0) == 0;
       }
     }
   }
@@ -81,7 +84,8 @@ static bool prev_complex(const insn_t &insn)
   ea_t ea = prev_not_tail(insn.ea);
   if ( ea == BADADDR || !is_code(get_flags(ea)) )
     return 0;
-  return !is_first_insn_in_exec_packet(ea);
+
+  return !is_first_insn_of_exec_packet(ea, true);
 }
 
 //----------------------------------------------------------------------
@@ -106,7 +110,7 @@ void out_tms320c6_t::out_pre_mode(int mode)
     case 0x01:  // 0001 *+R[cst]
     case 0x05:  // 0101 *+Rb[Ro]
 //      out_symbol('+');
-      break;
+//      break;
     case 0x0A:  // 1010 *R--[cst]
     case 0x0B:  // 1011 *R++[cst]
     case 0x0E:  // 1110 *Rb--[Ro]
@@ -138,7 +142,6 @@ void out_tms320c6_t::out_post_mode(int mode)
     case 0x0F:  // 1111 *Rb++[Ro]
       out_symbol('+');
       out_symbol('+');
-      break;
   }
 }
 
@@ -200,7 +203,7 @@ void out_tms320c6_t::print_stg_cyc(ea_t ea, int stgcyc)
 bool out_tms320c6_t::tms6_out_name_expr(const op_t &x, uval_t opval)
 {
   ea_t ea = to_ea(insn.cs, opval);
-  ea_t safe = find_first_insn_in_packet(ea);
+  ea_t safe = get_start_of_exec_packet(ea);
   adiff_t delta = ea - safe;
   if ( !out_name_expr(x, safe, opval - delta) )
     return false;
@@ -268,22 +271,11 @@ bool out_tms320c6_t::out_operand(const op_t &x)
       out_pre_mode(x.mode);
       outreg(x.reg);
       out_post_mode(x.mode);
+      if ( x.addr != 0 )
       {
-        if ( x.addr != 0 || is_off(F, x.n) )
-        {
-          if ( is_off(F, x.n) )
-          {
-            out_symbol('(');
-            out_value(x, OOF_ADDR|OOFS_IFSIGN|OOFW_IMM|OOF_SIGNED|OOFW_32);
-            out_symbol(')');
-          }
-          else
-          {
-            out_symbol('[');
-            out_value(x, OOF_ADDR|OOFS_IFSIGN|OOFW_IMM|OOF_SIGNED|OOFW_32);
-            out_symbol(']');
-          }
-        }
+        out_symbol('(');
+        out_value(x, OOF_ADDR|OOFS_IFSIGN|OOFW_IMM|OOF_SIGNED|OOFW_32);
+        out_symbol(')');
       }
       break;
 
@@ -315,14 +307,86 @@ bool out_tms320c6_t::out_operand(const op_t &x)
   return 1;
 }
 
+void out_tms320c6_t::handle_indent_cmts()
+{
+  int indent = inf_get_indent() - 8;  // reserve space for conditions
+  if ( indent <= 1 )                  // too little space?
+    indent = 2;                       // pass -2, which means one space
+                                      // (-1 would mean 'use DEFAULT_INDENT')
+  flush_outbuf(-indent);              // negative value means 'print opcodes here'
+}
+
 //----------------------------------------------------------------------
 void out_tms320c6_t::out_insn(void)
 {
+  if ( insn.itype == TMS6_fphead )
+  {
+    // out_line("        ");
+    out_mnemonic();
+
+#define OUT_COMMA out_symbol(','); out_char(' ')
+
+    uint8 expansion_field = (insn.auxpref >> 14) & 0x7F;
+    out_char((expansion_field & BIT6) != 0 ? 'p' : 'n'); // PROT
+    OUT_COMMA;
+    out_char((expansion_field & BIT5) != 0 ? 'h' : 'l'); // RS
+    OUT_COMMA;
+
+    // DSZ
+    // Primary
+    bool is_dw_ndw = (expansion_field & BIT4) != 0;
+    if ( is_dw_ndw )
+      out_line("DW/NDW");
+    else
+      out_symbol('W');
+
+    OUT_COMMA;
+
+    // Secondary (bit16 and bit17)
+    switch ( (expansion_field & BIT0) | (2 * ((expansion_field & BIT2) != 0)) )
+    {
+      case 0:
+        if ( is_dw_ndw )
+          out_symbol('W');
+        else
+          out_line("BU");
+        break;
+      case 1:
+        out_symbol('B');
+        break;
+      case 2:
+        out_line(is_dw_ndw ? "NW" : "HU");
+        break;
+      case 3:
+        out_symbol('H');
+        break;
+      default:
+        break;
+    }
+
+    OUT_COMMA;
+    out_line((expansion_field & BIT1) != 0 ? "br" : "nobr"); // BR
+    OUT_COMMA;
+    out_line((expansion_field & BIT0) != 0 ? "sat" : "nosat"); // SAT
+
+    OUT_COMMA;
+
+    // Layout
+    uint8 layout_field = (insn.auxpref >> 21) & 0x7F;
+    for ( int i = 6; i >= 0; --i )
+      out_symbol(((layout_field >> i) & 1) ? '1' : '0');
+    out_symbol('b');
+#undef OUT_COMMA
+
+    handle_indent_cmts();
+    return;
+  }
+
 //
 //      Parallel instructions
 //
   ea_t ea = insn.ea;
-  if ( !is_fph(get_dword(ea)) && !is_first_insn_in_exec_packet(ea) )
+  if ( insn.itype != TMS6_fphead && !is_first_insn_in_exec_packet(ea) )
   {
     out_symbol('|');
     out_symbol('|');
@@ -355,6 +419,7 @@ void out_tms320c6_t::out_insn(void)
 //      Instruction name
 //
   out_mnemonic();
+
 //
 //      Functional unit
 //
@@ -405,12 +470,7 @@ void out_tms320c6_t::out_insn(void)
   }
 
   out_immchar_cmts();
-
-  int indent = inf_get_indent() - 8;  // reserve space for conditions
-  if ( indent <= 1 )            // too little space?
-    indent = 2;                 // pass -2, which means one space
-                                // (-1 would mean 'use DEFAULT_INDENT')
-  flush_outbuf(-indent);        // negative value means 'print opcodes here'
+  handle_indent_cmts();
 
   if ( (insn.cflags & aux_para) == 0 )
   {

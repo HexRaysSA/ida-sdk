@@ -10,7 +10,7 @@ description:
   After running this script:
 
     * select some text in one of the listing widgets (i.e.,
-      "IDA View-*", "Local Types", "Pseudocode-*")
+      "IDA View-...", "Local Types", "Pseudocode-...")
     * press Ctrl+Shift+S to dump the selection
 
 level: advanced

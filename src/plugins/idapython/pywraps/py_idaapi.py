@@ -14,6 +14,9 @@ import datetime
 
 #<pycode(py_idaapi)>
 
+# Type aliases (we currently still support 3.8, so no `type` statement, or `typing.TypeAlias`es just yet)
+ea_t = int
+
 __EA64__ = BADADDR == 0xFFFFFFFFFFFFFFFF
 
 import inspect
@@ -806,6 +809,8 @@ class __IDAPython_Completion_Util(object):
         h = lambda s, c: f"{il.SCOLOR_ON}{c}{s}{il.SCOLOR_OFF}{c}"
         ha = lambda strs, cs: "".join([ h(s, c) for s, c in zip(strs, cs) ])
         argstr = self.__render_args(args, types, defaults)
+        if is_ctor and len(rets) == 0:
+            rets = [ name ]
         retstr = self.__render_rets(rets)
 
         proto = ha([ f"{name}", "(" ],
@@ -855,7 +860,7 @@ class __IDAPython_Completion_Util(object):
                    il.SCOLOR_NUMBER ])
         return out
 
-    def __render_docstr(self, doc, name, proto):
+    def __render_docstr(self, doc, name):
         import ida_lines as il
         h = lambda s, c: f"{il.SCOLOR_ON}{c}{s}{il.SCOLOR_OFF}{c}"
         ha = lambda strs, cs: "".join([ h(s, c) for s, c in zip(strs, cs) ])
@@ -868,23 +873,27 @@ class __IDAPython_Completion_Util(object):
         ign = False
         for l in doc.splitlines():
             l = l.strip(" \n\r\t")
+            m = re.match(f"(\\d). {name}\\(", l)
             if len(l) == 0:
                 continue
-            elif l.startswith(name) and "(" in l and ")" in l or ") -> " in l:
-                # looks like a function prototype
-                ign = False
+            elif m is not None or "This function has the following signatures:" in l:
+                # prototype definition
                 continue
-            elif "@param" in l:
-                ign = True
-                continue
-            elif "@return" in l:
-                ign = True
-                continue
-            elif "@retval" in l:
-                ign = True
-                continue
-            elif not ign:
-                out.append(l)
+            else:
+                # re-wrap docstring to 128 chars
+                final = []
+                curline = ""
+                tmp = l.split(" ")
+                for i in range(len(tmp)):
+                    if len(curline) + len(tmp[i]) + 1 > 128:
+                         final.append(f"{curline}")
+                         curline = f"{tmp[i]} "
+                    else:
+                         curline += f"{tmp[i]} "
+                if len(curline) > 0:
+                    final.append(f"{curline}")
+
+                out.append("\n".join(final))
         return "\n".join(out)
 
     def __parse_arg(self, arg):
@@ -910,10 +919,13 @@ class __IDAPython_Completion_Util(object):
         if altname is not None:
             name = altname
         for l in doc.splitlines():
-            if l.startswith(name) and "(" in l and ")" in l:
+            m = re.match(f"    (\\d). {name}\\(", l)
+            if m:
                 if len(args + types + defaults + rets) > 0:
                     out.append((args, types, defaults, rets))
                 args, types, defaults, rets = [], [], [], []
+
+                l = l[len("    0. "):]
 
                 # return types
                 if " -> " in l:
@@ -949,22 +961,11 @@ class __IDAPython_Completion_Util(object):
                     args.append(arg)
                     types.append(typ)
                     defaults.append(default)
-            elif l.startswith("@param"):
-                # argument types from @param docstring
-                m = re.match(r"@param ([^:]*):", l)
-                if not m:
-                    continue
-                arg = m[1].lstrip("_")
-                typ = ":".join(l.split(":")[1:])
-                if "C++:" in typ:
-                    typ = re.match(r".*\(C\+\+: (.*)\).*", typ)[1]
-                else:
-                    typ = typ.strip(" ")
-
-                types[args.index(arg)] = typ
 
         if len(args + types + defaults + rets) > 0:
             out.append((args, types, defaults, rets))
+        if len(out) == 0:
+            return [([], [], [], [])]
         return out
 
     def __proto_from_argspec(self, name, args, defaults, annotations):
@@ -1031,11 +1032,16 @@ class __IDAPython_Completion_Util(object):
                     pass
                 is_int = type(attr) == int
                 is_spo = "SwigPyObject" in str(type(attr))
+                is_typing = type(attr).__module__ == "typing"
+                if is_typing:
+                    # Ignore typing-related imports ("from typing import X" ...)
+                    continue
                 if is_prop:
                     pclass = getattr(ns, "__class__")
                     mod, cls = pclass.__module__, pclass.__name__
                     var_docs = IDAPython_GetDocstrings(pclass)
                     doc = var_docs[name] if name in var_docs.keys() else ""
+                    docr  = self.__render_docstr(doc, name)
 
                     if is_int or is_spo:
                         # class member, integral type or SwigPyObject
@@ -1049,7 +1055,7 @@ class __IDAPython_Completion_Util(object):
                             hint = self.__render_int_member(name, typ, attr)
                         else:
                             hint = self.__render_args([ name ], [ typ ], [ None ])
-                        out.append((name, hint, doc, [ W_CMEMB ]))
+                        out.append((name, hint, docr, [ W_CMEMB ]))
                     else:
                         # class member, complex type, property, no SwigPyObject
                         annots = getattr(pclass, "__annotations__")
@@ -1060,7 +1066,7 @@ class __IDAPython_Completion_Util(object):
                             # if we don't have a type annotation, take the python type
                             typ = type(attr).__name__
                         hint = self.__render_args([ name ], [ typ ], [ None ])
-                        out.append((name, hint, doc, [ W_CMEMB ]))
+                        out.append((name, hint, docr, [ W_CMEMB ]))
                 elif is_int:
                     # constant
                     hint = self.__render_constant(name, attr)
@@ -1068,12 +1074,16 @@ class __IDAPython_Completion_Util(object):
                         doc = var_docs[name]
                     else:
                         doc = ""
-                    out.append((name, hint, doc, [ W_CMEMB ]))
-                elif inspect.isfunction(attr) or inspect.ismethod(attr):
-                    # function
+                    docr  = self.__render_docstr(doc, name)
+                    out.append((name, hint, docr, [ W_CMEMB ]))
+                elif inspect.isfunction(attr) or inspect.ismethod(attr) or inspect.isclass(attr):
+                    # function or constructor
                     args, varargs, _, defaults, _, _, annots = inspect.getfullargspec(attr)
                     doc = inspect.getdoc(attr)
+                    docr = self.__render_docstr(doc, name)
                     altname = None
+                    is_ctor = inspect.isclass(attr)
+                    weight = W_CTOR if is_ctor else W_FUNC
                     if name not in str(attr):
                         # Some functions are mapped to each other. The docstring
                         # parser can only extract prototypes from overloaded
@@ -1084,39 +1094,22 @@ class __IDAPython_Completion_Util(object):
                         # insert one entry per prototype
                         prots = self.__proto_from_docstring(name, doc, altname = altname)
                         for prot in prots:
-                            docr = self.__render_docstr(doc, name, prot)
-                            hint = self.__render_proto(name, *prot)
-                            out.append((name, hint, docr, [ W_FUNC ]))
+                            hint = self.__render_proto(name, *prot, is_ctor = is_ctor)
+                            out.append((name, hint, docr, [ weight ]))
                     else:
                         # Regular function, retrieve prototype from argspec
                         prot = self.__proto_from_argspec(name, args, defaults, annots)[0]
-                        hint = self.__render_proto(name, *prot)
-                        docr  = self.__render_docstr(doc, name, prot)
-                        out.append((name, hint, docr, [ W_FUNC ]))
-                elif inspect.isclass(attr):
-                    # constructor
-                    doc = inspect.getdoc(attr)
-                    ls = inspect.getdoc(getattr(attr, "__init__")).splitlines()
-                    for l in ls:
-                        if not l.startswith("__init__"):
-                            # NOTE: No else. If constructor doesn't have a
-                            # documentation, assume it's a class that should
-                            # not be instantiated directly and we silently
-                            # remove it from the auto completion as a whole.
-                            continue
-
-                        l = l.replace("__init__", f"{name}")
-                        prot = self.__proto_from_docstring(name, l)[0]
-                        hint = self.__render_proto(name, *prot, is_ctor = True)
-                        out.append((name, hint, doc, [ W_CTOR ]))
+                        hint = self.__render_proto(name, *prot, is_ctor = is_ctor)
+                        out.append((name, hint, docr, [ weight ]))
                 elif inspect.isclass(type(attr)) and type(attr).__name__ == "str":
                     # class member, string
                     if name in var_docs.keys():
                         doc = var_docs[name]
                     else:
                         doc = ""
+                    docr  = self.__render_docstr(doc, name)
                     hint = self.__render_default(name)
-                    out.append((name, hint, doc, [] ))
+                    out.append((name, hint, docr, [] ))
                 elif inspect.isclass(type(attr)) and not callable(attr):
                     # class member, complex type
                     typ = type(attr).__name__
@@ -1127,16 +1120,18 @@ class __IDAPython_Completion_Util(object):
                     doc = inspect.getdoc(attr)
                     if doc is None:
                         doc = ""
+                    docr  = self.__render_docstr(doc, name)
                     hint = self.__render_args([ name ], [ typ ], [ None ])
-                    out.append((name, hint, doc, [ W_CMEMB ]))
+                    out.append((name, hint, docr, [ W_CMEMB ]))
                 else:
                     doc = inspect.getdoc(attr)
                     if doc is None:
                         doc = ""
+                    docr  = self.__render_docstr(doc, name)
                     hint = self.__render_default(name)
-                    out.append((name, hint, doc, [] ))
+                    out.append((name, hint, docr, [] ))
             except:
-                out.append((name, name, "except", [] ))
+                out.append((name, name, "", [] ))
                 # self.debug("build_hint(%s) got an exception:\n%s", name, traceback.format_exc())
                 pass
 
@@ -1214,7 +1209,9 @@ class __IDAPython_Completion_Util(object):
             "_swig_repr",
             "_swig_setattr_nondynamic_class_variable",
             "_swig_setattr_nondynamic_instance_variable",
-            "thisown", "this", "weakref", "cvar"
+            "thisown", "this", "weakref",
+            "cvar", "_real_cvar", "_wrap_cvar",
+            "SWIG_PYTHON_LEGACY_BOOL",
         ])
 
         try:
@@ -1393,23 +1390,27 @@ class IDAPython_displayhook:
     def _print_hex(self, x):
         return hex(x)
 
+    def displayhook_format(self, item):
+        storage = []
+        import ida_idp
+        num_printer = self._print_hex
+        dn = ida_idp.ph_get_flag() & ida_idp.PR_DEFNUM
+        if dn == ida_idp.PRN_OCT:
+            num_printer = oct
+        elif dn == ida_idp.PRN_DEC:
+            num_printer = str
+        elif dn == ida_idp.PRN_BIN:
+            num_printer = bin
+        self.format_item(num_printer, storage, item)
+        return "".join(storage)
+
     def displayhook(self, item):
         if item is None or type(item) is bool:
             self.orig_displayhook(item)
             return
         try:
-            storage = []
-            import ida_idp
-            num_printer = self._print_hex
-            dn = ida_idp.ph_get_flag() & ida_idp.PR_DEFNUM
-            if dn == ida_idp.PRN_OCT:
-                num_printer = oct
-            elif dn == ida_idp.PRN_DEC:
-                num_printer = str
-            elif dn == ida_idp.PRN_BIN:
-                num_printer = bin
-            self.format_item(num_printer, storage, item)
-            sys.stdout.write("%s\n" % "".join(storage))
+            clob = self.displayhook_format(item)
+            sys.stdout.write("%s\n" % clob)
         except:
             import traceback
             traceback.print_exc()

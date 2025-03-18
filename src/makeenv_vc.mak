@@ -227,6 +227,10 @@ ifdef __XPCOMPAT__
 	@echo /D_USING_V110_SDK71_              >>$@
 	@echo /Zc:threadSafeInit-               >>$@
 endif
+ifeq ($(QT_VERSION_MAJOR),6)
+	@echo /Zc:__cplusplus                   >>$@
+	@echo /permissive-                      >>$@
+endif
 
 # these cfg files speed up the build process by caching compiler/sdk paths.
 # this allows the build system to avoid calling cygpath multiple times on every run.

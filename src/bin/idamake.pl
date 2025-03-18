@@ -3,7 +3,7 @@
 #       Makefile wrapper for Unix
 #       Can be used with the following switches at the start:
 #         -v    ignore IDAMAKE_SIMPLIFY, display full command lines
-#         -a    append raw output to idasrc/current/idamake.log
+#         -a    append raw output to ~/idamake.log
 #         -z    filter stdin to stdout (for debugging)
 #         --make=path: specify path to make
 #       Other options are passed to the underlying make.
@@ -170,7 +170,7 @@ sub print_filtered_gcc_output
   {
     my $home = $ENV{'HOME'};
     $home = "" unless $home;
-    my $f = "$home/idasrc/current/idamake.log";
+    my $f = "$home/idamake.log";
     open $LLL, '>>', $f or die "$f: $!";
   }
   # OS X's ld interleaves its output, so try to reorder it; it typically

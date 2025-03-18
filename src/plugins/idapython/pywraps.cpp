@@ -1395,7 +1395,7 @@ bool ida_export PyW_GetNumber(PyObject *py_var, uint64 *num, bool *is_64)
     if ( py_num && py_mask )
     {
       ull = PyLong_AsUnsignedLongLong(py_num.o);
-      if ( PyErr_Occurred() == nullptr )    //-V547 'PyErr_Occurred() == nullptr' is always false
+      if ( PyErr_Occurred() == nullptr )
       {
         *is_64 = true;
         *num = uint64(ull);

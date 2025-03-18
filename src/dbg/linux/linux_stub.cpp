@@ -1,30 +1,9 @@
 #define REMOTE_DEBUGGER
 #define RPC_CLIENT
-#if defined(__EA64__) && defined(USE_LIBUNWIND) && !defined(__ANDROID__)
-  #define HAVE_UPDATE_CALL_STACK
-  #define SET_DBG_OPTIONS set_linux_options
-  #define LINUX_NODE "$ remote linux options"
-
-//lint -e754 local struct member '' not referenced
-  struct libunwind_pair_name_t
-  {
-    const char *libx86_64_name;
-    const char *libptrace_name;
-  };
-//lint +e754
-//lint -e528 static symbol '' not referenced
-  static const libunwind_pair_name_t libunwind_pair_name[] =
-  {
-    { "libunwind-x86_64.so.8", "libunwind-ptrace.so.0" },
-    { "libunwind-x86_64.so", "libunwind-ptrace.so" },
-  };
-//lint +e528
-#endif
 
 static const char wanted_name[] = "Remote Linux debugger";
 #define DEBUGGER_NAME  "linux"
 #define PROCESSOR_NAME "metapc"
-#define DEFAULT_PLATFORM_NAME "linux"
 #define TARGET_PROCESSOR PLFM_386
 #define DEBUGGER_ID    DEBUGGER_ID_X86_IA32_LINUX_USER
 #define DEBUGGER_FLAGS_BASE (DBG_FLAG_REMOTE    \
@@ -37,8 +16,8 @@ static const char wanted_name[] = "Remote Linux debugger";
 #define DEBUGGER_FLAGS (DEBUGGER_FLAGS_BASE)
 #endif
 #define DEBUGGER_RESMOD (DBG_RESMOD_STEP_INTO)
-#define HAVE_APPCALL
-#define S_FILETYPE     f_ELF
+
+#define LINUX_NODE "$ remote linux options"   //lint !e750 not referenced
 
 #include <pro.h>
 #include <idp.hpp>
@@ -48,10 +27,15 @@ static const char wanted_name[] = "Remote Linux debugger";
 #include <loader.hpp>
 #include <kernwin.hpp>
 #include <network.hpp>
+#include <dbg.hpp>
+#include "dbg_plugmod.hpp"
 
 #include "dbg_rpc_client.h"
 #include "rpc_debmod.h"
 #include "linux_rpc.h"
+#include "stack_unwind.hpp"
+#include "pc_regs.hpp"
+#include "deb_pc.hpp"
 
 //-----------------------------------------------------------------------------
 class linux_rpc_debmod_stub_t : public rpc_debmod_t
@@ -59,8 +43,9 @@ class linux_rpc_debmod_stub_t : public rpc_debmod_t
   typedef rpc_debmod_t inherited;
 
 public:
-#ifdef  HAVE_UPDATE_CALL_STACK
   qstring libunwind_path;
+  bool g_must_save_cfg = false;   //lint !e754 not referenced
+
   drc_t idaapi dbg_start_process(
         const char *path,
         const char *args,
@@ -86,14 +71,66 @@ public:
                 input_file_crc32,
                 errbuf);
   }
-#endif
 
   linux_rpc_debmod_stub_t(const char *plfm_name) : inherited(plfm_name) {}
 };
+#define LINUX_DEBMOD_T linux_rpc_debmod_stub_t    //lint !e750 not referenced
+inline linux_rpc_debmod_stub_t &get_linux_debmod() { return *static_cast<linux_rpc_debmod_stub_t*>(&get_debmod()); }
 
-linux_rpc_debmod_stub_t g_dbgmod(DEFAULT_PLATFORM_NAME);
 #include "common_stub_impl.cpp"
-
-#include "pc_local_impl.cpp"
 #include "linux_local_impl.cpp"
+
+struct dbg_plugmod_t : public dbg_plugmod_stub_t
+{
+  dbg_plugmod_t()
+  {
+    debugger.filetype = f_ELF;
+  }
+  virtual ~dbg_plugmod_t() override;
+
+#define DEFAULT_PLATFORM_NAME "linux"
+  linux_rpc_debmod_stub_t g_dbgmod = linux_rpc_debmod_stub_t(DEFAULT_PLATFORM_NAME);
+  virtual debmod_t &get_debmod() override { return g_dbgmod; }
+
+  ui_listener_t ui_listener = ui_listener_t(*this);
+
+  //--------------------------------------------------------------------------
+  bool init_plugin()
+  {
+    bool ok = init_linux_plugin(&debugger);
+    if ( ok )
+    {
+      hook_event_listener(HT_UI, &ui_listener);
+      debugger.flags |= DBG_HAS_OPEN_FILE;
+      debugger.flags |= DBG_HAS_APPCALL;
+    }
+    return ok;
+  }
+
+  void term_plugin()
+  {
+    save_linux_options();
+  }
+
+  //--------------------------------------------------------------------------
+  void init_debugger_finished() override
+  {
+#ifdef HAVE_UPDATE_CALL_STACK
+    debugger.flags |= DBG_HAS_UPDATE_CALL_STACK;
+#endif
+  }
+
+  //--------------------------------------------------------------------------
+  const char *set_dbg_options(const char *keyword, int pri, int value_type, const void *value) override
+  {
+    return set_linux_options(keyword, pri, value_type, value);
+  }
+};
+
+ssize_t idaapi ui_listener_t::on_event(ssize_t code, va_list)
+{
+  if ( code == ui_saving )
+    save_linux_options();
+  return 0;
+}
 #include "common_local_impl.cpp"

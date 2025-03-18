@@ -6,24 +6,28 @@ summary: implement merging functionality for custom plugins
 description:
   IDA Teams uses a chooser to display the merge conflicts.
   To fill the chooser columns IDA Teams uses the following methods from diff_source_t type:
+
     * print_diffpos_name()
     * print_diffpos_details()
+
   and UI hints from merge_handler_params_t type:
+
     * ui_has_details()
     * ui_complex_details()
     * ui_complex_name()
 
   In general, chooser columns are filled as following:
-    columns.clear()
-    NAME = print_diffpos_name()
-    if ui_complex_name()
-    then
-      columns.add(split NAME by ui_split_char())
-    else
-      columns[0] = NAME
-    if not ui_complex_details()
-    then
-      columns.add(print_diffpos_details())
+
+            columns.clear()
+            NAME = print_diffpos_name()
+            if ui_complex_name()
+            then
+              columns.add(split NAME by ui_split_char())
+            else
+              columns[0] = NAME
+            if not ui_complex_details()
+            then
+              columns.add(print_diffpos_details())
 
   Also, see SDK/plugins/mex3 example
 

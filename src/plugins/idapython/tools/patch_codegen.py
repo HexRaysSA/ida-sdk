@@ -278,6 +278,15 @@ with open(args.input) as f:
                             repl = "\n".join(repl)
                         subst = line.rstrip().replace(patch_data[0], repl)
                         subst = "%s %s" % (subst, patched_cmt)
+                elif patch_kind == "release_gil_around":
+                    expr = patch_data
+                    idx = line.find(expr)
+                    if idx > -1:
+                        subst = [
+                            "SWIG_PYTHON_THREAD_BEGIN_ALLOW;",
+                            line,
+                            "SWIG_PYTHON_THREAD_END_ALLOW;",
+                        ]
                 elif patch_kind == "insert_before_text":
                     idx = line.find(patch_data[0])
                     if idx > -1:

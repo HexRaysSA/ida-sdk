@@ -72,12 +72,12 @@ This collection of examples organizes all IDAPython sample code into [categories
  % for l in sorted(c.levels, key=lambda l: l.rank):
   % for e in sorted(l.examples, key=lambda e: e.name):
 
-#### {{e.summary}} {#{{e.name}}}
+### {{e.summary}} {#{{e.name}}}
 {{e.description}}
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [{{e.file_name}}](https://github.com/HexRaysSA/IDAPython/blob/release/9.0/examples/{{e.path}}) | {{' '.join(e.keywords)}} | {{l.label}} |
+| [{{e.file_name}}](https://github.com/HexRaysSA/IDAPython/tree/<insert-branch-here>/examples/{{e.path}}) | {{' '.join(e.keywords)}} | {{l.label}} |
 
    % if e.uses:
 **APIs Used:**

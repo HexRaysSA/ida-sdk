@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -61,7 +61,6 @@ inline int64  high(const int128 &x)  { return uint64(x>>64); }
 
 #else
 #ifdef __cplusplus
-//-V:uint128:730 not all members of a class are initialized inside the constructor
 class uint128
 {
   uint64 l;
@@ -109,7 +108,6 @@ public:
   friend bool operator<=(const uint128 &x, const uint128 &y) { return x.h < y.h || (x.h == y.h && x.l <= y.l); }
 };
 
-//-V:int128:730 not all members of a class are initialized inside the constructor
 class int128
 {
   uint64 l;

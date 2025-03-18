@@ -15,23 +15,6 @@ static bytearray_linput_data_vec_t bytearray_linput_data_vec;
 
 //<inline(py_diskio)>
 //--------------------------------------------------------------------------
-/*
-#<pydoc>
-def enumerate_files(path, fname, callback):
-    """
-    Enumerate files in the specified directory while the callback returns 0.
-    @param path: directory to enumerate files in
-    @param fname: mask of file names to enumerate
-    @param callback: a callable object that takes the filename as
-                     its first argument and it returns 0 to continue
-                     enumeration or non-zero to stop enumeration.
-    @return:
-        None in case of script errors
-        tuple(code, fname) : If the callback returns non-zero
-    """
-    pass
-#</pydoc>
-*/
 PyObject *py_enumerate_files(PyObject *path, PyObject *fname, PyObject *callback)
 {
   PYW_GIL_CHECK_LOCKED_SCOPE();

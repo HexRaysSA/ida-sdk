@@ -33,7 +33,7 @@ def insert_gap(struct_name: str, byte_offset: int, member_type: ida_typeinf.tinf
 
     return True
 
-if not insert_gap("_TraceLoggingMetadata_t", 8, ida_typeinf.tinfo_t(BT_INT)):
+if not insert_gap("_TraceLoggingMetadata_t", 8, ida_typeinf.tinfo_t(ida_typeinf.BT_INT)):
     print("Failed to insert gaps.")
 else:
     print("Done.")

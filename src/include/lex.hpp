@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -249,12 +249,13 @@ idaman int ida_export lex_set_options(lexer_t *lx, int options);
 /// Passed as 'options' parameter to lex_set_options().
 /// By default all options are on.
 ///@{
-#define LXOPT_PARSE_FLOATS  0x0001 ///< enable floating point constants
-#define LXOPT_REQ_SEPARATOR 0x0002 ///< require a separator between a number and an ident or a character/string constant or dot
-#define LXOPT_NOCASE_FILES  0x0004 ///< case-insensitive file search
-#define LXOPT_C99_CONSTANTS 0x0008 ///< the size and sign of constants depend on the value itself and the 'U', 'L', and 'LL'
-                                   ///< modifier suffixes. Otherwise the constant is always considered as signed and the size
-                                   ///< depends only on the number of bytes in the value
+#define LXOPT_PARSE_FLOATS             0x0001 ///< enable floating point constants
+#define LXOPT_REQ_SEPARATOR            0x0002 ///< require a separator between a number and an ident or a character/string constant or dot
+#define LXOPT_NOCASE_FILES             0x0004 ///< case-insensitive file search
+#define LXOPT_C99_CONSTANTS            0x0008 ///< the size and sign of constants depend on the value itself and the 'U', 'L', and 'LL'
+                                              ///< modifier suffixes. Otherwise the constant is always considered as signed and the size
+                                              ///< depends only on the number of bytes in the value
+#define LXOPT_STR_INCLUDE_BACKSLASHES  0x0010 ///< do not escape backslash characters in string constants
 ///@}
 
 

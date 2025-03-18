@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -187,7 +187,7 @@ idaman bool ida_export print_idcv(
 /// \param i1     slice start index
 /// \param i2     slice end index (excluded)
 /// \param flags  \ref VARSLICE_ or 0
-/// \returns eOk if success
+/// \return eOk if success
 
 idaman THREAD_SAFE error_t ida_export get_idcv_slice(
         idc_value_t *res,

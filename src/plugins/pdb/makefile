@@ -3,6 +3,7 @@ CONFIGS=pdb.cfg
 
 ifdef __NT__
   O1=old
+  STDLIBS += wininet.lib
   STDLIBS += ole32.lib
   STDLIBS += oleaut32.lib
 endif

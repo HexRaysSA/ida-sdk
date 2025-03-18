@@ -741,7 +741,9 @@ void tms320c55_t::gen_stkvar_def(outctx_t &ctx, const udm_t *stkvar, sval_t v) c
 
   char vstr[MAX_NUMBUF];
   btoa(vstr, sizeof(vstr), v);
-  ctx.out_printf(COLSTR("  %s ",SCOLOR_KEYWORD)
+  ctx.out_printf("  "
+                 COLSTR("%s",SCOLOR_KEYWORD)
+                 " "
                  COLSTR("%c%s",SCOLOR_DNUM)
                  COLSTR(",",SCOLOR_SYMBOL) " "
                  COLSTR("%s",SCOLOR_LOCNAME),

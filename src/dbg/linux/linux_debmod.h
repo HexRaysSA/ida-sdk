@@ -1,21 +1,6 @@
 #ifndef __LINUX_DEBUGGER_MODULE__
 #define __LINUX_DEBUGGER_MODULE__
 
-#if defined(__EA64__) && defined(USE_LIBUNWIND) && !defined(__ANDROID__)
-  #define HAVE_UPDATE_CALL_STACK
-  struct libunwind_pair_name_t
-  {
-    const char *libx86_64_name;
-    const char *libptrace_name;
-  };
-
-  static const libunwind_pair_name_t libunwind_pair_name[] =
-  {
-    { "libunwind-x86_64.so.8", "libunwind-ptrace.so.0" },
-    { "libunwind-x86_64.so", "libunwind-ptrace.so" },
-  };
-#endif
-
 #include <signal.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
@@ -132,7 +117,7 @@ struct internal_bpt
   ea_t bpt_addr;
   uchar saved[BPT_CODE_SIZE];
   uchar nsaved;
-  internal_bpt(): bpt_addr(0), nsaved(0) {}   //-V730 Not all members of a class are initialized
+  internal_bpt(): bpt_addr(0), nsaved(0) {}
 };
 
 //--------------------------------------------------------------------------
@@ -224,9 +209,10 @@ public:
   threads_t threads;
   qvector<thid_t> deleted_threads;
   qvector<thid_t> seen_threads;    // thread was born and appeared too early
-#ifdef HAVE_UPDATE_CALL_STACK
-  qstring libunwind_path;
-#endif
+  qstring libunwind_path;          // stack unwind library
+  struct libunwind_access_t *p_libaccess = nullptr;
+                                   // stack unwinnd handler
+  bool g_must_save_cfg = false;
 
   // debugged process information
   HANDLE process_handle;
@@ -297,7 +283,7 @@ public:
 
   virtual void init_reg_ctx() override;
   virtual void idaapi dbg_set_debugging(bool _debug_debugger) override;
-  virtual drc_t idaapi dbg_init(uint32_t *flags2, qstring *errbuf) override;
+  virtual drc_t idaapi dbg_init(uint64 *add_debugger_flags, qstring *errbuf) override;
   virtual void idaapi dbg_term(void) override;
   virtual drc_t idaapi dbg_detach_process(void) override;
   virtual drc_t idaapi dbg_start_process(
@@ -330,9 +316,7 @@ public:
         qstring *errbuf) override;
   virtual drc_t idaapi dbg_thread_get_sreg_base(ea_t *ea, thid_t thread_id, int sreg_value, qstring *errbuf) override;
   virtual drc_t idaapi dbg_get_memory_info(meminfo_vec_t &areas, qstring *errbuf) override;
-#ifdef HAVE_UPDATE_CALL_STACK
   virtual drc_t idaapi dbg_update_call_stack(thid_t tid, call_stack_t *) override;
-#endif
   virtual ssize_t idaapi dbg_read_memory(ea_t ea, void *buffer, size_t size, qstring *errbuf) override;
   virtual ssize_t idaapi dbg_write_memory(ea_t ea, const void *buffer, size_t size, qstring *errbuf) override;
   virtual int idaapi dbg_add_bpt(bytevec_t *orig_bytes, bpttype_t type, ea_t ea, int len) override;
@@ -364,6 +348,15 @@ public:
 #ifdef LDEB
   void log(thid_t tid, const char *format, ...);
 #endif
+
+  //--------------------------------------------------------------------------
+#ifdef TESTABLE_BUILD
+public:
+  typedef const char *per_pid_elf_dbgdir_resolver_t(int pid);
+  per_pid_elf_dbgdir_resolver_t *per_pid_elf_dbgdir_resolver = nullptr;
+#endif
 };
+#define LINUX_DEBMOD_T linux_debmod_t
+inline linux_debmod_t &get_linux_debmod() { return *static_cast<linux_debmod_t*>(&get_debmod()); }
 
 #endif

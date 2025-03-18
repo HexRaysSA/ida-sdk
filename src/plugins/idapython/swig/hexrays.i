@@ -81,7 +81,10 @@ SWIGINTERN void __raise_vdf(const vd_failure_t &e)
 %ignore string_printer_t::vprint;
 %ignore vdui_t::vdui_t;
 %ignore cblock_t::find;
+
 %ignore citem_t::op;
+%ignore citem_t::find_parent_of(const citem_t *) const;
+
 %ignore cfunc_t::cfunc_t;
 %ignore cfunc_t::sv;         // lazy member. Use get_pseudocode() instead
 %ignore cfunc_t::boundaries; // lazy member. Use get_boundaries() instead
@@ -100,6 +103,7 @@ SWIGINTERN void __raise_vdf(const vd_failure_t &e)
 %ignore cgoto_t::print;
 %ignore ctry_t::print;
 %ignore ccatch_t::print;
+
 %ignore cexpr_t::is_aliasable;
 %ignore cexpr_t::like_boolean;
 %ignore cexpr_t::contains_expr;
@@ -108,6 +112,10 @@ SWIGINTERN void __raise_vdf(const vd_failure_t &e)
 %ignore cexpr_t::is_type_partial;
 %ignore cexpr_t::set_type_partial;
 %ignore cexpr_t::is_value_used;
+%ignore cexpr_t::find_num_op() const;
+%ignore cexpr_t::find_op(ctype_t) const;
+%ignore cexpr_t::theother(const cexpr_t *) const;
+
 %ignore lvar_t::is_promoted_arg;
 %ignore lvar_t::lvar_t;
 %ignore lvar_t::is_partialy_typed;
@@ -145,6 +153,8 @@ SWIGINTERN void __raise_vdf(const vd_failure_t &e)
 %ignore mba_t::idaloc2vd(const mba_t *, const argloc_t &, int);
 %ignore mba_t::range_contains;
 %ignore mba_t::get_stkvar;
+%ignore mba_t::arg(int) const;
+%ignore mba_t::get_mblock(uint) const;
 
 %feature("nodirector") codegen_t;
 %ignore codegen_t::reserved;
@@ -165,10 +175,13 @@ SWIGINTERN void __raise_vdf(const vd_failure_t &e)
 %ignore minsn_t::find_ins_op(const mop_t **, mcode_t) const;
 %ignore minsn_t::find_ins_op(const mop_t **) const;
 %ignore minsn_t::find_num_op(const mop_t **) const;
+%ignore minsn_t::find_opcode(mcode_t) const;
 %ignore minsn_t::set_combined;
+
 
 %ignore mop_t::is_constant(uint64 *) const;
 %ignore mop_t::is_constant() const;
+%ignore mop_t::get_insn(mcode_t) const;
 
 %define_hexrays_lifecycle_object(mop_t);
 %ignore mop_t::_make_strlit(qstring *);
@@ -181,15 +194,21 @@ SWIGINTERN void __raise_vdf(const vd_failure_t &e)
 
 %template(mcallargs_t) qvector<mcallarg_t>;
 
+%ignore block_chains_t::get_reg_chain(mreg_t, int);
+%ignore block_chains_t::get_stk_chain(sval_t, int);
+%ignore block_chains_t::get_chain(voff_t &, int);
+%ignore block_chains_t::get_chain(chain_t &);
 %uncomparable_elements_qvector(block_chains_t, block_chains_vec_t);
 
 %ignore mblock_t::mblock_t;
-%ignore mblock_t::find_first_use(mlist_t *, const minsn_t *, const minsn_t *, maymust_t) const;
+
+%ignore mblock_t::find_first_use(mlist_t *, const minsn_t *, const minsn_t *, maymust_t=MAY_ACCESS) const;
 %ignore mblock_t::find_first_use(mlist_t *, const minsn_t *, const minsn_t *) const;
 %ignore mblock_t::find_redefinition(const mlist_t &, const minsn_t *, const minsn_t *, maymust_t) const;
 %ignore mblock_t::find_redefinition(const mlist_t &, const minsn_t *, const minsn_t *) const;
 %ignore mblock_t::reserved;
 %ignore mblock_t::vdump_block;
+
 // Note: we cannot use %delobject here, as that would disown
 // the block itself, not the instruction.
 %feature("pythonappend") mblock_t::insert_into_block %{
@@ -237,8 +256,13 @@ SWIGINTERN void __raise_vdf(const vd_failure_t &e)
 
 %ignore getf_reginsn(const minsn_t *);
 %ignore getb_reginsn(const minsn_t *);
+
 %ignore lvar_t::dstr;
+%ignore lvar_t::type() const;
+
 %ignore lvar_locator_t::dstr;
+%ignore lvar_locator_t::get_scattered() const;
+
 %ignore fnumber_t::dstr;
 %ignore range_item_iterator_t;
 %ignore mba_item_iterator_t;
@@ -382,6 +406,10 @@ SWIGINTERN void __raise_vdf(const vd_failure_t &e)
      qstring_printer_t p($self, qs, 0);
      $self->print_func(p);
      return qs;
+   }
+
+   %pythoncode {
+       __repr__ = __str__
    }
 };
 

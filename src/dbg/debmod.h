@@ -14,6 +14,7 @@
 //
 
 #include <deque>
+#include <unordered_map>
 
 #include <pro.h>
 #include <err.h>
@@ -22,7 +23,6 @@
 
 //--------------------------------------------------------------------------
 struct regctx_t;
-extern debugger_t debugger;
 
 //--------------------------------------------------------------------------
 struct name_info_t
@@ -102,7 +102,6 @@ void report_idc_error(rpc_engine_t *rpc, ea_t ea, error_t code, ssize_t errval, 
 #define EA_T(ptr) (ea_t)(size_t)(ptr)
 
 //--------------------------------------------------------------------------
-//-V:debmod_bpt_t:730 not all members of a class are initialized inside the constructor: saved
 struct debmod_bpt_t
 {
   ea_t ea;
@@ -140,14 +139,12 @@ public:
 };
 
 //--------------------------------------------------------------------------
-int send_ioctl(rpc_engine_t *rpc, int fn, const void *buf, size_t size, void **poutbuf, ssize_t *poutsize);
-int send_debug_names_to_ida(ea_t *addrs, const char *const *names, int qty);
-int send_debug_event_to_ida(const debug_event_t *ev, int rqflags);
+int do_set_debug_names(ea_t *addrs, const char *const *names, int qty);
 void set_arm_thumb_modes(ea_t *addrs, int qty);
 char *debug_event_str(const debug_event_t *ev, char *buf, size_t bufsize);
-char *debug_event_str(const debug_event_t *ev); // returns static buf
 int get_default_app_addrsize();
-void update_idd_registers();
+debugger_t &get_debugger();
+void update_idd_registers(bool get_idaregs=true);
 
 //--------------------------------------------------------------------------
 // describes a dll to be imported
@@ -173,8 +170,7 @@ struct regctx_entry_t
     DATA = 2,
     FUNC = 3,
   } type;
-  int reg_class;
-  int reg_idx;
+  size_t dbg_reg_idx;
   union
   {
     struct
@@ -288,53 +284,69 @@ struct regctx_base_t
 {
   dynamic_register_set_t &idaregs; // linked to debmod_t's variable of the same name
   reg_ctx_entries_t entries;
+  std::unordered_map<size_t, size_t> dbg2ida;   // map debugger register index to IDA register index
   int clsmask = 0;
   thid_t tid = 0;
 
   regctx_base_t(dynamic_register_set_t &_idaregs) : idaregs(_idaregs) {}
   virtual ~regctx_base_t() {}
 
+  //--------------------------------------------------------
+  bool valid_idx(size_t idx) const { return idx < entries.size(); }
+
+  //--------------------------------------------------------
   void setup(thid_t _tid, int _clsmask=0)
   {
     tid = _tid;
     clsmask = _clsmask;
   }
 
-  void setup_reg(int dyn_reg_idx)
+  void setup_reg(int ida_reg_idx)
   {
-    clsmask |= entries[dyn_reg_idx].reg_class;
+    if ( valid_idx(ida_reg_idx) )
+      clsmask |= idaregs.ri_vec[ida_reg_idx].register_class;
   }
 
-  void add_idareg(const register_info_t &ri)
+  //--------------------------------------------------------
+  size_t ida_reg_idx2dbg(size_t ida_reg_idx) const
   {
-    idaregs.add_register(ri.name,
-                         ri.flags,
-                         ri.dtype,
-                         ri.register_class,
-                         ri.bit_strings,
-                         ri.default_bit_strings_mask);
+    return valid_idx(ida_reg_idx) ? entries[ida_reg_idx].dbg_reg_idx : -1;
   }
 
+  size_t dbg_reg_idx2ida(size_t dbg_reg_idx) const
+  {
+    auto p = dbg2ida.find(dbg_reg_idx);
+    QASSERT(3290, p != dbg2ida.end());   // FIXME: seems there is a need for such interr ?
+    return p->second;
+  }
+
+  //--------------------------------------------------------
   size_t add_entry(
         regctx_entry_t::type_t type,
         const register_info_t &ri,
         size_t offset_in_ctx,
         size_t size_in_ctx,
-        size_t reg_size)
+        size_t reg_size,
+        size_t dbg_reg_idx)
   {
-    size_t dyn_reg_idx = entries.size();
+    size_t ida_reg_idx = entries.size();
+    if ( dbg_reg_idx != size_t(-1) )
+      dbg2ida[dbg_reg_idx] = ida_reg_idx;   // IDA register index
     regctx_entry_t &entry = entries.push_back();
     entry.type = type;
-    entry.reg_class = ri.register_class;
-    entry.reg_idx = dyn_reg_idx;
+    entry.dbg_reg_idx = dbg_reg_idx;
     entry.offset_in_ctx = offset_in_ctx;
     entry.size_in_ctx = size_in_ctx;
     entry.reg_size = reg_size;
-    add_idareg(ri);
-    return dyn_reg_idx;
+    idaregs.add_register(ri);
+    return ida_reg_idx;
   }
 
-  size_t add_ival(const register_info_t &ri, size_t offset_in_ctx, size_t size_in_ctx)
+  size_t add_ival(
+        const register_info_t &ri,
+        size_t offset_in_ctx,
+        size_t size_in_ctx,
+        size_t dbg_reg_idx=-1)
   {
     QASSERT(1797, size_in_ctx <= sizeof(regval_t::ival));
     size_t reg_size = ri.dtype == dt_word  ? 2
@@ -342,49 +354,96 @@ struct regctx_base_t
                     : ri.dtype == dt_qword ? 8
                     :                        0;
     QASSERT(1798, reg_size != 0);
-    return add_entry(regctx_entry_t::IVAL, ri, offset_in_ctx, size_in_ctx, reg_size);
+    return add_entry(regctx_entry_t::IVAL, ri, offset_in_ctx, size_in_ctx, reg_size, dbg_reg_idx);
   }
 
-  size_t add_fval(const register_info_t &ri, size_t offset_in_ctx, size_t size_in_ctx)
+  size_t add_fval(
+        const register_info_t &ri,
+        size_t offset_in_ctx,
+        size_t size_in_ctx,
+        size_t dbg_reg_idx=-1)
   {
-    return add_entry(regctx_entry_t::FVAL, ri, offset_in_ctx, size_in_ctx, size_in_ctx);
+    return add_entry(regctx_entry_t::FVAL, ri, offset_in_ctx, size_in_ctx, size_in_ctx, dbg_reg_idx);
   }
 
-  size_t add_data(const register_info_t &ri, size_t offset_in_ctx, size_t size_in_ctx)
+  size_t add_data(
+        const register_info_t &ri,
+        size_t offset_in_ctx,
+        size_t size_in_ctx,
+        size_t dbg_reg_idx=-1)
   {
-    return add_entry(regctx_entry_t::DATA, ri, offset_in_ctx, size_in_ctx, size_in_ctx);
+    return add_entry(regctx_entry_t::DATA, ri, offset_in_ctx, size_in_ctx, size_in_ctx, dbg_reg_idx);
   }
 
+  //--------------------------------------------------------
   size_t add_func(
         register_info_t &ri,
         void (*read_func)(const regctx_t *, regval_t *, void *),
         void (*write_func)(regctx_t *, const regval_t *, void *),
-        void *user_data=nullptr)
+        void *user_data=nullptr,
+        size_t dbg_reg_idx=-1)
   {
-    size_t dyn_reg_idx = entries.size();
+    size_t ida_reg_idx = entries.size();
+    if ( dbg_reg_idx != size_t(-1) )
+      dbg2ida[dbg_reg_idx] = ida_reg_idx;   // IDA register index
     regctx_entry_t &entry = entries.push_back();
     entry.type = regctx_entry_t::FUNC;
-    entry.reg_class = ri.register_class;
-    entry.reg_idx = dyn_reg_idx;
+    entry.dbg_reg_idx = dbg_reg_idx;
     entry.read_func = read_func;
     entry.write_func = write_func;
     entry.user_data = user_data;
-    add_idareg(ri);
-    return dyn_reg_idx;
+    idaregs.add_register(ri);
+    return ida_reg_idx;
+  }
+
+  //--------------------------------------------------------
+  size_t add_noval_entry(
+        const register_info_t &ri,
+        size_t dbg_reg_idx)
+  {
+    size_t ida_reg_idx = entries.size();
+    if ( dbg_reg_idx != size_t(-1) )
+      dbg2ida[dbg_reg_idx] = ida_reg_idx;   // IDA register index
+    regctx_entry_t &entry = entries.push_back();
+    entry.type = regctx_entry_t::IVAL;
+    entry.offset_in_ctx = 0;
+    entry.size_in_ctx = 0;
+    entry.reg_size = 0;
+    entry.dbg_reg_idx = dbg_reg_idx;
+    idaregs.add_register(ri);
+    return ida_reg_idx;
+  }
+
+  //--------------------------------------------------------
+  bool read_regval(regval_t *regval, size_t ida_reg_idx)
+  {
+    if ( valid_idx(ida_reg_idx) )
+    {
+      const register_info_t &ri = idaregs.ri_vec[ida_reg_idx];
+      if ( (clsmask & ri.register_class) != 0 )
+      {
+        const regctx_entry_t &entry = entries[ida_reg_idx];
+        entry.read(regval, (const uint8_t *)this);
+        return true;
+      }
+    }
+    return false;
   }
 
   void read_all(regval_t *values)
   {
-    for ( const regctx_entry_t &entry: entries )
-      if ( (clsmask & entry.reg_class) != 0 )
-        entry.read(&values[entry.reg_idx], (const uint8_t *) this);
+    for ( size_t ida_reg_idx=0; valid_idx(ida_reg_idx); ++ida_reg_idx )
+      read_regval(&values[ida_reg_idx], ida_reg_idx);
   }
 
-  bool patch(int dyn_reg_idx, const regval_t *value)
+  //--------------------------------------------------------
+  bool patch(int ida_reg_idx, const regval_t *value)
   {
-    QASSERT(3258, dyn_reg_idx < entries.size());
-    return entries[dyn_reg_idx].patch((uint8_t *) this, value);
+    QASSERT(3258, valid_idx(ida_reg_idx));
+    return entries[ida_reg_idx].patch((uint8_t *) this, value);
   }
+
+  //--------------------------------------------------------
   virtual bool init() = 0;
   virtual bool load() = 0;
   virtual bool store() = 0;
@@ -395,6 +454,12 @@ struct regctx_base_t
 class debmod_t
 {
   ea_helper_t _eah;
+  enum debmod_role_t
+  {
+    DMROLE_USER,    // debmod is instantiated in local 'user' or 'stub' part (rpc_debmod_t)
+    DMROLE_SERVER,  // debmod is instantiated in server
+  };
+  debmod_role_t dmrole = DMROLE_USER;
 
 protected:
 //  processor_t &ph;
@@ -426,7 +491,9 @@ protected:
 
   int send_ioctl(int fn, const void *buf, size_t size, void **poutbuf, ssize_t *poutsize)
   {
-    return ::send_ioctl(rpc, fn, buf, size, poutbuf, poutsize);
+    return is_server_role()
+         ? rpc->send_ioctl(fn, buf, size, poutbuf, poutsize)
+         : handle_ioctl(fn, buf, size, poutbuf, poutsize);
   }
   // If an IDC error occurs: we cannot prepare an error message on the server
   // side because we do not have access to error strings (they are in ida.hlp).
@@ -478,10 +545,17 @@ public:
   int pc_idx = -1;
   int fp_idx = -1; // index of frame pointer register
 
-  // Breakpoint code.
-  int debugger_flags = 0;
-  bool broken_connection = false;
   bool debug_debugger = false;
+  // debugger info, read-only
+  // set before dbg_init(), not updated
+  // may be updated for the debmod private needs
+  uint64 debugger_flags = 0;
+  qstring debugger_name;
+  qstring debugger_processor;
+  int debugger_id = -1;
+
+  // Breakpoint code.
+  bool broken_connection = false;
   bool is_dll = false; // Is dynamic library?
 
   static bool reuse_broken_connections;
@@ -513,13 +587,16 @@ public:
   debmod_t();
   virtual ~debmod_t() { cleanup(); }
 
+  void set_server_role() { dmrole = DMROLE_SERVER; }
+  bool is_server_role() const { return dmrole == DMROLE_SERVER; }
+
   //------------------------------------
   // Debug names methods
   //------------------------------------
   void clear_debug_names();
   name_info_t *get_debug_names();
   void save_debug_name(ea_t ea, const char *name);
-  int set_debug_names();
+  int dispatch_debug_names();
   int send_debug_names_to_ida(ea_t *addrs, const char *const *names, int qty);
   int send_debug_event_to_ida(const debug_event_t *ev, int rqflags);
   ea_t find_debug_name(const char *name) const;
@@ -549,12 +626,14 @@ public:
   virtual const exception_info_t *find_exception(int code);
   virtual bool get_exception_name(int code, char *buf, size_t bufsize);
   virtual drc_t idaapi dbg_get_processes(procinfo_vec_t *info, qstring *errbuf);
+  virtual bool idaapi open_remote(const char * /*hostname*/, int /*port_number*/, const char * /*password*/, qstring * /*errbuf*/) { return true; }
+  virtual drc_t close_remote() { return DRC_OK; }
 
   //------------------------------------
   // Methods to be implemented
   //------------------------------------
   virtual void idaapi dbg_set_debugging(bool _debug_debugger) = 0;
-  virtual drc_t idaapi dbg_init(uint32_t *flags2, qstring *errbuf) = 0;
+  virtual drc_t idaapi dbg_init(uint64 *add_debugger_flags, qstring *errbuf) = 0;
   virtual void idaapi dbg_term(void) = 0;
   virtual drc_t idaapi dbg_detach_process(void) = 0;
   virtual drc_t idaapi dbg_start_process(
@@ -571,6 +650,7 @@ public:
   virtual drc_t idaapi dbg_prepare_to_pause_process(qstring *errbuf) = 0;
   virtual drc_t idaapi dbg_exit_process(qstring *errbuf) = 0;
   virtual drc_t idaapi dbg_continue_after_event(const debug_event_t *event) = 0;
+  virtual drc_t idaapi dbg_set_backwards(bool /*backwards*/) { return DRC_NONE; }
   virtual void idaapi dbg_set_exception_info(const exception_info_t *info, int qty);
   virtual void idaapi dbg_stopped_at_debug_event(import_infos_t *infos, bool dlls_added, thread_name_vec_t *thr_names) = 0;
   virtual drc_t idaapi dbg_thread_suspend(thid_t thread_id) = 0;
@@ -671,20 +751,26 @@ public:
         const compiled_binpat_vec_t &ptns,
         int srch_flags,
         qstring *errbuf);
+  virtual drc_t idaapi dbg_get_register_descriptions() { return DRC_NONE; }
   virtual void init_reg_ctx() {}
-  virtual void term_reg_ctx()
+  void reset_reg_ctx()
   {
     if ( reg_ctx != nullptr )
     {
       delete reg_ctx;
-      idaregs.clear();
+      idaregs.clear();  // clean iff IDAREGS is created due to REG_CTX,
+                        // f.e. gdb debugger creates IDAREGS and do not use REG_CTX
     }
     reg_ctx = nullptr;
-    update_idd_registers();
+  }
+  virtual void term_reg_ctx()
+  {
+    reset_reg_ctx();
+    update_idd_registers(false);
   }
   void init_dynamic_regs()
   {
-    term_reg_ctx();
+    reset_reg_ctx();
     init_reg_ctx();
     // take this opportunity to check that the derived class initialized
     // register related fields correctly
@@ -710,8 +796,11 @@ public:
 
   DEFINE_EA_HELPER_FUNCS(_eah)
 };
+debmod_t &get_debmod();
 
-//---------------------------------------------------------------------------
+void set_idc_ctx(debmod_t *dm, thid_t tid);
+debmod_t *get_idc_debmod();
+thid_t get_idc_tid();
 
 //
 // Some functions, per OS implemented
@@ -719,12 +808,6 @@ public:
 bool init_subsystem();
 bool term_subsystem();
 debmod_t *create_debug_session(void *params);
-
-//
-// Processor specific init/term
-//
-void processor_specific_init(void);
-void processor_specific_term(void);
 
 // Perform an action on all existing debugger modules
 struct debmod_visitor_t
@@ -767,12 +850,6 @@ inline void form_envs(qstring *out, const launch_env_t *envs)
   if ( !out->empty() )
     out->append('\0');
 }
-
-//
-// Externs
-//
-extern debmod_t *idc_debmod;
-extern thid_t idc_thread;
 
 //---------------------------------------------------------------------------
 // server.cpp

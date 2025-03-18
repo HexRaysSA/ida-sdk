@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -30,8 +30,9 @@ idaman int ida_export init_library(int argc = 0, char *argv[] = nullptr);
 /// than the initialization thread may lead to undefined behavior
 /// \param file_path the file name to be loaded
 /// \param run_auto if set to true, library will run also auto analysis
+/// \param args optional arguments, respecting IDA's command-line arguments format
 /// \return 0 if successfully opened, otherwise error code
-idaman int ida_export open_database(const char *file_path, bool run_auto);
+idaman int ida_export open_database(const char *file_path, bool run_auto, const char *args = nullptr);
 
 
 /// \brief Close the current database

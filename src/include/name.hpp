@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -534,6 +534,7 @@ idaman ssize_t ida_export get_name_expr(
 ///   - segment:label
 ///   - segment:address
 ///   - segment:address+offset
+///
 /// \param[out] buf  buffer to hold the name
 /// \param ea        linear address
 /// \param flags     \ref GNCN_
@@ -593,6 +594,7 @@ idaman flags64_t ida_export append_struct_fields(
 ///   - disp: the value of 'field5', i.e. 5
 ///   - delta: -2
 ///   - path: the existing path if any
+///
 /// \param disp   pointer to displacement (answer will be here)
 /// \param delta  pointer to displacement delta (answer will be here)
 /// \param path   existing strpath (if any)
@@ -777,7 +779,9 @@ idaman bool ida_export cleanup_name(
         const char *name,
         uint32 flags=0);
 
-#define CN_KEEP_TRAILING__DIGITS 0x01 ///< do not remove "_\d+" at the end of name
+#define CN_KEEP_TRAILING_DIGITS 0x01 ///< do not remove "_\d+" at the end of name
+#define CN_KEEP_UNDERSCORES     0x02 ///< do not remove leading underscores.
+                                     ///< but it is ok to remove __imp_.
 
 
 #endif // _NAME_HPP

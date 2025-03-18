@@ -2,13 +2,15 @@
 summary: assign DOS/PE headers structures to a PE binary
 
 description:
-    The goal of this script is to demonstrate some usage of the type API.
-    In this script, we:
-        * load a PE64 file in binary mode
-        * import some types from the mssdk64 til
-        * apply these types at the correct ofsset in the DB
-        * finally, rebase the program based on the information stored
-        in the ImageBase field of the IMAGE_OPTIONAL_HEADER64.
+  The goal of this script is to demonstrate some usage of the type API.
+
+  In this script, we:
+
+  * load a PE64 file in binary mode
+  * import some types from the mssdk64 til
+  * apply these types at the correct ofsset in the DB
+  * finally, rebase the program based on the information stored
+    in the ImageBase field of the IMAGE_OPTIONAL_HEADER64.
 
 level: intermediate
 """

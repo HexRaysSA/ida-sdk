@@ -1,4 +1,3 @@
-
 include ../../allmake.mak
 
 #----------------------------------------------------------------------
@@ -18,8 +17,8 @@ include ../../allmake.mak
 
 #----------------------------------------------------------------------
 # default goals
-.PHONY: configs modules pyfiles deployed_modules idapython_modules api_check api_contents pyqt sip bins public_tree test_idc docs docs_md tbd examples_index test_pywraps
-all: configs modules pyfiles deployed_modules idapython_modules api_check api_contents pyqt sip bins examples_index test_pywraps # public_tree test_idc docs docs_md
+.PHONY: configs modules pyfiles deployed_modules idapython_modules api_check api_contents qt_bindings bins public_tree test_idc docs docs_md tbd examples examples_index test_pywraps
+all: configs modules pyfiles deployed_modules idapython_modules api_check api_contents qt_bindings bins examples examples_index test_pywraps # public_tree test_idc docs docs_md
 
 ifeq ($(OUT_OF_TREE_BUILD),)
   IDAPYSWITCH:=$(R)idapyswitch$(B)
@@ -356,7 +355,7 @@ ifeq ($(OUT_OF_TREE_BUILD),)
   # PyQt5
   DEST_PYQT_QTCORE:=$(DEST_PYQT_DIR)/QtCore$(PYDLL_EXT)
   $(DEST_PYQT_QTCORE): $(SRC_PYQT_BUNDLE) | $(DEST_PYQT_DIR)
-	$(Q)tar -xf $(SRC_PYQT_BUNDLE) -C $(dir $(DEST_PYQT_DIR)) --strip 1
+	$(Q)$(TAR) -xf $(SRC_PYQT_BUNDLE) -C $(dir $(DEST_PYQT_DIR)) --strip 1
 	$(Q)touch $@
   DEST_PYQT += $(DEST_PYQT_QTCORE)
 
@@ -435,7 +434,6 @@ ifeq ($(OUT_OF_TREE_BUILD),)
 	$(Q)$(CP) $? $@
   DEST_SIP += $(DEST_SIP312_PYDLL) $(DEST_SIP312_PYI)
 
-ifdef SIP313_TREE
   # sip for Python 3.13
   DEST_SIP313_DIR:=$(DEST_PYQT_DIR)/python_3.13
   $(DEST_SIP313_DIR):
@@ -447,11 +445,91 @@ ifdef SIP313_TREE
   $(DEST_SIP313_PYI): $(wildcard $(SIP313_TREE)/lib/python*/PyQt5/$(SIP_PYI_FNAME)) | $(DEST_SIP313_DIR)
 	$(Q)$(CP) $? $@
   DEST_SIP += $(DEST_SIP313_PYDLL) $(DEST_SIP313_PYI)
-endif
+
+  ifdef __LINUX__
+    ifdef __APPLE_SILICON__
+      DEST_SIP = $(DEST_SIP313_PYDLL) $(DEST_SIP313_PYI)
+    endif
+  endif
+
+  DEST_PYQT5_SHIMS += $(DEST_PYQT_DIR)/__init__.py
+  DEST_PYQT5_SHIMS += $(DEST_PYQT_DIR)/sip.py
+  DEST_PYQT5_SHIMS += $(DEST_PYQT_DIR)/QtCore.py
+  DEST_PYQT5_SHIMS += $(DEST_PYQT_DIR)/QtGui.py
+  DEST_PYQT5_SHIMS += $(DEST_PYQT_DIR)/QtWidgets.py
+
+
+  #
+  # PySide6
+  #
+  # For PySide6, we'll be producing the following tree structure,
+  # for every Python version we support:
+  #
+  # python/PySide6-python3.13/
+  # ├── libpyside6.abi3.so.6.8
+  # ├── libshiboken6.abi3.so.6.8
+  # └── python3.13
+  #     └── site-packages
+  #         ├── PySide6
+  #         │   ├── __init__.py
+  #         │   ├── QtCore.abi3.so
+  #         │   ├── QtCore.pyi
+  #         │   ├── QtGui.abi3.so
+  #         │   ├── QtGui.pyi
+  #         │   ├── QtWidgets.abi3.so
+  #         │   └── QtWidgets.pyi
+  #         └── shiboken6
+  #             ├── __init__.py
+  #             ├── Shiboken.abi3.so
+  #             └── Shiboken.pyi
+  #
+  define make-pyside6-rules
+
+    DEST_PYSIDE6_DEPS += $(2)/libpyside6.abi3.so.6.8
+    DEST_PYSIDE6_DEPS += $(2)/libshiboken6.abi3.so.6.8
+    DEST_PYSIDE6_DEPS += $(2)/python3.$(1)/site-packages/shiboken6/__init__.py
+    DEST_PYSIDE6_DEPS += $(2)/python3.$(1)/site-packages/shiboken6/Shiboken.abi3.so
+    DEST_PYSIDE6_DEPS += $(2)/python3.$(1)/site-packages/shiboken6/Shiboken.pyi
+    DEST_PYSIDE6_DEPS += $(2)/python3.$(1)/site-packages/PySide6/__init__.py
+    DEST_PYSIDE6_DEPS += $(2)/python3.$(1)/site-packages/PySide6/QtCore.abi3.so
+    DEST_PYSIDE6_DEPS += $(2)/python3.$(1)/site-packages/PySide6/QtCore.pyi
+    DEST_PYSIDE6_DEPS += $(2)/python3.$(1)/site-packages/PySide6/QtGui.abi3.so
+    DEST_PYSIDE6_DEPS += $(2)/python3.$(1)/site-packages/PySide6/QtGui.pyi
+    DEST_PYSIDE6_DEPS += $(2)/python3.$(1)/site-packages/PySide6/QtWidgets.abi3.so
+    DEST_PYSIDE6_DEPS += $(2)/python3.$(1)/site-packages/PySide6/QtWidgets.pyi
+
+    DEST_PYSIDE6_PYTHON3$(1)_DIRS += $(2)/python3.$(1)/site-packages/PySide6
+    DEST_PYSIDE6_PYTHON3$(1)_DIRS += $(2)/python3.$(1)/site-packages/shiboken6
+
+    $(2)/python3.$(1)/site-packages/PySide6:
+	-$(Q)if [ ! -d "$$@" ] ; then mkdir -p 2>/dev/null $$@ ; fi
+    $(2)/python3.$(1)/site-packages/shiboken6:
+	-$(Q)if [ ! -d "$$@" ] ; then mkdir -p 2>/dev/null $$@ ; fi
+
+    $(2)/libpyside6.abi3.so.6.8: $(3)/libpyside6.abi3.so.6.8.0 | $$(DEST_PYSIDE6_PYTHON3$(1)_DIRS)
+	$(Q)$(CP) $$? $$@
+    $(2)/libshiboken6.abi3.so.6.8: $(3)/libshiboken6.abi3.so.6.8.0 | $$(DEST_PYSIDE6_PYTHON3$(1)_DIRS)
+	$(Q)$(CP) $$? $$@
+    $(2)/python3.13/site-packages/shiboken6/%: $(3)/python3.$(1)/site-packages/shiboken6/% | $$(DEST_PYSIDE6_PYTHON3$(1)_DIRS)
+	$(Q)$(CP) $$? $$@
+    $(2)/python3.13/site-packages/PySide6/%: $(3)/python3.$(1)/site-packages/PySide6/% | $$(DEST_PYSIDE6_PYTHON3$(1)_DIRS)
+	$(Q)$(CP) $$? $$@
+  endef
+
+  $(eval $(call make-pyside6-rules,13,$(R)python/PySide6-python3.13,$(PYSIDE6_DIR)/PySide6-python3.13))
+
 endif
 
-pyqt: $(DEST_PYQT)
-sip: $(DEST_SIP)
+ifeq ($(QT_VERSION_MAJOR),6)
+  QT_BINDINGS_DEPS += $(DEST_PYQT5_SHIMS) $(DEST_PYSIDE6_DEPS)
+  $(DEST_PYQT_DIR)/%: PyQt5-shims/% | $(DEST_PYQT_DIR)
+	$(CP) $? $@
+else
+  QT_BINDINGS_DEPS += $(DEST_PYQT)
+  QT_BINDINGS_DEPS += $(DEST_SIP)
+endif
+
+qt_bindings: $(QT_BINDINGS_DEPS)
 
 GENHOOKS=tools/genhooks/
 
@@ -610,9 +688,9 @@ CC_DEFS += MISSED_BC695
 CC_DEFS += $(DEF_TYPE_TABLE)
 CC_DEFS += $(WITH_HEXRAYS_DEF)
 CC_DEFS += USE_STANDARD_FILE_FUNCTIONS
-CC_DEFS += VER_MAJOR=$(IDAVER_MAJOR)
-CC_DEFS += VER_MINOR=$(IDAVER_MINOR)
-CC_DEFS += VER_PATCH="0"
+CC_DEFS += IDAVER_MAJOR=$(IDAVER_MAJOR)
+CC_DEFS += IDAVER_MINOR=$(IDAVER_MINOR)
+CC_DEFS += IDAVER_PATCH=$(IDAVER_PATCH)
 CC_DEFS += __EXPR_SRC
 CC_INCP += $(F)
 CC_INCP += $(ST_SWIG)
@@ -656,7 +734,6 @@ ifdef __NT__
 endif
 
 find-pywraps-deps = $(wildcard pywraps/py_$(subst .i,,$(notdir $(1)))*.hpp) $(wildcard pywraps/py_$(subst .i,,$(notdir $(1)))*.py)
-find-pydoc-patches-deps = $(wildcard tools/inject_pydoc/$(1).py)
 find-patch-codegen-deps = $(wildcard tools/patch_codegen/*$(1)*.py)
 
 # Some .i files depend on some other .i files in order to be parseable by SWiG
@@ -699,17 +776,16 @@ define make-module-rules
 	$(Q)$(CP) $$< $$@
 
     # obj/x86_linux_gcc/wrappers/ida_X.py.final (note: dep. on .cpp. See note above.)
-    $(ST_WRAP)/ida_$(1).py.final: $(ST_WRAP)/$(1).cpp tools/inject_pydoc.py $(PARSED_HEADERS_MARKER) $(call find-pydoc-patches-deps,$(1)) $(call find-patch-codegen-deps,$(1))
-	$(QINJECT_PYDOC)$(PYTHON) tools/inject_pydoc.py \
-                --xml-doc-directory $(ST_PARSED_HEADERS) \
-                --module $(1) \
+    $(ST_WRAP)/ida_$(1).py.final: $(ST_WRAP)/$(1).cpp $(wildcard tools/pypasses/*.py) $(wildcard tools/pypasses/*/*.py) $(wildcard apidoc/ida_$(1).py) $(PARSED_HEADERS_MARKER) $(call find-patch-codegen-deps,$(1))
+	$(QINJECT_PYDOC)$(PYTHON) tools/pypasses.py \
                 --input $(ST_WRAP)/ida_$(1).py \
-                --interface $(ST_SWIG)/$(1).i \
+                --idapython-module-name ida_$(1) \
+                --doxygen-xml $(ST_PARSED_HEADERS) \
                 --cpp-wrapper $(ST_WRAP)/$(1).cpp \
-                --traces tools/collected_traces.txt \
-                --cases tools/inject_pydoc_cases.txt \
+	        --passes inject_doxygen,return_type_from_cpp_wrapper,pydoc_overrides,proto_overrides,argsify_for_dispatching_cpp,proto_fix_known_types \
+                --pydoc-overrides apidoc/ida_$(1).py \
                 --output $$@ \
-                --verbose > $(ST_WRAP)/ida_$(1).pydoc_injection
+                --debug > $(ST_WRAP)/ida_$(1).pydoc_injection
 
     # obj/x86_linux_gcc/swig/X.i
     $(ST_SWIG)/$(1).i: $(addprefix $(F),$(call find-pywraps-deps,$(1))) swig/$(1).i $(ST_SWIG_HEADER) $(SWIG_IFACE_$(1):%=$(ST_SWIG)/%.i) $(ST_SWIG_HEADER) tools/deploy.py $(PARSED_HEADERS_MARKER)
@@ -840,7 +916,7 @@ define make-api-contents-rule
   $(1): $(3)
   ifeq ($(or $(__CODE_CHECKER__),$(NO_CMP_API),$(__ASAN__),$(IDAHOME),$(IDACLASS),$(IDAFREE)),)
   $(3): $(ALL_ST_WRAP_PY_FINAL) tools/py_scanner.py
-	$(QDUMPAPI)$(PYTHON) tools/py_scanner.py --dump-kind $(4) --paths $(subst $(space),$(comma),$(ALL_ST_WRAP_PY_FINAL)) > $(2)
+	$(QDUMPAPI)$(PYTHON) tools/py_scanner.py $(4) --paths $(subst $(space),$(comma),$(ALL_ST_WRAP_PY_FINAL)) > $(2)
     ifeq ($(OUT_OF_TREE_BUILD),)
 	$(Q)((diff -w $(1) $(2)) > /dev/null && touch $$@) || \
           (echo "API CONTENTS CHANGED! update $(1) or fix the API" && \
@@ -862,7 +938,7 @@ $(eval $(call make-api-contents-rule,$(API_CONTENTS_FULL),$(ST_API_CONTENTS_FULL
 ST_API_CHECK_SUCCESS := $(F)api_check.success
 api_check: $(ST_API_CHECK_SUCCESS)
 $(ST_API_CHECK_SUCCESS): $(ALL_ST_WRAP_CPP)
-ifeq ($(or $(__CODE_CHECKER__),$(NO_CMP_API),$(__ASAN__),$(IDAHOME),$(IDACLASS),$(DEMO_OR_FREE)),)
+ifeq ($(or $(__CODE_CHECKER__),$(NO_CMP_API),$(__ASAN__),$(IDAHOME),$(IDACLASS),$(IDAFREE)),)
 	$(QCHKAPI)$(PYTHON) tools/chkapi.py $(WITH_HEXRAYS_CHKAPI) -i $(subst $(space),$(comma),$(ALL_ST_WRAP_CPP)) -p $(subst $(space),$(comma),$(ALL_ST_WRAP_PY))
 endif
 	$(Q)touch $@
@@ -909,7 +985,7 @@ docs: docs_html docs_md
 	@echo "\033[0;32mFiles prepared in P4, you need to manually submit them\033[0m"
 # the demo version of ida does not have the -B command line option
 ifeq ($(OUT_OF_TREE_BUILD),)
-  ifndef DEMO_OR_FREE
+  ifndef IDAFREE
     BATCH_SWITCH=-B
   endif
 endif
@@ -955,7 +1031,7 @@ ifdef __NT__
     endif
   endif
 endif
-$(R)idapyswitch$(B): $(DEST_SIP) $(call dumb_target, pro compress, $(IDAPYSWITCH_OBJS))
+$(R)idapyswitch$(B): $(QT_BINDINGS_DEPS) $(call dumb_target, pro compress, $(IDAPYSWITCH_OBJS))
 
 #----------------------------------------------------------------------
 TEST_PYWRAPS_OBJS += $(F)test_pywraps$(O)
@@ -1001,20 +1077,19 @@ clean::
 
 ifdef __CODE_CHECKER__
   examples_index: ;
+  examples: ;
 else
-  EXAMPLES          := $(wildcard examples/**/*.py)
+  EXAMPLES          := $(wildcard examples/*/*.py examples/*/*/*.py examples/*/*/*/*.py)
   GEN_EXAMPLES_TOOL := tools/gen_examples_index.py
   GEN_EXAMPLES_CFG  := tools/gen_examples_index.cfg
 
-  EXAMPLES_INDEX_HTML := examples/index.html
   EXAMPLES_INDEX_MD   := examples/index.md
+  EXAMPLES_README     := examples/README.md
 
-  ST_EXAMPLES_INDEX_HTML = $(F)$(EXAMPLES_INDEX_HTML)
   ST_EXAMPLES_INDEX_MD = $(F)$(EXAMPLES_INDEX_MD)
-  ST_EXAMPLES_INDEX_HTML_SUCCESS = $(ST_EXAMPLES_INDEX_HTML).success
   ST_EXAMPLES_INDEX_MD_SUCCESS = $(ST_EXAMPLES_INDEX_MD).success
 
-  .PRECIOUS: $(ST_EXAMPLES_INDEX_HTML) $(ST_EXAMPLES_INDEX_MD)
+  .PRECIOUS: $(ST_EXAMPLES_INDEX_MD)
 
   define make-examples-index-rules
 
@@ -1035,10 +1110,15 @@ else
 	   && diff -U 1 -w $(1) $(2); true)
   endef
 
-  # $(eval $(call make-examples-index-rules,$(EXAMPLES_INDEX_HTML),$(ST_EXAMPLES_INDEX_HTML),$(ST_EXAMPLES_INDEX_HTML_SUCCESS),tools/examples_index_template.html,html))
   $(eval $(call make-examples-index-rules,$(EXAMPLES_INDEX_MD),$(ST_EXAMPLES_INDEX_MD),$(ST_EXAMPLES_INDEX_MD_SUCCESS),tools/examples_index_template.md,md))
 
-  examples_index: $(EXAMPLES_INDEX_HTML) $(EXAMPLES_INDEX_MD)
+  examples_index: $(EXAMPLES_INDEX_MD)
+
+  EXAMPLE_FILES := $(addprefix $(R)python/,$(EXAMPLES) $(EXAMPLES_INDEX_MD) $(EXAMPLES_README))
+  examples: $(EXAMPLE_FILES)
+  $(EXAMPLE_FILES): $(R)python/examples/%: examples/%
+	$(Q)if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
+	$(Q)$(CP) $< $@
 
 endif
 
@@ -1071,7 +1151,7 @@ $(F)idapython$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp            \
                   $(I)diskio.hpp $(I)err.h $(I)expr.hpp $(I)fpro.h          \
                   $(I)funcs.hpp $(I)gdl.hpp $(I)graph.hpp $(I)ida.hpp       \
                   $(I)ida_highlighter.hpp $(I)idd.hpp $(I)idp.hpp           \
-                  $(I)ieee.h $(I)kernwin.hpp $(I)lex.hpp                    \
+                  $(I)ieee.h $(I)kernwin.hpp $(I)lex.hpp       \
                   $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp                \
                   $(I)make_script_ns.hpp $(I)nalt.hpp $(I)name.hpp          \
                   $(I)netnode.hpp $(I)parsejson.hpp $(I)pro.h               \

@@ -971,18 +971,18 @@ HRESULT pdb_session_t::open_session(const pdbargs_t &pdbargs)
   if ( load_address != BADADDR )
   {
     msg("PDB: using load address %a\n", load_address);
-    pSession->put_loadAddress(load_address);  //-V595 'pSession' was utilized before it was verified against nullptr
+    pSession->put_loadAddress(load_address);
   }
 
   // Retrieve a reference to the global scope
-  hr = pSession->get_globalScope(&pGlobal); //-V595 'pSession' was utilized before it was verified against nullptr
+  hr = pSession->get_globalScope(&pGlobal);
   if ( hr != S_OK )
     goto fail;
 
   pdb_access = new local_pdb_access_t(pdbargs, pSource, pSession, pGlobal);
 
   DWORD pdb_machType, machType;
-  if ( pGlobal->get_machineType(&pdb_machType) != S_OK ) //-V595 The 'pGlobal' pointer was utilized before it was verified against nullptr
+  if ( pGlobal->get_machineType(&pdb_machType) != S_OK )
     pdb_machType = IMAGE_FILE_MACHINE_I386;
   machType = get_machine_type(pdb_machType);
 

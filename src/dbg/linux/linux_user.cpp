@@ -1,11 +1,3 @@
-#if defined(__EA64__) && defined(USE_LIBUNWIND) && !defined(__ANDROID__)
-//lint -e750 local macro '' not referenced
-  #define HAVE_UPDATE_CALL_STACK
-  #define SET_DBG_OPTIONS set_linux_options
-  #define LINUX_NODE "$ local linux options"
-//lint +e750
-#endif
-
 static const char wanted_name[] = "Local Linux debugger";
 #define DEBUGGER_NAME  "linux"
 #define PROCESSOR_NAME "metapc"
@@ -20,19 +12,80 @@ static const char wanted_name[] = "Local Linux debugger";
 #define DEBUGGER_FLAGS (DEBUGGER_FLAGS_BASE)
 #endif
 #define DEBUGGER_RESMOD (DBG_RESMOD_STEP_INTO)
-#define HAVE_APPCALL
-#define S_FILETYPE     f_ELF
+
+#define LINUX_NODE "$ local linux options"  //lint !e750 not referenced
 
 #include <fpro.h>
 #include <idd.hpp>
 #include <ua.hpp>
 #include <range.hpp>
 #include <loader.hpp>
+#include <dbg.hpp>
+#include "dbg_plugmod.hpp"
 #include "linux_debmod.h"
+#include "stack_unwind.hpp"
 
-linux_debmod_t g_dbgmod;
+#include "pc_regs.hpp"
+#include "deb_pc.hpp"
 #include "common_stub_impl.cpp"
-
-#include "pc_local_impl.cpp"
 #include "linux_local_impl.cpp"
+
+struct dbg_plugmod_t : public dbg_plugmod_user_t
+{
+  dbg_plugmod_t()
+  {
+    debugger.filetype = f_ELF;
+  }
+  virtual ~dbg_plugmod_t() override;
+
+  linux_debmod_t g_dbgmod;
+  virtual debmod_t &get_debmod() override { return g_dbgmod; }
+
+  ui_listener_t ui_listener = ui_listener_t(*this);
+
+  //--------------------------------------------------------------------------
+  bool init_plugin()
+  {
+    if ( !init_subsystem() )
+      return false;
+    bool ok = init_linux_plugin(&debugger);
+    if ( ok )
+    {
+      hook_event_listener(HT_UI, &ui_listener);
+      debugger.flags |= DBG_HAS_APPCALL;
+    }
+    else
+    {
+      term_subsystem();
+    }
+    return ok;
+  }
+
+  void term_plugin()
+  {
+    term_subsystem();
+    save_linux_options();
+  }
+
+  //--------------------------------------------------------------------------
+  void init_debugger_finished() override
+  {
+#ifdef HAVE_UPDATE_CALL_STACK
+    debugger.flags |= DBG_HAS_UPDATE_CALL_STACK;
+#endif
+  }
+
+  //--------------------------------------------------------------------------
+  const char *set_dbg_options(const char *keyword, int pri, int value_type, const void *value) override
+  {
+    return set_linux_options(keyword, pri, value_type, value);
+  }
+};
+
+ssize_t idaapi ui_listener_t::on_event(ssize_t code, va_list)
+{
+  if ( code == ui_saving )
+    save_linux_options();
+  return 0;
+}
 #include "common_local_impl.cpp"

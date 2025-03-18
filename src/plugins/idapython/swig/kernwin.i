@@ -75,11 +75,33 @@ struct dirspec_t;
   $result = qstrvec2pylist(*$1);
 }
 
+%template(tagged_line_section_vec_t) qvector<tagged_line_section_t>;
+
 %rename (del_hotkey) py_del_hotkey;
 %rename (add_hotkey) py_add_hotkey;
 
 %ignore msg;
 %rename (msg) py_msg;
+%ignore warning;
+%rename (warning) py_warning;
+%ignore error;
+%rename (error) py_error;
+
+%feature("pythonprepend") py_msg %{
+    if isinstance(message, bytes):
+        message = message.decode("UTF-8")
+%}
+
+%feature("pythonprepend") py_warning %{
+    if isinstance(message, bytes):
+        message = message.decode("UTF-8")
+%}
+
+%feature("pythonprepend") py_error %{
+    if isinstance(message, bytes):
+        message = message.decode("UTF-8")
+%}
+
 
 %ignore vinfo;
 
@@ -171,6 +193,21 @@ struct dirspec_t;
   PyObject *get_row(size_t n) const
   {
     return py_chooser_base_t_get_row($self, n);
+  }
+}
+
+%extend tagged_line_section_t {
+  qstring __str__() const
+  {
+    qstring qs;
+    qs.sprnt("{start=%d, length=%d (end=%d), byte_offsets={text_start=%d, text_end=%d}, tag=%d}",
+             $self->start,
+             $self->length,
+             $self->start + $self->length,
+             $self->byte_offsets.text_start,
+             $self->byte_offsets.text_end,
+             $self->tag);
+    return qs;
   }
 }
 

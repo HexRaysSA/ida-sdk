@@ -57,98 +57,16 @@
 
 #include <expr.hpp>
 #include <loader.hpp>
-#include "../ldr/pe/pe.h"
+#include "../dbg_win.hpp"
 #include "../plugins/pdb/pdb.hpp"
 #include "win32_rpc.h"
 #include "dbg_rpc_hlp.h"
 
 //--------------------------------------------------------------------------
-static const char idc_win32_rdmsr_args[] = { VT_LONG, 0 };
-static error_t idaapi idc_win32_rdmsr(idc_value_t *argv, idc_value_t *res)
-{
-  uint64 value = 0; // shut up the compiler
-  uval_t reg = argv[0].num;
-#ifdef RPC_CLIENT
-  void *out = nullptr;
-  ssize_t outsize;
-  int code = g_dbgmod.send_ioctl(WIN32_IOCTL_RDMSR, &reg, sizeof(reg), &out, &outsize);
-  if ( SUCCEEDED(code) && outsize == sizeof(value) )
-    value = *(uint64*)out;
-  qfree(out);
-#else
-  int code = g_dbgmod.rdmsr(reg, &value);
-#endif
-  if ( FAILED(code) )
-  {
-    res->num = code;
-    return set_qerrno(eExecThrow); // read error, raise exception
-  }
-  res->set_int64(value);
-  return eOk;
-}
-
-//--------------------------------------------------------------------------
-static const char idc_win32_wrmsr_args[] = { VT_LONG, VT_INT64, 0 };
-static error_t idaapi idc_win32_wrmsr(idc_value_t *argv, idc_value_t *res)
-{
-  win32_wrmsr_t msr;
-  msr.reg = argv[0].num;
-  msr.value = argv[1].i64;
-#ifdef RPC_CLIENT
-  res->num = g_dbgmod.send_ioctl(WIN32_IOCTL_WRMSR, &msr, sizeof(msr), nullptr, nullptr);
-#else
-  res->num = g_dbgmod.wrmsr(msr.reg, msr.value);
-#endif
-  return eOk;
-}
-
-//--------------------------------------------------------------------------
-// Installs or uninstalls debugger specific idc functions
-static bool register_idc_funcs(bool reg)
-{
-  static const ext_idcfunc_t idcfuncs[] =
-  {
-    { IDC_READ_MSR,  idc_win32_rdmsr, idc_win32_rdmsr_args, nullptr, 0, 0 },
-    { IDC_WRITE_MSR, idc_win32_wrmsr, idc_win32_wrmsr_args, nullptr, 0, 0 },
-  };
-  return add_idc_funcs(idcfuncs, qnumber(idcfuncs), reg);
-}
-
-//--------------------------------------------------------------------------
-void idaapi rebase_if_required_to(ea_t new_base)
-{
-  netnode penode(PE_NODE);
-  ea_t currentbase = new_base;
-  ea_t imagebase = ea_t(penode.altval(PE_ALT_IMAGEBASE)); // loading address (usually pe.imagebase)
-
-  if ( imagebase == 0 )
-  {
-    if ( !is_miniidb() )
-      warning("AUTOHIDE DATABASE\n"
-              "IDA could not automatically determine if the program should be\n"
-              "rebased in the database because the database format is too old and\n"
-              "doesn't contain enough information.\n"
-              "Create a new database if you want automated rebasing to work properly.\n"
-              "Note you can always manually rebase the program by using the\n"
-              "Edit, Segments, Rebase program command.");
-  }
-  else if ( imagebase != currentbase )
-  {
-    rebase_or_warn(imagebase, currentbase);
-  }
-}
-
-//--------------------------------------------------------------------------
-bool read_pe_header(peheader_t *pe)
-{
-  netnode penode(PE_NODE);
-  return penode.valobj(pe, sizeof(peheader_t)) > 0;
-}
-
-//--------------------------------------------------------------------------
 // Initialize Win32 debugger plugin
-static bool win32_init_plugin(void)
+static bool win32_init_plugin(debugger_t *_debugger)
 {
+  qnotused(_debugger);
   // Remote debugger? Then nothing to initialize locally
 #ifndef RPC_CLIENT
   if ( !init_subsystem() )
@@ -159,41 +77,12 @@ static bool win32_init_plugin(void)
 #ifndef __NT__
     // local debugger is available if we are running under Windows
     // for other systems only the remote debugger is available
-    if ( !debugger.is_remote() )
+    if ( !_debugger->is_remote() )
       return false;
 #endif
+    return true;
   }
-  else
-  {
-    if ( inf_get_filetype() != f_PE )
-      return false; // only PE files
-
-    processor_t &ph = PH;
-    if ( ph.id != TARGET_PROCESSOR && ph.id != -1 )
-      return false;
-
-    // find out the pe header
-    peheader_t pe;
-    if ( !read_pe_header(&pe) )
-      return false;
-
-    // debug only gui, console, or unknown applications
-    if ( pe.subsys != PES_WINGUI    // Windows GUI
-      && pe.subsys != PES_WINCHAR   // Windows Character
-      && pe.subsys != PES_UNKNOWN ) // Unknown
-    {
-      return false;
-    }
-  }
-  return true;
-}
-
-//--------------------------------------------------------------------------
-inline void win32_term_plugin(void)
-{
-#ifndef RPC_CLIENT
-  term_subsystem();
-#endif
+  return is_windows_binary(PH);
 }
 
 //----------------------------------------------------------------------------
@@ -202,7 +91,5 @@ void close_pdb_remote_session(pdb_remote_session_t *)
 {
 }
 
-#ifndef HAVE_PLUGIN_COMMENTS
 //--------------------------------------------------------------------------
 static const char comment[] = "Userland win32 debugger plugin";
-#endif

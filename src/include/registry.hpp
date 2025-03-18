@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -382,30 +382,19 @@ extern int max_history_files;     // max number of files in the file menu
 
 inline THREAD_SAFE void regget_history(qstrvec_t *list)
 {
-#ifdef DEMO
-  qnotused(list);
-#else
   reg_read_strlist(list, regkey_history);
-#endif
 }
 
 inline THREAD_SAFE void reg_update_history(const char *addfile, const char *removefile = nullptr)
 {
-#ifdef DEMO
-  qnotused(addfile);
-  qnotused(removefile);
-#else
   // On Windows avoid duplicate upper/lower-case entries
   // by using reg_update_filestrlist() which takes care of case sensitivity
   reg_update_filestrlist(regkey_history, addfile, max_history_files, removefile);
-#endif
 }
 
 inline THREAD_SAFE void reg_history_size_truncate(void)
 {
-#ifndef DEMO
   reg_update_strlist(regkey_history, nullptr, max_history_files, nullptr);
-#endif
 }
 /// \endcond
 

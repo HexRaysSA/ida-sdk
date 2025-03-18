@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9,6 +9,8 @@
 #define _DISKIO_HPP
 
 #include <stdio.h>
+#include <functional>
+#include <pro.h>
 
 /*! \file diskio.hpp
 
@@ -19,6 +21,10 @@
 
   This file also declares a call_system() function.
 */
+
+//-------------------------------------------------------------------------
+#define VAULT_CACHE_SUBDIR ".vault"         ///< subdir name for cached deltas and old files
+#define VAULT_CACHE_FNAME  ".vault_cache"   ///< to store file caches
 
 //-------------------------------------------------------------------------
 //      S E A R C H   F O R   F I L E S
@@ -35,6 +41,7 @@ idaman THREAD_SAFE const char *ida_export idadir(const char *subdir);
 /// This function searches for a file in:
 ///   -# each directory specified by %IDAUSR%
 ///   -# ida directory [+ subdir]
+///
 /// and returns the first match.
 /// \param[out] buf  buffer for file name
 /// \param bufsize   size of output buffer
@@ -502,9 +509,11 @@ idaman THREAD_SAFE void ida_export close_linput(linput_t *li);
 idaman THREAD_SAFE FILE *ida_export qlfile(linput_t *li);
 
 
-/// Convert FILE * to input source.
+/// Convert FILE* to input source.
 /// Used for temporary linput_t objects - call unmake_linput() to free
-/// the slot after the use.
+/// the slot without closing FILE*.
+/// To destroy linput_t and close FILE*, call close_linput().
+//lint -sem(make_linput,custodial(1))
 
 idaman THREAD_SAFE linput_t *ida_export make_linput(FILE *fp);
 
@@ -592,6 +601,15 @@ private:
 };
 
 ///@}
+
+
+/// Upon closing outer linput, perform one of these actions
+enum linput_close_code_t
+{
+  LOC_CLOSE,    ///< close the inner linput
+  LOC_UNMAKE,   ///< unmake the inner linput
+  LOC_KEEP,     ///< do nothing
+};
 
 
 #endif // _DISKIO_HPP

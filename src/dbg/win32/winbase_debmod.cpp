@@ -183,7 +183,7 @@ bool should_fire_page_bpt(
   switch ( failed_access_type )
   {
     default:
-      INTERR(623);    //-V796 no break
+      INTERR(623);
     case EXCEPTION_READ_FAULT: // failed READ access
       // depending on the DEP policy we mark this access also
       // to be triggered in case of EXEC breakpoints
@@ -404,7 +404,7 @@ bool highdll_vec_t::add_high_module(
 {
   if ( trunc_uval(addr) == addr )
     return false;
-  add(addr, sz, h);   //-V779 unreachable code
+  add(addr, sz, h);
   return true;
 }
 

@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -164,7 +164,7 @@ idaman bool ida_export xrefblk_t_next_to(xrefblk_t *);
 ///
 /// \code
 ///      xrefblk_t xb;
-///      for ( bool ok=xb.first_from(ea, XREF_ALL); ok; ok=xb.next_from() )
+///      for ( bool ok=xb.first_from(ea, XREF_FLOW); ok; ok=xb.next_from() )
 ///      {
 ///         // xb.to - contains the referenced address
 ///      }
@@ -172,7 +172,7 @@ idaman bool ida_export xrefblk_t_next_to(xrefblk_t *);
 /// or:
 /// \code
 ///      xrefblk_t xb;
-///      for ( bool ok=xb.first_to(ea, XREF_ALL); ok; ok=xb.next_to() )
+///      for ( bool ok=xb.first_to(ea, XREF_FLOW); ok; ok=xb.next_to() )
 ///      {
 ///         // xb.from - contains the referencing address
 ///      }
@@ -187,16 +187,24 @@ struct xrefblk_t
 {
   ea_t from;            ///< the referencing address - filled by first_to(),next_to()
   ea_t to;              ///< the referenced address - filled by first_from(), next_from()
-  uchar iscode;         ///< 1-is code reference; 0-is data reference
+  bool iscode;          ///< is code reference (::cref_t)?
+                        ///< otherwise it is a data reference (::dref_t)
   uchar type;           ///< type of the last returned reference (::cref_t & ::dref_t)
-  uchar user;           ///< 1-is user defined xref, 0-defined by ida
+  bool user;            ///< is user defined xref? otherwise defined by ida
+  uchar _flags;
 
 /// \defgroup XREF_ Xref enumeration flags
 /// Passed as 'flags' parameter to functions in ::xrefblk_t
 ///@{
-#define XREF_ALL        0x00            ///< return all references
-#define XREF_FAR        0x01            ///< don't return ordinary flow xrefs
-#define XREF_DATA       0x02            ///< return data references only
+#define XREF_FLOW       0x00            ///< return all references, including ordinary flow xrefs
+#define XREF_NOFLOW     0x01            ///< skip ordinary flow xrefs
+                                        ///< (code xrefs to the next insn)
+#define XREF_DATA       0x02            ///< return only data references (dr_...)
+#define XREF_CODE       0x04            ///< return only code references (fl_...)
+#define XREF_EA         0x08            ///< return only program addresses
+#define XREF_TID        0x10            ///< return only type ids.
+                                        ///< XREF_EA and XREF_TID are exclusive,
+                                        ///< only one of them can be specified
 ///@}
 
   /// \name Get first/next
@@ -209,19 +217,19 @@ struct xrefblk_t
   ///@{
 
   /// Get first xref from the given address (store in #to)
-  bool first_from(ea_t _from, int flags)
+  bool first_from(ea_t _from, int flags=XREF_FLOW)
     { return xrefblk_t_first_from(this, _from, flags); }
 
   /// Get next xref from address provided to first_from()
-  bool next_from(void)
+  bool next_from()
     { return xrefblk_t_next_from(this); }
 
   /// Get xref to given address (store in #from)
-  bool first_to(ea_t _to, int flags)
+  bool first_to(ea_t _to, int flags=XREF_FLOW)
     { return xrefblk_t_first_to(this, _to, flags); }
 
   /// Get next xref to address provided to first_to()
-  bool next_to(void)
+  bool next_to()
     { return xrefblk_t_next_to(this); }
 
   /// Get xref from '_from' that comes after '_to'
@@ -417,5 +425,10 @@ idaman bool ida_export create_xrefs_from(ea_t ea);  // returns false: no item at
 idaman void ida_export delete_all_xrefs_from(ea_t ea, bool expand);
 /// \endcond
 
+
+#if !defined(NO_OBSOLETE_FUNCS)
+#define XREF_ALL XREF_FLOW
+#define XREF_FAR XREF_NOFLOW
+#endif
 
 #endif // _XREF_HPP

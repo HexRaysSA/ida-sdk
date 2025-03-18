@@ -155,6 +155,38 @@ bool til_builder_t::get_symbol_type(tpinfo_t *out, pdb_sym_t &sym, uint32 *p_ord
 }
 
 //----------------------------------------------------------------------------
+bool til_builder_t::fix_ctor_to_return_ptr(func_type_data_t *fti, pdb_sym_t *parent)
+{
+  if ( inf_get_app_bitness() != 32 || parent == nullptr )
+    return false;
+
+  qstring funcname;
+  parent->get_name(&funcname);
+
+  // detect constructor
+  if ( fti->empty() || fti->cc != CM_CC_THISCALL || !fti->rettype.is_void() )
+    return false;
+  const auto &arg0 = fti->at(0);
+  if ( !arg0.type.is_ptr() )
+    return false;
+  tinfo_t class_type = arg0.type.get_pointed_object();
+  qstring class_name;
+  if ( !class_type.get_type_name(&class_name) )
+    return false;
+  qstring ctor_name;
+  ctor_name.sprnt("%s::%s", class_name.c_str(), class_name.c_str());
+  if ( ctor_name != funcname )
+    return false;
+
+  ddeb(("PDEB: detected constructor %s\n", funcname.c_str()));
+
+  // do not set FTI_CTOR, normally IDA ignores ctor/dtor return type
+  fti->flags &= ~FTI_CTOR;
+  fti->rettype = arg0.type;
+  return true;
+}
+
+//----------------------------------------------------------------------------
 size_t til_builder_t::get_symbol_type_length(pdb_sym_t &sym) const
 {
   DWORD64 size = 0;
@@ -1929,6 +1961,7 @@ FAILED_ARRAY:
             }
             if ( add_this )
               fi.insert(fi.begin(), thisarg);
+            fix_ctor_to_return_ptr(&fi, parent);
           }
           if ( is_user_cc(fi.cc) )
           {

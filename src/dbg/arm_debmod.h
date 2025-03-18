@@ -34,8 +34,8 @@ protected:
   arm_hwbpt_info_t hwbpt_slots[ARM_MAX_HWBPTS];
   arm_hwbpt_info_t watch_slots[ARM_MAX_WATCHPOINTS];
 
-  int lr_idx;
-  int sr_idx;
+  int lr_idx = -1;
+  int sr_idx = -1;
 
 public:
   arm_debmod_t(void);

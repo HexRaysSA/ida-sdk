@@ -108,7 +108,7 @@ inline bool is_sym_token_dword64(sym_token_t t) { return t >= t_dword64_start &&
 inline bool is_sym_token_string(sym_token_t t) { return t >= t_string_start && t <= t_string_end; }
 inline bool is_sym_token_long(sym_token_t t) { return t >= t_long_start && t <= t_long_end; }
 inline bool is_sym_token_ulonglong(sym_token_t t) { return t >= t_ulonglong_start && t <= t_ulonglong_end; }
-inline bool is_sym_token_variant(sym_token_t t) { return t >= t_variant_start && t <= t_variant_end; }  //-V560 is always true
+inline bool is_sym_token_variant(sym_token_t t) { return t >= t_variant_start && t <= t_variant_end; }
 
 
 typedef uint64 token_mask_t;
@@ -131,7 +131,7 @@ struct pdb_sym_t
   virtual HRESULT get_bitPosition(DWORD *out) = 0;
   virtual HRESULT get_callingConvention(DWORD *out) = 0;
   virtual HRESULT get_code(BOOL *out) = 0;
-  virtual HRESULT get_constructor(BOOL *out) = 0;
+  virtual HRESULT get_constructor(BOOL *out) = 0;   // Retrieves a flag that specifies whether the user-defined data type has a constructor or destructor.
   virtual HRESULT get_isVirtualBaseClass(BOOL *out) = 0;
   virtual HRESULT get_constType(BOOL *out) = 0;
   virtual HRESULT get_count(DWORD *out) = 0;
@@ -183,12 +183,7 @@ protected:
 };
 DECLARE_TYPE_AS_MOVABLE(pdb_sym_t);
 
-typedef janitor_t<pdb_sym_t*> pdb_sym_janitor_t;
-template <> inline pdb_sym_janitor_t::~janitor_t()
-{
-  delete resource;
-  resource = nullptr;
-}
+typedef std::unique_ptr<pdb_sym_t> pdb_sym_janitor_t;
 
 //----------------------------------------------------------------------------
 enum packing_info_t

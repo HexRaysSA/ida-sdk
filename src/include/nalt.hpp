@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -1244,7 +1244,7 @@ union opinfo_t
 };
 
 //-------------------------------------------------------------------------
-//-V:printop_t:730 Not all members of a class are initialized inside the constructor
+
 struct printop_t
 {
   uint32 unused = 0;    // not used anymore, use flags64 instead (kept for backward compat)

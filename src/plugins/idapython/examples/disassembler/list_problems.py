@@ -2,7 +2,7 @@
 summary: enumerate known problems
 
 description:
-  Using the API to list all problem[atic situation]s that IDA
+  Using the API to list all problems that IDA
   encountered during analysis.
 
 level: beginner

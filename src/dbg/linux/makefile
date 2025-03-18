@@ -38,6 +38,7 @@ endif
 BASE_OBJS-$(BUILD_LINUX) += $(F)linuxbase_debmod$(O)
 BASE_OBJS-$(BUILD_LINUX) += $(F)linux_debmod$(O)
 BASE_OBJS-$(BUILD_LINUX) += $(F)linux_wait$(O)
+BASE_OBJS-$(BUILD_LINUX) += $(F)stack_unwind$(O)
 
 BASE_OBJS += $(BASE_OBJS-1) $(F)symelf$(O)
 
@@ -63,7 +64,7 @@ CC_DEFS-$(USE_LIBUNWIND) += USE_LIBUNWIND
 include ../server.mak
 
 #----------------------------------------------------------------------
-STUB_OBJS += $(F)linux_stub$(O)
+STUB_OBJS += $(F)linux_stub$(O) $(F)stack_unwind$(O)
 $(STUB): MODULE_OBJS += $(STUB_OBJS)
 $(STUB): $(STUB_OBJS)
 
@@ -93,9 +94,10 @@ $(F)armlinux_stub$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp        \
                   $(I)segment.hpp $(I)segregs.hpp $(I)typeinf.hpp           \
                   $(I)ua.hpp $(I)xref.hpp ../arm_local_impl.cpp             \
                   ../arm_regs.cpp ../arm_regs.hpp ../common_local_impl.cpp  \
-                  ../common_stub_impl.cpp ../dbg_rpc_client.h               \
-                  ../dbg_rpc_engine.h ../deb_arm.hpp ../debmod.h            \
-                  ../rpc_debmod.h armlinux_stub.cpp linux_local_impl.cpp
+                  ../common_stub_impl.cpp ../dbg_plugmod.hpp                \
+                  ../dbg_rpc_client.h ../dbg_rpc_engine.h ../deb_arm.hpp    \
+                  ../debmod.h ../rpc_debmod.h armlinux_stub.cpp             \
+                  linux_local_impl.cpp stack_unwind.hpp
 $(F)libthread_db$(O): libthread_db.c
 $(F)linux_debmod$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp         \
                   $(I)diskio.hpp $(I)err.h $(I)fpro.h $(I)funcs.hpp         \
@@ -110,7 +112,7 @@ $(F)linux_debmod$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp         \
                   ../deb_arm.hpp ../deb_pc.hpp ../debmod.h ../pc_debmod.h   \
                   ../pc_regs.hpp android.cpp android.hpp linux_debmod.cpp   \
                   linux_debmod.h linux_rpc.h linux_threads.cpp              \
-                  linuxbase_debmod.h symelf.hpp
+                  linuxbase_debmod.h stack_unwind.hpp symelf.hpp
 $(F)linux_stub$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp           \
                   $(I)dbg.hpp $(I)err.h $(I)expr.hpp $(I)fpro.h             \
                   $(I)funcs.hpp $(I)ida.hpp $(I)idd.hpp $(I)idp.hpp         \
@@ -119,10 +121,11 @@ $(F)linux_stub$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp           \
                   $(I)netnode.hpp $(I)network.hpp $(I)pro.h $(I)range.hpp   \
                   $(I)segment.hpp $(I)segregs.hpp $(I)typeinf.hpp           \
                   $(I)ua.hpp $(I)xref.hpp ../common_local_impl.cpp          \
-                  ../common_stub_impl.cpp ../dbg_rpc_client.h               \
-                  ../dbg_rpc_engine.h ../deb_pc.hpp ../debmod.h             \
-                  ../pc_local_impl.cpp ../pc_regs.hpp ../rpc_debmod.h       \
-                  linux_local_impl.cpp linux_rpc.h linux_stub.cpp
+                  ../common_stub_impl.cpp ../dbg_plugmod.hpp                \
+                  ../dbg_rpc_client.h ../dbg_rpc_engine.h ../deb_pc.hpp     \
+                  ../debmod.h ../pc_regs.hpp           \
+                  ../rpc_debmod.h linux_local_impl.cpp linux_rpc.h          \
+                  linux_stub.cpp stack_unwind.hpp
 $(F)linux_user$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp           \
                   $(I)dbg.hpp $(I)err.h $(I)expr.hpp $(I)fpro.h             \
                   $(I)funcs.hpp $(I)ida.hpp $(I)idd.hpp $(I)idp.hpp         \
@@ -132,26 +135,29 @@ $(F)linux_user$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp           \
                   $(I)segment.hpp $(I)segregs.hpp $(I)typeinf.hpp           \
                   $(I)ua.hpp $(I)xref.hpp ../arm_debmod.h ../arm_regs.hpp   \
                   ../common_local_impl.cpp ../common_stub_impl.cpp          \
-                  ../deb_arm.hpp ../deb_pc.hpp ../debmod.h ../pc_debmod.h   \
-                  ../pc_local_impl.cpp ../pc_regs.hpp linux_debmod.h        \
-                  linux_local_impl.cpp linux_user.cpp linuxbase_debmod.h
-$(F)linux_wait$(O): $(I)bytes.hpp $(I)ida.hpp $(I)idd.hpp $(I)ieee.h        \
+                  ../dbg_plugmod.hpp ../deb_arm.hpp ../deb_pc.hpp           \
+                  ../debmod.h ../pc_debmod.h            \
+                  ../pc_regs.hpp linux_debmod.h linux_local_impl.cpp        \
+                  linux_user.cpp linuxbase_debmod.h stack_unwind.hpp
+$(F)linux_wait$(O): $(I)bytes.hpp $(I)err.h $(I)ida.hpp $(I)idd.hpp         \
                   $(I)kernwin.hpp $(I)lines.hpp $(I)llong.hpp $(I)md5.h     \
                   $(I)nalt.hpp $(I)netnode.hpp $(I)network.hpp $(I)pro.h    \
                   $(I)range.hpp $(I)ua.hpp $(I)xref.hpp ../arm_debmod.h     \
                   ../arm_regs.hpp ../deb_arm.hpp ../deb_pc.hpp ../debmod.h  \
                   ../pc_debmod.h ../pc_regs.hpp linux_debmod.h              \
                   linux_wait.cpp linuxbase_debmod.h
-$(F)linuxbase_debmod$(O): $(I)bytes.hpp $(I)diskio.hpp $(I)fpro.h           \
-                  $(I)ida.hpp $(I)idd.hpp $(I)ieee.h $(I)kernwin.hpp        \
+$(F)linuxbase_debmod$(O): $(I)bytes.hpp $(I)diskio.hpp $(I)err.h            \
+                  $(I)fpro.h $(I)ida.hpp $(I)idd.hpp $(I)kernwin.hpp        \
                   $(I)lines.hpp $(I)llong.hpp $(I)md5.h $(I)nalt.hpp        \
                   $(I)netnode.hpp $(I)network.hpp $(I)pro.h $(I)prodir.h    \
                   $(I)range.hpp $(I)ua.hpp $(I)xref.hpp ../arm_debmod.h     \
                   ../arm_regs.hpp ../deb_arm.hpp ../deb_pc.hpp ../debmod.h  \
                   ../pc_debmod.h ../pc_regs.hpp linuxbase_debmod.cpp        \
                   linuxbase_debmod.h
+$(F)stack_unwind$(O): $(I)llong.hpp $(I)pro.h stack_unwind.cpp              \
+                  stack_unwind.hpp
 $(F)symelf$(O)  : $(I)auto.hpp $(I)bitrange.hpp $(I)bytes.hpp               \
-                  $(I)config.hpp $(I)diskio.hpp $(I)entry.hpp               \
+                  $(I)config.hpp $(I)diskio.hpp $(I)entry.hpp $(I)err.h     \
                   $(I)fixup.hpp $(I)fpro.h $(I)funcs.hpp                    \
                   $(I)ida.hpp $(I)idd.hpp $(I)idp.hpp $(I)ieee.h            \
                   $(I)kernwin.hpp $(I)lines.hpp $(I)llong.hpp               \

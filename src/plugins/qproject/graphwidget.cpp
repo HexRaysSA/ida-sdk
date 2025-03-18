@@ -157,7 +157,7 @@ void GraphWidget::keyPressEvent(QKeyEvent *_event)
       foreach ( QGraphicsItem *item, scene()->items() )
       {
         if ( qgraphicsitem_cast<Node *>(item) )
-          item->setPos(-150 + rng.generate() % 300, -150 + rng.generate() % 300); //-V1085 Negative value is implicitly converted to unsigned integer type in '- 150 + rng.generate() % 300' arithmetic expression. This may lead to unexpected results.
+          item->setPos(-150 + rng.generate() % 300, -150 + rng.generate() % 300);
       }
       break;
     default:

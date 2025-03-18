@@ -872,6 +872,7 @@ struct idapython_plugin_t : public plugmod_t, public event_listener_t
   qvector<wchar_t> pyhomepath;
 #endif
   bool initialized;
+  bool owning_interpreter;
   bool ui_ready;
 #ifdef TESTABLE_BUILD
   int user_code_lenient;
@@ -1008,6 +1009,14 @@ struct idapython_plugin_t : public plugmod_t, public event_listener_t
                                                  out_match_start, out_match_end, line, x);
   }
 
+  static bool idaapi exec_script(
+        const char *path,
+        PyObject *globals,
+        qstring *errbuf)
+  {
+    return get_instance()->_exec_script(path, globals, errbuf);
+  }
+
 private:
   bool _extlang_compile_file(
         const char *path,
@@ -1079,6 +1088,10 @@ private:
         const char *idaapi_executor_func_name = S_IDAAPI_EXECSCRIPT,
         idc_value_t *second_res = nullptr,
         bool want_tuple = false);
+  bool _exec_script(
+        const char *path,
+        PyObject *globals,
+        qstring *errbuf);
 
   bool _run_user_script();
 

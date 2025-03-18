@@ -134,16 +134,15 @@ How to build the SDK from the command-line
     make __MAC__=1 __ARM__=1
 
 
-  To build for IDA64 (64-bit ea_t size):
+  To build for IDA:
 
-    make __EA64__=1
+    make
 
-  Please note that both ida32 and ida64 are 64-bit applications.
 
   To build 32-bit (x86) debug servers, you must set the __X86__ variable. This can
   be achieved in the command line with:
 
-    make __X86__=1
+    make __EA32__=1 __X86__=1
 
   You may also run the 'idamake.pl' script instead of 'make'. It is a post-
   processing script for make, and will filter out some warnings
@@ -159,7 +158,7 @@ How to build the SDK from the command-line
 
     make __LINUX__=1                    -- non-optimized linux build
     make NDEBUG=1 __MAC__=1 __ARM__=1   -- optimized mac (arm64) build
-    make NDEBUG=1 __NT__=1 __EA64__=1   -- optimized ida64 windows build
+    make NDEBUG=1 __NT__=1              -- optimized ida windows build
     IDAMAKE_SIMPLIFY=1 idamake.pl [...] -- filter build system output
 
 
@@ -170,8 +169,7 @@ How to build the SDK from the command-line
   directory
 
     mo.bat    - will build components for ida.exe
-    mmo.bat   - will build components for ida64.exe
-    mmso.bat  - will build win64_remote64.exe
+    mso.bat   - will build win64_remote64.exe
     mso32.bat - will build win32_remote.exe
 
   They accept a '-j' argument, to parallelize the build:
@@ -194,5 +192,3 @@ Aliases
   export PATH=~/idasdk/bin:$PATH
   alias m='idamake.pl 2>&1'
   alias mo='NDEBUG=1 m'
-  alias mm='__EA64__=1 m'
-  alias mmo='NDEBUG=1 mm'

@@ -16,7 +16,6 @@
 #include "../idaidp.hpp"
 #include "ins.hpp"
 #include "pdp_ml.h"
-//-V::536 octal
 
 #define UAS_SECT        0x0001          // Segments are named .SECTION
 

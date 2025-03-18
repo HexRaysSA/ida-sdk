@@ -1,8 +1,9 @@
 """
 summary: print all registers, for all threads in the debugged process
 
-description: iterate over the list of threads in the program being
-             debugged, and dump all registers contents
+description:
+  Iterate over the list of threads in the program being
+  debugged, and dump all registers contents
 
   To use this example:
 

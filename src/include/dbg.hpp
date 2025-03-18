@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -398,6 +398,7 @@ inline int idaapi request_start_process(
 ///       - none (if in a notification handler)
 ///       - ::dbg_suspend_process (everywhere else)
 ///    }
+///
 /// \note The suspend_process() function can be called from a notification
 ///       handler to force the stopping of the process.
 ///       In this case, no notification will be generated.
@@ -427,6 +428,23 @@ inline bool idaapi continue_process(void) { return callui(ui_dbg_continue_proces
 
 inline bool idaapi request_continue_process(void) { return callui(ui_dbg_request_continue_process).cnd; }
 
+/// Continue the execution of the process in the debugger backwards.
+/// Can only be used with debuggers that support time-travel debugging.
+/// \sq{Type,         Synchronous function - available as Request,
+///     Notification, none (synchronous function)}
+/// \note The continue_backwards() function can be called from a notification
+///       handler to force the continuation of the process. In this case
+///       the request queue will not be examined, IDA will simply resume
+///       execution. Usually it makes sense to call request_continue_process()
+///       followed by run_requests(), so that IDA will first start a queued
+///       request (if any) and then resume the application.
+
+inline bool idaapi continue_backwards(void) { return callui(ui_dbg_continue_backwards).cnd; }
+
+/// Post a continue_backwards() request.
+/// \note This requires an explicit call to run_requests()
+
+inline bool idaapi request_continue_backwards(void) { return callui(ui_dbg_request_continue_backwards).cnd; }
 
 /// Terminate the debugging of the current process.
 /// \sq{Type,         Asynchronous function - available as Request,
@@ -644,6 +662,31 @@ inline bool idaapi step_over(void) { return callui(ui_dbg_step_over).cnd; }
 inline bool idaapi request_step_over(void) { return callui(ui_dbg_request_step_over).cnd; }
 
 
+/// Execute one instruction backwards in the current thread.
+/// Other threads are kept suspended.
+/// \sq{Type,         Asynchronous function - available as Request,
+///     Notification, ::dbg_step_into}
+
+inline bool idaapi step_into_backwards(void) { return callui(ui_dbg_step_into_backwards).cnd; }
+
+/// Post a step_into_backwards() request
+
+inline bool idaapi request_step_into_backwards(void) { return callui(ui_dbg_request_step_into_backwards).cnd; }
+
+
+/// Execute one instruction backwards in the current thread,
+/// but without entering into functions.
+/// Other threads are kept suspended.
+/// \sq{Type,         Asynchronous function - available as Request,
+///     Notification, ::dbg_step_over}
+
+inline bool idaapi step_over_backwards(void) { return callui(ui_dbg_step_over_backwards).cnd; }
+
+/// Post a step_over_backwards() request
+
+inline bool idaapi request_step_over_backwards(void) { return callui(ui_dbg_request_step_over_backwards).cnd; }
+
+
 /// Execute the process until the given address is reached.
 /// If no process is active, a new process is started.
 /// Technically, the debugger sets up a temporary breakpoint at
@@ -661,6 +704,24 @@ inline bool idaapi run_to(ea_t ea, pid_t pid = NO_PROCESS, thid_t tid = NO_THREA
 /// Post a run_to() request
 
 inline bool idaapi request_run_to(ea_t ea, pid_t pid = NO_PROCESS, thid_t tid = NO_THREAD) { return callui(ui_dbg_request_run_to, ea, pid, tid).cnd; }
+
+
+/// Execute the process backwards until the given address is reached.
+/// Technically, the debugger sets up a temporary breakpoint at
+/// the given address, and continues (or starts) the execution of
+/// the whole process.
+/// \sq{Type,         Asynchronous function - available as Request,
+///     Notification, ::dbg_run_to}
+/// \param ea   target address
+/// \param pid  not used yet. please do not specify this parameter.
+/// \param tid  not used yet. please do not specify this parameter.
+
+inline bool idaapi run_to_backwards(ea_t ea, pid_t pid = NO_PROCESS, thid_t tid = NO_THREAD) { return callui(ui_dbg_run_to_backwards, ea, pid, tid).cnd; }
+
+/// Post a run_to_backwards() request
+
+inline bool idaapi request_run_to_backwards(ea_t ea, pid_t pid = NO_PROCESS, thid_t tid = NO_THREAD) { return callui(ui_dbg_request_run_to_backwards, ea, pid, tid).cnd; }
+
 
 /// Execute instructions in the current thread until
 /// a function return instruction is executed (aka "step out").
@@ -2019,17 +2080,15 @@ inline const char *idaapi define_exception(uint code, const char *name, const ch
 
 //--------------------------------------------------------------------
 
-/// Is set_dbg_options() present in ::debugger_t?
+/// Is set_dbg_options() implemented in ::debugger_t?
 
 inline THREAD_SAFE bool have_set_options(const debugger_t *_dbg)
 {
-  return _dbg != nullptr && _dbg->set_dbg_options != nullptr;
+  return _dbg != nullptr && _dbg->have_set_options();
 }
 
-//--------------------------------------------------------------------
-
-/// Convenience function to set debugger specific options. It checks if the debugger
-/// is present and the function is present and calls it.
+/// Convenience function to set debugger specific options.
+/// It checks if the debugger is present and calls function.
 
 inline const char *idaapi set_dbg_options(
         debugger_t *_dbg,
@@ -2038,10 +2097,10 @@ inline const char *idaapi set_dbg_options(
         int value_type,
         const void *value)
 {
-  const char *code = IDPOPT_BADKEY;
+  const char *res = IDPOPT_BADKEY;
   if ( have_set_options(_dbg) )
-    code = _dbg->set_dbg_options(keyword, pri, value_type, value);
-  return code;
+    _dbg->set_dbg_options(&res, keyword, pri, value_type, value);
+  return res;
 }
 
 
@@ -2492,8 +2551,9 @@ inline source_view_t *create_source_viewer(
 /// Get one byte of the debugged process memory.
 /// \param out pointer to byte value
 /// \param ea  linear address
-/// \return true   success
-/// \return false  address inaccessible or debugger not running
+/// \return success
+/// \retval true   success
+/// \retval false  address inaccessible or debugger not running
 
 idaman bool ida_export get_dbg_byte(uint32 *out, ea_t ea);
 
@@ -2614,8 +2674,8 @@ inline bool idaapi set_bptloc_group(const bpt_location_t &bptloc, const char *gr
 ///     Notification, none (synchronous function)}
 /// \param[out] grp_name absolute path to the breakpoint dirtree folder, can be null
 /// \param bptloc bptlocation of the bpt
-/// \return breakpoint correclty moved to the directory
 /// \return success
+/// \retval true breakpoint correclty moved to the directory
 inline bool idaapi get_bpt_group(qstring *grp_name, const bpt_location_t &bptloc)             { return callui(ui_dbg_get_bpt_group, grp_name, &bptloc).cnd; }
 
 /// Retrieve the list of absolute path of all folders of bpt dirtree
@@ -2653,9 +2713,9 @@ inline ssize_t idaapi get_grp_bpts(bpt_vec_t *bpts, const char *grp_name)       
 ///     Notification, none (synchronous function)}
 /// \param bptgrp_name absolute path to the folder
 /// \param enable by default true, enable bpts, false disable bpts
-/// \return -1 an error occured
-///         0 no changes
-///         >0 nubmers of bpts udpated
+/// \retval -1 an error occured
+/// \retval 0 no changes
+/// \retval >0 nubmers of bpts udpated
 inline int idaapi enable_bptgrp(const char *bptgrp_name, bool enable=true)                    { return callui(ui_dbg_enable_bptgrp, bptgrp_name, enable).i; }
 inline bool idaapi get_local_vars(srcinfo_provider_t *prov, ea_t ea, source_items_t *out)     { return callui(ui_dbg_get_local_vars, prov, ea, out).cnd; }
 inline bool idaapi srcdbg_request_step_into(void)                                             { return callui(ui_dbg_srcdbg_request_step_into).cnd; }

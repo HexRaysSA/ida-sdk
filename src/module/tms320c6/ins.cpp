@@ -250,7 +250,7 @@ const instruc_t Instructions[] =
   { "XORMPY",     CF_USE1|CF_USE2|CF_CHG3         },      // Galois Field Multiply With Zero Polynomial
   { "XPND2",      CF_USE1|CF_CHG2                 },      // Expand Bits to Packed 16-Bit Masks
   { "XPND4",      CF_USE1|CF_CHG2                 },      // Expand Bits to Packed 8-Bit Masks
-
+  { ".fphead"                                     }
 };
 
 CASSERT(qnumber(Instructions) == TMS6_last);

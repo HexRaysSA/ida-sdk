@@ -55,6 +55,8 @@
 %ignore idc_value_t::_set_string;
 %ignore idc_value_t::idc_value_t(const qstring &);
 %ignore idc_value_t::set_string(const qstring &);
+%ignore idc_value_t::qstr();
+
 
 %ignore eval_expr;
 %rename (eval_expr) py_eval_expr;

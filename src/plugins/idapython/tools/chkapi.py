@@ -115,15 +115,6 @@ def check_cpp(args):
         "_wrap_idainfo_tag_get" : {
             "nostring" : " --size;",
         },
-
-        "_wrap_warning__varargs__" : {
-            "nullptrcheck" : 1, # 1st arg
-            "mustcall" : "PyUnicode_as_qstring",
-        },
-        "_wrap_error__varargs__" : {
-            "nullptrcheck" : 1,
-            "mustcall" : "PyUnicode_as_qstring",
-        },
         "_wrap_tag_remove" : {
             "nullptrcheck" : 1,
         },
@@ -136,14 +127,9 @@ def check_cpp(args):
         "_wrap_load_debugger" : {
             "string" : ["SWIG_PYTHON_THREAD_BEGIN_ALLOW", "SWIG_PYTHON_THREAD_END_ALLOW"],
         },
-        "_wrap_AssembleLine" : {
-            "nullptrcheck" : 5,
-        },
-
         "_wrap_get_opinfo" : {
             "string" : ["Py_XDECREF(resultobj)", "Py_INCREF(resultobj)"],
         },
-
         "_wrap_file2base" : {
             "nostring" : ["SWIGTYPE_p_qoff64_t", "qoff64_t *"],
         },

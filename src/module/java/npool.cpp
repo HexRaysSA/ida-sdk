@@ -2002,7 +2002,7 @@ bad_encl:
                 loader_failure("Inconsistent declaration of %s%s", &atrs[1], mk_diag(apk, diastr));
               else
                 load_msg("Inconsistent declaration of %s%s", &atrs[1], mk_diag(apk, diastr));
-              goto skipAttr;    //-V779 Unreachable code detected
+              goto skipAttr;
             }
           }
         }
@@ -2138,7 +2138,7 @@ bad:
     return 0;
   }
 
-  CASSERT(HAS_TYPEDSCR < 0x100 && HAS_CALLDSCR < 0x100);    //-V590 expression is excessive
+  CASSERT(HAS_TYPEDSCR < 0x100 && HAS_CALLDSCR < 0x100);
   if ( !((uchar)opis.flag & ((apk == attr_parent_kind_method ) ? HAS_CALLDSCR : HAS_TYPEDSCR)) )
   {
     if ( !opis._Ssize )

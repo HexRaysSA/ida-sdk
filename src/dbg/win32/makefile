@@ -20,7 +20,7 @@ endif
 #----------------------------------------------------------------------
 STUB = $(call module_dll,win32_stub)
 ifdef BUILD_IDA
-  ifeq ($(or $(IDAHOME),$(DEMO_OR_FREE)),)
+  ifeq ($(or $(IDAHOME),$(IDAFREE)),)
     MODULES += $(STUB)
   endif
 endif

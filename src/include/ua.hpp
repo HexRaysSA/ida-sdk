@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -357,7 +357,7 @@ decl bool ida_export insn_create_stkvar(const insn_t &insn, const op_t &x, adiff
 
 DECLARE_INSN_HELPERS(idaman)
 
-//-V:insn_t:730 not all members of a class are initialized inside the constructor
+
 class insn_t
 {
 public:
@@ -542,9 +542,9 @@ public:
   /// \param type  type of xref
   /// \param outf  out_value() flags. These flags should match
   ///              the flags used to output the operand
-  /// \return if is_off(): the reference target address (the same as calc_reference_data).
-  ///         if is_stroff(): #BADADDR because for stroffs the target address is unknown
-  ///         else: #BADADDR because enums do not represent addresses
+  /// \retval if is_off(): the reference target address (the same as calc_reference_data).
+  /// \retval if is_stroff(): #BADADDR because for stroffs the target address is unknown
+  /// \retval otherwise: #BADADDR because enums do not represent addresses
 
   ea_t add_off_drefs(const op_t &x, dref_t type, int outf) const
   {
@@ -834,8 +834,8 @@ struct outctx_base_t
   /// \param x    value to output
   /// \param outf \ref OOF_
   /// \return flags of the output value, otherwise:
-  ///         -1 if printed a number with #COLOR_ERROR
-  ///          0 if printed a nice number or character or segment or enum
+  /// \retval -1 if printed a number with #COLOR_ERROR
+  /// \retval 0 if printed a nice number or character or segment or enum
   virtual flags64_t idaapi out_value(const op_t &x, int outf=0);
 
   /// \defgroup OOF_ Output value flags
@@ -897,6 +897,18 @@ struct outctx_base_t
     out_line(str, COLOR_REG);
   }
 
+  /// Output local variable name with #COLOR_LOCNAME color.
+  inline void out_lvar(const char *name, int width=-1)
+  {
+    out_line(name, COLOR_LOCNAME);
+    if ( width != -1 && name != nullptr )
+    {
+      size_t len = ::qstrlen(name);
+      if ( len < width )
+        out_chars(' ', width - len);
+    }
+  }
+
   /// Output "turn color on" escape sequence
   virtual void idaapi out_tagon(color_t tag);
 
@@ -929,6 +941,7 @@ struct outctx_base_t
   /// 'suspop' is initialized:
   ///   - in out_one_operand()
   ///   - in ..\ida\gl.cpp (before calling \ph{d_out()})
+  ///
   /// \param v      value to output
   /// \param radix  base (2,8,10,16)
   /// \param suspop ::suspop
@@ -1325,8 +1338,9 @@ idaman bool ida_export format_charlit(
 /// \param bufsize  size of the output buffer
 /// \param v        floating point value in processor native format
 /// \param size     size of the value in bytes
-/// \return true    ok
-/// \return false   can't represent as floating point number
+/// \return success
+/// \retval true    ok
+/// \retval false   can't represent as floating point number
 
 idaman bool ida_export print_fpval(char *buf, size_t bufsize, const void *v, int size);
 
@@ -1452,6 +1466,10 @@ struct macro_constructor_t
   inline bool construct_macro(insn_t *insn, bool enable);
 
   /// Try to extend the instruction.
+  ///
+  /// This function may modify 'insn' and return false; these changes will be
+  /// accepted by the kernel but the instruction will not be considered as a macro.
+  ///
   /// \param insn           Instruction to modify, usually the first
   ///                       instruction of the macro
   /// \param may_go_forward Is it ok to consider the next instruction for the macro?
@@ -1461,8 +1479,6 @@ struct macro_constructor_t
   ///                       be useful to perform minor tweaks to the instruction
   ///                       using the information about the surrounding instructions.
   /// \return true if created an macro instruction.
-  /// This function may modify 'insn' and return false; these changes will be
-  /// accepted by the kernel but the instruction will not be considered as a macro.
   virtual bool idaapi build_macro(insn_t *insn, bool may_go_forward) = 0;
 };
 

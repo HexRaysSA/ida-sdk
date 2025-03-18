@@ -42,6 +42,7 @@
 %rename (get_reg_vals) py_get_reg_vals;
 %newobject py_get_reg_vals;
 
+%ignore list_bptgrps(qstrvec_t *);
 %rename (list_bptgrps) py_list_bptgrps;
 %apply qstring *result { qstring *grp_name };
 %uncomparable_elements_qvector(bpt_t, bpt_vec_t);
@@ -77,7 +78,7 @@
 %typemap(argout) qstring *ARG_NAME
 {
   // %get_process_options_out_arg %typemap(argout) qstring *ARG_NAME
-  $result = SWIG_Python_AppendOutput($result, PyUnicode_FromString($1->c_str()));
+  $result = SWIG_Python_AppendOutput($result, PyUnicode_FromString($1->c_str()), /*is_void=*/ 1);
 }
 %typemap(freearg) qstring* ARG_NAME
 {
@@ -93,7 +94,7 @@
 {
   // %get_process_options_out_arg %typemap(argout) launch_env_t *ARG_NAME
   PyObject *py_launch_env = SWIG_NewPointerObj(new launch_env_t(*($1)), $1_descriptor, SWIG_POINTER_OWN | 0);
-  $result = SWIG_Python_AppendOutput($result, py_launch_env);
+  $result = SWIG_Python_AppendOutput($result, py_launch_env, /*is_void=*/ 1);
 }
 %enddef
 %get_process_options_out_arg(path);

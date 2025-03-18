@@ -211,10 +211,6 @@ struct undo_records_t;
 %ignore out_old_data;
 %ignore out_old_specea;
 
-%pywraps_nonnul_argument_prototype(
-        static PyObject *AssembleLine(ea_t ea, ea_t cs, ea_t ip, bool use32, const char *nonnul_line),
-        const char *nonnul_line);
-
 #ifndef SWIGIMPORTED // let's not modify the wrappers for modules %import'ing us (e.g., typeinf.i, hexrays.i)
 %cstring_output_buf_and_size_returning_charptr(
         1,

@@ -126,47 +126,16 @@ static bool py_do_get_bytes(
 #define FF_1CUST 0x0D000000 ///< Custom representation?
 
 //------------------------------------------------------------------------
-/*
-#<pydoc>
-def visit_patched_bytes(ea1, ea2, callable):
-    """
-    Enumerates patched bytes in the given range and invokes a callable
-    @param ea1: start address
-    @param ea2: end address
-    @param callable: a Python callable with the following prototype:
-                     callable(ea, fpos, org_val, patch_val).
-                     If the callable returns non-zero then that value will be
-                     returned to the caller and the enumeration will be
-                     interrupted.
-    @return: Zero if the enumeration was successful or the return
-             value of the callback if enumeration was interrupted.
-    """
-    pass
-#</pydoc>
-*/
-static int py_visit_patched_bytes(ea_t ea1, ea_t ea2, PyObject *py_callable)
+static int py_visit_patched_bytes(ea_t ea1, ea_t ea2, PyObject *callable)
 {
   PYW_GIL_CHECK_LOCKED_SCOPE();
-  if ( !PyCallable_Check(py_callable) )
+  if ( !PyCallable_Check(callable) )
     return 0;
   else
-    return visit_patched_bytes(ea1, ea2, py_visit_patched_bytes_cb, py_callable);
+    return visit_patched_bytes(ea1, ea2, py_visit_patched_bytes_cb, callable);
 }
 
 //------------------------------------------------------------------------
-/*
-#<pydoc>
-def get_bytes(ea, size):
-    """
-    Get the specified number of bytes of the program.
-    @param ea: program address
-    @param size: number of bytes to return
-    @param gmb_flags: OR'ed combination of GMB_* values (defaults to GMB_READALL)
-    @return: the bytes (as bytes object), or None in case of failure
-    """
-    pass
-#</pydoc>
-*/
 static PyObject *py_get_bytes(ea_t ea, unsigned int size, int gmb_flags=GMB_READALL)
 {
   PyObject *py_bytes = nullptr;
@@ -177,21 +146,6 @@ static PyObject *py_get_bytes(ea_t ea, unsigned int size, int gmb_flags=GMB_READ
 }
 
 //---------------------------------------------------------------------------
-/*
-#<pydoc>
-def get_bytes_and_mask(ea, size, mask):
-    """
-    Get the specified number of bytes of the program, and a bitmask
-    specifying what bytes are defined and what bytes are not.
-    @param ea: program address
-    @param size: number of bytes to return
-    @param gmb_flags: OR'ed combination of GMB_* values (defaults to GMB_READALL)
-    @return: a tuple (bytes, mask), or None in case of failure.
-             Both 'bytes' and 'mask' are 'str' instances.
-    """
-    pass
-#</pydoc>
-*/
 static PyObject *py_get_bytes_and_mask(ea_t ea, unsigned int size, int gmb_flags=GMB_READALL)
 {
   PyObject *py_bytes = nullptr;
@@ -203,44 +157,20 @@ static PyObject *py_get_bytes_and_mask(ea_t ea, unsigned int size, int gmb_flags
 }
 
 //---------------------------------------------------------------------------
-/*
-#<pydoc>
-# Conversion options for get_strlit_contents():
-STRCONV_ESCAPE   = 0x00000001 # convert non-printable characters to C escapes (\n, \xNN, \uNNNN)
-
-def get_strlit_contents(ea, len, type, flags = 0):
-  """
-  Get contents of string literal, as UTF-8-encoded codepoints.
-  It works even if the string has not been created in the database yet.
-
-  Note that the returned value will be of type 'bytes'; if
-  you want auto-conversion to unicode strings (that is: real Python
-  strings), you should probably be using the idautils.Strings class.
-
-  @param ea: linear address of the string
-  @param len: length of the string in bytes (including terminating 0)
-  @param type: type of the string. Represents both the character encoding,
-               <u>and</u> the 'type' of string at the given location.
-  @param flags: combination of STRCONV_..., to perform output conversion.
-  @return: a bytes-filled str object.
-  """
-  pass
-#</pydoc>
-*/
 static PyObject *py_get_strlit_contents(
         ea_t ea,
-        PyObject *py_len,
+        PyObject *len,
         int32 type,
         int flags = 0)
 {
-  uint64 len;
-  if ( !PyW_GetNumber(py_len, &len) )
+  uint64 llen;
+  if ( !PyW_GetNumber(len, &llen) )
     Py_RETURN_NONE;
-  if ( len == BADADDR )
-    len = uint64(-1);
+  if ( llen == BADADDR )
+    llen = uint64(-1);
   qstring buf;
-  if ( len != uint64(-1) && ea_t(ea + len) < ea
-    || get_strlit_contents(&buf, ea, len, type, nullptr, flags) < 0 )
+  if ( llen != uint64(-1) && ea_t(ea + llen) < ea
+    || get_strlit_contents(&buf, ea, llen, type, nullptr, flags) < 0 )
   {
     Py_RETURN_NONE;
   }
@@ -272,23 +202,6 @@ static bool ida_export py_op_stroff(
 }
 
 //-------------------------------------------------------------------------
-/*
-#<pydoc>
-def get_stroff_path(ea : int, n : int):
-    """
-    Get the structure offset path for operand `n`, at the
-    specified address.
-
-    Note: for backward-compatibility reasons, this function also supports the prototype:
-    get_stroff_path(path : tid_array, delta : sval_pointer, ea : int, n : int)
-
-    @param ea address where the operand holds a path to a structure offset
-    @param n operand number
-    @return a tuple holding a (list_of_tid_t's, delta_within_the_last_type), or (None, None)
-    """
-    pass
-#</pydoc>
- */
 static int get_stroff_path(
         qvector<tid_t> *out_path,
         adiff_t *out_delta,
@@ -309,24 +222,6 @@ static int get_stroff_path(
   }
   return path_size;
 }
-
-//-------------------------------------------------------------------------
-/*
-#<pydoc>
-def bin_search(start_ea, end_ea, data, flags):
-  """
-  Search for a set of bytes in the program
-
-  @param start_ea: linear address, start of range to search
-  @param end_ea: linear address, end of range to search (exclusive)
-  @param data: the prepared data to search for (see parse_binpat_str())
-  @param flags: combination of BIN_SEARCH_* flags
-  @return: the address of a match, or ida_idaapi.BADADDR if not found
-  """
-  pass
-#</pydoc>
-*/
-
 //</inline(py_bytes)>
 
 #endif

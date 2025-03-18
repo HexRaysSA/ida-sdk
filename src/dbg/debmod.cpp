@@ -19,50 +19,16 @@
 #include <network.hpp>
 
 //--------------------------------------------------------------------------
-// Variables to be used by built-in IDC functions
-debmod_t *idc_debmod;
-thid_t idc_thread;
-
-//--------------------------------------------------------------------------
 // Initialize static members
 bool debmod_t::reuse_broken_connections = false;
-
-//--------------------------------------------------------------------------
-static const char *get_event_name(event_id_t id)
-{
-  switch ( id )
-  {
-    case NO_EVENT:          return "NO_EVENT";
-    case THREAD_STARTED:    return "THREAD_STARTED";
-    case STEP:              return "STEP";
-    case PROCESS_DETACHED:  return "PROCESS_DETACHED";
-    case PROCESS_STARTED:   return "PROCESS_STARTED";
-    case PROCESS_ATTACHED:  return "PROCESS_ATTACHED";
-    case PROCESS_SUSPENDED: return "PROCESS_SUSPENDED";
-    case LIB_LOADED:        return "LIB_LOADED";
-    case PROCESS_EXITED:    return "PROCESS_EXITED";
-    case THREAD_EXITED:     return "THREAD_EXITED";
-    case BREAKPOINT:        return "BREAKPOINT";
-    case EXCEPTION:         return "EXCEPTION";
-    case LIB_UNLOADED:      return "LIB_UNLOADED";
-    case INFORMATION:       return "INFORMATION";
-    case TRACE_FULL:        return "TRACE_FULL";
-    default:                return "???";
-  }
-}
 
 #if defined(__MAC__) || defined(__LINUX__) || defined(__ANDROID__)
 //---------------------------------------------------------------------------
 inline bool is_esxi()
 {
 #ifdef __LINUX__
-  static int ok = -1;
-  if ( ok == -1 )
-  {
-    utsname utsinfo;
-    ok = uname(&utsinfo) == 0 && strieq(utsinfo.sysname, "VMkernel");
-  }
-  return ok > 0;
+  utsname utsinfo;
+  return uname(&utsinfo) == 0 && strieq(utsinfo.sysname, "VMkernel");
 #else
   return false;
 #endif
@@ -113,7 +79,7 @@ drc_t idaapi maclnx_launch_process(
   if ( !debmod->check_input_file_crc32(input_file_crc32) )
     mismatch = DRC_CRC;
 
-  //-V:dbg_srv_64:547 is always true
+
 #ifdef __EA64__
   bool dbg_srv_64 = true;
 #else
@@ -312,13 +278,6 @@ void idaapi debmod_t::dbg_set_exception_info(const exception_info_t *table, int 
 }
 
 //--------------------------------------------------------------------------
-char *debug_event_str(const debug_event_t *ev)
-{
-  static char buf[MAXSTR];
-  return debug_event_str(ev, buf, sizeof(buf));
-}
-
-//--------------------------------------------------------------------------
 char *debug_event_str(const debug_event_t *ev, char *buf, size_t bufsize)
 {
   ea_helper_t eah;
@@ -326,7 +285,7 @@ char *debug_event_str(const debug_event_t *ev, char *buf, size_t bufsize)
   char *ptr = buf;
   char *end = buf + bufsize;
   ptr += qsnprintf(ptr, end-ptr, "%s ea=%a",
-                   get_event_name(ev->eid()),
+                   get_debug_event_name(*ev),
                    eah.trunc_uval(ev->ea));
   switch ( ev->eid() )
   {
@@ -379,7 +338,7 @@ name_info_t *debmod_t::get_debug_names()
 }
 
 //--------------------------------------------------------------------------
-int debmod_t::set_debug_names()
+int debmod_t::dispatch_debug_names()
 {
   name_info_t *ni = get_debug_names();
   if ( ni->addrs.empty() )
@@ -1024,8 +983,9 @@ lowcnd_t *debmod_t::get_failed_lowcnd(thid_t tid, ea_t ea)
     lowcnd_t &lc = p->second;
     lock_begin();
     {
-      idc_debmod = this; // is required by compiler/interpreter
-      idc_thread = tid;  // is required by          interpreter
+      // THIS is required by compiler/interpreter
+      // TID  is required by          interpreter
+      set_idc_ctx(this, tid);
       if ( !lc.compiled )
       {
         ok = compile_idc_snippet(name, lc.cndbody.begin(), nullptr, nullptr, true);

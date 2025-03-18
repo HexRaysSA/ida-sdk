@@ -8,11 +8,11 @@ ifdef __NT__
   CYGWINVER=$(subst ., ,$(shell uname -r))
   CYGWINVER_MAJOR=$(word 1,$(CYGWINVER))
   CYGWINVER_MINOR=$(word 2,$(CYGWINVER))
-  ifeq ($(CYGWINVER_MAJOR),3)
-    ifeq ($(CYGWINVER_MINOR),5)
-      $(warning ***This version is unstable and may cause the build to fail!***)
-    endif
-  endif
+  #ifeq ($(CYGWINVER_MAJOR),3)
+  #  ifeq ($(CYGWINVER_MINOR),5)
+  #    $(warning ...)
+  #  endif
+  #endif
 endif
 #######################################################################
 # .bat files

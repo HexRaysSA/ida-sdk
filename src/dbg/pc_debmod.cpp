@@ -13,31 +13,24 @@ pc_debmod_t::pc_debmod_t()
   static const uchar bpt[] = X86_BPT_CODE;
   bpt_code.append(bpt, sizeof(bpt));
 
-  fix_registers();
   cleanup_hwbpts();
   set_platform(get_local_platform());
 }
 
 //--------------------------------------------------------------------------
-void pc_debmod_t::fix_registers()
-{
-  bool is64 = is_64bit_app();
-  sp_idx = x86reg_to_idx(R_ESP, is64);
-  pc_idx = x86reg_to_idx(R_EIP, is64);
-  sr_idx = x86reg_to_idx(R_EFLAGS, is64);
-  fs_idx = x86reg_to_idx(R_FS, is64);
-  gs_idx = x86reg_to_idx(R_GS, is64);
-  cs_idx = x86reg_to_idx(R_CS, is64);
-  ds_idx = x86reg_to_idx(R_DS, is64);
-  es_idx = x86reg_to_idx(R_ES, is64);
-  ss_idx = x86reg_to_idx(R_SS, is64);
-  static_nregs = is64 ? X86_X64_NREGS : X86_X86_NREGS;
-}
-
-//--------------------------------------------------------------------------
 int pc_debmod_t::get_regidx(const char *regname, int *clsmask)
 {
-  return x86_get_regidx(clsmask, regname, is_64bit_app());
+  for ( size_t ida_reg_idx=0; ida_reg_idx < idaregs.ri_vec.size(); ++ida_reg_idx )
+  {
+    const auto &ri = idaregs.ri_vec[ida_reg_idx];
+    if ( strieq(regname, ri.name) )
+    {
+      if ( clsmask != nullptr )
+        *clsmask = ri.register_class;
+      return ida_reg_idx;
+    }
+  }
+  return -1;
 }
 
 //--------------------------------------------------------------------------
@@ -268,26 +261,6 @@ bool pc_debmod_t::preprocess_appcall_cleanup(thid_t, call_context_t &ctx)
   if ( ctx.saved_regs.size() > sr_idx )
     ctx.saved_regs[sr_idx].ival &= ~0x100;
   return true; // success
-}
-
-//--------------------------------------------------------------------------
-void pc_debmod_t::read_fpu_registers(
-        regval_t *values,
-        int clsmask,
-        const void *fptr,
-        size_t step) const
-{
-  bool is64 = is_64bit_app();
-  int st0_idx = x86reg_to_idx(R_ST0, is64);
-  int mmx0_idx = x86reg_to_idx(R_MMX0, is64);
-  const uchar *vptr = (const uchar *)fptr;
-  for ( int i=0; i < 8; i++,vptr+=step )
-  {
-    if ( (clsmask & X86_RC_FPU) != 0 )
-      values[st0_idx+i].set_bytes(vptr, 10, RVT_FLOAT);
-    else if ( (clsmask & X86_RC_MMX) != 0 )
-      values[mmx0_idx+i].set_bytes(vptr, 8);
-  }
 }
 
 //--------------------------------------------------------------------------

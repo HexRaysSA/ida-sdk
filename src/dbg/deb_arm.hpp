@@ -16,7 +16,7 @@
 #define ARM_MAX_HWBPTS 16
 #define ARM_MAX_WATCHPOINTS 16
 
-int is_arm_valid_bpt(bpttype_t type, ea_t ea, int len);
+int is_arm_valid_bpt(const debugger_t &, bpttype_t type, ea_t ea, int len);
 
 #endif
 

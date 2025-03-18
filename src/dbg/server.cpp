@@ -18,7 +18,7 @@ int get_default_app_addrsize()
 {
   return sizeof(ea_t);
 }
-void update_idd_registers() {}
+void update_idd_registers(bool) {}
 
 // Provide dummy versions for tinfo copy/clear. Debugger servers do not use them
 #if !defined(__NT__)
@@ -88,6 +88,20 @@ bool lock_end(void) { return qmutex_unlock(g_mutex); }
 
 //--------------------------------------------------------------------------
 dbg_rpc_handler_t *g_global_server = nullptr;
+
+//--------------------------------------------------------------------------
+// Variables to be used by built-in IDC functions
+debmod_t *idc_debmod = nullptr;
+thid_t idc_thread = NO_THREAD;
+
+void set_idc_ctx(debmod_t *dm, thid_t tid)
+{
+  idc_debmod = dm;
+  idc_thread = tid;
+}
+
+debmod_t *get_idc_debmod() { return idc_debmod; }
+thid_t get_idc_tid() { return idc_thread; }
 
 //--------------------------------------------------------------------------
 // perform an action (func) on all debuggers
@@ -182,7 +196,9 @@ network_client_handler_t *dbgsrv_dispatcher_t::new_client_handler(idarpc_stream_
 #if defined(__LINUX__) && defined(TESTABLE_BUILD)
   params = (void *) get_elf_debug_file_directory_for_pid; //lint !e611 cast between pointer to function type '' and pointer to object type 'void *'
 #endif
-  h->set_debugger_instance(create_debug_session(params));
+  debmod_t *dm = create_debug_session(params);
+  dm->set_server_role();
+  h->set_debugger_instance(dm);
   g_global_server = h;
   return h;
 }
@@ -222,7 +238,7 @@ int NT_CDECL main(int argc, const char *argv[])
 #endif
 
   lprintf("IDA " SYSTEM SYSBITS " remote debug server(" __SERVER_TYPE__ ") "
-          "v%d.%d.%d. Hex-Rays (c) 2004-2024\n",
+          "v%d.%d.%d. Hex-Rays (c) 2004-2025\n",
            ida_major, ida_minor, IDD_INTERFACE_VERSION);
 
   dispatcher.broken_conns_supported = debmod_t::reuse_broken_connections;

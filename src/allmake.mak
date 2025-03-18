@@ -13,9 +13,10 @@ IDA:=$(dir $(lastword $(MAKEFILE_LIST)))
 
 # define the version number we are building
 IDAVER_MAJOR:=9
-IDAVER_MINOR:=0
+IDAVER_MINOR:=1
+IDAVER_PATCH:=0
 # 900
-IDAVERDECIMAL:=$(IDAVER_MAJOR)$(IDAVER_MINOR)0
+IDAVERDECIMAL:=$(IDAVER_MAJOR)$(IDAVER_MINOR)$(IDAVER_PATCH)
 # 9.0
 IDAVERDOTTED:=$(IDAVER_MAJOR).$(IDAVER_MINOR)
 
@@ -45,6 +46,7 @@ endif
 BUILD_CONFIG-1                     := M
 BUILD_CONFIG-$(__EA32__)           += 32
 BUILD_CONFIG-$(__X86__)            += X86
+BUILD_CONFIG-$(__HF__)             += HF
 BUILD_CONFIG-$(USE_STATIC_RUNTIME) += S
 BUILD_CONFIG-$(IDAHOME)            += H
 BUILD_CONFIG-$(NDEBUG)             += O
@@ -86,6 +88,8 @@ ifdef __ARM__
   TARGET_PROCESSOR_NAME-$(__LINUX__)=arm64
   ifeq ($(__EA64__),1)
     TARGET_PROCESSOR_NAME-1=arm64
+  else ifeq ($(and $(__ARMLINUX__),$(__HF__)),1)
+    TARGET_PROCESSOR_NAME-1=armhf
   endif
   TARGET_PROCESSOR_NAME=$(TARGET_PROCESSOR_NAME-1)
 else ifndef __X86__
@@ -466,8 +470,9 @@ ifneq (,$(filter $(COMPILER_NAME),gcc clang))
   CC_X += -g
   CC_X += -pipe
 
-  # enable c++11
-  CXXSTD = -std=c++11
+  # enable c++17
+  CXXSTD = -std=c++17
+  CXXSTD14 = -std=c++14
 
   CXX_F += -fvisibility-inlines-hidden
   CXX_WNO += -Wno-invalid-offsetof
@@ -703,7 +708,7 @@ CXXFLAGS += $(UFLAGS)
 LDFLAGS += $(LDOPT)
 
 #############################################################################
-ifdef __X86__
+ifeq ($(or $(__X86__),$(__HF__)),1)
   DEFX86 = __X86__
 endif
 
@@ -724,16 +729,11 @@ ifdef IDAHOME
   EXTRASUF1:=_home
   IDAHOME_PROCESSORS=pc arm ppc mips riscv
   # Disable vault in the build
-else ifdef DEMO_OR_FREE
-  ifdef DEMO
-    HOSTSUF=_demo
-    EXTRASUF1:=_demo
-  else
-    HOSTSUF=_free
-    EXTRASUF1:=_free
-  endif
-  IDADEMO_PROCESSOR=pc
-  IDADEMO_LOADERS=pe elf mach-o
+else ifdef IDAFREE
+  HOSTSUF=_free
+  EXTRASUF1:=_free
+  IDAFREE_PROCESSOR=pc
+  IDAFREE_LOADERS=pe elf mach-o
 else
   ifdef IDACLASS
     EXTRASUF1:=_class
@@ -745,10 +745,6 @@ else
   endif
   ifdef __ASAN__
     EXTRASUF3:=_asan
-    ifdef __LINUX__
-      # we have ASAN libraries only for Linux
-      THIRD_PARTY_EXTRASUF:=_asan
-    endif
   endif
   ifdef __FUZZER__
     EXTRASUF4:=_afl
@@ -940,7 +936,7 @@ print-%:
 .DELETE_ON_ERROR:
 
 #----------------------------------------------------------------------
-ifeq ($(or $(IDAHOME),$(DEMO_OR_FREE),$(NO_TXT)),)
+ifeq ($(or $(IDAHOME),$(IDAFREE),$(NO_TXT)),)
   UI_BACKENDS += txt
 endif
 ifeq ($(or $(__CODE_CHECKER__),$(NO_QT)),)

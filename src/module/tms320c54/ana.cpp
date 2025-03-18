@@ -549,7 +549,7 @@ void ana_TMS320C54(insn_t *_insn)
     op_Smem(insn, op, code); // IAAA AAAA/Smem eventual offset must be read before 2nd opcode  byte!
     int code2 = get_wide_byte(insn.ea+insn.size);
     insn.size += 1;
-    int mask1 = code2 & 0xFEE0;   //-V537 not misprint
+    int mask1 = code2 & 0xFEE0;
     int mask2 = code2 & 0xFCE0;
     if ( mask1 == 0x0C40 )
       insn.itype = TMS320C54_ld2;
@@ -587,7 +587,7 @@ void ana_TMS320C54(insn_t *_insn)
         insn.ops[n-1] = op; // op_Smem(insn, insn.ops[n-1], code);
       }
       else if ( insn.itype == TMS320C54_add2 || insn.itype == TMS320C54_sub2
-             || insn.itype == TMS320C54_add3 || insn.itype == TMS320C54_sub3 ) //-V560 is always true: insn.itype == TMS320C54_sub3
+             || insn.itype == TMS320C54_add3 || insn.itype == TMS320C54_sub3 )
       {
         int code2_bit9 = (code2>>9) & 1;
         int code2_bit8 = (code2>>8) & 1;

@@ -524,7 +524,7 @@ ssize_t idaapi arc_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_newprc:
       ptype = va_argi(va, processor_subtype_t);
       // bool keep_cfg = va_argi(va, bool);
-      if ( uint(ptype) > prc_arcv2 )    //lint !e685 //-V547 is always false
+      if ( uint(ptype) > prc_arcv2 )    //lint !e685
       {
         code = -1;
         break;

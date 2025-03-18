@@ -2,7 +2,7 @@ include ../allmake.mak
 
 GOALS += plugins
 GOALS += samples
-ifeq ($(or $(IDAHOME),$(DEMO_OR_FREE)),)
+ifeq ($(or $(IDAHOME),$(IDAFREE)),)
   GOALS += examples
 endif
 GOALS += training_subdir # -*
@@ -20,7 +20,7 @@ PLUGINS += pdb
 PLUGINS += tracing_api
 PLUGINS += uiswitch
 PLUGINS-$(__NT__) += uunp
-ifeq ($(or $(IDAHOME),$(DEMO_OR_FREE)),)
+ifeq ($(or $(IDAHOME),$(IDAFREE)),)
   PLUGINS += mex1
   PLUGINS += mex2
   PLUGINS += mex3

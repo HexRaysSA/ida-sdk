@@ -739,8 +739,8 @@ class peutils_t(object):
     header_offset = property(lambda self: self.__penode.altval(peutils_t.PE_ALT_PEHDR_OFF))
     """Offset of PE header"""
 
-    def __str__(self):
-        return "peutils_t(imagebase=%x, header=%x)" % (self.imagebase, self.header_offset)
+    def __repr__(self):
+        return f"{self.__class__.__module__}.{self.__class__.__name__}(imagebase=%x, header=%x)" % (self.imagebase, self.header_offset)
 
     header = lambda self: self.__penode.valobj()
     """Returns the complete PE header as an instance of peheader_t (defined in the SDK)."""

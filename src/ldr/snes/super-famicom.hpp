@@ -3,7 +3,7 @@ SPECIAL LICENSE AGREEMENT
 
 This file originally comes from the 'higan' emulator
 <http://byuu.org/emulation/higan/>, and should normally only be
-used in agreement with the terms of the GPLv3 license. //-V1042
+used in agreement with the terms of the GPLv3 license.
 
 Hex-Rays has been granted, by written consent of its author, the use
 of this file within the scope of the 'snes' loader plugin, as well as

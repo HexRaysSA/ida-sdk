@@ -141,6 +141,9 @@
 %ignore qstrlwr;
 %ignore qstrupr;
 
+// do not generate operator delete etc.
+%feature("nodirector") qrefcnt_obj_t;
+
 %extend qrefcnt_t {
   size_t __ptrval__() const
   {

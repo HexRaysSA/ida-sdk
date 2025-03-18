@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -33,9 +33,11 @@
     +------------------------------------------------+ <- SP
   </pre>
 
-  To access the structure of a function frame, use:
+  To access the structure of a function frame and stack variables, use:
     - tinfo_t::get_func_frame(const func_t *pfn) (the preferred way)
     - get_func_frame(tinfo_t *out, const func_t *pfn)
+    - tinfo_t::get_udt_details() gives info about stack variables: their type,
+      names, offset, etc
 */
 
 // name of stkvar to denote the return address slot
@@ -408,6 +410,7 @@ idaman sval_t ida_export calc_frame_offset(
 ///   - unreferenced stack variable definitions
 ///   - references to dead stack variables (i.e. operands displayed in red)
 ///     these operands will be untyped and most likely displayed in hex.
+///
 /// We also plan to reanalyze instruction with the stack frame references
 /// \param pfn  pointer to the function
 /// \param should_reanalyze callback to determine which instructions to reanalyze

@@ -568,11 +568,11 @@ bool reg_tracker_t::do_find_ldr_value(
         xrefblk_t xb;
         int numxrefs = 0;
         ea_t xref_from = BADADDR;
-        for ( bool ok2 = xb.first_to(pinsn->ea, XREF_ALL);
+        for ( bool ok2 = xb.first_to(pinsn->ea, XREF_CODE);
               ok2 && numxrefs < 2;
               ok2 = xb.next_to() )
         {
-          if ( xb.iscode && xb.from < pinsn->ea ) // count only xrefs from above
+          if ( xb.from < pinsn->ea ) // count only xrefs from above
           {
             // call xref => bad
             if ( xb.type == fl_CN || xb.type == fl_CF )
@@ -2369,7 +2369,7 @@ bool arc_t::is_arc_basic_block_end(
   // are there jump xrefs from here?
   xrefblk_t xb;
   bool has_jumps = false;
-  for ( bool ok=xb.first_from(insn.ea, XREF_FAR); ok && xb.iscode; ok=xb.next_from() )
+  for ( bool ok=xb.first_from(insn.ea, XREF_NOFLOW|XREF_CODE); ok; ok=xb.next_from() )
   {
     if ( xb.type == fl_JF || xb.type == fl_JN )
     {
@@ -2747,7 +2747,7 @@ bool arc_t::detect_millicode(qstring *mname, ea_t ea)
 static bool check_millicode_name(const qstring &name, ea_t ea, sval_t *spdelta)
 {
   qstring cname;
-  if ( cleanup_name(&cname, ea, name.c_str(), CN_KEEP_TRAILING__DIGITS) )
+  if ( cleanup_name(&cname, ea, name.c_str(), CN_KEEP_TRAILING_DIGITS) )
   {
     const char *p = cname.c_str();
     if ( streq(p, "ac_push_none")

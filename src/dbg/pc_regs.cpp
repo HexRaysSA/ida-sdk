@@ -170,36 +170,121 @@ static const char *const mxcsr_bits[] =
 };
 
 //-------------------------------------------------------------------------
-// General registers
+// General registers X86_RC_GENERAL
 #ifdef __EA64__
-register_info_t r_rax   = { "RAX",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_rbx   = { "RBX",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_rcx   = { "RCX",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_rdx   = { "RDX",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_rsi   = { "RSI",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_rdi   = { "RDI",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_rbp   = { "RBP",    REGISTER_ADDRESS|REGISTER_FP, X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_rsp   = { "RSP",    REGISTER_ADDRESS|REGISTER_SP, X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_rip   = { "RIP",    REGISTER_ADDRESS|REGISTER_IP, X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_r8    = { "R8",     REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_r9    = { "R9",     REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_r10   = { "R10",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_r11   = { "R11",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_r12   = { "R12",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_r13   = { "R13",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_r14   = { "R14",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
-register_info_t r_r15   = { "R15",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_qword,  nullptr, 0 };
+register_info_t pc_ri_rax = { "RAX", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_rbx = { "RBX", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_rcx = { "RCX", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_rdx = { "RDX", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_rsi = { "RSI", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_rdi = { "RDI", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_rbp = { "RBP", REGISTER_ADDRESS|REGISTER_FP, X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_rsp = { "RSP", REGISTER_ADDRESS|REGISTER_SP, X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_rip = { "RIP", REGISTER_ADDRESS|REGISTER_IP, X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_r8  = { "R8",  REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_r9  = { "R9",  REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_r10 = { "R10", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_r11 = { "R11", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_r12 = { "R12", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_r13 = { "R13", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_r14 = { "R14", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
+register_info_t pc_ri_r15 = { "R15", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_qword, nullptr, 0 };
 #endif
-register_info_t r_eax   = { "EAX",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_dword,  nullptr, 0 };
-register_info_t r_ebx   = { "EBX",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_dword,  nullptr, 0 };
-register_info_t r_ecx   = { "ECX",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_dword,  nullptr, 0 };
-register_info_t r_edx   = { "EDX",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_dword,  nullptr, 0 };
-register_info_t r_esi   = { "ESI",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_dword,  nullptr, 0 };
-register_info_t r_edi   = { "EDI",    REGISTER_ADDRESS,             X86_RC_GENERAL,  dt_dword,  nullptr, 0 };
-register_info_t r_ebp   = { "EBP",    REGISTER_ADDRESS|REGISTER_FP, X86_RC_GENERAL,  dt_dword,  nullptr, 0 };
-register_info_t r_esp   = { "ESP",    REGISTER_ADDRESS|REGISTER_SP, X86_RC_GENERAL,  dt_dword,  nullptr, 0 };
-register_info_t r_eip   = { "EIP",    REGISTER_ADDRESS|REGISTER_IP, X86_RC_GENERAL,  dt_dword,  nullptr, 0 };
+register_info_t pc_ri_eax = { "EAX", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_dword, nullptr, 0 };
+register_info_t pc_ri_ebx = { "EBX", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_dword, nullptr, 0 };
+register_info_t pc_ri_ecx = { "ECX", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_dword, nullptr, 0 };
+register_info_t pc_ri_edx = { "EDX", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_dword, nullptr, 0 };
+register_info_t pc_ri_esi = { "ESI", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_dword, nullptr, 0 };
+register_info_t pc_ri_edi = { "EDI", REGISTER_ADDRESS,             X86_RC_GENERAL, dt_dword, nullptr, 0 };
+register_info_t pc_ri_ebp = { "EBP", REGISTER_ADDRESS|REGISTER_FP, X86_RC_GENERAL, dt_dword, nullptr, 0 };
+register_info_t pc_ri_esp = { "ESP", REGISTER_ADDRESS|REGISTER_SP, X86_RC_GENERAL, dt_dword, nullptr, 0 };
+register_info_t pc_ri_eip = { "EIP", REGISTER_ADDRESS|REGISTER_IP, X86_RC_GENERAL, dt_dword, nullptr, 0 };
 
+register_info_t pc_ri_efl = { "EFL", 0, X86_RC_GENERAL, dt_dword, eflags, 0x00000FD5 }; // OF|DF|IF|TF|SF|ZF|AF|PF|CF
+
+// FPU registers X86_RC_FPU
+register_info_t pc_ri_st[] =
+{
+  { "ST0", 0, X86_RC_FPU, dt_tbyte, nullptr, 0 },
+  { "ST1", 0, X86_RC_FPU, dt_tbyte, nullptr, 0 },
+  { "ST2", 0, X86_RC_FPU, dt_tbyte, nullptr, 0 },
+  { "ST3", 0, X86_RC_FPU, dt_tbyte, nullptr, 0 },
+  { "ST4", 0, X86_RC_FPU, dt_tbyte, nullptr, 0 },
+  { "ST5", 0, X86_RC_FPU, dt_tbyte, nullptr, 0 },
+  { "ST6", 0, X86_RC_FPU, dt_tbyte, nullptr, 0 },
+  { "ST7", 0, X86_RC_FPU, dt_tbyte, nullptr, 0 },
+};
+register_info_t pc_ri_ctrl = { "CTRL", 0, X86_RC_FPU, dt_word, ctrlflags, 0x1F3F };
+register_info_t pc_ri_stat = { "STAT", 0, X86_RC_FPU, dt_word, statflags, 0xFFFF };
+register_info_t pc_ri_tags = { "TAGS", 0, X86_RC_FPU, dt_word, tagsflags, 0xFFFF };
+
+// Segment registers X86_RC_SEGMENTS
+register_info_t pc_ri_cs = { "CS", REGISTER_CS|REGISTER_NOLF, X86_RC_SEGMENTS, dt_word, nullptr, 0 };
+register_info_t pc_ri_ds = { "DS", REGISTER_NOLF,             X86_RC_SEGMENTS, dt_word, nullptr, 0 };
+register_info_t pc_ri_es = { "ES", 0,                         X86_RC_SEGMENTS, dt_word, nullptr, 0 };
+register_info_t pc_ri_fs = { "FS", REGISTER_NOLF,             X86_RC_SEGMENTS, dt_word, nullptr, 0 };
+register_info_t pc_ri_gs = { "GS", REGISTER_NOLF,             X86_RC_SEGMENTS, dt_word, nullptr, 0 };
+register_info_t pc_ri_ss = { "SS", REGISTER_SS,               X86_RC_SEGMENTS, dt_word, nullptr, 0 };
+
+// XMM registers X86_RC_XMM
+register_info_t pc_ri_xmm[] =
+{
+  { "XMM0",  REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM1",  REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM2",  REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM3",  REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM4",  REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM5",  REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM6",  REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM7",  REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM8",  REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM9",  REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM10", REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM11", REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM12", REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM13", REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM14", REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+  { "XMM15", REGISTER_CUSTFMT, X86_RC_XMM, dt_byte16, xmm_format, 0 },
+};
+register_info_t pc_ri_mxcsr = { "MXCSR", 0, X86_RC_XMM, dt_dword, mxcsr_bits, 0xFFFF };
+
+// MMX registers X86_RC_MMX
+register_info_t pc_ri_mm[] =
+{
+  { "MM0", REGISTER_CUSTFMT, X86_RC_MMX, dt_qword, mmx_format, 0 },
+  { "MM1", REGISTER_CUSTFMT, X86_RC_MMX, dt_qword, mmx_format, 0 },
+  { "MM2", REGISTER_CUSTFMT, X86_RC_MMX, dt_qword, mmx_format, 0 },
+  { "MM3", REGISTER_CUSTFMT, X86_RC_MMX, dt_qword, mmx_format, 0 },
+  { "MM4", REGISTER_CUSTFMT, X86_RC_MMX, dt_qword, mmx_format, 0 },
+  { "MM5", REGISTER_CUSTFMT, X86_RC_MMX, dt_qword, mmx_format, 0 },
+  { "MM6", REGISTER_CUSTFMT, X86_RC_MMX, dt_qword, mmx_format, 0 },
+  { "MM7", REGISTER_CUSTFMT, X86_RC_MMX, dt_qword, mmx_format, 0 },
+};
+
+// YMM registers X86_RC_YMM
+register_info_t pc_ri_ymm[] =
+{
+  { "YMM0",  REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM1",  REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM2",  REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM3",  REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM4",  REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM5",  REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM6",  REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM7",  REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM8",  REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM9",  REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM10", REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM11", REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM12", REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM13", REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM14", REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+  { "YMM15", REGISTER_CUSTFMT, X86_RC_YMM, dt_byte32, ymm_format, 0 },
+};
+
+//============================================================
+// OBSOLETE
+//============================================================
 //-------------------------------------------------------------------------
 // NOTE: keep in sync with register_x86_t
 // this register set is used if binary bitness is the same as IDA bitness
@@ -218,6 +303,7 @@ register_info_t x86_registers[] =
   { "CTRL",   0,                            X86_RC_FPU,      dt_word,   ctrlflags,  0x1F3F },
   { "STAT",   0,                            X86_RC_FPU,      dt_word,   statflags,  0xFFFF },
   { "TAGS",   0,                            X86_RC_FPU,      dt_word,   tagsflags,  0xFFFF },
+
   // Segment registers
   { "CS",     REGISTER_CS|REGISTER_NOLF,    X86_RC_SEGMENTS, dt_word,   nullptr,    0 },
   { "DS",     REGISTER_NOLF,                X86_RC_SEGMENTS, dt_word,   nullptr,    0 },
@@ -227,33 +313,33 @@ register_info_t x86_registers[] =
   { "SS",     REGISTER_SS,                  X86_RC_SEGMENTS, dt_word,   nullptr,    0 },
   // General registers
 #ifdef __EA64__
-  r_rax,
-  r_rbx,
-  r_rcx,
-  r_rdx,
-  r_rsi,
-  r_rdi,
-  r_rbp,
-  r_rsp,
-  r_rip,
-  r_r8,
-  r_r9,
-  r_r10,
-  r_r11,
-  r_r12,
-  r_r13,
-  r_r14,
-  r_r15,
+  pc_ri_rax,
+  pc_ri_rbx,
+  pc_ri_rcx,
+  pc_ri_rdx,
+  pc_ri_rsi,
+  pc_ri_rdi,
+  pc_ri_rbp,
+  pc_ri_rsp,
+  pc_ri_rip,
+  pc_ri_r8,
+  pc_ri_r9,
+  pc_ri_r10,
+  pc_ri_r11,
+  pc_ri_r12,
+  pc_ri_r13,
+  pc_ri_r14,
+  pc_ri_r15,
 #else
-  r_eax,
-  r_ebx,
-  r_ecx,
-  r_edx,
-  r_esi,
-  r_edi,
-  r_ebp,
-  r_esp,
-  r_eip,
+  pc_ri_eax,
+  pc_ri_ebx,
+  pc_ri_ecx,
+  pc_ri_edx,
+  pc_ri_esi,
+  pc_ri_edi,
+  pc_ri_ebp,
+  pc_ri_esp,
+  pc_ri_eip,
 #endif
   { "EFL",    0,                            X86_RC_GENERAL,  dt_dword,  eflags,     0x00000FD5 }, // OF|DF|IF|TF|SF|ZF|AF|PF|CF
   // XMM registers
@@ -333,15 +419,15 @@ register_info_t x86_x86_registers[] =
   { "GS",     REGISTER_NOLF,                X86_RC_SEGMENTS, dt_word,   nullptr,    0 },
   { "SS",     REGISTER_SS,                  X86_RC_SEGMENTS, dt_word,   nullptr,    0 },
   // General registers
-  r_eax,
-  r_ebx,
-  r_ecx,
-  r_edx,
-  r_esi,
-  r_edi,
-  r_ebp,
-  r_esp,
-  r_eip,
+  pc_ri_eax,
+  pc_ri_ebx,
+  pc_ri_ecx,
+  pc_ri_edx,
+  pc_ri_esi,
+  pc_ri_edi,
+  pc_ri_ebp,
+  pc_ri_esp,
+  pc_ri_eip,
   { "EFL",    0,                            X86_RC_GENERAL,  dt_dword,  eflags,     0x00000FD5 }, // OF|DF|IF|TF|SF|ZF|AF|PF|CF
   // XMM registers
   { "XMM0",   REGISTER_CUSTFMT,             X86_RC_XMM,      dt_byte16, xmm_format, 0 },
@@ -374,47 +460,3 @@ register_info_t x86_x86_registers[] =
 };
 CASSERT(qnumber(x86_x86_registers) == X86_X86_NREGS);
 #endif
-
-//-------------------------------------------------------------------------
-static const register_info_t *x86regs_by_bitness(size_t *count, bool is64)
-{
-  const register_info_t *regs = x86_registers;
-  *count = qnumber(x86_registers);
-#ifdef __EA64__
-  if ( !is64 )
-  {
-    regs = x86_x86_registers;
-    *count = qnumber(x86_x86_registers);
-  }
-#else
-  qnotused(is64);
-#endif
-  return regs;
-}
-
-//-------------------------------------------------------------------------
-int x86_get_regidx(int *clsmask, const char *regname, bool is64)
-{
-  size_t count;
-  const register_info_t *regs = x86regs_by_bitness(&count, is64);
-  for ( size_t i = 0; i < count; i++ )
-  {
-    if ( strieq(regname, regs[i].name) )
-    {
-      if ( clsmask != nullptr )
-        *clsmask = regs[i].register_class;
-      return i;
-    }
-  }
-  return -1;
-}
-
-//-------------------------------------------------------------------------
-int x86_get_regclass(int idx, bool is64)
-{
-  size_t count;
-  const register_info_t *regs = x86regs_by_bitness(&count, is64);
-  if ( idx >= 0 && idx < count )
-    return regs[idx].register_class;
-  return 0;
-}

@@ -56,7 +56,13 @@
 %ignore idd_opinfo_t;
 %ignore gdecode_t;
 %ignore memory_buffer_t;
+
 %ignore debug_event_t::exit_code();
+%ignore debug_event_t::bpt() const;
+%ignore debug_event_t::exc() const;
+%ignore debug_event_t::info() const;
+%ignore debug_event_t::modinfo() const;
+
 %ignore append_regval;
 %ignore extract_regvals;
 %ignore unpack_regvals;

@@ -4,18 +4,18 @@ summary: get information about the "innermost" member of a structure
 description:
     Assuming the 2 following types:
 
-    struct b
-    {
-        int low;
-        int high;
-    };
+            struct b
+            {
+                int low;
+                int high;
+            };
 
-    struct a
-    {
-        int foo;
-        b b_instance;
-        int bar;
-    };
+            struct a
+            {
+                int foo;
+                b b_instance;
+                int bar;
+            };
 
     looking at an offset of 5 bytes inside an `a` instance, might be
     interpreted as pointing somewhere inside member `b_instance`, of type `b`.

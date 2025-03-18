@@ -97,7 +97,7 @@ struct iohandler_t
 
   // Option: function to handle entry points
   // Default: create an entry point
-  //-V:entry_processing:669
+
   virtual bool entry_processing(ea_t &, const char * /*word*/, const char * /*cmt*/) { return false; }
 
   // Option: function to handle areas

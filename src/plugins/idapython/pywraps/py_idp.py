@@ -423,6 +423,14 @@ class __ph(object):
     tbyte_size = property(lambda self: ph_get_tbyte_size())
     version = property(lambda self: ph_get_version())
 
+def str2sreg(name: str):
+    """get segment register number from its name or -1"""
+    rn = ph_get_regnames()
+    for i in range(ph_get_reg_first_sreg(), ph_get_reg_last_sreg()+1):
+        if name.lower()==rn[i].lower():
+            return i
+    return -1
+
 ph = __ph()
 
 #</pycode(py_idp)>

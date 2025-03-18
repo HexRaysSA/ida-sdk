@@ -119,6 +119,8 @@ extern plugin_t PLUGIN;
 #define CASSERT(type)
 
 %pythoncode {
+from typing import Tuple, List, Union
+
 import ida_idaapi
 }
 
@@ -307,9 +309,6 @@ class QLIST_TYPE##_iterator {};
 
 // Enable C/C++ type annotations in function prototypes
 %feature("python:annotations", "c");
-
-// Enable automatic docstring generation
-%feature(autodoc,2);
 
 %{
 /* strnlen() arrived on OSX at v10.7. Provide it ourselves if needed. */
@@ -1386,12 +1385,12 @@ struct dynamic_wrapped_array_t {
   if ( result > -1 )
   {
     PyObject *py_udm = SWIG_NewPointerObj(new udm_t(*($1)), $1_descriptor, SWIG_POINTER_OWN | 0);
-    $result = SWIG_Python_AppendOutput($result, py_udm);
+    $result = SWIG_Python_AppendOutput($result, py_udm, /*is_void=*/ 1);
   }
   else
   {
     Py_INCREF(Py_None);
-    $result = SWIG_Python_AppendOutput($result, Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None, /*is_void=*/ 1);
   }
 }
 %typemap(freearg) udm_t *out
@@ -1414,12 +1413,12 @@ struct dynamic_wrapped_array_t {
   if ( result > -1 )
   {
     PyObject *py_edm = SWIG_NewPointerObj(new edm_t(*($1)), $1_descriptor, SWIG_POINTER_OWN | 0);
-    $result = SWIG_Python_AppendOutput($result, py_edm);
+    $result = SWIG_Python_AppendOutput($result, py_edm, /*is_void=*/ 1);
   }
   else
   {
     Py_INCREF(Py_None);
-    $result = SWIG_Python_AppendOutput($result, Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None, /*is_void=*/ 1);
   }
 }
 %typemap(freearg) edm_t *out
@@ -1599,9 +1598,9 @@ SWIGINTERN PyObject *qstrvec2pylist(const qstrvec_t &vec, int flags=0)
 {
   // %typemap(argout) ea_t *appended_ea
 #ifdef __EA64__
-  $result = SWIG_Python_AppendOutput($result, PyLong_FromUnsignedLongLong(*($1)));
+  $result = SWIG_Python_AppendOutput($result, PyLong_FromUnsignedLongLong(*($1)), /*is_void=*/ 1);
 #else
-  $result = SWIG_Python_AppendOutput($result, PyLong_FromUnsignedLong(*($1)));
+  $result = SWIG_Python_AppendOutput($result, PyLong_FromUnsignedLong(*($1)), /*is_void=*/ 1);
 #endif
 }
 
@@ -1692,12 +1691,12 @@ SWIGINTERN PyObject *qstrvec2pylist(const qstrvec_t &vec, int flags=0)
   if ( result )
   {
     PyObject *py_opinfo = SWIG_NewPointerObj(SWIG_as_voidptr(new opinfo_t(*($1))), SWIGTYPE_p_opinfo_t, SWIG_POINTER_NEW );
-    $result = SWIG_Python_AppendOutput($result, py_opinfo);
+    $result = SWIG_Python_AppendOutput($result, py_opinfo, /*is_void=*/ 1);
   }
   else
   {
     Py_INCREF(Py_None);
-    $result = SWIG_Python_AppendOutput($result, Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None, /*is_void=*/ 1);
   }
 }
 %typemap(freearg) opinfo_t *out_mt

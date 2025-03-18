@@ -1,16 +1,12 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
 
 #ifndef _PRODIR_H
 #define _PRODIR_H
-
-//-V:qffblk_t:730 not all members of a class are initialized inside the constructor
-//-V:qffblk64_t:730
-
 
 /*! \file prodir.h
 

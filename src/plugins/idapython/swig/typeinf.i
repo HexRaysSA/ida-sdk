@@ -46,6 +46,8 @@
 %ignore get_argloc_info;
 %ignore argloc_t::dstr;
 %ignore argloc_t::consume_scattered(scattered_aloc_t *p);
+%ignore argloc_t::scattered() const;
+%ignore argloc_t::get_rrel() const;
 %ignore argpart_t::copy_from;
 
 %ignore get_idainfo_by_type(size_t *,flags64_t *,opinfo_t *,tinfo_t const &);
@@ -397,12 +399,12 @@ def __init__(self, *args, ordinal=None, name=None, tid=None, til=None):
   if ( result > -1 )
   {
     PyObject *py_edm = SWIG_NewPointerObj(new out_edm_t(*($1)), $1_descriptor, SWIG_POINTER_OWN | 0);
-    $result = SWIG_Python_AppendOutput($result, py_edm);
+    $result = SWIG_Python_AppendOutput($result, py_edm, /*is_void=*/ 1);
   }
   else
   {
     Py_INCREF(Py_None);
-    $result = SWIG_Python_AppendOutput($result, Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None, /*is_void=*/ 1);
   }
 }
 %typemap(freearg) out_edm_t *out_edm

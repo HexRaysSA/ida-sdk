@@ -56,7 +56,7 @@
 %include "lines.hpp"
 
 %pywraps_nonnul_argument_prototype(
-        PyObject *py_tag_remove(const char *nonnul_instr),
+        qstring py_tag_remove(const char *nonnul_instr),
         const char *nonnul_instr);
 
 %inline %{

@@ -143,6 +143,7 @@ enum base_packet_id_t
 #define RPC_GET_IMAGE_UUID            45
 #define RPC_GET_SEGM_START            46
 #define RPC_BIN_SEARCH                47
+#define RPC_GET_DYNREGS               48
 
 // server->client codes
 #define RPC_SET_DEBUG_NAMES           50
@@ -187,6 +188,7 @@ enum rpc_notification_type_t
   DEFINE_ONE_NOTIFICATION_FUNCTION(derror,  -1, RpcEngineInst)
 
 class rpc_engine_t;
+class recording_rpc_engine_t;
 
 //-------------------------------------------------------------------------
 AS_PRINTF(2, 0) ssize_t dvnotif_client(
@@ -234,6 +236,23 @@ struct host_port_t
     host.swap(r.host);
     qswap(port, r.port);
   }
+
+  qstring connstr(int default_port=0) const
+  {
+    qstring s;
+    if ( port != 0 && port != default_port )
+    {
+      if ( host[0] != '[' && host.find(':') != qstring::npos )
+        s.sprnt("[%s]:%u", host.c_str(), port); // IPv6 address
+      else
+        s.sprnt("%s:%u", host.c_str(), port);
+    }
+    else
+    {
+      s = host;
+    }
+    return s;
+  }
 };
 DECLARE_TYPE_AS_MOVABLE(host_port_t);
 
@@ -250,8 +269,15 @@ struct endpoint_credentials_t : public host_port_t
   endpoint_credentials_t(const qstring &_host, ushort _port)
     : host_port_t(_host, _port) {}
 
-  void clear() { this->host_port_t::clear(); username.clear(); password_override.clear(); }
+  //-------------------------------------------------------------------------
+  void clear()
+  {
+    host_port_t::clear();
+    username.clear();
+    password_override.clear();
+  }
 
+  //-------------------------------------------------------------------------
   // Accepts the following schemes:
   //  `hostname:port`
   //  `user@hostname:port`
@@ -270,8 +296,9 @@ struct endpoint_credentials_t : public host_port_t
     s.split(&parts, "@");
     if ( parts.size() > 2 )
       return false;
+    int addr_idx = 0;
     if ( parts.size() == 2 )
-    {
+    { // the username is present
       const qstring &p0 = parts[0];
       if ( p0.empty() )
         return false;
@@ -282,23 +309,51 @@ struct endpoint_credentials_t : public host_port_t
       out->username.swap(identity_parts[0]);
       if ( identity_parts.size() == 2 )
         out->password_override.swap(identity_parts[1]);
-      parts.erase(parts.begin());
+      addr_idx = 1;
     }
-    size_t idx = parts[0].find(':');
-    if ( idx == qstring::npos )
+    qstring host;
+    qstring &addr = parts[addr_idx];
+    const char *ptr = addr.c_str();
+    const char *colon = nullptr;
+    if ( ptr[0] == '[' ) // IPv6 address?
     {
-      out->host.swap(parts[0]);
+      const char *br = strchr(ptr, ']');
+      if ( br == nullptr || br == ptr+1 )
+        return false;
+      host = qstring(ptr+1, br-ptr-1);
+      addr.remove(0, br-ptr);
+      ptr = addr.c_str();
+      if ( ptr[0] == ':' )
+        colon = ptr;
     }
     else
     {
-      out->host = parts[0].substr(0, idx);
-      out->port = atol(parts[0].substr(idx+1).c_str());
+      if ( strnieq(ptr, "::ffff:", 7)    // IPv6 prefix for IPv4 addresses
+        && strchr(ptr, '.') != nullptr ) // old style IPv4 address seems to follow
+      {
+        ptr += 7; // skip the prefix
+      }
+      colon = strchr(ptr, ':');
     }
+    if ( colon != nullptr )
+    {
+      char *end;
+      int port = strtoul(++colon, &end, 10);
+      if ( colon == end )
+        return false;
+      while ( *end == ' ' )
+        ++end;
+      if ( *end != '\0' )
+        return false;
+      addr.resize(colon - ptr - 1);
+      out->port = port;
+    }
+    out->host.swap(host.empty() ? addr : host);
     return true;
   }
-  bool parse_connstr(
-        const qstring &s,
-        uint32 flags=0)
+
+  //-------------------------------------------------------------------------
+  bool parse_connstr(const qstring &s, uint32 flags=0)
   {
     return parse_connstr(this, s, flags);
   }
@@ -309,7 +364,7 @@ struct endpoint_credentials_t : public host_port_t
         qstring *out,
         uint32 flags=0) const
   {
-    if ( host.empty() || port == 0 )
+    if ( host.empty() )
       return;
 
     qstring buf;
@@ -323,7 +378,7 @@ struct endpoint_credentials_t : public host_port_t
     }
     if ( !buf.empty() )
       buf.append('@');
-    buf.cat_sprnt("%s:%d", host.c_str(), port);
+    buf.append(connstr());
     out->swap(buf);
   }
   qstring build_connstr(uint32 flags=0) const
@@ -336,11 +391,72 @@ struct endpoint_credentials_t : public host_port_t
 DECLARE_TYPE_AS_MOVABLE(endpoint_credentials_t);
 
 //-------------------------------------------------------------------------
+typedef bool irs_cancel_connect_cb_t(void *);
+
+enum progress_loop_ctrl_t
+{
+  plc_proceed,
+  plc_skip_iter,
+  plc_cancel,
+};
+typedef progress_loop_ctrl_t irs_progress_cb_t(bool receiving, size_t processed, size_t total, void *);
+void irs_set_progress_cb(idarpc_stream_t *irs, int ms, irs_progress_cb_t cb, void *ud=nullptr);
+struct irs_cancellable_op_t
+{
+  idarpc_stream_t *irs;
+  irs_cancellable_op_t(idarpc_stream_t *_irs, bool receiving, size_t goal=0);
+  ~irs_cancellable_op_t();
+  void inc_progress(size_t progress);
+};
+
+//-------------------------------------------------------------------------
+template <typename T>
+struct irs_cb_info_t
+{
+  T *cb;
+  void *ud;
+  int ms;
+
+  irs_cb_info_t() { reset(); }
+  void reset()
+  {
+    cb = nullptr;
+    ud = nullptr;
+    ms = -1;
+  }
+
+  bool set(int _ms, T *_cb, void *_ud)
+  {
+    reset();
+    if ( _cb != nullptr && _ms > -1 )
+    {
+      cb = _cb;
+      ud = _ud;
+      ms = _ms;
+    }
+    return cb != nullptr;
+  }
+
+  T *get(int *out_ms=nullptr, void **out_ud=nullptr) const
+  {
+    if ( out_ms != nullptr )
+      *out_ms = ms;
+    if ( out_ud != nullptr )
+      *out_ud = ud;
+    return cb;
+  }
+};
+
+using progress_cb_info_t = irs_cb_info_t<irs_progress_cb_t>;
+using cancel_connect_cb_info_t = irs_cb_info_t<irs_cancel_connect_cb_t>;
+
+//-------------------------------------------------------------------------
 struct irs_client_opts_t
 {
   size_t cb = sizeof(*this);
   endpoint_credentials_t server;
   endpoint_credentials_t proxy;
+  cancel_connect_cb_info_t cancel_connect_cb_info;
 
   irs_client_opts_t() {}
   irs_client_opts_t(const qstring &_host, int _port)
@@ -384,22 +500,6 @@ ssize_t irs_recv_data(
         int timeout_ms = -1);
 bool irs_recv_str(idarpc_stream_t *irs, qstring *out, int timeout_ms = -1);
 bool irs_send_str(idarpc_stream_t *irs, const qstring &str);
-
-enum progress_loop_ctrl_t
-{
-  plc_proceed,
-  plc_skip_iter,
-  plc_cancel,
-};
-typedef progress_loop_ctrl_t irs_progress_cb_t(bool receiving, size_t processed, size_t total, void *);
-void irs_set_progress_cb(idarpc_stream_t *irs, int ms, irs_progress_cb_t cb, void *ud=nullptr);
-struct irs_cancellable_op_t
-{
-  idarpc_stream_t *irs;
-  irs_cancellable_op_t(idarpc_stream_t *_irs, bool receiving, size_t goal=0);
-  ~irs_cancellable_op_t();
-  void inc_progress(size_t progress);
-};
 
 //-------------------------------------------------------------------------
 typedef qtime64_t utc_timestamp_t;
@@ -558,17 +658,42 @@ namespace licsrv_rpc
 }
 
 //-------------------------------------------------------------------------
+void default_check_license_activation(
+        qstring *out_matched_macaddr,
+        const licsrv_rpc::license_t &lic);
+
+//-------------------------------------------------------------------------
+void default_print_license_info(const licsrv_rpc::license_t &lic);
+
+//-------------------------------------------------------------------------
 struct license_file_visitor_t
 {
   virtual void check_license_type(
-        const license_info_t &sign,
-        const prodvec_t &prods) = 0;
-  virtual bool on_product_entry(const product_entry_t &p) = 0;
-  virtual void fill_server_info(const product_entry_t & /*p*/, const qstring & /*name*/, const qstring & /*email*/, const qstring & /*macaddr*/) {}
+        const licsrv_rpc::license_t & /*lic*/)
+  {
+  }
 
-  virtual void lic90_check_license_type(const licsrv_rpc::license_t & /*lic*/) {}
+  virtual void check_license_activation(
+        qstring *out_matched_macaddr,
+        const licsrv_rpc::license_t &lic)
+  {
+    default_check_license_activation(out_matched_macaddr, lic);
+  }
+
+  virtual void fill_server_info(
+        const product_entry_t & /*p*/,
+        const qstring & /*name*/,
+        const qstring & /*email*/,
+        const qstring & /*macaddr*/)
+  {
+  }
 
   virtual int on_parse_error(int code) { return code; }
+
+  virtual void print_license_info(const licsrv_rpc::license_t &lic) const
+  {
+    default_print_license_info(lic);
+  }
 };
 
 //-------------------------------------------------------------------------
@@ -579,12 +704,14 @@ struct server_dispatcher_t : public base_dispatcher_t
 
   qstring license_file_name;
   qstring badreqdir;   // directory holding a dump of requests that caused an INTERR or unexpected exceptions
-  qstring dumpreqdir;  // directory holding a dump of all requests (for debugging)
   FILE *log_file = nullptr;
   licmgr_logger_t *licmgr_logger = nullptr;
   bool should_recreate_schema = false;
   bool may_upgrade_schema = false;
-  bool record_conversations_by_default = false;
+#ifdef TESTABLE_BUILD
+  qstring convdir;
+  bool check_license_activation = true;
+#endif
 
   server_dispatcher_t(
         bool _multi_threaded,
@@ -592,12 +719,15 @@ struct server_dispatcher_t : public base_dispatcher_t
         const char *default_license_file_name);
   virtual ~server_dispatcher_t();
   void check_license_file(license_file_visitor_t &lv) const;
-  int read_license_file(license_file_visitor_t &lv) const;
+  const licsrv_rpc::license_t *read_license_file(license_file_visitor_t &lv) const;
   void get_license_file_contents(bytevec_t *data) const;
 
   virtual void collect_cliopts(cliopts_t *out) override;
   void apply_config();
   void setup_logging_output();
+  void maybe_start_recording(recording_rpc_engine_t *e);
+
+  void log_request(const bytevec_t &request, int interr_code=-1) const;
 };
 
 NORETURN AS_PRINTF(2, 3) void lerror(int code, const char *format, ...);
@@ -730,16 +860,18 @@ private:
 class recording_rpc_engine_t : public rpc_engine_t
 {
 #ifdef TESTABLE_BUILD
-  FILE *conv = nullptr;
+  struct
+  {
+    FILE *fp = nullptr;
+    qstring dumps_dir_path;
+    mutable uint64 packet_nr = 0;
+  } recording;
 #endif
   idarpc_stream_t *rpc_irs;
   bool our_irs; // should we terminate rpc_irs in the destructor?
   int protocol_version;
 
 protected:
-  bool start_recording();
-  void stop_recording();
-  bool is_recording() const;
   void record(
         const rpc_packet_data_t &data,
         const uchar *bytes,
@@ -748,12 +880,15 @@ protected:
   void record_input(const rpc_packet_data_t &data, const rpc_packet_t *rp) const;
   void record_output(const rpc_packet_data_t &data, const bytevec_t &bytes) const;
   // must be implemented if an instance is meant to be able to record.
-  virtual bool get_conversation_path(qstring * /*out*/) const newapi { INTERR(1581); }
+  virtual bool get_conversation_name(qstring * /*out*/) const newapi { INTERR(1581); }
   // formatter is mandatory
   virtual void format_packet_data(
         qstring *out,
         const struct rpc_packet_data_t &data,
         const char *line_prefix=nullptr) const newapi;
+  virtual void get_packet_name(
+        qstring *out,
+        const struct rpc_packet_data_t &data) const newapi;
   bool reinit_irs(qstring *errbuf, bool use_tls, const char *server_host, int port);
 
 public:
@@ -772,6 +907,11 @@ public:
     register_packet_type_descs(descs, cnt);
   }
   virtual ~recording_rpc_engine_t();
+
+  bool start_recording(const qstring &convs_dir);
+  void stop_recording();
+  bool is_recording() const;
+
   virtual rpc_packet_data_t *request_and_response(
         const rpc_packet_data_t &request) newapi;
   virtual rpc_packet_t *send_request_and_receive_reply(uchar pkt_code, bytevec_t &pkt) override;
@@ -963,7 +1103,7 @@ private:
 };
 
 //-------------------------------------------------------------------------
-#ifdef DEMO_OR_FREE
+#ifdef IDAFREE
 #  define PUBLIC_LUMINA_HOST "public-lumina.hex-rays.com"
 #  define PUBLIC_DEC_HOST "public-lumina.hex-rays.com"
 #  define PUBLIC_TLM_HOST "public-lumina.hex-rays.com"

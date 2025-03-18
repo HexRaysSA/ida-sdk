@@ -253,7 +253,7 @@ static char *ldst_short(const insn_t &insn, uint32 code, char *ptr, const char *
   switch ( insn.itype )
   {
     default:
-      INTERR(10125);    //-V796 no break
+      INTERR(10125);
     case HPPA_cldd:
     case HPPA_cldw:
     case HPPA_ldb:

@@ -7,6 +7,10 @@
 
 static int req_id = -1;
 
+//--------------------------------------------------------------------------
+// HT_DBG listener
+DECLARE_LISTENER(x86seh_dbg_listener_t, struct x86seh_chooser_t, ch);
+
 //-------------------------------------------------------------------------
 // represents data to store on x86seh_chooser_t
 struct x86seh_entry_t
@@ -38,9 +42,7 @@ public:
   x86seh_chooser_t(thid_t tid);
   virtual ~x86seh_chooser_t()
   {
-    unhook_from_notification_point(
-            HT_DBG,
-            dbg_handler, const_cast<char *>(title));
+    unhook_event_listener(HT_DBG, &dbg_listener);
   }
   ssize_t choose(uint32 addr = uint32(-1))    //lint !e1511 member hides non-virtual member
   {
@@ -68,9 +70,16 @@ public:
 
   ea_t get_stack_addr(int n) const;
 
-protected:
-  static ssize_t idaapi dbg_handler(void *ud, int notif_code, va_list va);
+  x86seh_dbg_listener_t dbg_listener = x86seh_dbg_listener_t(*this);  //lint !e958 padding of 4 bytes needed to align member on a 8 byte boundary
 };
+
+//-------------------------------------------------------------------------
+ssize_t idaapi x86seh_dbg_listener_t::on_event(ssize_t code, va_list)
+{
+  if ( code == dbg_suspend_process )
+    refresh_chooser(ch.title);
+  return 0;
+}
 
 //-------------------------------------------------------------------------
 const int x86seh_chooser_t::widths_[] =
@@ -98,9 +107,7 @@ inline x86seh_chooser_t::x86seh_chooser_t(thid_t tid_)
   CASSERT(qnumber(widths_) == qnumber(header_));
   icon = ICON;
 
-  hook_to_notification_point(
-          HT_DBG,
-          dbg_handler, const_cast<char *>(title));
+  hook_event_listener(HT_DBG, &dbg_listener, nullptr);
 }
 
 //-------------------------------------------------------------------------
@@ -216,17 +223,6 @@ ea_t x86seh_chooser_t::get_stack_addr(int n) const
 }
 
 //-------------------------------------------------------------------------
-ssize_t idaapi x86seh_chooser_t::dbg_handler(void *ud, int code, va_list)
-{
-  if ( code == dbg_suspend_process )
-  {
-    const char *ttl = static_cast<const char *>(ud);
-    refresh_chooser(ttl);
-  }
-  return 0;
-}
-
-//-------------------------------------------------------------------------
 struct stkview_ah_t : public action_handler_t
 {
   virtual int idaapi activate(action_activation_ctx_t *ctx) override
@@ -291,7 +287,7 @@ struct show_window_ah_t : public action_handler_t
           ACTION_NAME);
       }
     }
-    return ok; //-V773 The function was exited without releasing the 'ch' pointer.
+    return ok;
   } //lint !e429 Custodial pointer 'ch' has not been freed or returned
 
   virtual action_state_t idaapi update(action_update_ctx_t *) override

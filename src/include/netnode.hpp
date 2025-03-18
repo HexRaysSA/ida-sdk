@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -364,7 +364,7 @@ public:
   /// \param value   pointer to value
   /// \param length  length of value. if not specified, it will be calculated
   ///                using strlen()
-  /// \returns 1 - ok
+  /// \return 1 - ok
   bool set(const void *value, size_t length=0)
   {
     return netnode_set(*this, value, length);
@@ -582,7 +582,6 @@ public:
   ///@{
   uchar charval_idx8(uchar alt, uchar tag) const     { return netnode_charval_idx8(*this, alt, tag); }
   bool charset_idx8(uchar alt, uchar val, uchar tag) { return supset_idx8(alt, &val, sizeof(val), tag); }
-  //-V::524 equivalent functions
   bool chardel_idx8(uchar alt, uchar tag)            { return supdel_idx8(alt, tag); }
   nodeidx_t charfirst_idx8(uchar tag) const          { return supfirst_idx8(tag); }
   nodeidx_t charnext_idx8(uchar cur, uchar tag) const { return supnext_idx8(cur, tag); }

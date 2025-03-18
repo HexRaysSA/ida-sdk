@@ -210,7 +210,7 @@ void xa_t::handle_operand(insn_t &insn, const op_t &x, bool loading)
             }
             else
             { // dt_byte
-              if ( saved.itype == XA_mov //-V501 identical sub-expressions
+              if ( saved.itype == XA_mov
                 && insn.itype == XA_mov
                 && n == 1
                 && insn.Op2.type == o_reg
@@ -1001,11 +1001,12 @@ void xa_t::xa_stkvar_def(outctx_t &ctx, const udm_t *stkvar, sval_t v)
 
   char vstr[MAX_NUMBUF];
   btoa(vstr, sizeof(vstr), v);
-  ctx.out_printf(COLSTR("%-*s", SCOLOR_LOCNAME)
-                 " "
-                 COLSTR("set     %c", SCOLOR_SYMBOL)
-                 COLSTR("%s",SCOLOR_DNUM),
-                 inf_get_indent()-1, stkvar->name.c_str(), sign, vstr);
+  ctx.out_lvar(stkvar->name.c_str(), inf_get_indent()-1);
+  ctx.out_printf(" "
+                 COLSTR("set", SCOLOR_SYMBOL)
+                 "     "
+                 COLSTR("%c%s",SCOLOR_DNUM),
+                 sign, vstr);
 }
 
 //----------------------------------------------------------------------

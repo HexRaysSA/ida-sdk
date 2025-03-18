@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -150,6 +150,9 @@ struct idainfo
 #define LFLG_PACK       0x00000200      ///< pack the database?
 #define LFLG_COMPRESS   0x00000400      ///< compress the database?
 #define LFLG_KERNMODE   0x00000800      ///< is kernel mode binary?
+#define LFLG_ILP32      0x00001000      ///< 64-bit instructions with 64-bit registers,
+                                        ///< but 32-bit pointers and address space.
+                                        ///< this bit is mutually exclusive with LFLG_64BIT
 ///@}
 
 /// \defgroup IDB_ IDB pack modes
@@ -622,6 +625,8 @@ inline bool inf_set_32bit(bool _v=true) { return setinf_flag(INF_LFLAGS, LFLG_PC
 inline bool inf_is_16bit(void) { return !inf_is_32bit_or_higher(); }
 inline bool inf_is_64bit(void) { return getinf_flag(INF_LFLAGS, LFLG_64BIT); }
 inline bool inf_set_64bit(bool _v=true) { return setinf_flag(INF_LFLAGS, LFLG_64BIT, _v); }
+inline bool inf_is_ilp32() { return (getinf(INF_LFLAGS) & (LFLG_PC_FLAT|LFLG_64BIT|LFLG_ILP32)) == (LFLG_PC_FLAT|LFLG_ILP32); }
+inline bool inf_set_ilp32(bool _v=true) { return setinf_flag(INF_LFLAGS, LFLG_ILP32, _v); }
 inline bool inf_is_dll(void) { return getinf_flag(INF_LFLAGS, LFLG_IS_DLL); }
 inline bool inf_set_dll(bool _v=true) { return setinf_flag(INF_LFLAGS, LFLG_IS_DLL, _v); }
 inline bool inf_is_flat_off32(void) { return getinf_flag(INF_LFLAGS, LFLG_FLAT_OFF32); }

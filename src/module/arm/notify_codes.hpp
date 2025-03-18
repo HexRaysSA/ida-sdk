@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -64,6 +64,12 @@ namespace arm_module_t
                            //     memory_deserializer_t *buf
                            //     ea_t func_start
                            //     int flags (reserved)
+                           // Returns: 1-ok, otherwise-failed
+    ev_get_sysreg,
+                           // Get the system register name
+                           // out: qstring *name
+                           // in : const insn_t *ins
+                           //      int n       the number of the system register in INS
                            // Returns: 1-ok, otherwise-failed
   };
 
@@ -136,6 +142,11 @@ namespace arm_module_t
                      buf,
                      func_start,
                      flags) == 1;
+  }
+
+  inline bool get_sysreg(qstring *name, const insn_t &ins, int n)
+  {
+    return processor_t::notify(idp_ev(ev_get_sysreg), name, &ins, n) == 1;
   }
 }
 

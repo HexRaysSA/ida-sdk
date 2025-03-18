@@ -143,6 +143,14 @@
     return wrapped_array_t<uint16,FPVAL_NWORDS>($self->w);
   }
 
+  static fpvalue_t new_from_str(const char *p)
+  {
+    fpvalue_t v;
+    if ( v.from_str(&p) != REAL_ERROR_OK )
+      v.clear();
+    return v;
+  }
+
   fpvalue_error_t from_str(const char *p)
   {
     return p != nullptr ? $self->from_str(&p) : REAL_ERROR_BADSTR;
@@ -172,6 +180,10 @@
 
     def __setitem__(self, i, v):
         self.shorts[i] = v
+
+    def __repr__(self):
+        return f"{self.__class__.__module__}.{self.__class__.__name__}.new_from_str('{str(self)}')"
+
   }
 }
 

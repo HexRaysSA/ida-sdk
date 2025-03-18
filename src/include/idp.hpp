@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -1134,6 +1134,7 @@ struct processor_t
                                 ///<  - 8 bytes for 64-bit function
                                 ///<  - 4 bytes for 32-bit function
                                 ///<  - 2 bytes otherwise
+                                ///<
                                 ///< \param frsize   (int *) frame size (out)
                                 ///< \param pfn      (const ::func_t *), can't be nullptr
                                 ///< \retval  1  ok
@@ -1401,8 +1402,8 @@ struct processor_t
                                 ///< \param old_privrange (const ::range_t *) - old privrange interval
                                 ///< \param delta (::adiff_t)
                                 ///< \param errbuf (::qstring *) - a error message will be returned here (can be nullptr)
-                                ///< \return 0 Ok
-                                ///< \return -1 error (and message in errbuf)
+                                ///< \retval 0 Ok
+                                ///< \retval -1 error (and message in errbuf)
 
 
     ev_cvt64_supval,            ///< perform 32-64 conversion for a netnode array element
@@ -1412,9 +1413,9 @@ struct processor_t
                                 ///< \param data   (const ::uchar *)
                                 ///< \param datlen (::size_t)
                                 ///< \param errbuf (::qstring *) - a error message will be returned here (can be nullptr)
-                                ///< \return 0 nothing was done
-                                ///< \return 1 converted successfully
-                                ///< \return -1 error (and message in errbuf)
+                                ///< \retval 0 nothing was done
+                                ///< \retval 1 converted successfully
+                                ///< \retval -1 error (and message in errbuf)
 
     ev_cvt64_hashval,           ///< perform 32-64 conversion for a hash value
                                 ///< \param node   (::nodeidx_t)
@@ -1423,9 +1424,9 @@ struct processor_t
                                 ///< \param data   (const ::uchar *)
                                 ///< \param datlen (::size_t)
                                 ///< \param errbuf (::qstring *) - a error message will be returned here (can be nullptr)
-                                ///< \return 0 nothing was done
-                                ///< \return 1 converted successfully
-                                ///< \return -1 error (and message in errbuf)
+                                ///< \retval 0 nothing was done
+                                ///< \retval 1 converted successfully
+                                ///< \retval -1 error (and message in errbuf)
 
     ev_get_regfinder,           ///< Get pointer to the regfinder object.
                                 ///< This event is called by ::find_reg_value() when it detects that the
@@ -2637,9 +2638,6 @@ inline reg_finder_t *processor_t::get_regfinder()
 idaman int ida_export str2reg(const char *p);     ///< Get any register number (-1 on error)
 
 
-idaman int ida_export str2sreg(const char *p);    ///< Get the segment register number (-1 on error)
-
-
 /// If the instruction at 'ea' looks like an alignment instruction,
 /// return its length in bytes. Otherwise return 0.
 
@@ -3227,6 +3225,26 @@ namespace idb_event
                             ///< \param ea (::ea_t) the matching address
                             ///< \param name (::const char *) the matched name
                             ///< \param lib_name (::const char *) library name extracted from signature file
+
+    lt_edm_created,         ///< local type enum member has been added
+                            ///< \param enumname (::const char *)
+                            ///< \param edm      (::const edm_t *)
+
+    lt_edm_deleted,         ///< local type enum member has been deleted
+                            ///< \param enumname (::const char *)
+                            ///< \param edm_tid  (::tid_t)
+                            ///< \param edm      (::const edm_t *)
+
+    lt_edm_renamed,         ///< local type enum member has been renamed
+                            ///< \param enumname (::const char *)
+                            ///< \param edm      (::const edm_t *)
+                            ///< \param oldname  (::const char *)
+
+    lt_edm_changed,         ///< local type enum member has been changed
+                            ///< \param enumname (::const char *)
+                            ///< \param edm_tid  (::tid_t)
+                            ///< \param edmold   (::const edm_t *)
+                            ///< \param edmnew   (::const edm_t *)
   };
 }
 

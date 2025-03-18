@@ -206,7 +206,7 @@ bool read_aix_fl_hdr(fl_hdr *fh, linput_t *li)
   if ( nread < sizeof(fl_hdr_small) )
     return false;
   fl_hdr_small fh_small;
-  memcpy(&fh_small, fh, sizeof(fh_small));    //-V512 call of the 'memcpy' function will lead to underflow of the buffer
+  memcpy(&fh_small, fh, sizeof(fh_small));
   return upgrade_aix_fl_hdr(fh, &fh_small);
 }
 

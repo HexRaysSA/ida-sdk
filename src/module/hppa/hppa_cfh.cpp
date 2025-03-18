@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -119,7 +119,7 @@ static bool idaapi r11_patch_value(
     // B = a == 0 ? b : ~b;
     uint32 a = (expr >> 15) & 0x0001;
     uint32 b = (expr >> 13) & 0x0003;
-    if ( a != 0 )   //-V547 'a != 0' is always false
+    if ( a != 0 )
       b = ~b;
     uint32 c = expr & 0x1FFF;
     uint32 im16 = a | (b << 14) | (c << 1);

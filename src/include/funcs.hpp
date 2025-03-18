@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -982,7 +982,7 @@ idaman bool ida_export apply_startup_sig(ea_t ea, const char *startup);
 /// If a library function is found, then create a function and name
 /// it accordingly.
 /// \param ea  any address in the program
-/// \returns \ref LIBFUNC_
+/// \return \ref LIBFUNC_
 
 idaman int ida_export try_to_add_libfunc(ea_t ea);
 

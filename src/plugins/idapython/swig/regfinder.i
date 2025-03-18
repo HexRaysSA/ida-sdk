@@ -32,6 +32,7 @@
 %ignore reg_finder_emulate_binary_op(reg_finder_t *_this, reg_value_info_t *value, int aop, const op_t *op1, const op_t *op2, const insn_t *insn, ea_t ea, ea_t ds, reg_finder_binary_ops_adjust_fun adjust, void *ud);
 %ignore reg_finder_emulate_unary_op(reg_finder_t *_this, reg_value_info_t *value, int aop, int reg, const insn_t *insn, ea_t ea, ea_t ds);
 %ignore reg_finder_may_modify_stkvar(reg_finder_t *_this, reg_finder_op_t op, const insn_t *insn);
+%ignore reg_finder_can_resolve_mem(const reg_finder_t *_this, ea_t ea);
 %ignore reg_finder_ctr(reg_finder_t *_this);
 %ignore reg_finder_dtr(reg_finder_t *_this);
 %ignore reg_value_def_dstr(const reg_value_def_t *_this, qstring *vout, int how, const procmod_t *pm);

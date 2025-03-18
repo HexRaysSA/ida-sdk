@@ -91,7 +91,11 @@ void ext_api_t::clear()
 //-------------------------------------------------------------------------
 bool ext_api_t::load(qstring *errbuf)
 {
-  QASSERT(30603, lib_path.empty() && lib_handle == nullptr);
+  if ( !lib_path.empty() && lib_handle != nullptr )
+  {
+    return true;
+  }
+  // QASSERT(30603, lib_path.empty() && lib_handle == nullptr);
 
   // first, check if we have global symbols
   if ( dlsym(RTLD_DEFAULT, "Py_IsInitialized") != nullptr )

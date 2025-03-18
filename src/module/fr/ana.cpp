@@ -435,7 +435,7 @@ static void set_rel(const insn_t &insn, op_t &op, int addr, char d_typ)
     default:
       INTERR(10015);
   }
-  op.addr = insn.ip + 2 + (raddr * 2);    //-V614 uninitialized variable 'raddr'
+  op.addr = insn.ip + 2 + (raddr * 2);
 #if defined(__DEBUG__)
   msg("0x%a = 0x%a + 2 + ((signed) 0x%X) * 2)\n", op.addr, insn.ip, addr);
 #endif /* __DEBUG__ */

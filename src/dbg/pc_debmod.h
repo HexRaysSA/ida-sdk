@@ -19,17 +19,16 @@ protected:
   uint32 dr6;
   uint32 dr7;
 
-  int sr_idx;
-  int fs_idx;
-  int gs_idx;
-  int cs_idx;
-  int ds_idx;
-  int es_idx;
-  int ss_idx;
+  int sr_idx = -1;
+  int fs_idx = -1;
+  int gs_idx = -1;
+  int cs_idx = -1;
+  int ds_idx = -1;
+  int es_idx = -1;
+  int ss_idx = -1;
 
 public:
   pc_debmod_t();
-  void fix_registers();
   void cleanup_hwbpts();
   virtual bool refresh_hwbpts() newapi { return false; }
   int find_hwbpt_slot(ea_t ea, bpttype_t type) const;
@@ -47,7 +46,6 @@ public:
   virtual bool should_stop_appcall(thid_t tid, const debug_event_t *event, ea_t ea) override;
   virtual bool preprocess_appcall_cleanup(thid_t tid, call_context_t &ctx) override;
   virtual int get_regidx(const char *regname, int *clsmask) override;
-  void read_fpu_registers(regval_t *values, int clsmask, const void *fptr, size_t step) const;
 };
 
 #endif

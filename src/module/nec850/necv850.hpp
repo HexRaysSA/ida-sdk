@@ -181,6 +181,24 @@ inline bool is_ret_itype(const insn_t &insn)
       || insn.itype == NEC850_JMP && insn.Op1.is_reg(rLP);
 }
 
+//----------------------------------------------------------------------
+inline int calc_reglist_size(uval_t list12)
+{
+  return bitcount(list12) * 4;
+}
+
+//----------------------------------------------------------------------
+inline int calc_locals_size(uval_t imm5)
+{
+  return imm5 << 2;
+}
+
+//----------------------------------------------------------------------
+inline int calc_stack_delta(uval_t list12, uval_t imm5)
+{
+  return calc_reglist_size(list12) + calc_locals_size(imm5);
+}
+
 //-------------------------------------------------------------------------
 struct nec850_t;
 DECLARE_PROC_LISTENER(idb_listener_t, nec850_t);
@@ -228,8 +246,8 @@ struct nec850_t : public procmod_t
   bool build_macro(insn_t *insn, bool may_go_forward, uint32 insn_w);
   bool ld_case(insn_t *insn, const insn_t &one_more_insn);
   bool basereg_ld_case(insn_t *insn);
-  bool add_imm32_low_case(insn_t *insn, const insn_t &one_more_insn);
-  bool movhi_movea_imm32_case(insn_t *insn, const insn_t &one_more_insn);
+  bool combine_movs(insn_t *insn, const insn_t &one_more_insn, bool may_go_forward) const;
+  bool bcond_case(insn_t *insn, uint32 insn_w, const insn_t &one_more_insn) const;
   int nec850_ana(insn_t *pinsn);
 
   bool spoils(const insn_t &insn, uint16 reg) const;

@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # Texas Instruments MSP430 processor module
-# Copyright (c) 2010-2024 Hex-Rays
+# Copyright (c) 2010-2025 Hex-Rays
 #
 # This module demonstrates:
 #  - instruction decoding and printing

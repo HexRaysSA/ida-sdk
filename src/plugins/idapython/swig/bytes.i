@@ -61,12 +61,12 @@
   {
     ref_t py_list(PyW_TidVecToPyList(*($1)));
     py_list.incref();
-    $result = SWIG_Python_AppendOutput($result, py_list.o);
+    $result = SWIG_Python_AppendOutput($result, py_list.o, /*is_void=*/ 1);
   }
   else
   {
     Py_INCREF(Py_None);
-    $result = SWIG_Python_AppendOutput($result, Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None, /*is_void=*/ 1);
   }
 }
 
@@ -82,12 +82,12 @@
   {
     newref_t py_delta(PyLong_FromUnsignedLongLong(*($1)));
     py_delta.incref();
-    $result = SWIG_Python_AppendOutput($result, py_delta.o);
+    $result = SWIG_Python_AppendOutput($result, py_delta.o, /*is_void=*/ 1);
   }
   else
   {
     Py_INCREF(Py_None);
-    $result = SWIG_Python_AppendOutput($result, Py_None);
+    $result = SWIG_Python_AppendOutput($result, Py_None, /*is_void=*/ 1);
   }
 }
 

@@ -1067,7 +1067,8 @@ def gen_file(filetype, path, ea1, ea2, flags):
                 -1 if an error occurred
                 OFILE_EXE: 0-can't generate exe file, 1-ok
     """
-    fp = ida_diskio.fopenWB(path)
+    fopen = ida_diskio.fopenWB if filetype == ida_loader.OFILE_EXE else ida_diskio.fopenWT
+    fp = fopen(path)
     if fp:
         retval = ida_loader.gen_file(filetype, fp, ea1, ea2, flags)
         import ida_fpro

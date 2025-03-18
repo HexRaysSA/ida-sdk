@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      TMS320C6xx - VLIW (very long instruction word) architecture
@@ -249,7 +249,7 @@ TMS6_unpklu4,   // Unpack 16 LSB Into Two Lower 8-Bit Halfwords of Upper and Low
 TMS6_xormpy,    // Galois Field Multiply With Zero Polynomial
 TMS6_xpnd2,     // Expand Bits to Packed 16-Bit Masks
 TMS6_xpnd4,     // Expand Bits to Packed 8-Bit Masks
-
+TMS6_fphead,    // Special fake instruction to show the fetch packet header
 TMS6_last,
 
     };

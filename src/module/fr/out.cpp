@@ -78,7 +78,7 @@ void out_fr_t::out_reglist(const op_t &op)
   pm.print_comma = false;
 
   out_symbol('(');
-  if ( left )   //-V614 uninitialized variable 'left'
+  if ( left )
   {
     for ( int i = 0, bit = 128; bit != 0; bit >>= 1, i++ )
       out_reg_if_bit(regs[i], op.value, bit);

@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -18,7 +18,7 @@ struct graph_location_info_t
   double orgy;          // graph origin, y coord
   graph_location_info_t(void) : zoom(0), orgx(0), orgy(0) {}
   bool operator == (const graph_location_info_t &r) const
-    { return zoom == r.zoom && orgx == r.orgx && orgy == r.orgy; }  //-V550 An odd precise comparison: zoom == r.zoom
+    { return zoom == r.zoom && orgx == r.orgx && orgy == r.orgy; }
   bool operator != (const graph_location_info_t &r) const
     { return !(*this == r); }
   void serialize(bytevec_t *out) const;
