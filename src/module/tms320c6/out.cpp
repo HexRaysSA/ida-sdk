@@ -1,0 +1,616 @@
+/*
+ *      Interactive disassembler (IDA).
+ *      Copyright (c) 1990-98 by Ilfak Guilfanov.
+ *      ALL RIGHTS RESERVED.
+ *                              E-mail: ig@estar.msk.su
+ *                              FIDO:   2:5020/209
+ *
+ *
+ *      TMS320C6xx - VLIW (very long instruction word) architecture
+ *
+ */
+
+#include "tms6.hpp"
+
+// simple wrapper class for syntactic sugar of member functions
+// this class may have only simple member functions.
+// virtual functions and data fields are forbidden, otherwise the class
+// layout may change
+class out_tms320c6_t : public outctx_t
+{
+  out_tms320c6_t(void) = delete; // not used
+  tms6_t &pm() { return *static_cast<tms6_t *>(procmod); }
+  void handle_indent_cmts();
+public:
+  bool out_operand(const op_t &x);
+  void out_insn(void);
+  void outreg(int r) { out_register(ph.reg_names[r]); }
+  void out_pre_mode(int mode);
+  void out_post_mode(int mode);
+  void print_stg_cyc(ea_t ea, int stgcyc);
+  bool tms6_out_name_expr(const op_t &x, uval_t opval);
+};
+CASSERT(sizeof(out_tms320c6_t) == sizeof(outctx_t));
+
+DECLARE_OUT_FUNCS_WITHOUT_OUTMNEM(out_tms320c6_t)
+
+//----------------------------------------------------------------------
+static bool is_first_insn_in_exec_packet(ea_t ea)
+{
+//  if ( (ea & 0x1F) == 0 )
+//    return 1;
+  ea = prev_not_tail(ea);
+  if ( ea == BADADDR || !is_code(get_flags32(ea)) )
+    return 1;
+
+  // we can't just simply skip the fph above the insn,
+  // because there might be a compact instruction where bit0 is set
+  // example: .text:00000020 5A A3 20 02       ||      MVK     .L2    8, B4
+  if ( is_fph(ea, get_dword(ea)) )
+  {
+    // skip the fph
+    ea_t above_fph = prev_not_tail(ea);
+    if ( above_fph != BADADDR && is_code(get_flags32(above_fph)) )
+    {
+      ea_t above_fph_pos = get_fph_pos(above_fph);
+
+      // figure out if its not a compact insn in the fph
+      uint32 fph = 0;
+      if ( get_fph(&fph, above_fph_pos) && above_fph_pos == ea ) // if its the same fph
+      {
+        if ( fph_is_compact_insn(fph, get_word_pos(above_fph, false)) )
+          return !fph_has_pbit(fph, fph_layout_pos(fph, above_fph));
+
+        return (get_dword(above_fph) & BIT0) == 0;
+      }
+    }
+  }
+
+  // handles cases for parallel insns in the fph
+  uint32 fph = 0;
+  if ( get_fph(&fph, get_fph_pos(ea)) )
+  {
+    // fixes an issue where the subroutine may end
+    // .text:00000D74 000 62 01 86 01   ||      ADDKPC  .S2    __stub_ret, B3, 0
+    if ( fph_is_compact_insn(fph, get_word_pos(ea, false)) )
+      return !fph_has_pbit(fph, fph_layout_pos(fph, ea));
+  }
+
+  return (get_dword(ea) & BIT0) == 0;
+}
+
+//----------------------------------------------------------------------
+static bool prev_complex(const insn_t &insn)
+{
+  ea_t ea = prev_not_tail(insn.ea);
+  if ( ea == BADADDR || !is_code(get_flags32(ea)) )
+    return 0;
+
+  return !is_first_insn_of_exec_packet(ea, true);
+}
+
+//----------------------------------------------------------------------
+void out_tms320c6_t::out_pre_mode(int mode)
+{
+  out_symbol('*');
+  switch ( mode )
+  {
+    case 0x08:  // 1000 *--R[cst]
+    case 0x0C:  // 1100 *--Rb[Ro]
+      out_symbol('-');
+      [[fallthrough]];
+    case 0x00:  // 0000 *-R[cst]
+    case 0x04:  // 0100 *-Rb[Ro]
+      out_symbol('-');
+      break;
+    case 0x09:  // 1001 *++R[cst]
+    case 0x0D:  // 1101 *++Rb[Ro]
+      out_symbol('+');
+      out_symbol('+');
+      break;
+    case 0x01:  // 0001 *+R[cst]
+    case 0x05:  // 0101 *+Rb[Ro]
+//      out_symbol('+');
+//      break;
+    case 0x0A:  // 1010 *R--[cst]
+    case 0x0B:  // 1011 *R++[cst]
+    case 0x0E:  // 1110 *Rb--[Ro]
+    case 0x0F:  // 1111 *Rb++[Ro]
+      break;
+  }
+}
+
+//----------------------------------------------------------------------
+void out_tms320c6_t::out_post_mode(int mode)
+{
+  switch ( mode )
+  {
+    case 0x08:  // 1000 *--R[cst]
+    case 0x0C:  // 1100 *--Rb[Ro]
+    case 0x00:  // 0000 *-R[cst]
+    case 0x04:  // 0100 *-Rb[Ro]
+    case 0x09:  // 1001 *++R[cst]
+    case 0x0D:  // 1101 *++Rb[Ro]
+    case 0x01:  // 0001 *+R[cst]
+    case 0x05:  // 0101 *+Rb[Ro]
+      break;
+    case 0x0A:  // 1010 *R--[cst]
+    case 0x0E:  // 1110 *Rb--[Ro]
+      out_symbol('-');
+      out_symbol('-');
+      break;
+    case 0x0B:  // 1011 *R++[cst]
+    case 0x0F:  // 1111 *Rb++[Ro]
+      out_symbol('+');
+      out_symbol('+');
+  }
+}
+
+//----------------------------------------------------------------------
+struct ii_info_t
+{
+  char ii;
+  char cyc;
+};
+
+static const ii_info_t ii_info[] =
+{
+  { 1,  0 },
+  { 2,  1 },
+  { 4,  2 },
+  { 8,  3 },
+  { 14, 4 },
+};
+
+void out_tms320c6_t::print_stg_cyc(ea_t ea, int stgcyc)
+{
+  int ii = 1;
+  insn_t prev;
+  for ( int i=0; i < 14 && decode_prev_insn(&prev, ea) != BADADDR; i++ )
+  {
+    if ( prev.itype == TMS6_sploop
+      || prev.itype == TMS6_sploopd
+      || prev.itype == TMS6_sploopw )
+    {
+      ii = prev.Op1.value;
+      break;
+    }
+    ea = prev.ea;
+  }
+  for ( int i=0; i < qnumber(ii_info); i++ )
+  {
+    if ( ii_info[i].ii >= ii )
+    {
+      int cyc = ii_info[i].cyc;
+      int stg = 0;
+      int stgbits = 6 - cyc;
+      int bit = 1 << cyc;
+      for ( int j=0; j < stgbits; j++, bit<<=1 )
+      {
+        stg <<= 1;
+        if ( stgcyc & bit )
+          stg |= 1;
+      }
+      cyc = stgcyc & ((1<<cyc)-1);
+      out_long(stg, 10);
+      out_symbol(',');
+      out_long(cyc, 10);
+      break;
+    }
+  }
+}
+
+//----------------------------------------------------------------------
+bool out_tms320c6_t::tms6_out_name_expr(const op_t &x, uval_t opval)
+{
+  ea_t ea = to_ea(insn.cs, opval);
+  ea_t safe = get_start_of_exec_packet(ea);
+  adiff_t delta = ea - safe;
+  if ( !out_name_expr(x, safe, opval - delta) )
+    return false;
+  if ( delta > 0 )
+  {
+    out_symbol('+');
+    out_long(delta, 16);
+  }
+  return true;
+}
+
+//----------------------------------------------------------------------
+bool out_tms320c6_t::out_operand(const op_t &x)
+{
+  switch ( x.type )
+  {
+    case o_void:
+      return 0;
+
+    case o_reg:
+      outreg(x.reg);
+      break;
+
+    case o_regpair:
+      {
+        uint16 max = ((x.quad_regpair == 0) ? 2 : 4);
+        for ( uint16 i = 0; i != max; ++i )
+        {
+          if ( i != 0 )
+            out_symbol(':');
+
+          outreg(x.reg + (max - i) - 1);
+        }
+        break;
+      }
+    case o_imm:
+      {
+        uchar sign = insn.itype == TMS6_mvkh
+                  || insn.itype == TMS6_mvklh
+                  || (insn.itype == TMS6_mvk && is_mvk_scst16_form(insn.ea))
+                   ? 0
+                   : OOF_SIGNED;
+        out_value(x, OOFS_IFSIGN|OOFW_IMM|sign);
+        break;
+      }
+
+    case o_stgcyc:
+      print_stg_cyc(insn.ea, x.value);
+      break;
+
+    case o_near:
+      if ( !tms6_out_name_expr(x, x.addr) )
+      {
+        out_tagon(COLOR_ERROR);
+        out_btoa(x.addr, 16);
+        out_tagoff(COLOR_ERROR);
+        remember_problem(PR_NONAME, insn.ea);
+      }
+      break;
+
+    case o_phrase:
+      out_pre_mode(x.mode);
+      outreg(x.reg);
+      out_post_mode(x.mode);
+      out_symbol('[');
+      outreg(x.secreg);
+      out_symbol(']');
+      break;
+
+    case o_displ:
+      out_pre_mode(x.mode);
+      outreg(x.reg);
+      out_post_mode(x.mode);
+      if ( x.addr != 0 )
+      {
+        F = get_flags(insn.ea);
+        if ( pm().should_scale_offsets() || op_adds_xrefs(F, x.n) )
+        {
+          out_symbol('(');
+          out_value(x, OOF_ADDR|OOFS_IFSIGN|OOFW_IMM|OOF_SIGNED|OOFW_32);
+          out_symbol(')');
+        }
+        else
+        {
+          // Re-create the original instruction in a temporary.
+          op_t tmp = x;
+          tmp.addr = x.addr >> x.scale;
+          out_symbol('[');
+          out_value(tmp, OOF_ADDR|OOFS_IFSIGN|OOFW_IMM|OOF_SIGNED|OOFW_32);
+          out_symbol(']');
+        }
+      }
+      break;
+
+    case o_spmask:
+      {
+        static const char units[] = "LLSSDDMM";
+        uchar mask = x.reg;
+        bool need_comma = false;
+        for ( int i=0; i < 8; i++, mask>>=1 )
+        {
+          if ( mask & 1 )
+          {
+            if ( need_comma )
+              out_symbol(',');
+            out_tagon(COLOR_KEYWORD);
+            out_char(units[i]);
+            out_char('1'+(i&1));
+            out_tagoff(COLOR_KEYWORD);
+            need_comma = true;
+          }
+        }
+      }
+      break;
+
+    default:
+      warning("out: %a: bad optype %d", insn.ea, x.type);
+      break;
+  }
+  return 1;
+}
+
+void out_tms320c6_t::handle_indent_cmts()
+{
+  int indent = inf_get_indent() - 8;  // reserve space for conditions
+  if ( indent <= 1 )                  // too little space?
+    indent = 2;                       // pass -2, which means one space
+                                      // (-1 would mean 'use DEFAULT_INDENT')
+  flush_outbuf(-indent);              // negative value means 'print opcodes here'
+}
+
+//----------------------------------------------------------------------
+void out_tms320c6_t::out_insn(void)
+{
+  if ( insn.itype == TMS6_fphead )
+  {
+    // out_line("        ");
+    out_mnemonic();
+
+#define OUT_COMMA out_symbol(','); out_char(' ')
+
+    uint8 expansion_field = (insn.auxpref >> 14) & 0x7F;
+    out_char((expansion_field & BIT6) != 0 ? 'p' : 'n'); // PROT
+    OUT_COMMA;
+    out_char((expansion_field & BIT5) != 0 ? 'h' : 'l'); // RS
+    OUT_COMMA;
+
+    // DSZ
+    // Primary
+    bool is_dw_ndw = (expansion_field & BIT4) != 0;
+    if ( is_dw_ndw )
+      out_line("DW/NDW");
+    else
+      out_symbol('W');
+
+    OUT_COMMA;
+
+    // Secondary (bit16 and bit17)
+    switch ( (expansion_field & BIT0) | (2 * ((expansion_field & BIT2) != 0)) )
+    {
+      case 0:
+        if ( is_dw_ndw )
+          out_symbol('W');
+        else
+          out_line("BU");
+        break;
+      case 1:
+        out_symbol('B');
+        break;
+      case 2:
+        out_line(is_dw_ndw ? "NW" : "HU");
+        break;
+      case 3:
+        out_symbol('H');
+        break;
+      default:
+        break;
+    }
+
+    OUT_COMMA;
+    out_line((expansion_field & BIT1) != 0 ? "br" : "nobr"); // BR
+    OUT_COMMA;
+    out_line((expansion_field & BIT0) != 0 ? "sat" : "nosat"); // SAT
+
+    OUT_COMMA;
+
+    // Layout
+    uint8 layout_field = (insn.auxpref >> 21) & 0x7F;
+    for ( int i = 6; i >= 0; --i )
+      out_symbol(((layout_field >> i) & 1) ? '1' : '0');
+    out_symbol('b');
+#undef OUT_COMMA
+
+    handle_indent_cmts();
+    return;
+  }
+
+//
+//      Parallel instructions
+//
+  ea_t ea = insn.ea;
+  if ( insn.itype != TMS6_fphead && !is_first_insn_in_exec_packet(ea) )
+  {
+    out_symbol('|');
+    out_symbol('|');
+  }
+  else
+  {
+    if ( !has_any_name(F)
+      && (prev_complex(insn) || insn.cflags & aux_para) )
+    {
+      gen_empty_line();
+    }
+    out_char(' ');
+    out_char(' ');
+  }
+
+//
+//      Condition code
+//
+  static const char *const conds[] =
+  {
+    "     ", "     ", "[B0] ", "[!B0]",
+    "[B1] ", "[!B1]", "[B2] ", "[!B2]",
+    "[A1] ", "[!A1]", "[A2] ", "[!A2]",
+    "[A0] ", "[!A0]", "     ", "     "
+  };
+  out_keyword(conds[insn.cond]);
+  out_char(' ');
+
+//
+//      Instruction name
+//
+  out_mnemonic();
+
+//
+//      Functional unit
+//
+  static const char *const units[] =
+  {
+    nullptr,
+    ".L1", ".L2",
+    ".S1", ".S2",
+    ".M1", ".M2",
+    ".D1", ".D2",
+  };
+  if ( insn.funit != FU_NONE )
+    out_keyword(units[uchar(insn.funit)]);
+  else
+    out_line("   ");
+  if ( insn.cflags & aux_xp )
+    out_keyword("X");
+  else
+    out_char(' ');
+  out_line("   ");
+
+//
+//      Operands
+//
+  if ( (insn.cflags & aux_src2) != 0 )
+  {
+    outreg(insn.Op1.src2);
+    out_symbol(',');
+    out_char(' ');
+  }
+
+  if ( insn.Op1.shown() )
+    out_one_operand(0);
+
+  if ( insn.Op2.type != o_void && insn.Op2.shown() )
+  {
+    out_symbol(',');
+    out_char(' ');
+    out_one_operand(1);
+  }
+
+
+  if ( insn.Op3.type != o_void && insn.Op3.shown() )
+  {
+    out_symbol(',');
+    out_char(' ');
+    out_one_operand(2);
+  }
+
+  out_immchar_cmts();
+  handle_indent_cmts();
+
+  if ( (insn.cflags & aux_para) == 0 )
+  {
+    tgtinfo_t tgt;
+    if ( tgt.restore_from_idb(pm(), ea) )
+    {
+      qstring buf = tgt.get_type_name();
+      if ( tgt.has_target() )
+      {
+        qstring name = get_colored_name(tgt.target);
+        buf.append(" ");
+        buf.append(name);
+      }
+      gen_printf(DEFAULT_INDENT,
+                 COLSTR("; %s OCCURS", SCOLOR_AUTOCMT),
+                 buf.c_str());
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+//lint -e{818} seg could be const
+void idaapi segstart(outctx_t &ctx, segment_t *seg)
+{
+  if ( is_spec_segm(seg->type) )
+    return;
+
+  qstring sname;
+  get_segm_name(&sname, seg);
+
+  if ( sname == ".bss" )
+    return;
+  if ( sname == ".text" || sname == ".data" )
+  {
+    ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s", SCOLOR_ASMDIR), sname.c_str());
+  }
+  else
+  {
+    validate_name(&sname, VNT_IDENT);
+    ctx.gen_printf(DEFAULT_INDENT, COLSTR(".sect \"%s\"", SCOLOR_ASMDIR), sname.c_str());
+  }
+}
+
+//--------------------------------------------------------------------------
+void idaapi segend(outctx_t &, segment_t *)
+{
+}
+
+//--------------------------------------------------------------------------
+void idaapi header(outctx_t &ctx)
+{
+  ctx.gen_header(GH_PRINT_ALL);
+}
+
+//--------------------------------------------------------------------------
+void tms6_t::footer(outctx_t &ctx) const
+{
+  qstring nbuf = get_colored_name(inf_get_start_ea());
+  const char *name = nbuf.c_str();
+  const char *end = ash.end;
+  if ( end == nullptr )
+    ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s end %s", SCOLOR_AUTOCMT), ash.cmnt, name);
+  else
+    ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s", SCOLOR_ASMDIR)
+                   " "
+                   COLSTR("%s %s", SCOLOR_AUTOCMT), ash.end, ash.cmnt, name);
+}
+
+//--------------------------------------------------------------------------
+void idaapi data(outctx_t &ctx, bool analyze_only)
+{
+  ea_t ea = ctx.insn_ea;
+  segment_t *s = getseg(ea);
+  if ( s != nullptr )
+  {
+    qstring sname;
+    if ( get_segm_name(&sname, s) > 0 && sname == ".bss" )
+    {
+      qstring name;
+      if ( get_colored_name(&name, ea) <= 0 )
+        name.sprnt(COLSTR("bss_dummy_name_%a", SCOLOR_UNKNAME), ea);
+      char num[MAX_NUMBUF];
+      btoa(num, sizeof(num), get_item_size(ea), get_radix(ctx.F, 0));
+      ctx.ctxflags |= CTXF_LABEL_OK;
+      ctx.gen_printf(-1,
+                     COLSTR(".bss", SCOLOR_KEYWORD)
+                     " %s, "
+                     COLSTR("%s", SCOLOR_DNUM),
+                     name.begin(),
+                     num);
+      return;
+    }
+  }
+  ctx.out_data(analyze_only);
+}
+
+//--------------------------------------------------------------------------
+//lint -e{1764} ctx could be const
+bool tms6_t::outspec(outctx_t &ctx, uchar stype) const
+{
+  ea_t ea = ctx.insn_ea;
+  qstring nbuf;
+  if ( get_colored_name(&nbuf, ea) <= 0 )
+    return false;
+  const char *name = nbuf.begin();
+  char buf[MAX_NUMBUF];
+  switch ( stype )
+  {
+    case SEG_XTRN:
+      return ctx.gen_printf(-1, COLSTR("%s %s", SCOLOR_ASMDIR), ash.a_extrn,name);
+    case SEG_ABSSYM:
+      // i don't know how to declare absolute symbols.
+      // perhaps, like this?
+      btoa(buf, sizeof(buf), get_dword(ea));
+      return ctx.gen_printf(-1, COLSTR("%s = %s", SCOLOR_ASMDIR), name, buf);
+    case SEG_COMM:
+      btoa(buf, sizeof(buf), get_dword(ea));
+      ctx.gen_printf(-1,
+                     COLSTR("%s \"%s\", %s", SCOLOR_ASMDIR),
+                     ash.a_comdef, name, buf);
+  }
+  return false;
+}

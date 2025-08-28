@@ -1,0 +1,51 @@
+{
+    "Swig_var_idati_set" : [
+        ("repl_text" , (
+            "idati = reinterpret_cast< til_t * >(argp);",
+            "// idati = reinterpret_cast< til_t * >(argp);")),
+    ],
+    "Swig_var_idati_get" : [
+        ("repl_text" , ("SWIG_as_voidptr(idati)", "SWIG_as_voidptr(/*idati*/ get_idati())")),
+    ],
+    "SwigDirector_custom_callcnv_t::~SwigDirector_custom_callcnv_t" : [("spontaneous_callback_call", None)],
+    "SwigDirector_custom_callcnv_t::validate_func" : [
+        ("spontaneous_callback_call", None),
+        ("repl_text", ("(PyObject *)obj1", "NULL"))
+    ],
+    "SwigDirector_custom_callcnv_t::calc_retloc" : [("spontaneous_callback_call", None)],
+    "SwigDirector_custom_callcnv_t::calc_arglocs" : [("spontaneous_callback_call", None)],
+    "SwigDirector_custom_callcnv_t::calc_varglocs" : [("spontaneous_callback_call", None)],
+    "SwigDirector_custom_callcnv_t::find_varargs" : [("spontaneous_callback_call", None)],
+    "SwigDirector_custom_callcnv_t::get_cc_regs" : [("spontaneous_callback_call", None)],
+    "SwigDirector_custom_callcnv_t::get_stkarg_area_info" : [("spontaneous_callback_call", None)],
+    "SwigDirector_custom_callcnv_t::calc_purged_bytes" : [("spontaneous_callback_call", None)],
+    "SwigDirector_custom_callcnv_t::decorate_name" : [("spontaneous_callback_call", None)],
+    "SwigDirector_custom_callcnv_t::lower_func_type" : [("spontaneous_callback_call", None)],
+
+    "__additional_requires_idb__" : [
+        "idc_parse_decl",
+        "py_calc_type_size",
+        "py_apply_type",
+        "py_get_arg_addrs",
+        "py_unpack_object_from_idb",
+        "py_unpack_object_from_bv",
+        "py_pack_object_to_idb",
+        "py_pack_object_to_bv",
+        "idc_parse_types",
+        "py_idc_get_type_raw",
+        "py_idc_get_local_type_raw",
+        "idc_guess_type",
+        "idc_get_type",
+        "idc_set_local_type",
+        "idc_get_local_type",
+        "idc_print_type",
+        "idc_get_local_type_name",
+        "py_get_named_type",
+        "py_get_named_type64",
+        "py_print_decls",
+        "py_load_til",
+        "py_load_til_header",
+        "py_remove_tinfo_pointer",
+        "py_get_numbered_type",
+    ],
+}
