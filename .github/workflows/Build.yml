@@ -1,0 +1,67 @@
+name: Build and Document ida-sdk
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install prerequisites (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [[ "$(uname)" == "Darwin" ]]; then
+            brew update
+            brew install cmake doxygen graphviz
+          else
+            sudo apt-get update
+            sudo apt-get install -y build-essential cmake doxygen graphviz
+          fi
+
+      - name: Install prerequisites (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install cmake doxygen graphviz -y
+          echo "${{ env.GRAPHVIZ_INSTALL_DIR }}\\bin" >> $Env:GITHUB_PATH
+
+      - name: Clone ida-cmake template
+        run: |
+          git clone https://github.com/allthingsida/ida-cmake.git ida-cmake
+
+      - name: Configure with CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. \
+            -DIDASDK=${{ github.workspace }} \
+            -DIDASDK_CMAKE_PATH=${{ github.workspace }}/ida-cmake
+
+      - name: Build (Release)
+        run: |
+          cmake --build build --config Release
+
+      - name: Generate documentation (Doxygen)
+        run: |
+          doxygen Doxyfile
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ida-sdk-build-${{ matrix.os }}
+          path: build/
+
+      - name: Upload documentation
+        uses: actions/upload-artifact@v3
+        with:
+          name: docs-${{ matrix.os }}
+          path: docs/html/
