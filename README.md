@@ -77,8 +77,8 @@ BUILD_DBGSRV=1 make
 Building Debugger Servers on Windows:
 ```cmd
 cd src\
-bin\mso.bat   :: will build win64_remote64.exe
-bin\mso32.bat :: will build win32_remote.exe
+bin\mso.bat   :: will build win64_remote.exe
+bin\m32x86so.bat :: will build win32_remote32.exe
 ```
 
 ### Run
