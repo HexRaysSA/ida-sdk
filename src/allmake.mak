@@ -824,6 +824,9 @@ module_dll=$(BIN_PATH)$(1)$(SUFF32)$(DLLEXT)
 # output name for server executable
 server_exe=$(R)dbgsrv/$(1)
 
+ifeq ($(or $(M),$(MM),$(MMH),$(MO),$(MMO),$(MMHO)),1)
+  BUILD_IDA = 1
+endif
 BUILD_DBGSRV-$(__NT__)-$(or $(MSO),$(M32X86SO)) = 1
 BUILD_DBGSRV-$(__UNIX__)-$(or $(M),$(MO),$(M32X86),$(M32X86O)) = 1
 ifdef BUILD_DBGSRV-1-1
