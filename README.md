@@ -16,7 +16,7 @@ A Software Development Kit for extending [IDA](https://hex-rays.com/ida-pro/), t
 
 The SDK is currently closed to external contributions, as it requires tight integration with our proprietary IDA Pro workflows and follows an internal roadmap with specific architectural decisions.
 
-However, feel free to report bugs or suggest features via [Issues](https://github.com/Hex-RaysSA/ida-sdk/issues).     
+However, feel free to report bugs or suggest features via [Issues](https://github.com/HexRaysSA/ida-sdk/issues).
 
 ## Requirements
 
