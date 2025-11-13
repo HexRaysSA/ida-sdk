@@ -1,0 +1,13 @@
+ida_add_plugin(idapython
+    SOURCES
+        extapi.cpp
+        extapi.hpp
+        idapyswitch.cpp
+        idapyswitch_linux.cpp
+        idapyswitch_mac.cpp
+        idapyswitch_win.cpp
+        idapython.cpp
+        pywraps.cpp
+        pywraps.hpp
+        test_pywraps.cpp
+)

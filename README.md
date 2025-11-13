@@ -102,6 +102,42 @@ bin\mso.bat   :: will build win64_remote.exe
 bin\m32x86so.bat :: will build win32_remote32.exe
 ```
 
+### Building with CMake
+
+The SDK supports CMake as an alternative build system. This requires the [ida-cmake](https://github.com/HexRaysSA/ida-cmake) build system (included as a git submodule).
+
+**Initialize submodule (first time only):**
+```shell
+git submodule update --init --recursive
+```
+
+**Basic build (all components except Qt plugins):**
+
+Linux/macOS:
+```shell
+cd src/
+cmake -B build -G Ninja
+cmake --build build
+```
+
+Windows:
+```cmd
+cd src\
+cmake -B build
+cmake --build build --config Release
+```
+
+**Build with Qt6 support** (for qproject/qwindow plugins):
+
+Requires Qt6 installation. Configure Qt6_DIR in `src/CMakePresets.json`:
+```cmd
+cd src\
+cmake --preset qt-custom
+cmake --build build-qt-cmake --config Release
+```
+
+For detailed CMake build options and troubleshooting, see [CLAUDE.md](CLAUDE.md).
+
 ### Run
 
 Depending on your build process, some binaries in `src/bin` may run out of the box. Others may need to be moved to your IDA installation directory.
