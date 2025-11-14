@@ -1,15 +1,6 @@
-find_package(Qt6 QUIET COMPONENTS Core Gui Widgets)
-
-if(NOT Qt6_FOUND)
-    message(STATUS "Qt6 not found, skipping qwindow plugin")
-    return()
-endif()
-
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
-
 ida_add_plugin(qwindow
+    TYPE QT
+    QT_COMPONENTS Core Gui Widgets
     SOURCES
         myactions.h
         qwindow.cpp
@@ -22,12 +13,7 @@ ida_add_plugin(qwindow
         QT_WIDGETS_LIB
 )
 
-target_link_libraries(qwindow PRIVATE
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Widgets
-)
-
-if(MSVC)
+# Only set compile options if target was created (Qt found)
+if(TARGET qwindow AND MSVC)
     target_compile_options(qwindow PRIVATE /GR)
 endif()

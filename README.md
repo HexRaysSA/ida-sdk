@@ -127,14 +127,35 @@ cmake -B build
 cmake --build build --config Release
 ```
 
-**Build with Qt6 support** (for qproject/qwindow plugins):
+**Build with Qt6 support (optional)** (for qproject/qwindow plugins):
 
-Requires Qt6 installation. Configure Qt6_DIR in `src/CMakePresets.json`:
+Qt plugins (qproject, qwindow) require Qt6 with QT_NAMESPACE=QT. The build system automatically builds Qt6 6.5.3 from source when requested:
+
 ```cmd
+:: Build Qt6 once (takes 1-2 hours, only needed once per build directory)
 cd src\
-cmake --preset qt-custom
-cmake --build build-qt-cmake --config Release
+cmake -B build
+cmake --build build --target build_qt
+
+:: Qt is auto-detected and plugins rebuild automatically
+cmake --build build --config Release
 ```
+
+Linux/macOS:
+```shell
+cd src/
+cmake -B build
+cmake --build build --target build_qt  # Build Qt6 from source
+cmake --build build                     # Build with Qt support
+```
+
+**How it works:**
+- Qt6 is downloaded and built in `build/qt-install/` (4GB, one-time setup)
+- Only essential modules are built (qtbase: Core, Gui, Widgets, OpenGL)
+- Cross-platform support: Windows (MSVC), Linux (GCC/Clang), macOS (Universal)
+- Qt is auto-detected on subsequent builds
+
+**Note:** All other plugins build without Qt. Qt plugins are skipped gracefully if Qt is not found.
 
 For detailed CMake build options and troubleshooting, see [CLAUDE.md](CLAUDE.md).
 

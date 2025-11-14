@@ -1,3 +1,5 @@
+CLAUDE.md
+.claude/
 # Compiled files
 *.a
 *.dll
@@ -19,6 +21,11 @@ __pycache__/
 # Build directories
 src/bin
 obj/
+build/
+build*/
+
+# Workspace
+_wks/
 
 # OS Files
 # macOS

@@ -18,6 +18,7 @@ ida_add_plugin(qproject
         QT_WIDGETS_LIB
 )
 
-if(MSVC)
+# Only set compile options if target was created (Qt found)
+if(TARGET qproject AND MSVC)
     target_compile_options(qproject PRIVATE /GR)
 endif()
