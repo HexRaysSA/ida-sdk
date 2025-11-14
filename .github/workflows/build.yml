@@ -9,6 +9,8 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      IDASDK: ${{ github.workspace }}
 
     steps:
     - name: Checkout repository
