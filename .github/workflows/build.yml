@@ -23,6 +23,15 @@ jobs:
       with:
         arch: x64
 
+    - name: Install Qt6
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.5.3'
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2019_64'
+        cache: true
+
     - name: Cache vcpkg packages
       uses: actions/cache@v4
       with:
@@ -36,21 +45,37 @@ jobs:
       working-directory: src
       run: cmake -B build -G "Visual Studio 17 2022" -A x64
 
-    - name: Build SDK (without Qt)
+    - name: Build SDK (all components)
       working-directory: src
       continue-on-error: true
-      run: cmake --build build --config Release --parallel
+      run: |
+        cmake --build build --config Release --parallel 2>&1 | Tee-Object build-output.log
 
     - name: Build Statistics
       working-directory: src
       shell: bash
       run: |
         echo "=== Build Results ==="
-        echo "Plugins: $(ls -1 bin/plugins/*.dll 2>/dev/null | wc -l)"
-        echo "Loaders: $(ls -1 bin/loaders/*.dll 2>/dev/null | wc -l)"
-        echo "Processors: $(ls -1 bin/procs/*.dll 2>/dev/null | wc -l)"
+        echo "Plugins built: $(ls -1 bin/plugins/*.dll 2>/dev/null | wc -l)"
+        echo "Loaders built: $(ls -1 bin/loaders/*.dll 2>/dev/null | wc -l)"
+        echo "Processors built: $(ls -1 bin/procs/*.dll 2>/dev/null | wc -l)"
         echo ""
-        echo "Note: Some debugger component failures are expected (runtime library mismatch)"
+        echo "=== Qt Plugin Status ==="
+        if [ -f "bin/plugins/qproject.dll" ]; then
+          echo "✅ qproject.dll built successfully"
+        else
+          echo "❌ qproject.dll failed to build"
+        fi
+        if [ -f "bin/plugins/qwindow.dll" ]; then
+          echo "✅ qwindow.dll built successfully"
+        else
+          echo "❌ qwindow.dll failed to build"
+        fi
+        echo ""
+        echo "=== Known Failures (Expected) ==="
+        echo "These components are expected to fail due to platform limitations:"
+        echo "  - Debugger components: Runtime library mismatch"
+        echo "  - PDB plugin: DIA SDK dependency not available in CI"
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -61,6 +86,14 @@ jobs:
           src/bin/loaders/*.dll
           src/bin/procs/*.dll
         retention-days: 7
+
+    - name: Upload build log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-build-log
+        path: src/build-output.log
+        retention-days: 3
 
   build-linux:
     runs-on: ubuntu-latest
@@ -76,26 +109,43 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake ninja-build
+        sudo apt-get install -y build-essential cmake ninja-build \
+          qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev
 
     - name: Configure CMake
       working-directory: src
       run: cmake -B build -G Ninja
 
-    - name: Build SDK (without Qt)
+    - name: Build SDK (all components)
       working-directory: src
       continue-on-error: true
-      run: cmake --build build --parallel
+      run: |
+        cmake --build build --parallel 2>&1 | tee build-output.log
 
     - name: Build Statistics
       working-directory: src
       run: |
         echo "=== Build Results ==="
-        echo "Plugins: $(ls -1 bin/plugins/*.so 2>/dev/null | wc -l)"
-        echo "Loaders: $(ls -1 bin/loaders/*.so 2>/dev/null | wc -l)"
-        echo "Processors: $(ls -1 bin/procs/*.so 2>/dev/null | wc -l)"
+        echo "Plugins built: $(ls -1 bin/plugins/*.so 2>/dev/null | wc -l)"
+        echo "Loaders built: $(ls -1 bin/loaders/*.so 2>/dev/null | wc -l)"
+        echo "Processors built: $(ls -1 bin/procs/*.so 2>/dev/null | wc -l)"
         echo ""
-        echo "Note: Some debugger component failures are expected"
+        echo "=== Qt Plugin Status ==="
+        if [ -f "bin/plugins/qproject.so" ]; then
+          echo "✅ qproject.so built successfully"
+        else
+          echo "❌ qproject.so failed to build"
+        fi
+        if [ -f "bin/plugins/qwindow.so" ]; then
+          echo "✅ qwindow.so built successfully"
+        else
+          echo "❌ qwindow.so failed to build"
+        fi
+        echo ""
+        echo "=== Known Failures (Expected) ==="
+        echo "These components are expected to fail on Linux:"
+        echo "  - Debugger components: Some Linux debugger variants may fail"
+        echo "  - PDB plugin: Windows-only component"
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -106,6 +156,14 @@ jobs:
           src/bin/loaders/*.so
           src/bin/procs/*.so
         retention-days: 7
+
+    - name: Upload build log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-build-log
+        path: src/build-output.log
+        retention-days: 3
 
   build-macos:
     runs-on: macos-latest
@@ -120,26 +178,45 @@ jobs:
 
     - name: Install build dependencies
       run: |
-        brew install cmake ninja
+        brew install cmake ninja qt@6
 
     - name: Configure CMake
       working-directory: src
-      run: cmake -B build -G Ninja
+      run: |
+        export Qt6_DIR="$(brew --prefix qt@6)/lib/cmake/Qt6"
+        cmake -B build -G Ninja
 
-    - name: Build SDK (without Qt)
+    - name: Build SDK (all components)
       working-directory: src
       continue-on-error: true
-      run: cmake --build build --parallel
+      run: |
+        export Qt6_DIR="$(brew --prefix qt@6)/lib/cmake/Qt6"
+        cmake --build build --parallel 2>&1 | tee build-output.log
 
     - name: Build Statistics
       working-directory: src
       run: |
         echo "=== Build Results ==="
-        echo "Plugins: $(ls -1 bin/plugins/*.dylib 2>/dev/null | wc -l)"
-        echo "Loaders: $(ls -1 bin/loaders/*.dylib 2>/dev/null | wc -l)"
-        echo "Processors: $(ls -1 bin/procs/*.dylib 2>/dev/null | wc -l)"
+        echo "Plugins built: $(ls -1 bin/plugins/*.dylib 2>/dev/null | wc -l)"
+        echo "Loaders built: $(ls -1 bin/loaders/*.dylib 2>/dev/null | wc -l)"
+        echo "Processors built: $(ls -1 bin/procs/*.dylib 2>/dev/null | wc -l)"
         echo ""
-        echo "Note: Some debugger component failures are expected"
+        echo "=== Qt Plugin Status ==="
+        if [ -f "bin/plugins/qproject.dylib" ]; then
+          echo "✅ qproject.dylib built successfully"
+        else
+          echo "❌ qproject.dylib failed to build"
+        fi
+        if [ -f "bin/plugins/qwindow.dylib" ]; then
+          echo "✅ qwindow.dylib built successfully"
+        else
+          echo "❌ qwindow.dylib failed to build"
+        fi
+        echo ""
+        echo "=== Known Failures (Expected) ==="
+        echo "These components are expected to fail on macOS:"
+        echo "  - Debugger servers: Not provided for macOS in SDK"
+        echo "  - PDB plugin: Windows-only component"
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -150,3 +227,11 @@ jobs:
           src/bin/loaders/*.dylib
           src/bin/procs/*.dylib
         retention-days: 7
+
+    - name: Upload build log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-build-log
+        path: src/build-output.log
+        retention-days: 3
