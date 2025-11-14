@@ -18,8 +18,19 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Setup MSVC
-      uses: microsoft/setup-msbuild@v2
+    - name: Setup Visual Studio Developer Environment
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Cache vcpkg packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          src/build/vcpkg_installed
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('src/vcpkg.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-
 
     - name: Configure CMake
       working-directory: src
@@ -27,7 +38,7 @@ jobs:
 
     - name: Build SDK (without Qt)
       working-directory: src
-      run: cmake --build build --config Release --parallel
+      run: cmake --build build --config Release --parallel --verbose
 
     - name: Build Statistics
       working-directory: src
