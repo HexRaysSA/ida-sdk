@@ -194,10 +194,10 @@ target_link_libraries(linux_stub PRIVATE
     ${IDA_LIB_DIR}/network${IDA_STATIC_EXT}
 )
 
-# On Windows with MSVC, override runtime library to match network.lib (/MD)
+# On Windows with MSVC, use /MD runtime to match network.lib
 if(MSVC)
     set_target_properties(linux_stub PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
     )
 endif()
 endif() # NOT APPLE
@@ -241,10 +241,10 @@ target_link_libraries(armlinux_stub PRIVATE
     ${IDA_LIB_DIR}/network${IDA_STATIC_EXT}
 )
 
-# On Windows with MSVC, override runtime library to match network.lib (/MD)
+# On Windows with MSVC, use /MD runtime to match network.lib
 if(MSVC)
     set_target_properties(armlinux_stub PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
     )
 endif()
 endif() # NOT APPLE

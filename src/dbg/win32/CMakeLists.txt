@@ -35,10 +35,10 @@ target_link_libraries(win32_stub PRIVATE
     ${IDA_LIB_DIR}/network${IDA_STATIC_EXT}
 )
 
-# On Windows with MSVC, override runtime library to match network.lib (/MD)
+# On Windows with MSVC, use /MD runtime to match network.lib
 if(MSVC)
     set_target_properties(win32_stub PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
     )
 endif()
 endif() # NOT APPLE
@@ -88,10 +88,10 @@ if(WIN32)
         user32
     )
 
-    # On Windows with MSVC, override runtime library to match network.lib (/MD)
+    # On Windows with MSVC, use /MD runtime to match network.lib
     if(MSVC)
         set_target_properties(win32_user PROPERTIES
-            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+            MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
         )
     endif()
 endif()
