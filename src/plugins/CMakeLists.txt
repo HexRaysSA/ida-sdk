@@ -73,3 +73,6 @@ add_subdirectory(vds18)
 add_subdirectory(vds19)
 add_subdirectory(vds20)
 add_subdirectory(z80dbg)
+
+# Script plugins (Python/IDC)
+add_subdirectory(script_plg)

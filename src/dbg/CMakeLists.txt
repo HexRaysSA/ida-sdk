@@ -1,4 +1,27 @@
 # ============================================================================
+# Debugger Components Build Configuration
+# ============================================================================
+#
+# IMPORTANT: Debugger components that link against network.lib can only be
+# built in Release mode because the SDK only provides Release-built libraries.
+# Debug builds would cause runtime library mismatches (MDd vs MD).
+#
+# For single-config generators (Ninja, Make): Check CMAKE_BUILD_TYPE
+# For multi-config generators (Visual Studio): All configs are generated,
+# but Debug builds will be excluded via EXCLUDE_FROM_ALL.
+#
+# ============================================================================
+
+# Detect if this is a multi-config generator (Visual Studio, Xcode, Ninja Multi-Config)
+get_property(_is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+
+# For single-config generators, skip entirely if Debug
+if(NOT _is_multi_config AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Debugger components: Skipped in Debug build (SDK libraries are Release-only)")
+    return()
+endif()
+
+# ============================================================================
 # Static Library 1: dbg_rpc (RPC communication)
 # ============================================================================
 add_library(dbg_rpc STATIC
@@ -21,7 +44,7 @@ target_compile_options(dbg_rpc PRIVATE -fno-rtti)
 # On Windows/MSVC: Use /MD runtime to match SDK libraries (network.lib)
 if(MSVC)
     set_target_properties(dbg_rpc PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
     )
 endif()
 
@@ -50,7 +73,7 @@ target_compile_options(dbg_server PRIVATE -fno-rtti)
 # On Windows/MSVC: Use /MD runtime to match SDK libraries
 if(MSVC)
     set_target_properties(dbg_server PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
     )
 endif()
 
@@ -79,7 +102,7 @@ target_compile_options(dbg_plugin PRIVATE -fno-rtti)
 # On Windows/MSVC: Use /MD runtime to match SDK libraries
 if(MSVC)
     set_target_properties(dbg_plugin PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
     )
 endif()
 
@@ -123,7 +146,7 @@ target_compile_options(dbg_proc PRIVATE -fno-rtti)
 # On Windows/MSVC: Use /MD runtime to match SDK libraries
 if(MSVC)
     set_target_properties(dbg_proc PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
     )
 endif()
 

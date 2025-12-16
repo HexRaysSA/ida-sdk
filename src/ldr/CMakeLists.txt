@@ -28,3 +28,6 @@ add_subdirectory(qnx)
 add_subdirectory(rt11)
 add_subdirectory(snes)
 add_subdirectory(w32run)
+
+# Script loaders (Python/IDC)
+add_subdirectory(script_ldrs)

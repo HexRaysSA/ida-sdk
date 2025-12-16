@@ -51,3 +51,6 @@ add_subdirectory(tms320c6)
 add_subdirectory(xa)
 add_subdirectory(z8)
 add_subdirectory(z80)
+
+# Script processor modules (Python)
+add_subdirectory(script)
