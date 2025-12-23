@@ -37,3 +37,5 @@ target_link_libraries(pdb PRIVATE ${DIA_SDK_LIBRARY})
 
 # Windows system libraries needed for DIA SDK
 target_link_libraries(pdb PRIVATE ole32 oleaut32)
+
+copy_cfg(pdb ${CMAKE_CURRENT_SOURCE_DIR}/pdb.cfg)

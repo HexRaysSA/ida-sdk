@@ -22,6 +22,28 @@ elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include/ida.hpp" OR
     endif()
 endif()
 
+# Function to copy a file to the ${IDABIN}/cfg folder if the source is newer
+function(copy_cfg TARGET SRC_FILE)
+    if(EXISTS ${SRC_FILE})
+        # Define the destination directory (same for all files)
+        set(DEST_DIR ${IDABIN}/cfg)
+
+        # Ensure the destination directory exists
+        file(MAKE_DIRECTORY ${DEST_DIR})
+        get_filename_component(FILENAME ${SRC_FILE} NAME)
+
+        # Copy the source file to the destination if it's newer, tied to the given target
+        add_custom_command(
+            TARGET ${TARGET} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${SRC_FILE}
+                ${DEST_DIR}/${FILENAME}
+            COMMENT "Copying ${SRC_FILE} to ${DEST_DIR} if newer"
+        )
+    endif()
+endfunction()
+
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/bootstrap.cmake)
 find_package(idasdk REQUIRED)
 

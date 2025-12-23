@@ -11,3 +11,4 @@ ida_add_procmod(tms32055
         ins.hpp
         tms320c55.hpp
 )
+copy_cfg(tms32055 ${CMAKE_CURRENT_SOURCE_DIR}/tms320c55.cfg)

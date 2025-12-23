@@ -11,3 +11,7 @@ ida_add_procmod(dsp56k
         dsp56k.hpp
         ins.hpp
 )
+copy_cfg(dsp56k ${CMAKE_CURRENT_SOURCE_DIR}/dsp56k.cfg)
+copy_cfg(dsp56k ${CMAKE_CURRENT_SOURCE_DIR}/dsp561xx.cfg)
+copy_cfg(dsp56k ${CMAKE_CURRENT_SOURCE_DIR}/dsp563xx.cfg)
+copy_cfg(dsp56k ${CMAKE_CURRENT_SOURCE_DIR}/dsp566xx.cfg)

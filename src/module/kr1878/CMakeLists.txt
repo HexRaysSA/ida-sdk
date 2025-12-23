@@ -11,3 +11,4 @@ ida_add_procmod(kr1878
         ins.hpp
         kr1878.hpp
 )
+copy_cfg(kr1878 ${CMAKE_CURRENT_SOURCE_DIR}/kr1878.cfg)

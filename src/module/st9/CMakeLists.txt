@@ -11,3 +11,4 @@ ida_add_procmod(st9
         ins.hpp
         st9.hpp
 )
+copy_cfg(st9 ${CMAKE_CURRENT_SOURCE_DIR}/st9.cfg)

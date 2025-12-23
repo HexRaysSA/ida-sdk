@@ -19,3 +19,4 @@ set_source_files_properties(
     hppa_cfh.cpp
     PROPERTIES HEADER_FILE_ONLY TRUE
 )
+copy_cfg(hppa ${CMAKE_CURRENT_SOURCE_DIR}/hpux.cfg)

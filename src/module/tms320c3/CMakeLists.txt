@@ -11,3 +11,4 @@ ida_add_procmod(tms320c3
         ins.hpp
         tms320c3x.hpp
 )
+copy_cfg(tms320c3 ${CMAKE_CURRENT_SOURCE_DIR}/tms320c3.cfg)

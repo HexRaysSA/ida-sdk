@@ -11,3 +11,4 @@ ida_add_procmod(78k0
         78k0.hpp
         ins.hpp
 )
+copy_cfg(78k0 ${CMAKE_CURRENT_SOURCE_DIR}/78k0.cfg)

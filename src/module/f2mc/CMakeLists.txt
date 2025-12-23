@@ -11,3 +11,5 @@ ida_add_procmod(f2mc
         f2mc.hpp
         ins.hpp
 )
+copy_cfg(f2mc ${CMAKE_CURRENT_SOURCE_DIR}/f2mc16l.cfg)
+copy_cfg(f2mc ${CMAKE_CURRENT_SOURCE_DIR}/f2mc16lx.cfg)
