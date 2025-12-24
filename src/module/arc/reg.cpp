@@ -12,6 +12,7 @@
 #include "arc.hpp"
 #include <cvt64.hpp>
 int data_id;
+#include <libfuncs.hpp> // for OSTYPE_UNIX
 
 //--------------------------------------------------------------------------
 static const char *const RegNames[] =
@@ -260,12 +261,19 @@ const char *arc_t::set_idp_options(
       "                   add     r0, r13, (dword_17C4 - 0x172C)\n"
       "\n"
       "\n"
+      " trap 0 stops code flow\n"
+      "\n"
+      "     if this option is on, trap 0 instructions are \n"
+      "     presumed to stop code flow.\n"
+      "     Turn off when it's used as a syscall (for example, in embedded Linux).\n"
+      "\n"
       "ENDHELP\n"
       "ARC specific options\n"
-      "%*\n"
+      "%*\n" // sirct
       " <~S~implify instructions:C>\n"
       " <~I~nline constant pool loads:C>\n"
-      " <Track ~r~egister accesses:C>>\n"
+      " <Track ~r~egister accesses:C>\n"
+      " <~T~rap 0 stops code flow:C>>\n"
       " <~C~hoose core variant:B:0::>\n"
       "\n";
     CASSERT(sizeof(idpflags) == sizeof(ushort));
@@ -284,9 +292,9 @@ const char *arc_t::set_idp_options(
     {
       setflag(idpflags, ARC_INLINECONST, *(int*)value != 0);
     }
-    else if ( strcmp(keyword, "ARC_TRACKREGS") == 0 )
+    else if ( strcmp(keyword, "ARC_TRAP0STOPS") == 0 )
     {
-      setflag(idpflags, ARC_TRACKREGS, *(int*)value != 0);
+      setflag(idpflags, ARC_TRAP0STOPS, *(int*)value != 0);
     }
     else
     {
@@ -503,22 +511,26 @@ ssize_t idaapi arc_t::on_event(ssize_t msgid, va_list va)
       set_codeseqs();
       if ( inf_like_binary() )
       {
+        // assume trap 0 stops flow (assert-like)
+        setflag(idpflags, ARC_TRAP0STOPS, 1);
         // ask the user
         select_device(IORESP_ALL);
       }
       else
       {
+        if ( inf_get_ostype() == OSTYPE_UNIX )
+          setflag(idpflags, ARC_TRAP0STOPS, 0); // trap 0 is syscall
         // load the default AUX regs
-        ioh.set_device_name(is_a4() ? "ARC4": "ARCompact", IORESP_NONE);
+        const char *device = is_a4() ? "ARC4": "ARCompact";
+        if ( is_arcv2() )
+          device = "ARCv2";
+        ioh.set_device_name(device, IORESP_NONE);
       }
       break;
 
     case processor_t::ev_ending_undo:
     case processor_t::ev_oldfile:
       load_from_idb();
-      break;
-
-    case processor_t::ev_creating_segm:
       break;
 
     case processor_t::ev_newprc:
@@ -652,6 +664,32 @@ ssize_t idaapi arc_t::on_event(ssize_t msgid, va_list va)
         const insn_t *insn = va_arg(va, insn_t *);
         int state = va_arg(va, int);
         return arc_may_be_func(*insn, state);
+      }
+
+    case processor_t::ev_is_sane_insn:
+                                // Is the instruction sane for the current file type?
+                                // \param insn      (const ::insn_t*) the instruction
+                                // \param no_crefs  (int)
+                                //   1: the instruction has no code refs to it.
+                                //      ida just tries to convert unexplored bytes
+                                //      to an instruction (but there is no other
+                                //      reason to convert them into an instruction)
+                                //   0: the instruction is created because
+                                //      of some coderef, user request or another
+                                //      weighty reason.
+                                // \retval >=0  ok
+                                // \retval <0   no, the instruction isn't
+                                //              likely to appear in the program
+      {
+        const insn_t *insn = va_arg(va, insn_t *);
+        /*int no_crefs =*/ va_arg(va, int);
+        ea_t ea = insn->ea;
+        // ignore all-zeroes
+        if ( (ea%4 == 2) && get_word(ea) == 0 )
+          return -1;
+        else if ( (ea%4 == 0) && get_dword(ea) == 0 )
+          return -1;
+        return 1;
       }
 
     case processor_t::ev_undefine:
@@ -823,12 +861,12 @@ ssize_t idaapi arc_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-   case processor_t::ev_calc_spdelta:
-     {
-       sval_t *spdelta = va_arg(va, sval_t *);
-       const insn_t *insn = va_arg(va, const insn_t *);
-       return arc_calc_spdelta(spdelta, *insn);
-     }
+    case processor_t::ev_calc_spdelta:
+      {
+        sval_t *spdelta = va_arg(va, sval_t *);
+        const insn_t *insn = va_arg(va, const insn_t *);
+        return arc_calc_spdelta(spdelta, *insn);
+      }
 
     case processor_t::ev_get_frame_retsize:
       {

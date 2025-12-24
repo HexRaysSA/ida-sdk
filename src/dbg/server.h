@@ -26,6 +26,8 @@
 #  include <netinet/in.h>
 #endif // !__NT__
 
+#define DBGSRV_HELO_TIMEOUT 1000
+
 enum broken_conn_hndl_t
 {
   BCH_DEFAULT,

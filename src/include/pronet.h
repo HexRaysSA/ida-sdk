@@ -34,14 +34,14 @@
 #  define SOCKLEN_T  int
 #  define SOCKBUF_T  char *
 #else
-#  define SIG_SAFE_CALL(expr)            \
-     do                                  \
-     {                                   \
-       long rc = expr;                   \
-       if ( rc != -1 || errno != EINTR ) \
-         return rc;                      \
-     }                                   \
-     while ( true )
+#  define SIG_SAFE_CALL(expr)           \
+    do                                  \
+    {                                   \
+      long rc = expr;                   \
+      if ( rc != -1 || errno != EINTR ) \
+        return rc;                      \
+    }                                   \
+    while ( true )
 #  define SOCKLEN_T  socklen_t
 #  define SOCKBUF_T  void *
 #endif

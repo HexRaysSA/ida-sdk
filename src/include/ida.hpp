@@ -33,17 +33,17 @@ struct plugmod_t;
 /// Known input file formats (kept in \inf{filetype}):
 enum filetype_t
 {
-  f_EXE_old,            ///< MS DOS EXE File
-  f_COM_old,            ///< MS DOS COM File
-  f_BIN,                ///< Binary File
-  f_DRV,                ///< MS DOS Driver
+  f_EXE_old,            ///< MS-DOS EXE file
+  f_COM_old,            ///< MS-DOS COM file
+  f_BIN,                ///< Binary file
+  f_DRV,                ///< MS-DOS Driver
   f_WIN,                ///< New Executable (NE)
-  f_HEX,                ///< Intel Hex Object File
-  f_MEX,                ///< MOS Technology Hex Object File
+  f_HEX,                ///< Intel Hex Object file
+  f_MEX,                ///< MOS Technology Hex Object file
   f_LX,                 ///< Linear Executable (LX)
   f_LE,                 ///< Linear Executable (LE)
   f_NLM,                ///< Netware Loadable Module (NLM)
-  f_COFF,               ///< Common Object File Format (COFF)
+  f_COFF,               ///< Common Object file Format (COFF)
   f_PE,                 ///< Portable Executable (PE)
   f_OMF,                ///< Object Module Format
   f_SREC,               ///< Motorola SREC (S-record)
@@ -55,15 +55,15 @@ enum filetype_t
   f_W32RUN,             ///< Watcom DOS32 Extender (W32RUN)
   f_AOUT,               ///< Linux a.out (AOUT)
   f_PRC,                ///< PalmPilot program file
-  f_EXE,                ///< MS DOS EXE File
-  f_COM,                ///< MS DOS COM File
+  f_EXE,                ///< MS-DOS EXE file
+  f_COM,                ///< MS-DOS COM file
   f_AIXAR,              ///< AIX ar library
   f_MACHO,              ///< Mac OS X Mach-O
   f_PSXOBJ,             ///< Sony Playstation PSX object file
   f_MD1IMG,             ///< Mediatek Firmware Image
 };
 
-/// Is unstructured input file?
+/// Is an unstructured input file?
 inline bool is_filetype_like_binary(filetype_t ft)
 { return ft == f_BIN || ft == f_HEX || ft == f_MEX || ft == f_SREC; }
 
@@ -134,8 +134,8 @@ struct idainfo
 #define INFFL_LOADIDC    0x04           ///< loading an idc file that contains database info
 #define INFFL_NOUSER     0x08           ///< do not store user info in the database
 #define INFFL_READONLY   0x10           ///< (internal) temporary interdiction to modify the database
-#define INFFL_CHKOPS     0x20           ///< check manual operands? (unused)
-#define INFFL_NMOPS      0x40           ///< allow non-matched operands? (unused)
+#define INFFL_CHKOPS     0x20           ///< check manual operands (unused)
+#define INFFL_NMOPS      0x40           ///< allow non-matched operands (unused)
 #define INFFL_GRAPH_VIEW 0x80           ///< currently using graph options (\dto{graph})
 ///@}
 
@@ -147,7 +147,7 @@ struct idainfo
 #define LFLG_PC_FLAT    0x00000002      ///< 32-bit program (or higher)?
 #define LFLG_64BIT      0x00000004      ///< 64-bit program?
 #define LFLG_IS_DLL     0x00000008      ///< Is dynamic library?
-#define LFLG_FLAT_OFF32 0x00000010      ///< treat ::REF_OFF32 as 32-bit offset for 16bit segments (otherwise try SEG16:OFF16)
+#define LFLG_FLAT_OFF32 0x00000010      ///< treat ::REF_OFF32 as 32-bit offset for 16-bit segments (otherwise try SEG16:OFF16)
 #define LFLG_MSF        0x00000020      ///< Byte order: is MSB first?
 #define LFLG_WIDE_HBF   0x00000040      ///< Bit order of wide bytes: high byte first?
                                         ///< (wide bytes: \ph{dnbits} > 8)
@@ -155,7 +155,7 @@ struct idainfo
 #define LFLG_SNAPSHOT   0x00000100      ///< memory snapshot was taken?
 #define LFLG_PACK       0x00000200      ///< pack the database?
 #define LFLG_COMPRESS   0x00000400      ///< compress the database?
-#define LFLG_KERNMODE   0x00000800      ///< is kernel mode binary?
+#define LFLG_KERNMODE   0x00000800      ///< is a kernel-mode binary?
 #define LFLG_ILP32      0x00001000      ///< 64-bit instructions with 64-bit registers,
                                         ///< but 32-bit pointers and address space.
                                         ///< this bit is mutually exclusive with LFLG_64BIT
@@ -182,7 +182,10 @@ struct idainfo
 
   uchar asmtype;                        ///< target assembler number
 
-  uchar specsegs;                       ///< What format do special segments use? 0-unspecified, 4-entries are 4 bytes, 8- entries are 8 bytes.
+  uchar specsegs;                       ///< What format do special segments use?
+                                        ///<   0 - unspecified;
+                                        ///<   4 - entries are 4 bytes;
+                                        ///<   8 - entries are 8 bytes.
 
   uint32 af;                            ///< \ref AF_
 /// \defgroup AF_ Analysis flags
@@ -211,7 +214,7 @@ struct idainfo
 #define AF_CHKUNI       0x00040000      ///< Check for unicode strings
 #define AF_FIXUP        0x00080000      ///< Create offsets and segments using fixup info
 #define AF_DREFOFF      0x00100000      ///< Create offset if data xref to seg32 exists
-#define AF_IMMOFF       0x00200000      ///< Convert 32bit instruction operand to offset
+#define AF_IMMOFF       0x00200000      ///< Convert 32-bit instruction operand to offset
 #define AF_DATOFF       0x00400000      ///< Automatically convert data to offsets
 
 #define AF_FLIRT        0x00800000      ///< Use flirt signatures
@@ -237,21 +240,21 @@ struct idainfo
 #define AF2_MERGESTR    0x00000008      ///< Merge string literals created using data xrefs
 /// remaining 28 bits are reserved
 ///@}
-  uval_t baseaddr;                      ///< base address of the program (paragraphs)
+  uval_t baseaddr;                      ///< base address of the program (in paragraphs)
   sel_t start_ss;                       ///< selector of the initial stack segment
   sel_t start_cs;                       ///< selector of the segment with the main entry point
   ea_t start_ip;                        ///< IP register value at the start of
                                         ///< program execution
-  ea_t start_ea;                        ///< Linear address of program entry point
+  ea_t start_ea;                        ///< Linear address of the program entry point
   ea_t start_sp;                        ///< SP register value at the start of
                                         ///< program execution
   ea_t main;                            ///< address of main()
-  ea_t min_ea;                          ///< current limits of program
+  ea_t min_ea;                          ///< current limits of the program
   ea_t max_ea;                          ///< maxEA is excluded
   ea_t omin_ea;                         ///< original minEA (is set after loading the input file)
   ea_t omax_ea;                         ///< original maxEA (is set after loading the input file)
 
-  ea_t lowoff;                          ///< Low  limit for offsets
+  ea_t lowoff;                          ///< Low limit for offsets
                                         ///< (used in calculation of 'void' operands)
   ea_t highoff;                         ///< High limit for offsets
                                         ///< (used in calculation of 'void' operands)
@@ -259,8 +262,8 @@ struct idainfo
   uval_t maxref;                        ///< Max tail for references
 
   range_t privrange;                    ///< Range of addresses reserved for internal use.
-                                        ///< Initially specified by cfgvar PRIVRANGE
-  sval_t netdelta;                      ///< Delta value to be added to all addresses for mapping to netnodes.
+                                        ///< Initially specified by the cfgvar PRIVRANGE
+  sval_t netdelta;                      ///< Delta value to be added to all addresses, for mapping to netnodes.
                                         ///< Initially 0
 
   /// CROSS REFERENCES
@@ -343,7 +346,7 @@ struct idainfo
 #define OFLG_GEN_NULL     0x010         ///< Generate empty lines?
 #define OFLG_SHOW_PREF    0x020         ///< Show line prefixes?
 #define OFLG_PREF_SEG     0x040         ///< line prefixes with segment name?
-#define OFLG_LZERO        0x080         ///< generate leading zeroes in numbers
+#define OFLG_LZERO        0x080         ///< generate leading zeros in numbers
 #define OFLG_GEN_ORG      0x100         ///< Generate 'org' directives?
 #define OFLG_GEN_ASSUME   0x200         ///< Generate 'assume' directives?
 #define OFLG_GEN_TRYBLKS  0x400         ///< Generate try/catch directives?
@@ -395,9 +398,9 @@ struct idainfo
 #define STRF_COMMENT    0x10            ///< generate auto comment for string references?
 #define STRF_SAVECASE   0x20            ///< preserve case of strings for identifiers
 ///@}
-  uchar strlit_break;                   ///< string literal line break symbol
-  char strlit_zeroes;                   ///< leading zeroes
-  int32 strtype;                        ///< current ascii string type
+  uchar strlit_break;                   ///< Character used to break string literal lines
+  char strlit_zeroes;                   ///< leading zeros
+  int32 strtype;                        ///< current ASCII string type
                                         ///< see nalt.hpp for string types
   char strlit_pref[IDAINFO_STRLIT_PREF_SIZE]; ///< prefix for string literal names
   uval_t strlit_sernum;                 ///< serial number
@@ -416,18 +419,18 @@ struct idainfo
 #define ABI_8ALIGN4       0x00000001    ///< 4 byte alignment for 8byte scalars (__int64/double) inside structures?
 #define ABI_PACK_STKARGS  0x00000002    ///< do not align stack arguments to stack slots
 #define ABI_BIGARG_ALIGN  0x00000004    ///< use natural type alignment for argument if the alignment exceeds native word size.
-                                        ///< (e.g. __int64 argument should be 8byte aligned on some 32bit platforms)
+                                        ///< (e.g. __int64 argument should be 8byte aligned on some 32-bit platforms)
 #define ABI_STACK_LDBL    0x00000008    ///< long double arguments are passed on stack
 #define ABI_STACK_VARARGS 0x00000010    ///< varargs are always passed on stack (even when there are free registers)
 #define ABI_HARD_FLOAT    0x00000020    ///< use the floating-point register set
 #define ABI_SET_BY_USER   0x00000040    ///< compiler/abi were set by user flag and require SETCOMP_BY_USER flag to be changed
-#define ABI_GCC_LAYOUT    0x00000080    ///< use gcc layout for udts (used for mingw)
+#define ABI_GCC_LAYOUT    0x00000080    ///< use GCC layout for UDTs (used for mingw)
 #define ABI_MAP_STKARGS   0x00000100    ///< register arguments are mapped to stack area (and consume stack slots)
 #define ABI_HUGEARG_ALIGN 0x00000200    ///< use natural type alignment for an argument
                                         ///< even if its alignment exceeds double native word size
                                         ///< (the default is to use double word max).
                                         ///< e.g. if this bit is set, __int128 has 16-byte alignment.
-                                        ///< this bit is not used by ida yet
+                                        ///< this bit is not used by IDA yet
 ///@}
 
   uint32 appcall_options;               ///< appcall options, see idd.hpp
@@ -514,7 +517,7 @@ enum inftag_t
   INF_C_MACROS              = 72, ///< C predefined macros
   INF_INCLUDE               = 73, ///< assembler include file name
   INF_DUALOP_GRAPH          = 74, ///< Graph text representation options
-  INF_DUALOP_TEXT           = 75, ///< Text text representation options
+  INF_DUALOP_TEXT           = 75, ///< Text representation options
   INF_MD5                   = 76, ///< MD5 of the input file
   INF_IDA_VERSION           = 77, ///< version of ida which created the database
   INF_STR_ENCODINGS         = 78, ///< a list of encodings for the program strings
@@ -1072,12 +1075,12 @@ inline bool inf_set_privrange(const range_t &_v) { return setinf_buf(INF_PRIVRAN
 
 inline range_t inf_get_privrange() { range_t r; inf_get_privrange(&r); return r; }
 
-/// Get/set low/high 16bit halves of inf.af
+/// Get/set low/high 16-bit halves of inf.af
 inline ushort inf_get_af_low() { return inf_get_af() & 0xffff; }
 inline void inf_set_af_low(ushort saf) { uint32 af = (inf_get_af() & 0xffff0000) | saf; inf_set_af(af); }
 inline ushort inf_get_af_high() { return (inf_get_af() >> 16) & 0xffff; }
 inline void inf_set_af_high(ushort saf2) { uint32 af = (inf_get_af() & 0xffff) | (saf2 << 16); inf_set_af(af); }
-/// Get/set low 16bit half of inf.af2
+/// Get/set low 16-bit half of inf.af2
 inline ushort inf_get_af2_low() { return inf_get_af2() & 0xffff; }
 inline void inf_set_af2_low(ushort saf) { uint32 af2 = (inf_get_af2() & 0xffff0000) | saf; inf_set_af2(af2); }
 
@@ -1139,7 +1142,7 @@ inline ea_t idaapi to_ea(sel_t reg_cs, uval_t reg_ip)
 }
 
 //-------------------------------------------------------------------------
-/// helper class to support 32bit addresses in ida64
+/// helper class to support 32-bit addresses in ida64
 
 struct ea_helper_t
 {

@@ -2,7 +2,7 @@
         IDA SDK - Interactive Disassembler Module SDK
         =============================================
 
-        This SDK should be used with IDA kernel version 9.2
+        This SDK should be used with IDA kernel version 9.3
 
         This package allows you to write:
                 - processor modules

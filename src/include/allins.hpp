@@ -2225,6 +2225,9 @@ NN_senduipi,            // Send  User Interprocessor Interrupts
 // Prediction history reset (HRESET)
 NN_hreset,              // History Reset
 
+// Intel Xeon 6 Granite Rapids microarch PREFETCHI
+NN_prefetchit0,         // Prefetch code into all levels of the cache hierarchy
+NN_prefetchit1,         // Prefetch code into all but the first-level of the cache hierarchy
 
 NN_last,
 
@@ -4787,7 +4790,7 @@ ARM_fcmpe,              // Floating-point Signaling Compare
 ARM_fccmp,              // Floating-point Conditional Quiet Compare
 ARM_fccmpe,             // Floating-point Conditional Signaling Compare
 ARM_fcsel,              // Floating-point Conditional Select
-ARM_cnt,                // Vector Count Non-zero Bits
+ARM_cnt,                // Count Non-zero Bits
 ARM_fcvt,               // Floating-point convert precision (scalar)
 ARM_fcvtzs,             // Convert Floating-point to Signed Integer (Round to Zero)
 ARM_fcvtas,             // Convert Floating-point to Signed Integer (Round to Nearest, Ties to Away)
@@ -5420,8 +5423,14 @@ ARM_vcx3A,                // Custom Extension Instruction Class 3 (accumulator)
 ARM_wfet,                 // Wait For Event with Timeout
 ARM_wfit,                 // Wait For Interrupt with Timeout
 
-ARM_last
+// FEAT_CSSC
 
+ARM_ctz,                  // Count trailing zeros
+
+ARM_rdvl,                 // Read multiple of vector register size to scalar register
+ARM_rdsvl,                 // Read multiple of Streaming SVE vector register size to scalar register
+
+ARM_last
 };
 
 
@@ -18844,7 +18853,7 @@ enum NEC850_Instructions
   NEC850_MUL,           // Multiply word
   NEC850_MULU,          // Multiply word unsigned
 
-  NEC850_DIVH_r3,       // Divide halfword
+  NEC850_DIVH_r3,       // Divide halfword (Format XI)
   NEC850_DIVHU,         // Divide halfword unsigned
   NEC850_DIV,           // Divide word
   NEC850_DIVU,          // Divide word unsigned
@@ -19098,28 +19107,32 @@ enum NEC850_Instructions
   NEC850_VLD_B_FMT4,     // Vector Load byte (4th instruction format)
 
   NEC850_VLD_H,          // Vector Load halfword
+  NEC850_VLD_H_FMT3,     // Vector Load halfword (3rd instruction format)
   NEC850_VLD_H_FMT4,     // Vector Load halfword (4th instruction format)
 
   NEC850_VLD_W,          // Vector Load word
+  NEC850_VLD_W_FMT3,     // Vector Load word (3rd instruction format)
   NEC850_VLD_W_FMT4,     // Vector Load word (4th instruction format)
 
   NEC850_VLD_DW,         // Vector Load double - word
   NEC850_VLD_DW_FMT3,    // Vector Load double - word (3rd instruction format)
   NEC850_VLD_DW_FMT4,    // Vector Load double - word (4th instruction format)
-  NEC850_VLD_DW_FMT5,    // Vector Load double - word (5th instruction format)
 
   NEC850_VST_B,          // Vector Store byte
+  NEC850_VST_B_FMT3,     // Vector Store byte (3rd instruction format)
   NEC850_VST_B_FMT4,     // Vector Store byte (4th instruction format)
 
   NEC850_VST_H,          // Vector Store halfword
-  NEC850_VST_H_FMT_4_5,  // Vector Store halfword (4th/5th instruction format)
+  NEC850_VST_H_FMT3,     // Vector Store halfword (3rd instruction format)
+  NEC850_VST_H_FMT45,    // Vector Store halfword (4th/5th instruction format)
 
   NEC850_VST_W,          // Vector Store word
-  NEC850_VST_W_FMT_4_5,  // Vector Store word (4th/5th instruction format)
+  NEC850_VST_W_FMT3,     // Vector Store word (3rd instruction format)
+  NEC850_VST_W_FMT45,    // Vector Store word (4th/5th instruction format)
 
   NEC850_VST_DW,         // Vector Store double - word
-  NEC850_VST_DW_FMT_4_5, // Vector Store double - word (4th/5th instruction format)
-  NEC850_VST_DW_FMT6,    // Vector Store double - word (6th instruction format)
+  NEC850_VST_DW_FMT3,    // Vector Store double - word (3rd instruction format)
+  NEC850_VST_DW_FMT45,   // Vector Store double - word (4th/5th instruction format)
 
   NEC850_VCMOV,          // Vector conditional move
   NEC850_MODADD,         // Modulo Add
@@ -19294,109 +19307,62 @@ enum
 {
   TRICORE_null = 0,           // Unknown Operation
   TRICORE_abs,
-  TRICORE_abs_b,
-  TRICORE_abs_h,
   TRICORE_absdif,
-  TRICORE_absdif_b,
-  TRICORE_absdif_h,
   TRICORE_absdifs,
-  TRICORE_absdifs_h,
   TRICORE_abss,
-  TRICORE_abss_h,
-  TRICORE_add_b,
-  TRICORE_add_f,
-  TRICORE_add_h,
-  TRICORE_add16,
-  TRICORE_add16_a,
-  TRICORE_add32,
-  TRICORE_add32_a,
+  TRICORE_add,
   TRICORE_addc,
   TRICORE_addi,
   TRICORE_addih,
-  TRICORE_addih_a,
   TRICORE_adds,
-  TRICORE_adds_h,
-  TRICORE_adds_hu,
-  TRICORE_adds_u,
-  TRICORE_adds16,
-  TRICORE_addsc_at,
-  TRICORE_addsc16_a,
-  TRICORE_addsc32_a,
+  TRICORE_addsc,
   TRICORE_addx,
-  TRICORE_and_and_t,
-  TRICORE_and_andn_t,
+  TRICORE_and_and,
+  TRICORE_and_andn,
   TRICORE_and_eq,
   TRICORE_and_ge,
-  TRICORE_and_ge_u,
   TRICORE_and_lt,
-  TRICORE_and_lt_u,
   TRICORE_and_ne,
-  TRICORE_and_nor_t,
-  TRICORE_and_or_t,
+  TRICORE_and_nor,
+  TRICORE_and_or,
   TRICORE_and_t,
-  TRICORE_and16,
-  TRICORE_and32,
+  TRICORE_and,
   TRICORE_andn,
   TRICORE_andn_t,
-  TRICORE_bisr16,
-  TRICORE_bisr32,
+  TRICORE_bisr,
   TRICORE_bmerge,
   TRICORE_bsplit,
-  TRICORE_cachea_i,
-  TRICORE_cachea_w,
-  TRICORE_cachea_wi,
-  TRICORE_cadd16,
-  TRICORE_cadd32,
-  TRICORE_caddn16,
-  TRICORE_caddn32,
-  TRICORE_call16,
-  TRICORE_call32,
+  TRICORE_cachea,
+  TRICORE_cadd,
+  TRICORE_caddn,
+  TRICORE_call,
   TRICORE_calla,
   TRICORE_calli,
   TRICORE_clo,
-  TRICORE_clo_h,
   TRICORE_cls,
-  TRICORE_cls_h,
   TRICORE_clz,
-  TRICORE_clz_h,
-  TRICORE_cmov16,
-  TRICORE_cmovn16,
-  TRICORE_cmp_f,
+  TRICORE_cmov,
+  TRICORE_cmovn,
+  TRICORE_cmp,
   TRICORE_csub,
   TRICORE_csubn,
-  TRICORE_debug16,
-  TRICORE_debug32,
+  TRICORE_debug,
   TRICORE_dextr,
   TRICORE_disable,
-  TRICORE_div_f,
+  TRICORE_div,
   TRICORE_dsync,
   TRICORE_dvadj,
   TRICORE_dvinit,
-  TRICORE_dvinit_b,
-  TRICORE_dvinit_bu,
-  TRICORE_dvinit_h,
-  TRICORE_dvinit_hu,
-  TRICORE_dvinit_u,
   TRICORE_dvstep,
-  TRICORE_dvstep_u,
   TRICORE_enable,
-  TRICORE_eq_a,
-  TRICORE_eq_b,
-  TRICORE_eq_h,
-  TRICORE_eq_w,
-  TRICORE_eq16,
-  TRICORE_eq32,
-  TRICORE_eqany_b,
-  TRICORE_eqany_h,
-  TRICORE_eqz_a,
+  TRICORE_eq,
+  TRICORE_eqany,
+  TRICORE_eqz,
   TRICORE_extr,
-  TRICORE_extr_u,
   TRICORE_ftoi,
   TRICORE_ftoq31,
   TRICORE_ftou,
   TRICORE_ge,
-  TRICORE_ge_a,
-  TRICORE_ge_u,
   TRICORE_imask,
   TRICORE_ins_t,
   TRICORE_insert,
@@ -19404,123 +19370,51 @@ enum
   TRICORE_isync,
   TRICORE_itof,
   TRICORE_ixmax,
-  TRICORE_ixmax_u,
   TRICORE_ixmin,
-  TRICORE_ixmin_u,
-  TRICORE_j16,
-  TRICORE_j32,
+  TRICORE_j,
   TRICORE_ja,
-  TRICORE_jeq_a,
-  TRICORE_jeq16,
-  TRICORE_jeq32,
+  TRICORE_jeq,
   TRICORE_jge,
-  TRICORE_jge_u,
-  TRICORE_jgez16,
-  TRICORE_jgtz16,
-  TRICORE_ji16,
-  TRICORE_ji32,
+  TRICORE_jgez,
+  TRICORE_jgtz,
+  TRICORE_ji,
   TRICORE_jl,
   TRICORE_jla,
-  TRICORE_jlez16,
+  TRICORE_jlez,
   TRICORE_jli,
   TRICORE_jlt,
-  TRICORE_jlt_u,
-  TRICORE_jltz16,
-  TRICORE_jne_a,
-  TRICORE_jne16,
-  TRICORE_jne32,
+  TRICORE_jltz,
+  TRICORE_jne,
   TRICORE_jned,
   TRICORE_jnei,
-  TRICORE_jnz16,
-  TRICORE_jnz16_a,
-  TRICORE_jnz16_t,
-  TRICORE_jnz32_a,
-  TRICORE_jnz32_t,
-  TRICORE_jz16,
-  TRICORE_jz16_a,
-  TRICORE_jz16_t,
-  TRICORE_jz32_a,
-  TRICORE_jz32_t,
-  TRICORE_ld_b,
-  TRICORE_ld_d,
-  TRICORE_ld_da,
-  TRICORE_ld_hu,
-  TRICORE_ld_q,
-  TRICORE_ld16_a,
-  TRICORE_ld16_bu,
-  TRICORE_ld16_h,
-  TRICORE_ld16_w,
-  TRICORE_ld32_a,
-  TRICORE_ld32_bu,
-  TRICORE_ld32_h,
-  TRICORE_ld32_w,
+  TRICORE_jnz,
+  TRICORE_jz,
+  TRICORE_ld,
   TRICORE_ldlcx,
   TRICORE_ldmst,
   TRICORE_lducx,
   TRICORE_lea,
-  TRICORE_loop16,
-  TRICORE_loop32,
+  TRICORE_loop,
   TRICORE_loopu,
-  TRICORE_lt_a,
-  TRICORE_lt_b,
-  TRICORE_lt_bu,
-  TRICORE_lt_h,
-  TRICORE_lt_hu,
-  TRICORE_lt_u,
-  TRICORE_lt_w,
-  TRICORE_lt_wu,
-  TRICORE_lt16,
-  TRICORE_lt32,
+  TRICORE_lt,
   TRICORE_madd,
-  TRICORE_madd_f,
-  TRICORE_madd_h,
-  TRICORE_madd_q,
-  TRICORE_madd_u,
-  TRICORE_maddm_h,
-  TRICORE_maddms_h,
-  TRICORE_maddr_h,
-  TRICORE_maddr_q,
-  TRICORE_maddrs_h,
-  TRICORE_maddrs_q,
+  TRICORE_maddm,
+  TRICORE_maddms,
+  TRICORE_maddr,
+  TRICORE_maddrs,
   TRICORE_madds,
-  TRICORE_madds_h,
-  TRICORE_madds_q,
-  TRICORE_madds_u,
-  TRICORE_maddsu_h,
-  TRICORE_maddsum_h,
-  TRICORE_maddsums_h,
-  TRICORE_maddsur_h,
-  TRICORE_maddsurs_h,
-  TRICORE_maddsus_h,
+  TRICORE_maddsu,
+  TRICORE_maddsum,
+  TRICORE_maddsums,
+  TRICORE_maddsur,
+  TRICORE_maddsurs,
+  TRICORE_maddsus,
   TRICORE_max,
-  TRICORE_max_b,
-  TRICORE_max_bu,
-  TRICORE_max_h,
-  TRICORE_max_hu,
-  TRICORE_max_u,
   TRICORE_mfcr,
   TRICORE_min,
-  TRICORE_min_b,
-  TRICORE_min_bu,
-  TRICORE_min_h,
-  TRICORE_min_hu,
-  TRICORE_min_u,
-  TRICORE_mov_u,
-  TRICORE_mov16,
-  TRICORE_mov16_a,
-  TRICORE_mov16_aa,
-  TRICORE_mov16_d,
-  TRICORE_mov32,
-  TRICORE_mov32_a,
-  TRICORE_mov32_aa,
-  TRICORE_mov32_d,
+  TRICORE_mov,
   TRICORE_movh,
-  TRICORE_movh_a,
   TRICORE_msub,
-  TRICORE_msub_f,
-  TRICORE_msub_h,
-  TRICORE_msub_q,
-  TRICORE_msub_u,
   TRICORE_msubad_h,
   TRICORE_msubadm_h,
   TRICORE_msubadms_h,
@@ -19529,135 +19423,79 @@ enum
   TRICORE_msubads_h,
   TRICORE_msubm_h,
   TRICORE_msubms_h,
-  TRICORE_msubr_h,
-  TRICORE_msubr_q,
-  TRICORE_msubrs_h,
-  TRICORE_msubrs_q,
+  TRICORE_msubr,
+  TRICORE_msubrs,
   TRICORE_msubs,
-  TRICORE_msubs_h,
-  TRICORE_msubs_q,
-  TRICORE_msubs_u,
   TRICORE_mtcr,
-  TRICORE_mul_f,
-  TRICORE_mul_h,
-  TRICORE_mul_q,
-  TRICORE_mul_u,
-  TRICORE_mul16,
-  TRICORE_mul32,
-  TRICORE_mulm_h,
-  TRICORE_mulms_h,
-  TRICORE_mulr_h,
-  TRICORE_mulr_q,
+  TRICORE_mul,
+  TRICORE_mulm,
+  TRICORE_mulms,
+  TRICORE_mulr,
   TRICORE_muls,
-  TRICORE_muls_u,
   TRICORE_nand,
   TRICORE_nand_t,
   TRICORE_ne,
-  TRICORE_ne_a,
-  TRICORE_nez_a,
-  TRICORE_nop16,
-  TRICORE_nop32,
+  TRICORE_nez,
+  TRICORE_nop,
   TRICORE_nor_t,
-  TRICORE_not16,
-  TRICORE_nor32,
-  TRICORE_or_and_t,
-  TRICORE_or_andn_t,
+  TRICORE_not,
+  TRICORE_nor,
+  TRICORE_or_and,
+  TRICORE_or_andn,
   TRICORE_or_eq,
   TRICORE_or_ge,
-  TRICORE_or_ge_u,
   TRICORE_or_lt,
-  TRICORE_or_lt_u,
   TRICORE_or_ne,
-  TRICORE_or_nor_t,
-  TRICORE_or_or_t,
+  TRICORE_or_nor,
+  TRICORE_or_or,
   TRICORE_or_t,
-  TRICORE_or16,
-  TRICORE_or32,
+  TRICORE_or,
   TRICORE_orn,
   TRICORE_orn_t,
   TRICORE_pack,
   TRICORE_parity,
   TRICORE_q31tof,
-  TRICORE_qseed_f,
-  TRICORE_ret16,
-  TRICORE_ret32,
-  TRICORE_rfe16,
-  TRICORE_rfe32,
+  TRICORE_qseed,
+  TRICORE_ret,
+  TRICORE_rfe,
   TRICORE_rfm,
   TRICORE_rslcx,
   TRICORE_rstv,
-  TRICORE_rsub16,
-  TRICORE_rsub32,
+  TRICORE_rsub,
   TRICORE_rsubs,
-  TRICORE_rsubs_u,
-  TRICORE_sat16_b,
-  TRICORE_sat16_bu,
-  TRICORE_sat16_h,
-  TRICORE_sat16_hu,
-  TRICORE_sat32_b,
-  TRICORE_sat32_bu,
-  TRICORE_sat32_h,
-  TRICORE_sat32_hu,
+  TRICORE_sat,
   TRICORE_sel,
   TRICORE_seln,
-  TRICORE_sh_and_t,
-  TRICORE_sh_andn_t,
+  TRICORE_sh_and,
+  TRICORE_sh_andn,
   TRICORE_sh_eq,
   TRICORE_sh_ge,
-  TRICORE_sh_ge_u,
   TRICORE_sh_h,
   TRICORE_sh_lt,
-  TRICORE_sh_lt_u,
-  TRICORE_sh_nand_t,
+  TRICORE_sh_nand,
   TRICORE_sh_ne,
-  TRICORE_sh_nor_t,
-  TRICORE_sh_or_t,
-  TRICORE_sh_orn_t,
-  TRICORE_sh_xnor_t,
-  TRICORE_sh_xor_t,
-  TRICORE_sh16,
-  TRICORE_sh32,
-  TRICORE_sha_h,
-  TRICORE_sha16,
-  TRICORE_sha32,
+  TRICORE_sh_nor,
+  TRICORE_sh_or,
+  TRICORE_sh_orn,
+  TRICORE_sh_xnor,
+  TRICORE_sh_xor,
+  TRICORE_sh,
+  TRICORE_sha,
   TRICORE_shas,
-  TRICORE_st_d,
-  TRICORE_st_da,
-  TRICORE_st_q,
-  TRICORE_st_t,
-  TRICORE_st16_a,
-  TRICORE_st16_b,
-  TRICORE_st16_h,
-  TRICORE_st16_w,
-  TRICORE_st32_a,
-  TRICORE_st32_b,
-  TRICORE_st32_h,
-  TRICORE_st32_w,
+  TRICORE_st,
   TRICORE_stlcx,
   TRICORE_stucx,
-  TRICORE_sub_b,
-  TRICORE_sub_f,
-  TRICORE_sub_h,
-  TRICORE_sub16,
-  TRICORE_sub16_a,
-  TRICORE_sub32,
-  TRICORE_sub32_a,
+  TRICORE_sub,
   TRICORE_subc,
-  TRICORE_subs_h,
-  TRICORE_subs_hu,
-  TRICORE_subs_u,
-  TRICORE_subs16,
-  TRICORE_subs32,
+  TRICORE_subs,
   TRICORE_subx,
   TRICORE_svlcx,
-  TRICORE_swap_w,
+  TRICORE_swap,
   TRICORE_syscall,
   TRICORE_tlbdemap,
-  TRICORE_tlbflush_a,
-  TRICORE_tlbflush_b,
+  TRICORE_tlbflush,
   TRICORE_tlbmap,
-  TRICORE_tlbprobe_a,
-  TRICORE_tlbprobe_i,
+  TRICORE_tlbprobe,
   TRICORE_trapsv,
   TRICORE_trapv,
   TRICORE_unpack,
@@ -19667,25 +19505,17 @@ enum
   TRICORE_xnor_t,
   TRICORE_xor_eq,
   TRICORE_xor_ge,
-  TRICORE_xor_ge_u,
   TRICORE_xor_lt,
-  TRICORE_xor_lt_u,
   TRICORE_xor_ne,
   TRICORE_xor_t,
-  TRICORE_xor16,
-  TRICORE_xor32,
+  TRICORE_xor,
 
   // new v1.6 instructions
-  TRICORE_cachei_i,
-  TRICORE_cachei_w,
-  TRICORE_cachei_wi,
-  TRICORE_div,
-  TRICORE_div_u,
+  TRICORE_cachei,
   TRICORE_fcall,
   TRICORE_fcalla,
   TRICORE_fcalli,
-  TRICORE_fret16,
-  TRICORE_fret32,
+  TRICORE_fret,
   TRICORE_ftoiz,
   TRICORE_ftoq31z,
   TRICORE_ftouz,
@@ -19694,15 +19524,15 @@ enum
   // new v1.6.1 instructions
   TRICORE_crc32,     // Calculate CRC32
   TRICORE_wait,      // Suspend execution until the next enabled interrupt or asynchronous trap event
-  TRICORE_cmpswap_w, // Compare and swap
-  TRICORE_swapmsk_w, // Swap under mask
+  TRICORE_cmpswap,   // Compare and swap
+  TRICORE_swapmsk,   // Swap under mask
 
   // new v1.6.2 instructions
-  TRICORE_crc32_b,   // CRC32 for big endian data
-  TRICORE_crc32l_w,  // CRC32 for little endian data
+  TRICORE_crc32b,    // CRC32 for big endian data
+  TRICORE_crc32l,    // CRC32 for little endian data
   TRICORE_crcn,      // Arbitrary width and polynomial CRC calculation
   TRICORE_shuffle,   // Reorder bytes within word
-  TRICORE_popcnt_w,  // Count number of bits set in word
+  TRICORE_popcnt,    // Count number of bits set in word
   TRICORE_lha,       // Load high bits of address value
   TRICORE_ftohp,     // Single Precision to Half Precision
   TRICORE_hptof,     // Half Precision to Single Precision
@@ -19728,39 +19558,13 @@ enum
   TRICORE_dftoulz,       // Double to unsigned long integer, round towards zero
   TRICORE_dftoiz,        // Double to integer, round towards zero
   TRICORE_ftoin,         // Float to integer, round to nearest
-  TRICORE_cachea_i_vm,   // Cache address, invalidate virtual machine entry
-  TRICORE_cachea_w_vm,   // Cache address, writeback virtual machine entry
-  TRICORE_cachea_wi_vm,  // Cache address, writeback and invalidate virtual machine entry
-  TRICORE_cachei_i_vm,   // Cache index, invalidate virtual machine entry
-  TRICORE_cachei_w_vm,   // Cache index, writeback virtual machine entry
-  TRICORE_cachei_wi_vm,  // Cache index, writeback and invalidate virtual machine entry
   TRICORE_mfdcr,         // Move from core register pair
   TRICORE_mtdcr,         // Move to core register pair
-  TRICORE_cmp_df,        // Compare double
-  TRICORE_div_df,        // Divide double
-  TRICORE_mul_df,        // Multiply double
-  TRICORE_abs_df,        // Absolute value double
-  TRICORE_sub_df,        // Subtract double
-  TRICORE_add_df,        // Add double
-  TRICORE_max_df,        // Maximum value double
-  TRICORE_madd_df,       // Multiply add double
-  TRICORE_msub_df,       // Multiply subtract double
-  TRICORE_min_df,        // Minimum value double
-  TRICORE_neg_df,        // Negate value double
-  TRICORE_max_f,         // Maximum value float
-  TRICORE_neg_f,         // Negate value float
-  TRICORE_abs_f,         // Absolute value float
-  TRICORE_min_f,         // minimum value double
-  TRICORE_ld_dd,         // Load double double word
-  TRICORE_st_dd,         // Store double double word
-  TRICORE_div64_u,       // Divide 64-bit unsigned long
+  TRICORE_neg,           // Negate value
   TRICORE_div64,         // Divide 64-bit long
   TRICORE_rem64,         // Remainder 64-bit long
-  TRICORE_rem64_u,       // Remainder 64-bit unsigned long
-  TRICORE_mulp_b,        // Packed carry-less multiplication
-  TRICORE_qseed_df,      // Inverse square root seed
+  TRICORE_mulp,          // Packed carry-less multiplication
   TRICORE_jri,           // Jump relative indirect
-  TRICORE_calli16,       // Call Indirect
 
   TRICORE_last
 };

@@ -147,7 +147,7 @@ bool out_arc_t::out_operand(const op_t & x)
       //            SR <src>, [aux]
       if ( x.n == 1
         && !is_defarg(F, x.n)      // don't use aux register if op type is set
-        && (insn.itype == ARC_lr || insn.itype == ARC_sr) )
+        && is_auxreg_insn(insn) )
         out_aux(x);
       else
         out_value(x, OOFS_IFSIGN | OOFW_IMM);
@@ -350,6 +350,9 @@ void out_arc_t::out_proc_mnem(void)
       case aux_b:
         qstrncat(postfix, "b", sizeof(postfix));
         break;
+      case aux_dw:
+        qstrncat(postfix, "d", sizeof(postfix));
+        break;
       case aux_w:
         qstrncat(postfix, pm.is_arcv2() ? "h" : "w", sizeof(postfix));
         break;
@@ -361,23 +364,23 @@ void out_arc_t::out_proc_mnem(void)
       qstrncat(postfix, "_s", sizeof(postfix));
     if ( insn.auxpref & aux_x )
       qstrncat(postfix, ".x", sizeof(postfix));
+    const char *apost = nullptr;
     switch ( insn.auxpref & aux_amask )
     {
       case 0:
         break;
       case aux_a:
-        qstrncat(postfix, ".a", sizeof(postfix));
+        apost = (insn.itype == ARC_ld || pm.is_a4()) ? ".a" : ".aw";
         break;
       case aux_as:
-        qstrncat(postfix, ".as", sizeof(postfix));
+        apost = ".as";
         break;
       case aux_ab:
-        qstrncat(postfix, ".ab", sizeof(postfix));
-        break;
-      default:
-        qstrncat(postfix, "?", sizeof(postfix));
+        apost = ".ab";
         break;
     }
+    if ( apost != nullptr )
+      qstrncat(postfix, apost, sizeof(postfix));
     if ( insn.auxpref & aux_di )
       qstrncat(postfix, ".di", sizeof(postfix));
   }

@@ -36,6 +36,7 @@ CASSERT(PROC_MAXOP <= UA_MAXOP);
 #define aux_xop         0x00020000  // XOP-encoded instruction
 #define aux_xacquire    0x00040000  // HLE prefix hints
 #define aux_xrelease    0x00080000  // HLE prefix hints
+#define aux_hint_nop    0x00100000  // instruction has no meaning other than hintable nop
 
 //---------------------------------
 // operand types and other customization:
@@ -89,44 +90,44 @@ enum RegNo
 {
   R_none = -1,
   R_ax = 0,
-  R_cx,         //  1
-  R_dx,         //  2
-  R_bx,         //  3
-  R_sp,         //  4
-  R_bp,         //  5
-  R_si,         //  6
-  R_di,         //  7
-  R_r8,         //  8
-  R_r9,         //  9
-  R_r10,        // 10
-  R_r11,        // 11
-  R_r12,        // 12
-  R_r13,        // 13
-  R_r14,        // 14
-  R_r15,        // 15
+  R_cx,  //  1
+  R_dx,  //  2
+  R_bx,  //  3
+  R_sp,  //  4
+  R_bp,  //  5
+  R_si,  //  6
+  R_di,  //  7
+  R_r8,  //  8
+  R_r9,  //  9
+  R_r10, // 10
+  R_r11, // 11
+  R_r12, // 12
+  R_r13, // 13
+  R_r14, // 14
+  R_r15, // 15
 
-  R_al,
-  R_cl,
-  R_dl,
-  R_bl,
-  R_ah,
-  R_ch,
-  R_dh,
-  R_bh,
+  R_al,  // 16
+  R_cl,  // 17
+  R_dl,  // 18
+  R_bl,  // 19
+  R_ah,  // 20
+  R_ch,  // 21
+  R_dh,  // 22
+  R_bh,  // 23
 
-  R_spl,
-  R_bpl,
-  R_sil,
-  R_dil,
+  R_spl, // 24
+  R_bpl, // 25
+  R_sil, // 26
+  R_dil, // 27
 
-  R_ip,
+  R_ip,  // 28
 
-  R_es,    // 0
-  R_cs,    // 1
-  R_ss,    // 2
-  R_ds,    // 3
-  R_fs,
-  R_gs,
+  R_es,  // 29 // 0
+  R_cs,  // 30 // 1
+  R_ss,  // 31 // 2
+  R_ds,  // 32 // 3
+  R_fs,  // 33
+  R_gs,  // 34
 
   R_cf,    // main cc's
   R_zf,

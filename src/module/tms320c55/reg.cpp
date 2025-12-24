@@ -406,9 +406,6 @@ ssize_t idaapi tms320c55_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_newasm:    // new assembler type
       break;
 
-    case processor_t::ev_creating_segm:    // new segment
-      break;
-
     case processor_t::ev_get_stkvar_scale_factor:
       return 2;
 

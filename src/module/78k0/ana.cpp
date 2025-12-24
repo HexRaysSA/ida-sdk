@@ -582,8 +582,8 @@ static int Opcode_31(insn_t &insn)
         default:
           return 0;
         }
-   }
-   return insn.size;
+  }
+  return insn.size;
 }
 
 //----------------------------------------------------------------------
@@ -1486,6 +1486,6 @@ int idaapi N78K_ana(insn_t *_insn)
     // unknown code - return error
     default:
       return 0;
-   }
-   return insn.size;
+  }
+  return insn.size;
 }

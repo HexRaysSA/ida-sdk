@@ -31,18 +31,6 @@ struct vec_lstore_ins_t
   uint16 mod_addr_itype = 0;
   uint16 bit_rev_itype = 0;
 
-  bool flipped = false;
-  bool set = false;
-
-  vec_lstore_ins_t() = default;
-  vec_lstore_ins_t(uint16 _post_inc_itype, uint16 _post_dec_itype, uint16 _post_inc_ext_itype,
-                   uint16 _mod_addr_itype, uint16 _bit_rev_itype, bool _flipped) :
-    post_inc_itype(_post_inc_itype), post_dec_itype(_post_dec_itype),
-    post_inc_ext_itype(_post_inc_ext_itype), mod_addr_itype(_mod_addr_itype),
-    bit_rev_itype(_bit_rev_itype), flipped(_flipped), set(true)
-  {
-  }
-
   void set_vload_store(insn_t *ins, uint32 w, uint subop) const;
 };
 
@@ -89,38 +77,6 @@ static sval_t fetch_disp32(const uint32 w, insn_t *ins)
 }
 
 //------------------------------------------------------------------------
-static bool decode_disp23(const uint32 w, insn_t *ins, int opidx, op_dtype_t dt)
-{
-  // LD.B disp23 [reg1] , reg3
-  // 00000111100RRRRR wwwwwddddddd0101 DDDDDDDDDDDDDDDD
-  // ddddddd is the lower 7 bits of disp23.
-  // DDDDDDDDDDDDDDDD is the higher 16 bits of disp23
-  // LD.H disp23[reg1], reg3
-  // 00000111100RRRRR wwwwwdddddd00111 DDDDDDDDDDDDDDDD
-  // dddddd is the lower side bits 6 to 1 of disp23.
-  // DDDDDDDDDDDDDDDD is the higher 16 bits of disp23.
-
-  // we need at least 32 bits of opcode here
-  if ( ins->size != 4 )
-    return false;
-
-  uint16 d_low = ( w >> 20 ) & 0x7F; // ddddddd
-  if ( dt != dt_byte && ( d_low & 1 ) != 0 )
-    return false;
-  uint16 d_high = ins->get_next_word(); // DDDDDDDDDDDDDDDD
-  sval_t addr = ( d_high << 7 ) | d_low;
-  SIGN_EXTEND(sval_t, addr, 23);
-
-  op_t &op = ins->ops[opidx];
-  op.type = o_displ;
-  op.reg = w & 0x1F;
-  op.addr = addr;
-  op.dtype = dt;
-  op.specflag1 = N850F_USEBRACKETS | N850F_OUTSIGNED | N850F_VAL32;
-  return true;
-}
-
-//------------------------------------------------------------------------
 static void set_opreg(op_t *op, int reg, op_dtype_t dtyp = dt_dword)
 {
   op->type = o_reg;
@@ -154,22 +110,71 @@ static void set_opimm(op_t *op, uval_t value, int dtyp = dt_dword)
 }
 
 //------------------------------------------------------------------------
-static void set_opwreg(op_t *op, int reg, op_dtype_t dtyp = dt_qword)
+static void set_opwreg(op_t *op, int reg, op_dtype_t dtyp = dt_byte16)
 {
   op->type = o_reg;
   op->dtype = dtyp;
   op->reg = rWR0 + reg;
 }
 
-//------------------------------------------------------------------------
-static void set_opdisp16(op_t *op, uint64 w, uint16 reg)
+//-------------------------------------------------------------------------
+static void set_opdispl(
+        op_t *op,
+        int reg,
+        uint32 addr,
+        op_dtype_t dtyp = dt_dword)
 {
-  uint16 disp16 = (w >> 32) & 0xFFFF;
   op->type = o_displ;
-  op->addr = disp16;
-  op->dtype = dt_word;
-  op->reg = reg;
-  op->specflag1 = N850F_USEBRACKETS;
+  op->dtype = dtyp;
+  op->phrase = reg;
+  op->addr = addr;
+}
+
+//-------------------------------------------------------------------------
+static void set_opphrase(
+        op_t *op,
+        int reg,
+        op_dtype_t dtyp = dt_dword)
+{
+  op->type = o_phrase;
+  op->dtype = dtyp;
+  op->phrase = reg;
+}
+
+//------------------------------------------------------------------------
+inline void set_opdisp16(op_t *op, int reg, uint64 w, op_dtype_t dt)
+{
+  set_opdispl(op, reg, (w >> 32) & 0xFFFF, dt);
+}
+
+//------------------------------------------------------------------------
+static bool decode_disp23(const uint32 w, insn_t *ins, int opidx, op_dtype_t dt)
+{
+  // LD.B disp23 [reg1] , reg3
+  // 00000111100RRRRR wwwwwddddddd0101 DDDDDDDDDDDDDDDD
+  // ddddddd is the lower 7 bits of disp23.
+  // DDDDDDDDDDDDDDDD is the higher 16 bits of disp23
+  // LD.H disp23[reg1], reg3
+  // 00000111100RRRRR wwwwwdddddd00111 DDDDDDDDDDDDDDDD
+  // dddddd is the lower side bits 6 to 1 of disp23.
+  // DDDDDDDDDDDDDDDD is the higher 16 bits of disp23.
+
+  // we need at least 32 bits of opcode here
+  if ( ins->size != 4 )
+    return false;
+
+  uint16 d_low = (w >> 20) & 0x7F; // ddddddd
+  if ( dt != dt_byte && ( d_low & 1 ) != 0 )
+    return false;
+  uint16 d_high = ins->get_next_word(); // DDDDDDDDDDDDDDDD
+  sval_t addr = (d_high << 7) | d_low;
+  SIGN_EXTEND(sval_t, addr, 23);
+
+  op_t &op = ins->ops[opidx];
+  set_opdispl(&op, w & 0x1F, addr, dt);
+  op.specflag1 |= N850F_OUTSIGNED | N850F_VAL32;
+  op.offb = 2; // the assembler sets the WLO23 relocation at +2 offset
+  return true;
 }
 
 //------------------------------------------------------------------------
@@ -179,52 +184,48 @@ void vec_lstore_ins_t::set_vload_store(insn_t *ins, uint32 w, uint subop) const
   int r2 = (w & 0xF800) >> 11;
   int r3 = (w & 0xF8000000) >> 27;
 
-  op_t *reading_op = flipped ? &ins->Op2 : &ins->Op1;
-  set_opreg(reading_op, r1, dt_byte);
-
-  reading_op->specflag1 = N850F_USEBRACKETS;
+  bool is_vst = (subop & 2) != 0;
+  op_t *mem_op = is_vst ? &ins->Op2 : &ins->Op1;
+  set_opphrase(mem_op, r1, dt_byte);
 
   if ( (subop & 1) == 0 )
   {
-    reading_op->specflag1 |= N850F_POST_INCREMENT;
-
     if ( r2 != 0 )
     {
       ins->itype = post_inc_ext_itype;
-      set_opreg(flipped ? &ins->Op3 : &ins->Op2, r2, dt_dword);
-      set_opvreg(flipped ? &ins->Op1 : &ins->Op3, r3, dt_qword);
+      set_opreg(is_vst ? &ins->Op3 : &ins->Op2, r2, dt_dword);
+      set_opvreg(is_vst ? &ins->Op1 : &ins->Op3, r3, dt_qword);
     }
     else
     {
       ins->itype = post_inc_itype;
-      set_opvreg(flipped ? &ins->Op1 : &ins->Op2, r3, dt_qword);
+      set_opvreg(is_vst ? &ins->Op1 : &ins->Op2, r3, dt_qword);
     }
+    mem_op->specflag1 |= N850F_POST_INCREMENT;
   }
   else
   {
     if ( r2 != 0 )
     {
-      set_opreg(flipped ? &ins->Op3 : &ins->Op2, r2 & 0x1E, dt_dword);
-
-      if ( r2 & 0x1 )
+      if ( (r2 & 1) != 0 )
       {
         ins->itype = mod_addr_itype;
-        reading_op->specflag1 |= N850F_MODULO_ADRESSING;
+        mem_op->specflag1 |= N850F_MODULO_ADRESSING;
       }
       else
       {
         ins->itype = bit_rev_itype;
-        reading_op->specflag1 |= N850F_BIT_REV_ADRESSING;
+        mem_op->specflag1 |= N850F_BIT_REV_ADRESSING;
       }
+      set_opreg(is_vst ? &ins->Op3 : &ins->Op2, r2 & ~1, dt_dword);
+      set_opvreg(is_vst ? &ins->Op1 : &ins->Op3, r3, dt_qword);
     }
     else
     {
       ins->itype = post_dec_itype;
-      reading_op->specflag1 |= N850F_POST_DECREMENT;
+      mem_op->specflag1 |= N850F_POST_DECREMENT;
+      set_opvreg(is_vst ? &ins->Op1 : &ins->Op2, r3, dt_qword);
     }
-
-    op_t *vop = flipped ? &ins->Op1 : (r2 == 0 ? &ins->Op2 : &ins->Op3);
-    set_opvreg(vop, r3, dt_qword);
   }
 }
 
@@ -255,9 +256,9 @@ bool nec850_t::decode_ext_simd(const uint32 lower_w, insn_t *ins)
 
       uint16 imm12 = imm11 | (static_cast<uint16>(bit21) << 11);
       set_opimm(&ins->Op1, imm12, dt_word);
-      set_opwreg(&ins->Op2, wreg1, dt_qword);
-      set_opwreg(&ins->Op3, wreg2, dt_qword);
-      set_opwreg(&ins->Op4, wreg3, dt_qword);
+      set_opwreg(&ins->Op2, wreg1);
+      set_opwreg(&ins->Op3, wreg2);
+      set_opwreg(&ins->Op4, wreg3);
       ins->auxpref |= N850F_FP;
       return true;
     }
@@ -271,19 +272,19 @@ bool nec850_t::decode_ext_simd(const uint32 lower_w, insn_t *ins)
       ins->itype = NEC850_LDV_W;
 
       set_opimm(&ins->Op1, (w >> 21) & 0xF, dt_byte);
-      set_opdisp16(&ins->Op2, w, wreg1);
-      set_opwreg(&ins->Op3, wreg3, dt_qword);
+      set_opdisp16(&ins->Op2, wreg1, w, dt_dword);
+      set_opwreg(&ins->Op3, wreg3);
     }
     else
     {
       uint8 subop_23_26 = (w >> 23) & 0xF;
+      uint8 bit21_22 = (w >> 21) & 3;
       switch ( subop_23_26 )
       {
         case 5:
           {
             op_t *disp_op = &ins->Op1;
             op_t *wreg_op = &ins->Op2;
-            uint8 bit21_22 = (w >> 21) & 3;
             if ( bit21_22 == 0 )
             {
               // LDV.QW disp16[reg1], wreg3
@@ -301,19 +302,24 @@ bool nec850_t::decode_ext_simd(const uint32 lower_w, insn_t *ins)
               disp_op = &ins->Op2;
             }
 
-            set_opdisp16(disp_op, w, wreg1);
-            set_opwreg(wreg_op, wreg3, dt_qword);
+            set_opdisp16(disp_op, wreg1, w, dt_byte16);
+            set_opwreg(wreg_op, wreg3);
             break;
           }
-        case 4: // NEC850_STV_W
         case 6: // NEC850_LDV_DW
           // LDV.DW imm2, disp16[reg1], wreg3
           // 0 0 0 0 0 1 1 1 1 0 1 R R R R R w w w w w 0 1 1 0 i i 1 1 1 0 1
           // d d d d d d d d d d d d d 0 0 0
-          ins->itype = subop_23_26 == 0b0110 ? NEC850_LDV_DW : NEC850_STV_W;
-          set_opimm(&ins->Op1, (w >> 21) & 3, dt_byte);
-          set_opdisp16(ins->itype == NEC850_LDV_DW ? &ins->Op2 : &ins->Op3, w, wreg1);
-          set_opwreg(ins->itype == NEC850_LDV_DW ? &ins->Op3 : &ins->Op2, wreg3, dt_qword);
+          ins->itype = NEC850_LDV_DW;
+          set_opimm(&ins->Op1, bit21_22, dt_byte);
+          set_opdisp16(&ins->Op2, wreg1, w, dt_qword);
+          set_opwreg(&ins->Op3, wreg3);
+          break;
+        case 4: // NEC850_STV_W
+          ins->itype = NEC850_STV_W;
+          set_opimm(&ins->Op1, bit21_22, dt_byte);
+          set_opdisp16(&ins->Op3, wreg1, w, dt_dword);
+          set_opwreg(&ins->Op2, wreg3, dt_dword);
           break;
         case 7:
           {
@@ -328,20 +334,23 @@ bool nec850_t::decode_ext_simd(const uint32 lower_w, insn_t *ins)
               uint8 imm1 = (w >> 21) & 1;
               set_opimm(&ins->Op1, imm1, dt_byte);
               set_opwreg(&ins->Op2, wreg3, dt_qword);
-              set_opdisp16(&ins->Op3, w, wreg1);
+              set_opdisp16(&ins->Op3, wreg1, w, dt_qword);
               break;
             }
-            uint8 bit21_22 = (w >> 21) & 3;
             switch ( bit21_22 )
             {
               case 2:
-              case 3:
                 // LDVZ.H4 disp16[reg1], wreg3
                 // 0 0 0 0 0 1 1 1 1 0 1 R R R R R w w w w w 0 1 1 1 1 0 1 1 1 0 1
                 // d d d d d d d d d d d d d 0 0 0
-                ins->itype = bit21_22 == 2 ? NEC850_LDVZ_H4 : NEC850_STVZ_H4;
-                set_opdisp16(ins->itype == NEC850_LDVZ_H4 ? &ins->Op1 : &ins->Op2, w, wreg1);
-                set_opwreg(ins->itype == NEC850_LDVZ_H4 ? &ins->Op2 : &ins->Op1, wreg3, dt_qword);
+                ins->itype = NEC850_LDVZ_H4;
+                set_opdisp16(&ins->Op1, wreg1, w, dt_qword);
+                set_opwreg(&ins->Op2, wreg3);
+                break;
+              case 3:
+                ins->itype = NEC850_STVZ_H4;
+                set_opdisp16(&ins->Op2, wreg1, w, dt_qword);
+                set_opwreg(&ins->Op1, wreg3);
                 break;
               default:
                 break;
@@ -355,10 +364,10 @@ bool nec850_t::decode_ext_simd(const uint32 lower_w, insn_t *ins)
             // r r r r r 0 0 0 0 0 0 W W W W W
             ins->itype = NEC850_CMOVF_W4;
             uint16 wreg4 = (w >> 32) & 0x1F;
-            set_opwreg(&ins->Op1, wreg4, dt_qword);
-            set_opwreg(&ins->Op2, wreg1, dt_qword);
-            set_opwreg(&ins->Op3, wreg2, dt_qword);
-            set_opwreg(&ins->Op4, wreg3, dt_qword);
+            set_opwreg(&ins->Op1, wreg4);
+            set_opwreg(&ins->Op2, wreg1);
+            set_opwreg(&ins->Op3, wreg2);
+            set_opwreg(&ins->Op4, wreg3);
             break;
           }
         default:
@@ -384,11 +393,11 @@ bool nec850_t::decode_coprocessor(const uint32 w, insn_t *ins) const
   // reg2  |opcode|reg1 |reg3 |b|cat|ty|subo|b|
   // ..... |111111|.....|.....|1|...|..|....|0|
   int r1 = w & 0x1F;
-  int r2 = ( w & 0xF800 ) >> 11;
-  int r3 = ( w & 0xF8000000 ) >> 27;
-  int cat = ( w >> 23 ) & 7;
-  int typ = ( w >> 21 ) & 3;
-  int subop = ( w >> 17 ) & 0xF;
+  int r2 = (w & 0xF800) >> 11;
+  int r3 = (w & 0xF8000000) >> 27;
+  int cat = (w >> 23) & 7;
+  int typ = (w >> 21) & 3;
+  int subop = (w >> 17) & 0xF;
   ins->itype = NEC850_NULL;
   // we only support V850E2M and RH850 FP instructions
   if ( !is_v850e2m() )
@@ -720,9 +729,9 @@ bool nec850_t::decode_coprocessor(const uint32 w, insn_t *ins) const
                 ins->itype = map[idx];
                 if ( ins->itype != NEC850_NULL )
                 {
-                  set_opwreg(&ins->Op1, r1, dt_qword);
-                  set_opwreg(&ins->Op2, r2, dt_qword);
-                  set_opwreg(&ins->Op3, r3, dt_qword);
+                  set_opwreg(&ins->Op1, r1);
+                  set_opwreg(&ins->Op2, r2);
+                  set_opwreg(&ins->Op3, r3);
                   break;
                 }
               }
@@ -744,8 +753,8 @@ bool nec850_t::decode_coprocessor(const uint32 w, insn_t *ins) const
                       // MOVV.W4 wreg2, wreg3
                       // r r r r r 1 1 1 1 1 1 1 1 1 1 0 w w w w w 1 0 1 1 0 1 0 0 0 0 0
                       ins->itype = NEC850_MOVV_W4;
-                      set_opwreg(&ins->Op1, r2, dt_qword);
-                      set_opwreg(&ins->Op2, r3, dt_qword);
+                      set_opwreg(&ins->Op1, r2);
+                      set_opwreg(&ins->Op2, r3);
                       break;
                     case 0x1F:
                       // TRFSRV.W4 imm3, wreg2
@@ -774,8 +783,8 @@ bool nec850_t::decode_coprocessor(const uint32 w, insn_t *ins) const
                           ins->itype = map[idx];
                           if ( ins->itype != NEC850_NULL )
                           {
-                            set_opwreg(&ins->Op1, r2, dt_qword);
-                            set_opwreg(&ins->Op2, r3, dt_qword);
+                            set_opwreg(&ins->Op1, r2);
+                            set_opwreg(&ins->Op2, r3);
                             break;
                           }
                         }
@@ -787,8 +796,8 @@ bool nec850_t::decode_coprocessor(const uint32 w, insn_t *ins) const
                         // r r r r r 1 1 1 1 1 1 1 1 0 i i w w w w w 1 0 1 1 0 1 0 0 0 0 0
                         ins->itype = NEC850_FLPV_S4;
                         set_opimm(&ins->Op1, w & 3, dt_byte);
-                        set_opwreg(&ins->Op2, r2, dt_qword);
-                        set_opwreg(&ins->Op3, r3, dt_qword);
+                        set_opwreg(&ins->Op2, r2);
+                        set_opwreg(&ins->Op3, r3);
                       }
                       break;
                   }
@@ -818,9 +827,9 @@ bool nec850_t::decode_coprocessor(const uint32 w, insn_t *ins) const
                       ins->itype = map[idx];
                       if ( ins->itype != NEC850_NULL )
                       {
-                        set_opwreg(&ins->Op1, r1, dt_qword);
-                        set_opwreg(&ins->Op2, r2, dt_qword);
-                        set_opwreg(&ins->Op3, r3, dt_qword);
+                        set_opwreg(&ins->Op1, r1);
+                        set_opwreg(&ins->Op2, r2);
+                        set_opwreg(&ins->Op3, r3);
                         break;
                       }
                     }
@@ -830,9 +839,9 @@ bool nec850_t::decode_coprocessor(const uint32 w, insn_t *ins) const
                   {
                     ins->itype = NEC850_CMPF_S4;
                     set_opcond(&ins->Op1, subop & 0xF);
-                    set_opwreg(&ins->Op2, r1, dt_qword);
-                    set_opwreg(&ins->Op3, r2, dt_qword);
-                    set_opwreg(&ins->Op4, r3, dt_qword);
+                    set_opwreg(&ins->Op2, r1);
+                    set_opwreg(&ins->Op3, r2);
+                    set_opwreg(&ins->Op4, r3);
                   }
                   break;
                 }
@@ -1257,44 +1266,32 @@ bool nec850_t::decode_coprocessor(const uint32 w, insn_t *ins) const
                   {
                     static const vec_lstore_ins_t map[] =
                     {
-                      { NEC850_VLD_DW, NEC850_VLD_DW, NEC850_VLD_DW_FMT3, NEC850_VLD_DW_FMT4, NEC850_NULL, false },
-                      { NEC850_VST_DW, NEC850_VST_DW, NEC850_VST_DW, NEC850_VST_DW_FMT_4_5, NEC850_VST_DW_FMT_4_5, true },
-                      { NEC850_VLD_W, NEC850_VLD_W, NEC850_VLD_W, NEC850_VLD_W_FMT4, NEC850_NULL, false },
-                      { NEC850_VST_W, NEC850_VST_W, NEC850_VST_W, NEC850_VST_W_FMT_4_5, NEC850_VST_W_FMT_4_5, true },
-                      { NEC850_VLD_H, NEC850_VLD_H, NEC850_VLD_H, NEC850_VLD_H_FMT4, NEC850_NULL, false },
-                      {},
-                      { NEC850_VLD_B, NEC850_VLD_B, NEC850_VLD_B_FMT3, NEC850_VLD_B_FMT4, NEC850_NULL, false },
-                      { NEC850_VST_B, NEC850_VST_B, NEC850_VST_B, NEC850_VST_B_FMT4, NEC850_NULL, true },
+                      { NEC850_VLD_DW, NEC850_VLD_DW, NEC850_VLD_DW_FMT3, NEC850_VLD_DW_FMT4,  NEC850_NULL         },
+                      { NEC850_VST_DW, NEC850_VST_DW, NEC850_VST_DW_FMT3, NEC850_VST_DW_FMT45, NEC850_VST_DW_FMT45 },
+                      { NEC850_VLD_W,  NEC850_VLD_W,  NEC850_VLD_W_FMT3,  NEC850_VLD_W_FMT4,   NEC850_NULL         },
+                      { NEC850_VST_W,  NEC850_VST_W,  NEC850_VST_W_FMT3,  NEC850_VST_W_FMT45,  NEC850_VST_W_FMT45  },
+                      { NEC850_VLD_H,  NEC850_VLD_H,  NEC850_VLD_H_FMT3,  NEC850_VLD_H_FMT4,   NEC850_NULL         },
+                      { NEC850_VST_H,  NEC850_VST_W,  NEC850_VST_H_FMT3,  NEC850_VST_H_FMT45,  NEC850_VST_H_FMT45  },
+                      { NEC850_VLD_B,  NEC850_VLD_B,  NEC850_VLD_B_FMT3,  NEC850_VLD_B_FMT4,   NEC850_NULL         },
+                      { NEC850_VST_B,  NEC850_VST_B,  NEC850_VST_B_FMT3,  NEC850_VST_B_FMT4,   NEC850_NULL         },
                     };
 
                     uint idx = (subop - 0x30) / 2;
-                    if ( idx < qnumber(map) )
-                    {
-                      auto &entry = map[idx];
-                      if ( entry.set )
-                      {
-                        entry.set_vload_store(ins, w, subop);
-                        break;
-                      }
-                    }
+                    // assert: idx < qnumber(map)
+                    map[idx].set_vload_store(ins, w, subop);
+                    break;
                   }
 
-                  uint disp_subop = (subop >> 1) & 0x1F;
-                  if ( disp_subop == 0x10 || disp_subop == 0x11 )
+                  if ( subop >= 0x20 && subop <= 0x23 )
                   {
-                    bool is_vst = disp_subop == 0x11;
+                    bool is_vst = (subop & 2) != 0;
                     ins->itype = is_vst ? NEC850_VST_DW : NEC850_VLD_DW;
 
                     uint8 bit17 = subop & 1;
-                    uint combined = (r2 | (bit17 << 6)) << 2;
-
-                    op_t *displ_op = is_vst ? &ins->Op2 : &ins->Op1;
-
-                    displ_op->type = o_displ;
-                    displ_op->dtype = dt_dword;
-                    displ_op->reg = r1;
-                    displ_op->addr = combined;
-                    displ_op->specflag1 = N850F_USEBRACKETS | N850F_OUTSIGNED;
+                    uint32 addr = (r2 | (bit17 << 6)) << 2;
+                    op_t *mem_op = is_vst ? &ins->Op2 : &ins->Op1;
+                    set_opdispl(mem_op, r1, addr, dt_qword);
+                    mem_op->specflag1 |= N850F_OUTSIGNED;
 
                     set_opvreg(is_vst ? &ins->Op1 : &ins->Op2, r3, dt_qword);
                   }
@@ -1316,11 +1313,36 @@ bool nec850_t::decode_coprocessor(const uint32 w, insn_t *ins) const
   return false;
 }
 
-  //------------------------------------------------------------------------
+//------------------------------------------------------------------------
+reglist_t reglist_t::make_list12(uint32 opcode)
+{
+  // first - the bit number if OPCODE, second - the encoded register
+  constexpr std::pair<int, int> list12[] =
+  {
+    {  0, rEP  },
+    { 21, rR31 },
+    { 22, rR29 },
+    { 23, rR28 },
+    { 24, rR23 },
+    { 25, rR22 },
+    { 26, rR21 },
+    { 27, rR20 },
+    { 28, rR27 },
+    { 29, rR26 },
+    { 30, rR25 },
+    { 31, rR24 },
+  };
+  reglist_t res;
+  for ( auto &i : list12 )
+    if ( (opcode & (1 << i.first)) != 0 )
+      res.add(i.second);
+  return res;
+}
+
+//------------------------------------------------------------------------
 // Decodes an instruction "w" into cmd structure
 bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
 {
-#define PARSE_L12 (((w & 1) << 11) | (w >> 21))
 #define PARSE_R1  (w & 0x1F)
 #define PARSE_R2  ((w & 0xF800) >> 11)
 
@@ -1475,27 +1497,23 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
           {
             bool   sld_hu = (w >> 4) & 1;
             uint32 addr = w & 0xF;
+            op_dtype_t dt;
 
             if ( sld_hu )
             {
-              ins->itype       = NEC850_SLD_HU;
-              ins->Op1.dtype   = dt_word;
+              ins->itype = NEC850_SLD_HU;
+              dt = dt_word;
               addr <<= 1;
             }
             else
             {
-              ins->itype       = NEC850_SLD_BU;
-              ins->Op1.dtype   = dt_byte;
+              ins->itype = NEC850_SLD_BU;
+              dt = dt_byte;
             }
 
-            ins->Op1.type      = o_displ;
-            displ_op           = &ins->Op1;
-            ins->Op1.reg       = rEP;
-            ins->Op1.addr      = addr;
-            ins->Op1.specflag1 = N850F_USEBRACKETS;
-
+            displ_op = &ins->Op1;
+            set_opdispl(displ_op, rEP, addr, dt);
             set_opreg(&ins->Op2, r2);
-
             break;
           }
         }
@@ -1613,9 +1631,9 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
       op -= 0x30;
       ins->itype = inst_6[op].itype;
 
-      uint16 r1     = PARSE_R1;
-      uint16 r2     = PARSE_R2;
-      uint32 imm    = w >> 16;
+      uint16 r1  = PARSE_R1;
+      uint16 r2  = PARSE_R2;
+      uint32 imm = w >> 16;
 
       //
       // V850E instructions
@@ -1637,7 +1655,6 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
             sval_t addr = ins->ip - imm;
             ins->Op2.addr = addr;
             ins->Op2.type = o_near;
-            ins->Op1.offb = 2;
           }
           else
           {
@@ -1646,23 +1663,20 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
             sval_t addr = fetch_disp32(w, ins);
             if ( ( addr & 1 ) != 0 )
               return false;
-            ins->Op1.addr = addr;
-            ins->Op1.type = o_displ;
-            ins->Op1.specflag1 = N850F_OUTSIGNED | N850F_VAL32 | N850F_USEBRACKETS;
-            ins->Op1.reg = r1;
-            ins->Op1.offb = 2;
             ins->itype = NEC850_JMP;
+            set_opdispl(&ins->Op1, r1, addr, dt_dword);
+            ins->Op1.specflag1 |= N850F_OUTSIGNED | N850F_VAL32;
+            ins->Op1.offb = 2;
           }
           break;
         }
         // MOV imm32, R
         if ( ins->itype == NEC850_MOVEA )
         {
+          ins->itype = NEC850_MOV;
           imm |= ins->get_next_word() << 16;
           set_opimm(&ins->Op1, imm);
           ins->Op1.offb = 2;
-          ins->itype = NEC850_MOV;
-
           set_opreg(&ins->Op2, r1);
           break;
         }
@@ -1671,21 +1685,19 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
         else if ( ins->itype == NEC850_SATSUBI || ins->itype == NEC850_MOVHI )
         {
           r1 = (w >> 16) & 0x1F;
-          uint16 L = PARSE_L12;
 
           ins->auxpref |= N850F_SP; // SP reference
 
           set_opimm(&ins->Op1, (w & 0x3E) >> 1, dt_byte);
 
-          ins->Op2.value  = L;
-          ins->Op2.type   = o_reglist;
-          ins->Op2.dtype  = dt_word;
+          ins->Op2.type = o_reglist;
+          ins->Op2.value = reglist_t::make_list12(w).regs;
+          ins->Op2.dtype = dt_qword;
 
           if ( r1 != 0 )
           {
             set_opreg(&ins->Op3, r1);
             ins->Op3.specflag1 = N850F_USEBRACKETS;
-
             ins->itype = NEC850_DISPOSE_r;
           }
           else
@@ -1714,39 +1726,34 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
     // Format VII - LD.x
     else if ( op == 0x38 || op == 0x39 )
     {
-      displ_op        = &ins->Op1;
-      ins->Op1.type   = o_displ;
-      ins->Op1.phrase = PARSE_R1; // R
-
       set_opreg(&ins->Op2, PARSE_R2);
 
-      uint32 addr;
-      // LD.B
-      if ( op == 0x38 )
+      op_dtype_t dt;
+      uint32 addr = w >> 16;
+      if ( op == 0x38 ) // LD.B
       {
-        addr           = w >> 16;
-        ins->itype     = NEC850_LD_B;
-        ins->Op1.dtype = dt_byte;
+        ins->itype = NEC850_LD_B;
+        dt = dt_byte;
       }
       else
       {
         // Bit16 is cleared for LD.H
-        if ( (w & (1 << 16)) == 0 )
+        if ( (addr & 1) == 0 )
         {
-          ins->itype      = NEC850_LD_H;
-          ins->Op1.dtype  = dt_word;
+          ins->itype = NEC850_LD_H;
+          dt = dt_word;
         }
-        // LD.W
-        else
+        else // LD.W
         {
-          ins->itype      = NEC850_LD_W;
-          ins->Op1.dtype  = dt_dword;
+          ins->itype = NEC850_LD_W;
+          dt = dt_dword;
+          addr &= ~1;
         }
-        addr = ((w & 0xFFFE0000) >> 17) << 1;
       }
-      ins->Op1.specflag1 = N850F_USEBRACKETS | N850F_OUTSIGNED;
-      ins->Op1.addr = int16(addr);
-
+      displ_op = &ins->Op1;
+      set_opdispl(displ_op, PARSE_R1, int16(addr), dt);
+      displ_op->specflag1 |= N850F_OUTSIGNED;
+      displ_op->offb = 2;
       break;
     }
     // Format VII - ST.x
@@ -1757,34 +1764,32 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
       // (3) ST.W  reg2, disp16 [reg1]
       set_opreg(&ins->Op1, PARSE_R2);
 
-      ins->Op2.type      = o_displ;
-      displ_op           = &ins->Op2;
-      ins->Op2.reg       = PARSE_R1;
-      ins->Op2.specflag1 = N850F_USEBRACKETS | N850F_OUTSIGNED;
-      // ST.B
-      uint32 addr;
-      if ( op == 0x3A )
+      op_dtype_t dt;
+      uint32 addr = w >> 16;
+      if ( op == 0x3A ) // ST.B
       {
-        addr           = w >> 16;
-        ins->itype     = NEC850_ST_B;
-        ins->Op2.dtype = dt_byte;
+        ins->itype = NEC850_ST_B;
+        dt = dt_byte;
       }
       else
       {
         // Bit16 is cleared for ST.H
-        if ( (w & (1 << 16)) == 0 )
+        if ( (addr & 1) == 0 )
         {
-          ins->itype      = NEC850_ST_H;
-          ins->Op2.dtype  = dt_word;
+          ins->itype = NEC850_ST_H;
+          dt = dt_word;
         }
         else
         {
-          ins->itype      = NEC850_ST_W;
-          ins->Op2.dtype  = dt_dword;
+          ins->itype = NEC850_ST_W;
+          dt = dt_dword;
+          addr &= ~1;
         }
-        addr = ((w & 0xFFFE0000) >> 17) << 1;
       }
-      ins->Op2.addr = int16(addr);
+      displ_op = &ins->Op2;
+      set_opdispl(displ_op, PARSE_R1, int16(addr), dt);
+      displ_op->specflag1 |= N850F_OUTSIGNED;
+      displ_op->offb = 2;
       break;
     }
     // Format XIII - PREPARE / LD.BU
@@ -1798,10 +1803,10 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
       // PREPARE
       if ( r2 == 0 && (subop == 1 || (subop & 7) == 3) )
       {
-        ins->auxpref   |= N850F_SP;
-        ins->Op1.value  = PARSE_L12;
-        ins->Op1.type   = o_reglist;
-        ins->Op1.dtype  = dt_word;
+        ins->auxpref |= N850F_SP;
+        ins->Op1.type = o_reglist;
+        ins->Op1.value = reglist_t::make_list12(w).regs;
+        ins->Op1.dtype = dt_qword;
 
         set_opimm(&ins->Op2, (w & 0x3E) >> 1, dt_byte);
 
@@ -1869,9 +1874,9 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
         // ddddddd is the lower 7 bits of disp23.
         // DDDDDDDDDDDDDDDD is the higher 16 bits of disp23.
         bool success = false;
-        subop = ( w >> 16 ) & 0xF;
-        bool sign = ( op & 1 ) == 0;
-        uint32 r3 = ( w & 0xF8000000 ) >> 27;
+        subop = (w >> 16) & 0xF;
+        bool sign = (op & 1) == 0;
+        uint32 r3 = (w & 0xF8000000) >> 27;
         switch ( subop )
         {
           case 5:
@@ -1928,16 +1933,12 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
         if ( r2 == 0 )
           return false;
         uint16 r1 = PARSE_R1;
-
         ins->itype = NEC850_LD_BU;
-
-        ins->Op1.type       = o_displ;
-        displ_op            = &ins->Op1;
-        displ_op->reg       = r1;
-        displ_op->addr      = int16(((w >> 16) & ~1) | ((w & 0x20) >> 5));
-        displ_op->dtype     = dt_byte;
-        displ_op->specflag1 = N850F_USEBRACKETS | N850F_OUTSIGNED;
-
+        uint32 addr = int16(((w >> 16) & ~1) | ((w & 0x20) >> 5));
+        displ_op = &ins->Op1;
+        set_opdispl(displ_op, r1, addr, dt_byte);
+        displ_op->specflag1 |= N850F_OUTSIGNED;
+        displ_op->offb = 2;
         set_opreg(&ins->Op2, r2);
       }
       break;
@@ -1955,14 +1956,10 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
       ins->itype = inst_8[op];
       set_opimm(&ins->Op1, ((w & 0x3800) >> 11), dt_byte);
 
-
-      ins->Op2.type       = o_displ;
-      displ_op            = &ins->Op2;
-      displ_op->addr      = int16(w >> 16);
-      displ_op->offb      = 2;
-      displ_op->dtype     = dt_byte;
-      displ_op->reg       = PARSE_R1; // R
-      displ_op->specflag1 = N850F_USEBRACKETS | N850F_OUTSIGNED;
+      displ_op = &ins->Op2;
+      set_opdispl(displ_op, PARSE_R1, int16(w >> 16), dt_byte);
+      displ_op->specflag1 |= N850F_OUTSIGNED;
+      displ_op->offb = 2;
       break;
     }
     //
@@ -1999,8 +1996,8 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
       if ( is_v850e1f() && !is_v850e2m() )
       {
         // E1F opcodes (ref. U16374EJ1V0UM)
-        int subop = ( w >> 16 ) & 0x7FF;
-        int r3 = ( w & 0xF8000000 ) >> 27;
+        int subop = (w >> 16) & 0x7FF;
+        int r3 = (w & 0xF8000000) >> 27;
         switch ( subop )
         {
 // Format F:I reg1, reg2, reg3
@@ -2109,7 +2106,7 @@ OPS_FII:
           }
           else if ( is_rh850() )
           {
-            int subop = ( w >> 16 ) & 0x7FF;
+            int subop = (w >> 16) & 0x7FF;
             switch ( subop )
             {
               case 0x8:
@@ -2285,8 +2282,7 @@ OPS_FII:
                   ins->Op1.regrange_high = et;
                   ins->Op1.dtype = dt_word;
 
-                  ins->Op2.specflag1 = N850F_USEBRACKETS;
-                  set_opreg(&ins->Op2, PARSE_R1, dt_word);
+                  set_opphrase(&ins->Op2, PARSE_R1);
                   break;
                 }
               case 0x166:
@@ -2298,8 +2294,7 @@ OPS_FII:
                   uint32 et = (w & 0xF8000000) >> 27;
                   ins->itype = NEC850_LDM_MP;
 
-                  ins->Op1.specflag1 = N850F_USEBRACKETS;
-                  set_opreg(&ins->Op1, PARSE_R1, dt_word);
+                  set_opphrase(&ins->Op1, PARSE_R1);
 
                   ins->Op2.type = o_regrange;
                   ins->Op2.regrange_low = PARSE_R2;
@@ -2312,31 +2307,42 @@ OPS_FII:
                   uint32 r2 = PARSE_R2;
                   uint32 r3 = (w & 0xF8000000) >> 27;
 
-                  set_opreg(&ins->Op1, PARSE_R1, dt_byte);
-                  ins->Op1.specflag1 = N850F_USEBRACKETS;
+                  set_opphrase(&ins->Op1, PARSE_R1, dt_byte);
 
                   if ( r2 != 1 )
                   {
                     // ld.bu:
-                    // (3) LD.BU [reg1]+, reg3
-                    // (4) LD.BU [reg1]-, reg3
+                    // (3) LD.B  [reg1]+, reg3
+                    //     LD.BU [reg1]+, reg3
+                    // (4) LD.B  [reg1]-, reg3
+                    //     LD.BU [reg1]-, reg3
                     //
-                    // (3) 00011111111RRRRR wwwww01101110000
-                    // (4) 00101111111RRRRR wwwww01101110000
-                    ins->itype = NEC850_LD_BU;
+                    // (3) 00010111111RRRRR wwwww01101110000
+                    //     00011111111RRRRR wwwww01101110000
+                    // (4) 00100111111RRRRR wwwww01101110000
+                    //     00101111111RRRRR wwwww01101110000
 
                     switch ( r2 )
                     {
-                      case 0x3:
+                      case 0x2:
+                        ins->itype = NEC850_LD_B;
                         ins->Op1.specflag1 |= N850F_POST_INCREMENT;
                         break;
+                      case 0x3:
+                        ins->itype = NEC850_LD_BU;
+                        ins->Op1.specflag1 |= N850F_POST_INCREMENT;
+                        break;
+                      case 0x4:
+                        ins->itype = NEC850_LD_B;
+                        ins->Op1.specflag1 |= N850F_POST_DECREMENT;
+                        break;
                       case 0x5:
+                        ins->itype = NEC850_LD_BU;
                         ins->Op1.specflag1 |= N850F_POST_DECREMENT;
                         break;
                       default:
                         break;
                     }
-                    set_opreg(&ins->Op2, r3, dt_byte);
                   }
                   else
                   {
@@ -2345,7 +2351,7 @@ OPS_FII:
                     ins->itype = NEC850_LDL_BU;
                   }
 
-                  set_opreg(&ins->Op2, r3, dt_byte);
+                  set_opreg(&ins->Op2, r3, dt_dword);
                   break;
                 }
               case 0x372:
@@ -2362,21 +2368,15 @@ OPS_FII:
 
                   // stc.b
                   // 00000111111RRRRR wwwww01101110010
+                  set_opreg(&ins->Op1, r3, dt_byte);
+                  set_opphrase(&ins->Op2, PARSE_R1, dt_byte);
                   if ( r2 == 0 )
                   {
                     ins->itype = NEC850_STC_B;
-
-                    set_opreg(&ins->Op1, r3, dt_byte);
-
-                    ins->Op2.specflag1 = N850F_USEBRACKETS;
-                    set_opreg(&ins->Op2, PARSE_R1, dt_byte);
                   }
                   else
                   {
                     ins->itype = NEC850_ST_B;
-                    set_opreg(&ins->Op1, r3, dt_byte);
-
-                    ins->Op2.specflag1 = N850F_USEBRACKETS;
                     switch ( r2 )
                     {
                       case 0x2:
@@ -2388,10 +2388,7 @@ OPS_FII:
                       default:
                         break;
                     }
-
-                    set_opreg(&ins->Op2, PARSE_R1, dt_byte);
                   }
-
                   break;
                 }
               case 0x374:
@@ -2400,10 +2397,7 @@ OPS_FII:
                   // 00001111111RRRRR wwwww01101110100
                   ins->itype = NEC850_LDL_HU;
                   uint32 r3 = (w & 0xF8000000) >> 27;
-
-                  set_opreg(&ins->Op1, PARSE_R1, dt_byte);
-                  ins->Op1.specflag1 = N850F_USEBRACKETS;
-
+                  set_opphrase(&ins->Op1, PARSE_R1, dt_byte);
                   set_opreg(&ins->Op2, r3, dt_word);
                   break;
                 }
@@ -2412,12 +2406,9 @@ OPS_FII:
                   // stc.h
                   // 00000111111RRRRR wwwww01101110110
                   ins->itype = NEC850_STC_H;
-
                   uint32 r3 = (w & 0xF8000000) >> 27;
                   set_opreg(&ins->Op1, r3, dt_word);
-
-                  ins->Op2.specflag1 = N850F_USEBRACKETS;
-                  set_opreg(&ins->Op2, PARSE_R1, dt_word);
+                  set_opphrase(&ins->Op2, PARSE_R1, dt_word);
                   break;
                 }
               case 0x378:
@@ -2426,8 +2417,7 @@ OPS_FII:
                   // 00000111111RRRRR wwwww01101111000
                   ins->itype = NEC850_LDL_W;
                   uint32 r3 = ( w & 0xF8000000 ) >> 27;
-                  set_opreg(&ins->Op1, PARSE_R1);
-                  ins->Op1.specflag1 = N850F_USEBRACKETS;
+                  set_opphrase(&ins->Op1, PARSE_R1);
                   set_opreg(&ins->Op2, r3);
                   break;
                 }
@@ -2439,8 +2429,7 @@ OPS_FII:
                   ins->itype = NEC850_STC_W;
                   uint32 r3 = ( w & 0xF8000000 ) >> 27;
                   set_opreg(&ins->Op1, r3);
-                  set_opreg(&ins->Op2, PARSE_R1);
-                  ins->Op2.specflag1 = N850F_USEBRACKETS;
+                  set_opphrase(&ins->Op2, PARSE_R1);
                   break;
                 }
               case 0x160:
@@ -2464,9 +2453,9 @@ OPS_FII:
                         // POPSP rh-rt
                         // 01100111111RRRRR wwwww00101100000
                         // RRRRR indicates rh. wwwww indicates rt.
-                        ins->itype = r2 == 8 ? NEC850_PUSHSP
-                          : r2 == 0xB ? NEC850_DBPUSH
-                          : NEC850_POPSP;
+                        ins->itype = r2 == 8   ? NEC850_PUSHSP
+                                   : r2 == 0xB ? NEC850_DBPUSH
+                                   :             NEC850_POPSP;
                         ins->Op1.type = o_regrange;
                         ins->Op1.regrange_low = r1;
                         ins->Op1.regrange_high = r3;
@@ -2498,25 +2487,27 @@ OPS_FII:
                       {
                         // JARL [reg1], reg3
                         // 11000111111RRRRR WWWWW00101100000
+                        ins->itype = NEC850_JARL;
                         set_opreg(&ins->Op1, r1);
                         ins->Op1.specflag1 = N850F_USEBRACKETS;
                         set_opreg(&ins->Op2, r3);
-                        ins->itype = NEC850_JARL;
                       }
                       break;
 
                     case 0x19:
                       {
+                        // 11001111111iiiii IIIII00101100000
                         ins->itype = NEC850_DBTAG;
-                        int v8 = (w & 0x1f) | ((w1 >> 6) & 0xe0);
+                        int v8 = (w & 0x1f) | ((w1 & 0xF800) >> 6);
                         set_opimm(&ins->Op1, v8);
                       }
                       break;
 
                     case 0x1A:
                       {
+                        // 11010111111vvvvv 01VVV00101100000
                         ins->itype = NEC850_HVCALL;
-                        int v8 = (w & 0x1f) | ((w1 >> 6) & 0xe0);
+                        int v8 = (w & 0x1F) | ((w1 & 0x3800) >> 6);
                         set_opimm(&ins->Op1, v8);
                       }
                       break;
@@ -2619,21 +2610,17 @@ OPS_FII:
             // V850E: LD.HU disp16 [reg1], reg2
             // rrrrr111111RRRRR ddddddddddddddd1
             ins->itype = NEC850_LD_HU;
-            ins->Op1.type = o_displ;
+            uint32 addr = int16((w >> 16) & ~1);
             displ_op = &ins->Op1;
-            displ_op->reg = r1;
-            displ_op->addr = uint32(( w >> 17 ) << 1);
-            displ_op->dtype = dt_word;
-            displ_op->specflag1 = N850F_USEBRACKETS | N850F_OUTSIGNED;
+            set_opdispl(displ_op, r1, addr, dt_word);
+            displ_op->specflag1 |= N850F_OUTSIGNED;
             set_opreg(&ins->Op2, r2);
           }
           else if ( is_rh850() )
           {
             // RH850: Bcond disp17
             // 00000111111DCCCC ddddddddddddddd1
-            sval_t dest = uint32(( w >> 17 ) << 1);
-            if ( (w & 0x10) != 0 )
-              dest += 0x10000; // D
+            sval_t dest = uint32(((w >> 16) & ~1) | ((w & 0x10) << 12));
             SIGN_EXTEND(sval_t, dest, 17);
             ins->itype = bcond_map[w & 0xF];
             ins->Op1.dtype = dt_word;
@@ -2715,20 +2702,24 @@ OPS_FII:
               break;
             }
           }
+          if ( op == 0xEE ) // CAXI [reg1], reg2, reg3
+          {
+            ins->itype = NEC850_CAXI;
+            set_opphrase(&ins->Op1, r1);
+            set_opreg(&ins->Op2, r2);
+            set_opreg(&ins->Op3, r3);
+            break;
+          }
           switch ( op )
           {
             case 0x82:
               ins->itype = NEC850_SHR;
               break;
-            case 0xa2:
+            case 0xA2:
               ins->itype = NEC850_SAR;
               break;
-            case 0xc2:
+            case 0xC2:
               ins->itype = NEC850_SHL;
-              break;
-            case 0xEE:
-              ins->itype = NEC850_CAXI;
-              ins->Op1.specflag1 |= N850F_USEBRACKETS;
               break;
             case 0x2FE:
               ins->itype = NEC850_DIVQU;
@@ -2930,13 +2921,8 @@ OPS_FII:
         }
         // Common
         set_opreg(&ins->Op1, reg2, dt_byte);
-
-        ins->Op2.dtype      = dt_byte;
-        displ_op            = &ins->Op2;
-        displ_op->type      = o_displ;
-        displ_op->addr      = 0;
-        displ_op->reg       = reg1;
-        displ_op->specflag1 = N850F_USEBRACKETS;
+        displ_op = &ins->Op2;
+        set_opphrase(displ_op, reg1, dt_byte);
       }
 
       if ( ins->itype == 0 )
@@ -2953,7 +2939,7 @@ OPS_FII:
     if ( op == 0x1E )
     {
       uint32 reg  = PARSE_R2;
-      sval_t addr = uint32((((w & 0x3F) << 15) | ((w & 0xFFFE0000) >> 17)) << 1);
+      sval_t addr = uint32(((w >> 16) & ~1) | ((w & 0x3F) << 16));
       SIGN_EXTEND(sval_t, addr, 22);
 
       ins->Op1.addr = ins->ip + addr;
@@ -2995,8 +2981,9 @@ OPS_FII:
     {
       uint32 reg2 = PARSE_R2;
       uint32 addr = (w & 0x7F); // zero extended
-      int idx_d(-1), idx_r(-1);
-      char dtyp_d(-1);
+      int idx_d = -1;
+      int idx_r = -1;
+      op_dtype_t dt;
 
       // SLD.B
       if ( op == 6 )
@@ -3004,7 +2991,7 @@ OPS_FII:
         ins->itype = NEC850_SLD_B;
         idx_d = 0;
         idx_r = 1;
-        dtyp_d = dt_byte;
+        dt = dt_byte;
       }
       // SLD.H
       else if ( op == 8 )
@@ -3012,7 +2999,7 @@ OPS_FII:
         ins->itype = NEC850_SLD_H;
         idx_d = 0;
         idx_r = 1;
-        dtyp_d = dt_word;
+        dt = dt_word;
         addr <<= 1;
       }
       // SLD.W
@@ -3021,7 +3008,7 @@ OPS_FII:
         ins->itype = NEC850_SLD_W;
         idx_d = 0;
         idx_r = 1;
-        dtyp_d = dt_dword;
+        dt = dt_dword;
         addr <<= 1;
       }
       // SST.B
@@ -3030,7 +3017,7 @@ OPS_FII:
         ins->itype = NEC850_SST_B;
         idx_d = 1;
         idx_r = 0;
-        dtyp_d = dt_byte;
+        dt = dt_byte;
       }
       // SST.H
       else if ( op == 9 )
@@ -3038,7 +3025,7 @@ OPS_FII:
         ins->itype = NEC850_SST_H;
         idx_d = 1;
         idx_r = 0;
-        dtyp_d = dt_byte;
+        dt = dt_word;
         // bit0 is already cleared, so the 7bit addr we read
         // can be shifted by one to transform it to 8bit
         addr <<= 1;
@@ -3049,23 +3036,18 @@ OPS_FII:
         ins->itype = NEC850_SST_W;
         idx_d = 1;
         idx_r = 0;
-        dtyp_d = dt_dword;
+        dt = dt_dword;
         // clear lower bit because it is set, and shift by one
         // bit 15             0
         //     rrrrr1010dddddd1
         addr = (addr & ~1) << 1;
       }
-      if ( idx_d == -1 || idx_r == -1 || dtyp_d == -1 )
+      if ( idx_d == -1 || idx_r == -1 )
         return false; // could not decode
 
       set_opreg(&ins->ops[idx_r], reg2);
-
-      ins->ops[idx_d].type      = o_displ;
-      displ_op                  = &ins->ops[idx_d];
-      ins->ops[idx_d].reg       = rEP;
-      ins->ops[idx_d].addr      = addr;
-      ins->ops[idx_d].dtype     = dtyp_d;
-      ins->ops[idx_d].specflag1 = N850F_USEBRACKETS;
+      displ_op = &ins->ops[idx_d];
+      set_opdispl(displ_op, rEP, addr, dt);
       break;
     }
     // Unknown instructions
@@ -3142,7 +3124,7 @@ static int can_be_macro_with_displ(const insn_t &insn)
     default:
       return -1;
   }
-  if ( insn.ops[opno].type != o_displ )
+  if ( insn.ops[opno].type != o_displ && insn.ops[opno].type != o_phrase )
     return -1;
   return opno;
 }
@@ -3185,47 +3167,58 @@ inline sval_t combine_high_low(
 }
 
 //-------------------------------------------------------------------------
-static bool is_reg_used_after_ea(ea_t ea, int reg, int def_reg = -1)
+bool nec850_t::is_reg_used_after_insn(
+        const insn_t &start,
+        int reg,
+        int def_reg) const
 {
   // The assembler-reserved register (r1) is used as a temporary register
   // when instruction expansion is performed using the assembler.
   // TODO add an option (cfgvar) to control this option
   //      see in mips IDP_MACRO_HIDDEN_R1
   //      turn it off for v850e2m_firmware.bin
+  //      also this option can be extended (IDP_MACRO_RESPECT_ABI)
+  //      in this case we allow call/return in the lookup below
   if ( reg == rR1 )
     return false;
-  // REG is defined in the insn at EA
+  // REG is defined in the START insn
   if ( reg == def_reg )
     return false;
 
-  ea_t end_ea;
-  const func_t *func = get_func(ea);
-  if ( func != nullptr )
+  ea_t ea = start.ea + start.size;
+  for ( size_t cnt = 0; cnt < 16; ++cnt )
   {
-    end_ea = func->end_ea;
+    insn_t insn;
+    if ( decode_insn(&insn, ea) <= 0 )
+      break;
+    if ( is_branch_insn(insn) )
+    {
+      if ( insn.itype == NEC850_BR )
+      {
+        // assert: insn.Op1.type == o_near
+        ea = insn.Op1.addr;
+        continue;
+      }
+      break; // a branch/call stops the lookup
+    }
+    reglist_t regs;
+    uses(&regs, insn);
+    if ( regs.has(reg) )
+      break; // REG is used
+    spoils(&regs, insn);
+    if ( regs.has(reg) )
+      return false; // REG is redefining before using
+    ea += insn.size;
   }
-  else
-  {
-    const segment_t *s = getseg(ea);
-    end_ea = s != nullptr ? s->end_ea : inf_get_max_ea();
-  }
-
-  const char *reg_name = RegNames[reg];
-  reg_access_t access;
-  ea_t access_ea = find_reg_access(&access, ea, end_ea, reg_name,
-                                   SEARCH_NEXT
-                                 | SEARCH_DOWN
-                                 | SEARCH_BRK
-                                 | SEARCH_USE);
-  return access_ea != BADADDR;
+  return true;
 }
 
 //-------------------------------------------------------------------------
-// movhi hi1(imm32), reg1, rX or mov imm32, rx
+// movhi hi1(imm32), reg1, rX or mov imm32, rX
 // ld.w  lo(label)[r1], reg2 (also st/tst1/...)
 // ->
 // ld.w  label[reg1], reg2
-static bool ld_st_case(insn_t *insn, insn_t *insn2)
+bool nec850_t::ld_st_case(insn_t *insn, insn_t *insn2) const
 {
   if ( insn->itype != NEC850_MOVHI
     && (insn->itype != NEC850_MOV || insn->Op1.type != o_imm) )
@@ -3243,15 +3236,17 @@ static bool ld_st_case(insn_t *insn, insn_t *insn2)
   if ( tmpreg != displ.phrase )
     return false;
   // (*) 'opno==0' means the load insn that defines the second operand
-  if ( is_reg_used_after_ea(insn2->ea,
-                            tmpreg,
-                            opno == 0 ? insn2->Op2.reg : -1) ) // (*)
+  if ( is_reg_used_after_insn(*insn2,
+                              tmpreg,
+                              opno == 0 ? insn2->Op2.reg : -1) ) // (*)
   {
     return false;
   }
 
   // ok, build the macro
-  int new_base_reg = insn->itype == NEC850_MOV ? rZERO : insn->Op2.reg;
+  NEC850_regnum_t new_base_reg = insn->itype == NEC850_MOV
+                               ? rZERO
+                               : NEC850_regnum_t(insn->Op2.reg);
   sval_t addr = combine_high_low(insn->Op1.value, displ.addr,
                                  insn->itype == NEC850_MOV);
   insn->itype = insn2->itype;
@@ -3276,11 +3271,11 @@ static bool ld_st_case(insn_t *insn, insn_t *insn2)
 }
 
 //-------------------------------------------------------------------------
-// movhi hi1(imm32), reg1, rX or mov imm32, rx
+// movhi hi1(imm32), reg1, rX or mov imm32, rX
 // movea lo1(imm32), rX, reg2
 // ->
 // movea imm32, reg1, reg2 or mov imm32, reg2 if REG1 is 'r0'
-static bool mov_case(insn_t *insn, insn_t *insn2)
+bool nec850_t::mov_case(insn_t *insn, insn_t *insn2) const
 {
   if ( insn->itype != NEC850_MOVHI
     && (insn->itype != NEC850_MOV || insn->Op1.type != o_imm) )
@@ -3293,7 +3288,7 @@ static bool mov_case(insn_t *insn, insn_t *insn2)
   int tmpreg = insn->itype == NEC850_MOV ? insn->Op2.reg : insn->Op3.reg;
   if ( insn2->itype != NEC850_MOVEA || insn2->Op2.reg != tmpreg )
     return false;
-  if ( is_reg_used_after_ea(insn2->ea, tmpreg, insn2->Op3.reg) )
+  if ( is_reg_used_after_insn(*insn2, tmpreg, insn2->Op3.reg) )
     return false;
 
   // ok, build the macro
@@ -3342,7 +3337,7 @@ static bool mov_case(insn_t *insn, insn_t *insn2)
 //    cmdi imm2, rX, reg
 //  ->
 //    mov  imm1 <cmd> imm2, reg   where CMDI is addi/ori/andi/xori
-static bool cmd_case(insn_t *insn, insn_t *insn2)
+bool nec850_t::cmd_case(insn_t *insn, insn_t *insn2) const
 {
   if ( insn->itype != NEC850_MOV || insn->Op1.type != o_imm )
     return false;
@@ -3361,7 +3356,7 @@ static bool cmd_case(insn_t *insn, insn_t *insn2)
     && insn2->Op1.reg == insn->Op2.reg // rX
     && insn2->Op1.reg != insn2->Op2.reg )
   {
-    if ( is_reg_used_after_ea(insn2->ea, insn2->Op1.reg) )
+    if ( is_reg_used_after_insn(*insn2, insn2->Op1.reg) )
       return false;
     // ok, build the macro
     insn->itype = insn2->itype;
@@ -3431,6 +3426,13 @@ static bool simplify_mov(insn_t *insn)
   // ok, convert
   if ( insn->itype == NEC850_MOVHI )
   {
+    // do not convert if the second operand has a fixup,
+    // because here we change the operand value and an offset created from
+    // this fixup will be incorrect
+    fixup_data_t fd;
+    if ( fd.get(insn->ea + 2) && !fd.is_unused() )
+      return false;
+
     insn->Op1.value <<= 16;
     insn->Op1.specflag1 |= N850F_VAL32;
   }
@@ -3459,15 +3461,15 @@ static bool simplify_cmdi(insn_t *insn)
 }
 
 //-------------------------------------------------------------------------
-// 1. ld.w  label[r0], reg      -> ld.w label, reg
-// 2. mov   displ1, rX            (don't touch)
+// 1. ld.w  label[r0], reg  -> ld.w label, reg
+// we do not convert the following pattern because, otherwise, we get
+// unreliable results; in some cases, the conversion passes, in others it
+// fails. Furthermore, using regtracker in ana(), even with linear_flow
+// only, is a dangerous trick, and we should avoid doing it.
+// 2. mov   displ1, rX         (don't touch)
 //    ...
-//    ld.w  displ2[rX], reg     -> ld.w (displ1+displ2), reg
-// TODO
-// 3. movhi displ1, reg1, rX       (don't touch)
-//    ...
-//    ld.w  displ2[rX], reg2    -> ld.w (displ1+displ2)[reg1], reg2
-static bool simplify_displ_to_mem(const nec850_t &pm, insn_t *insn)
+//    ld.w  displ2[rX], reg -> ld.w (displ1+displ2), reg
+static bool simplify_displ_to_mem(insn_t *insn)
 {
   int opno = can_be_macro_with_displ(*insn);
   if ( opno == -1 )
@@ -3480,38 +3482,11 @@ static bool simplify_displ_to_mem(const nec850_t &pm, insn_t *insn)
     displ.addr = uint32(displ.addr);
     return true;
   }
-
-  // look for the first defining insn in the linear flow (linear_insn=20)
-  reg_value_info_t rvi;
-  if ( !pm.find_rvi(&rvi, insn->ea, displ.phrase, 0, 20) )
-    return false;
-  uval_t imm;
-  if ( !rvi.get_num(&imm) )
-    return false;
-  uint16 def_itype = rvi.get_def_itype();
-  if ( def_itype != NEC850_MOV
-    && def_itype != NEC850_MOVHI
-    && def_itype != NEC850_MOVEA )
-  {
-    return false;
-  }
-  insn_t mov_insn;
-  if ( decode_insn(&mov_insn, rvi.get_def_ea()) <= 0 )
-    return false;
-  if ( def_itype != NEC850_MOV && mov_insn.Op2.reg != rZERO )
-    return false;
-
-  // ok, convert
-  sval_t addr = combine_high_low(imm, displ.addr, true);
-  displ.type = o_mem;
-  displ.addr = uint32(addr);
-  displ.reg = 0;
-  displ.specflag1 |= N850F_VAL32;
-  return true;
+  return false;
 }
 
 //-------------------------------------------------------------------------
-static bool build_macro(insn_t *insn, bool may_go_forward)
+bool nec850_t::build_macro(insn_t *insn, bool may_go_forward) const
 {
   if ( !may_go_forward )
     return false;
@@ -3561,9 +3536,9 @@ struct nec850_macro_ctr_t : public macro_constructor_t
   bool idaapi build_macro(insn_t *insn, bool may_go_forward) override
   {
     simplify_mov(insn);
-    bool made_macro = ::build_macro(insn, may_go_forward);
+    bool made_macro = pm.build_macro(insn, may_go_forward);
     simplify_cmdi(insn);
-    simplify_displ_to_mem(pm, insn);
+    simplify_displ_to_mem(insn);
     return made_macro;
   }
 };

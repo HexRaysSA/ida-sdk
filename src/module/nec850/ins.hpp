@@ -113,7 +113,7 @@ enum NEC850_Instructions
   NEC850_MUL,           // Multiply word
   NEC850_MULU,          // Multiply word unsigned
 
-  NEC850_DIVH_r3,       // Divide halfword
+  NEC850_DIVH_r3,       // Divide halfword (Format XI)
   NEC850_DIVHU,         // Divide halfword unsigned
   NEC850_DIV,           // Divide word
   NEC850_DIVU,          // Divide word unsigned
@@ -367,28 +367,32 @@ enum NEC850_Instructions
   NEC850_VLD_B_FMT4,     // Vector Load byte (4th instruction format)
 
   NEC850_VLD_H,          // Vector Load halfword
+  NEC850_VLD_H_FMT3,     // Vector Load halfword (3rd instruction format)
   NEC850_VLD_H_FMT4,     // Vector Load halfword (4th instruction format)
 
   NEC850_VLD_W,          // Vector Load word
+  NEC850_VLD_W_FMT3,     // Vector Load word (3rd instruction format)
   NEC850_VLD_W_FMT4,     // Vector Load word (4th instruction format)
 
   NEC850_VLD_DW,         // Vector Load double - word
   NEC850_VLD_DW_FMT3,    // Vector Load double - word (3rd instruction format)
   NEC850_VLD_DW_FMT4,    // Vector Load double - word (4th instruction format)
-  NEC850_VLD_DW_FMT5,    // Vector Load double - word (5th instruction format)
 
   NEC850_VST_B,          // Vector Store byte
+  NEC850_VST_B_FMT3,     // Vector Store byte (3rd instruction format)
   NEC850_VST_B_FMT4,     // Vector Store byte (4th instruction format)
 
   NEC850_VST_H,          // Vector Store halfword
-  NEC850_VST_H_FMT_4_5,  // Vector Store halfword (4th/5th instruction format)
+  NEC850_VST_H_FMT3,     // Vector Store halfword (3rd instruction format)
+  NEC850_VST_H_FMT45,    // Vector Store halfword (4th/5th instruction format)
 
   NEC850_VST_W,          // Vector Store word
-  NEC850_VST_W_FMT_4_5,  // Vector Store word (4th/5th instruction format)
+  NEC850_VST_W_FMT3,     // Vector Store word (3rd instruction format)
+  NEC850_VST_W_FMT45,    // Vector Store word (4th/5th instruction format)
 
   NEC850_VST_DW,         // Vector Store double - word
-  NEC850_VST_DW_FMT_4_5, // Vector Store double - word (4th/5th instruction format)
-  NEC850_VST_DW_FMT6,    // Vector Store double - word (6th instruction format)
+  NEC850_VST_DW_FMT3,    // Vector Store double - word (3rd instruction format)
+  NEC850_VST_DW_FMT45,   // Vector Store double - word (4th/5th instruction format)
 
   NEC850_VCMOV,          // Vector conditional move
   NEC850_MODADD,         // Modulo Add

@@ -55,6 +55,7 @@ def myAddSeg(startea, endea, base, use32, name, clas):
     s.align    = idaapi.saRelPara
     s.comb     = idaapi.scPub
     idaapi.add_segm_ex(s, name, clas, idaapi.ADDSEG_NOSREG|idaapi.ADDSEG_OR_DIE)
+    idc.set_default_sreg_value(startea, "ds", idaapi.BADSEL)
 
 # -----------------------------------------------------------------------
 def load_file(li, neflags, format):

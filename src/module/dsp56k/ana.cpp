@@ -1083,7 +1083,7 @@ bool dsp56k_t::SD_IIII(insn_t &insn, int value)
      A,  B, A0, B0,
     -1, -1, -1, -1,
      A,  B, A0, B0
-   };
+  };
 
   static const char regs2[] =
   {
@@ -1347,10 +1347,16 @@ bool dsp56k_t::S_QQ2(insn_t &, int value)
 //----------------------------------------------------------------------
 bool dsp56k_t::S_QQQQ(insn_t &, int value)
 {
-  static const uchar regs1[] = { X0, Y0, X1, Y1, X0, Y0, X1, Y1,
-                                 X1, Y1, X0, Y0, Y1, X0, Y0, X1 };
-  static const uchar regs2[] = { X0, Y0, X0, Y0, Y1, X0, Y0, X1,
-                                 X1, Y1, X1, Y1, X0, Y0, X1, Y1 };
+  static const uchar regs1[] =
+  {
+    X0, Y0, X1, Y1, X0, Y0, X1, Y1,
+    X1, Y1, X0, Y0, Y1, X0, Y0, X1
+  };
+  static const uchar regs2[] =
+  {
+    X0, Y0, X0, Y0, Y1, X0, Y0, X1,
+    X1, Y1, X1, Y1, X0, Y0, X1, Y1
+  };
 
   int idx = value & 0xf;
   op->type = o_reg;

@@ -171,10 +171,15 @@ enum merge_kind_t ENUM_SIZE(uint32)
   MERGE_KIND_LAST,              ///< last predefined merge handler type.
                                 ///< please note that there can be more merge handler types,
                                 ///< registered by plugins and processor modules.
+#ifndef SWIG
   MERGE_KIND_END = merge_kind_t(-2),
                                 ///< insert to the end of handler list,
                                 ///< valid for merge_handler_params_t::insert_after
   MERGE_KIND_NONE = merge_kind_t(-1)
+#else  // Kludge to support IDAPython build with SWiG 4.2
+  MERGE_KIND_END = UINT32_MAX - 2,
+  MERGE_KIND_NONE = UINT32_MAX - 1,
+#endif
 };
 
 //------------------------------------------------------------------------

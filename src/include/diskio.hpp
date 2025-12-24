@@ -37,6 +37,12 @@
 idaman THREAD_SAFE const char *ida_export idadir(const char *subdir);
 
 
+/// Get the directory where IDA is installed.
+/// Normally it is the same as idadir(nullptr) but on Mac the directory
+/// is higher (ida.app).
+idaman void ida_export get_install_root(qstring *out);
+
+
 /// Search for IDA system file.
 /// This function searches for a file in:
 ///   -# each directory specified by %IDAUSR%

@@ -29,7 +29,7 @@
   They must use functions from <pro.h>
 
   The exported entry #1 in the module should point to the
-  the appropriate structure. (loader_t for LDR module, for example)
+  appropriate structure. (loader_t for LDR module, for example)
 */
 
 //----------------------------------------------------------------------
@@ -997,7 +997,7 @@ idaman bool ida_export is_trusted_idb(void);
 //------------------------------------------------------------------------
 /// Save current database using a new file name.
 /// \param outfile  output database file name; nullptr means the current path
-/// \param flags    \ref DBFL_; -1 means the current flags
+/// \param flags    \ref DBFL_; 0 means the current flags
 /// \param root     optional: snapshot tree root.
 /// \param attr     optional: snapshot attributes
 /// \note when both root and attr are not nullptr then the snapshot
@@ -1007,7 +1007,7 @@ idaman bool ida_export is_trusted_idb(void);
 
 idaman bool ida_export save_database(
         const char *outfile=nullptr,
-        uint32 flags=-1,
+        uint32 flags=0,
         const snapshot_t *root = nullptr,
         const snapshot_t *attr = nullptr);
 

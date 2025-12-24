@@ -69,8 +69,8 @@ static const rpc_packet_type_desc_t dbg_rpc_packet_t_descs[] =
 #endif
 
 //-------------------------------------------------------------------------
-dbg_rpc_engine_t::dbg_rpc_engine_t(bool _is_client)
-  : rpc_engine_t(_is_client),
+dbg_rpc_engine_t::dbg_rpc_engine_t(bool _is_client, int _recv_timeout)
+  : rpc_engine_t(_is_client, _recv_timeout),
     has_pending_event(false),
     poll_debug_events(false)
 {

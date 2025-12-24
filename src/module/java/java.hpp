@@ -310,7 +310,7 @@ enum fmt_t
   fmt_fullname,   // full qualified name
   fmt_UnqualifiedName,
   fmt__ENDENUM
- };
+};
 #define FMT_ENC_RESERVED  (uchar)0x80
 
 //-------------------------------------------------------------------------

@@ -34,7 +34,20 @@ static const char *symtag_to_string(uint32 tag)
     "Thunk",
     "CustomType",
     "ManagedType",
-    "Dimension"
+    "Dimension",
+    "CallSite",
+    "InlineSite",
+    "BaseInterface",
+    "VectorType",
+    "MatrixType",
+    "HLSLType",
+    "Caller",
+    "Callee",
+    "Export",
+    "HeapAllocationSite",
+    "CoffGroup",
+    "Inlinee",
+    "TaggedUnionCase",
   };
   return tag < qnumber(names) ? names[tag] : "???";
 }

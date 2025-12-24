@@ -1,4 +1,4 @@
- /*
+/*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
@@ -31,6 +31,7 @@ struct strwinsetup_t;           ///< see <strlist.hpp>
 struct renderer_info_t;         ///< see <moves.hpp>
 struct segm_move_infos_t;       ///< see <moves.hpp>
 struct load_info_t;             ///< see <loader.hpp>
+struct dbg_deref_options_t;     ///< see <dbg.hpp>
 #endif // SWIG
 
 /// Message box kinds
@@ -126,7 +127,7 @@ enum vme_button_t
 /// \defgroup SETMENU_ Set menu flags
 /// Passed as 'flags' parameter to attach_action_to_menu()
 /// In case menupath == nullptr new item will be added to the end of menu even when
-/// SETMENU_APP is not set. SETMENU_FIRST can be used to change this behaviour
+/// SETMENU_APP is not set. SETMENU_FIRST can be used to change this behavior
 /// Note: The upper 16 bits are reserved for UI internal use.
 ///@{
 #define SETMENU_POSMASK       0x3
@@ -147,7 +148,7 @@ enum vme_button_t
 /// Passed as 'flags' parameter to set_highlight()
 ///@{
 #define HIF_IDENTIFIER   0x1  ///< text is an identifier (i.e., when searching for the current highlight, SEARCH_IDENT will be used)
-#define HIF_REGISTER     0x2  ///< text represents a register (aliases/subregisters will be highlit as well)
+#define HIF_REGISTER     0x2  ///< text represents a register (aliases/subregisters will be highlighted as well)
 #define HIF_LOCKED       0x4  ///< locked; clicking/moving the cursor around doesn't change the highlight
 #define HIF_NOCASE       0x8  ///< case insensitive
 
@@ -220,14 +221,6 @@ enum vme_button_t
                                   ///< geometry (Qt only)
 ///@}
 
-/// \defgroup CDVF_ Code viewer flags
-/// passed as 'flags' parameter to create_code_viewer()
-///@{
-#define CDVF_NOLINES        0x0001    ///< don't show line numbers
-#define CDVF_LINEICONS      0x0002    ///< icons can be drawn over the line control
-#define CDVF_STATUSBAR      0x0004    ///< keep the status bar in the custom viewer
-///@}
-
 /// \defgroup SVF_ Source viewer creation flags
 /// passed as 'flags' parameter to callback for ::ui_create_source_viewer
 ///@{
@@ -249,6 +242,7 @@ enum vme_button_t
                            ///< to the viewer's lochist_t (otherwise, if the
                            ///< viewer was invisible its on_location_changed()
                            ///< handler wouldn't be called.)
+
 ///@}
 /// \defgroup WIDGET_OPEN Widget open flags
 /// passed as options to open_form() and display_widget()
@@ -362,7 +356,7 @@ enum ui_notification_t
                         ///< \return void
 
   ui_refresh_choosers,  ///< cb: The list (chooser) window contents have been changed (names, signatures, etc).
-                        ///< UI should redraw them. Please consider request_refresh() instead
+                        ///< UI should redraw them. Please consider mark_builtin_widgets() instead
                         ///< \param none
                         ///< \return void
 
@@ -453,7 +447,7 @@ enum ui_notification_t
   ui_mbox,              ///< ui: Show a message box.
                         ///< \param kind    (::mbox_kind_t)
                         ///< \param format  (const char *) format of message body
-                        ///< \param va      (va_list]) format args
+                        ///< \param va      (va_list) format args
                         ///< \return void
 
   ui_clr_cancelled,     ///< ui: see clr_cancelled()
@@ -620,7 +614,7 @@ enum ui_notification_t
                         ///< CAPTION caption\n
                         ///<   caption for the hint widget
                         ///< \param[out] hint             (::qstring *) the output string,
-                        ///<                              on input contains hints from the previous subscribes
+                        ///<                              on input contains hints from the previous subscribers
                         ///< \param viewer                (TWidget*) viewer
                         ///< \param place                 (::place_t *) current position in the viewer
                         ///< \param[out] important_lines  (int *) number of important lines,
@@ -695,7 +689,7 @@ enum ui_notification_t
 
   ui_get_chooser_item_attrs,
                         ///< cb: get item-specific attributes for a chooser.
-                        ///< This callback is generated only after enable_chooser_attrs()
+                        ///< This callback is generated only after enable_chooser_item_attrs()
                         ///< \param chooser  (const ::chooser_base_t *)
                         ///< \param n        (::size_t)
                         ///< \param attrs    (::chooser_item_attrs_t *)
@@ -835,7 +829,7 @@ enum ui_notification_t
                         ///< ui: see detach_action_from_popup()
 
   ui_attach_dynamic_action_to_popup,
-                        ///< ui: see create attach_dynamic_action_to_popup()
+                        ///< ui: see attach_dynamic_action_to_popup()
 
   ui_attach_action_to_toolbar,
                         ///< ui: see attach_action_to_toolbar()
@@ -958,9 +952,9 @@ enum ui_notification_t
   ui_get_active_modal_widget,
                         ///< ui: see get_active_modal_widget()
 
-  ui_navband_pixel,     ///< ui: see get_navband_pixel
-  ui_navband_ea,        ///< ui: see get_navband_ea
-  ui_get_window_id,     ///< ui: set get_window_id (GUI only)
+  ui_navband_pixel,     ///< ui: see get_navband_pixel()
+  ui_navband_ea,        ///< ui: see get_navband_ea()
+  ui_get_window_id,     ///< ui: see get_window_id()
 
   ui_create_desktop_widget,
                         ///< cb: create a widget, to be placed in the widget tree (at desktop-creation time.)
@@ -1057,16 +1051,21 @@ enum ui_notification_t
                           /// \return icon id
   ui_open_builtin2,       ///< ui: open a window of a built-in type. see \ref ui_open_builtin_funcs
                           ///< \param bwn the builtin widget type
-                          ///< \param arg0 the first argument (e.g., ordinal for BWN_TICSR)
-                          ///< \param arg1 the second argument (e.g., a tif_cursor_t * for BWN_TICSR)
+                          ///< \param arg0 the first argument (e.g., ordinal for BWN_TITREE)
+                          ///< \param arg1 the second argument (e.g., a tif_cursor_t * for BWN_TITREE)
 
-  ui_get_last_widget,     ///< ui: see get_last_widget()
+  ui_obsolete_get_last_widget,
 
   ui_prompt_function_prototype,
                           ///< ui: open Function Prototype Editor and return new type for function
 
   ui_parse_tagged_line_sections,
                           ///< ui: see parse_tagged_line_sections()
+
+  ui_get_last_widget,     ///< ui: see get_last_widget()
+
+  ui_action_ctx_base_ctl, ///< ui: misc. operations on a action_ctx_base_t
+
   ui_last,              ///< the last notification code
 
   ui_dbg_begin = 1000, ///< debugger callgates. should not be used directly, see dbg.hpp for details
@@ -1463,12 +1462,12 @@ public:
   /// \return success
   virtual bool idaapi next(void *ud)                                   = 0;
 
-  /// Are we at the first displayable object?.
+  /// Are we at the first displayable object?
   /// \param ud   pointer to user-defined context data. Is supplied by ::linearray_t
   /// \return true if the current location points to the first displayable object
   virtual bool idaapi beginning(void *ud) const                        = 0;
 
-  /// Are we at the last displayable object?.
+  /// Are we at the last displayable object?
   /// \param ud   pointer to user-defined context data. Is supplied by ::linearray_t
   /// \return true if the current location points to the last displayable object
   virtual bool idaapi ending(void *ud) const                           = 0;
@@ -1492,7 +1491,7 @@ public:
 
   /// Serialize this instance.
   /// It is fundamental that all instances of a particular subclass
-  /// of of place_t occupy the same number of bytes when serialized.
+  /// of place_t occupy the same number of bytes when serialized.
   /// \param out   buffer to serialize into
   virtual void idaapi serialize(bytevec_t *out) const = 0;
 
@@ -1544,7 +1543,7 @@ public:
 
   /// Compare two locations except line numbers (lnnum).
   /// This function is used to organize loops.
-  /// For example, if the user has selected an range, its boundaries are remembered
+  /// For example, if the user has selected a range, its boundaries are remembered
   /// as location objects. Any operation within the selection will have the following
   /// look: for ( loc=starting_location; loc < ending_location; loc.next() )
   /// In this loop, the comparison function is used.
@@ -1559,7 +1558,7 @@ public:
   /// semantically different than `compare2`, although by default it is
   /// implemented in terms of it for backwards-compatibility. `compare2`
   /// implements a three-way comparison to see if two places *sort* less than,
-  /// equal to, or grater than. This method actually looks for equality. Thus,
+  /// equal to, or greater than. This method actually looks for equality. Thus,
   /// `t1->equals(t2, ud)` implies `t1->compare2(t2, ud) == 0`, but the reverse
   /// is not always true. An example of this is for adjustable places that are
   /// sensitive to the x-cursor position, and need to compare differently as a
@@ -1721,6 +1720,7 @@ struct simpleline_t
 /// A collection of simple lines to populate a custom view.
 /// This is an example of what you would pass as the 'ud' argument to create_custom_viewer()
 typedef qvector<simpleline_t> strvec_t;
+typedef qvector<uint32> ordvec_t;
 
 /// A location in a view populated by a ::strvec_t
 class simpleline_place_t : public place_t
@@ -1774,7 +1774,6 @@ idaman size_t ida_export hexplace_t__ea2str(
 #define HEXPLACE_COLOR_SHOWSPACES COLOR_RESERVED1
 
 // A helper, used as 'userdata' for generating lines in a hexplace_t
-// None of the function pointers can be nullptr
 struct hexplace_gen_t
 {
   // data format to display
@@ -1784,6 +1783,7 @@ struct hexplace_gen_t
     dk_int,
     dk_addr_names,
     dk_addr_text,
+    dk_addr_deref
   };
   enum int_format_t
   {
@@ -1822,10 +1822,24 @@ struct hexplace_gen_t
   virtual bool show_segaddr() const = 0;
   virtual int get_bitness() const = 0;
 
+  virtual bool get_dbg_deref_options(dbg_deref_options_t &out) const
+  {
+    qnotused(out);
+    return false;
+  }
+
+  static bool is_addr_kind(data_kind_t k)
+  {
+    return k == dk_addr_names || k == dk_addr_text || k == dk_addr_deref;
+  }
+  static bool can_show_text(data_kind_t k)
+  {
+    return k == dk_float || k == dk_int;
+  }
   bool is_addr_kind() const
   {
     data_kind_t k = get_data_kind();
-    return k == dk_addr_names || k == dk_addr_text;
+    return is_addr_kind(k);
   }
 };
 
@@ -2097,6 +2111,12 @@ typedef lecvt_code_t idaapi lochist_entry_cvt2_t(
         const lochist_entry_t &src,
         TWidget *view,
         uint32 flags);
+
+/// Controls which types are displayed/selected when choosing a types from a library.
+/// \retval 0  skip type
+/// \retval 1  include
+
+typedef int idaapi til_tinfo_predicate_t(uint32 ord, const tinfo_t &type, void *ud);
 
 //-------------------------------------------------------------------------
 /// Register a converter, that will be used for the following reasons:
@@ -2607,8 +2627,8 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
 /// Holds (live) data about a location being displayed in a listing
 ///
 /// Note that members of this type, are mere references to live data,
-/// and if you intend on consulting them for extended periods of time
-/// should should make a copy of them.
+/// and if you intend on consulting them for extended periods of time,
+/// you should make a copy of them.
 struct listing_location_t
 {
   int cb = sizeof(*this);
@@ -2618,25 +2638,32 @@ struct listing_location_t
   const tagged_line_sections_t *tagged_sections = nullptr;
 };
 
-#ifndef SWIG
-/// Bitmask of builtin window types to be refreshed:
-idaman uint64 ida_export get_dirty_infos();
-#endif // SWIG
-
-
-/// Request a refresh of a builtin window.
+/// Request a refresh of a builtin widgets.
 /// \param mask  \ref IWID_
-/// \param cnd   set if true or clear flag otherwise
+/// \param dirty mark for refresh if true or clear flag otherwise
 
-idaman void ida_export request_refresh(uint64 mask, bool cnd=true);
-inline void clear_refresh_request(uint64 mask) { request_refresh(mask, false); }
+typedef uint128 builtin_widgets_mask_t;
 
+inline builtin_widgets_mask_t builtin_widget_mask_from_id(int bwn) { TB_QASSERT(0, bwn >= 0); return uint128(1) << bwn; }
 
-/// Get a refresh request state
-/// \param mask  \ref IWID_
-/// \return the state (set or cleared)
+idaman void ida_export mark_builtin_widgets(builtin_widgets_mask_t mask, bool dirty=true);
+inline void mark_builtin_widget_by_id(int bwn, bool dirty=true)
+{
+  TB_QASSERT(0, bwn <= 62); // attempt detecting ID-vs-mask confusion
+  mark_builtin_widgets(builtin_widget_mask_from_id(bwn), dirty);
+}
 
-idaman bool ida_export is_refresh_requested(uint64 mask);
+/// Get the builtin widgets "dirty" state.
+/// \param out a mask holding an OR'ed combination of \ref IWID_
+
+idaman void ida_export get_builtin_widgets_state(builtin_widgets_mask_t *out);
+inline bool is_builtin_widget_dirty(int bwn)
+{
+  TB_QASSERT(0, bwn <= 62); // attempt detecting ID-vs-mask confusion
+  builtin_widgets_mask_t mask;
+  get_builtin_widgets_state(&mask);
+  return (mask & builtin_widget_mask_from_id(bwn)) != 0;
+}
 
 
 //-------------------------------------------------------------------------
@@ -2656,8 +2683,8 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define BWN_SELS           7 ///< selectors
 #define BWN_SIGNS          8 ///< signatures
 #define BWN_TILS           9 ///< type libraries
-#define BWN_TICSR         10 ///< type library widget's (e.g., "Local types") chooser
-#define BWN_CALLS         11 ///< function calls
+#define BWN_TITREE        10 ///< type library widget's (e.g., "Local types") tree
+#define BWN_RESERVED_1    11 ///< Reserved
 #define BWN_PROBS         12 ///< problems
 #define BWN_BPTS          13 ///< breakpoints
 #define BWN_THREADS       14 ///< threads
@@ -2688,8 +2715,8 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define BWN_CUSTVIEW      44 ///< custom viewers
 #define BWN_ADDRWATCH     45 ///< the 'Watch List' window
 #define BWN_PSEUDOCODE    46 ///< hexrays decompiler views
-#define BWN_CALLS_CALLERS 47 ///< function calls, callers
-#define BWN_CALLS_CALLEES 48 ///< function calls, callees
+#define BWN_RESERVED_2    47 ///< Reserved
+#define BWN_RESERVED_3    48 ///< Reserved
 #define BWN_MDVIEWCSR     49 ///< lumina metadata view chooser
 #define BWN_DISASM_ARROWS 50 ///< disassembly arrows widget
 #define BWN_CV_LINE_INFOS 51 ///< custom viewers' lineinfo widget
@@ -2708,69 +2735,70 @@ typedef int twidget_type_t; ///< \ref BWN_
 ///@}
 
 /// \defgroup IWID_ Window refresh flags
-/// passed as 'mask' parameter to request_refresh()
+/// passed as 'mask' parameter to mark_builtin_widgets()
 ///@{
-#define IWID_EXPORTS       (1ULL << BWN_EXPORTS      ) ///< exports
-#define IWID_IMPORTS       (1ULL << BWN_IMPORTS      ) ///< imports
-#define IWID_NAMES         (1ULL << BWN_NAMES        ) ///< names
-#define IWID_FUNCS         (1ULL << BWN_FUNCS        ) ///< functions
-#define IWID_STRINGS       (1ULL << BWN_STRINGS      ) ///< strings
-#define IWID_SEGS          (1ULL << BWN_SEGS         ) ///< segments
-#define IWID_SEGREGS       (1ULL << BWN_SEGREGS      ) ///< segment registers
-#define IWID_SELS          (1ULL << BWN_SELS         ) ///< selectors
-#define IWID_SIGNS         (1ULL << BWN_SIGNS        ) ///< signatures
-#define IWID_TILS          (1ULL << BWN_TILS         ) ///< type libraries
-#define IWID_TICSR         (1ULL << BWN_TICSR        ) ///< type library widget's (e.g., "Local types") chooser
-#define IWID_CALLS         (1ULL << BWN_CALLS        ) ///< function calls
-#define IWID_PROBS         (1ULL << BWN_PROBS        ) ///< problems
-#define IWID_BPTS          (1ULL << BWN_BPTS         ) ///< breakpoints
-#define IWID_THREADS       (1ULL << BWN_THREADS      ) ///< threads
-#define IWID_MODULES       (1ULL << BWN_MODULES      ) ///< modules
-#define IWID_TRACE         (1ULL << BWN_TRACE        ) ///< tracing view
-#define IWID_CALL_STACK    (1ULL << BWN_CALL_STACK   ) ///< call stack
-#define IWID_XREFS         (1ULL << BWN_XREFS        ) ///< xrefs
-#define IWID_SEARCH        (1ULL << BWN_SEARCH       ) ///< search results
-#define IWID_FRAME         (1ULL << BWN_FRAME        ) ///< function frame
-#define IWID_NAVBAND       (1ULL << BWN_NAVBAND      ) ///< navigation band
-#define IWID_DISASM        (1ULL << BWN_DISASM       ) ///< disassembly views
-#define IWID_HEXVIEW       (1ULL << BWN_HEXVIEW      ) ///< hex views
-#define IWID_NOTEPAD       (1ULL << BWN_NOTEPAD      ) ///< notepad
-#define IWID_OUTPUT        (1ULL << BWN_OUTPUT       ) ///< output
-#define IWID_CLI           (1ULL << BWN_CLI          ) ///< input line
-#define IWID_WATCH         (1ULL << BWN_WATCH        ) ///< watches
-#define IWID_LOCALS        (1ULL << BWN_LOCALS       ) ///< locals
-#define IWID_STKVIEW       (1ULL << BWN_STKVIEW      ) ///< stack view
-#define IWID_CHOOSER       (1ULL << BWN_CHOOSER      ) ///< chooser
-#define IWID_SHORTCUTCSR   (1ULL << BWN_SHORTCUTCSR  ) ///< shortcuts chooser
-#define IWID_SHORTCUTWIN   (1ULL << BWN_SHORTCUTWIN  ) ///< shortcuts window
-#define IWID_CPUREGS       (1ULL << BWN_CPUREGS      ) ///< registers
-#define IWID_SO_STRUCTS    (1ULL << BWN_SO_STRUCTS   ) ///< stroff
-#define IWID_SO_OFFSETS    (1ULL << BWN_SO_OFFSETS   ) ///< stroff
-#define IWID_CMDPALCSR     (1ULL << BWN_CMDPALCSR    ) ///< command palette
-#define IWID_CMDPALWIN     (1ULL << BWN_CMDPALWIN    ) ///< command palette
-#define IWID_SNIPPETS      (1ULL << BWN_SNIPPETS     ) ///< snippets
-#define IWID_CUSTVIEW      (1ULL << BWN_CUSTVIEW     ) ///< custom viewers
-#define IWID_ADDRWATCH     (1ULL << BWN_ADDRWATCH    ) ///< address watches
-#define IWID_PSEUDOCODE    (1ULL << BWN_PSEUDOCODE   ) ///< decompiler
-#define IWID_CALLS_CALLERS (1ULL << BWN_CALLS_CALLERS) ///< funcalls, callers
-#define IWID_CALLS_CALLEES (1ULL << BWN_CALLS_CALLEES) ///< funcalls, callees
-#define IWID_MDVIEWCSR     (1ULL << BWN_MDVIEWCSR    ) ///< lumina md view
-#define IWID_DISASM_ARROWS (1ULL << BWN_DISASM_ARROWS) ///< arrows widget
-#define IWID_CV_LINE_INFOS (1ULL << BWN_CV_LINE_INFOS) ///< lineinfo widget
-#define IWID_SRCPTHMAP_CSR (1ULL << BWN_SRCPTHMAP_CSR) ///< mappings chooser
-#define IWID_SRCPTHUND_CSR (1ULL << BWN_SRCPTHUND_CSR) ///< undesired chooser
-#define IWID_UNDOHIST      (1ULL << BWN_UNDOHIST     ) ///< Undo history
-#define IWID_SNIPPETS_CSR  (1ULL << BWN_SNIPPETS_CSR ) ///< snippets chooser
-#define IWID_SCRIPTS_CSR   (1ULL << BWN_SCRIPTS_CSR  ) ///< recent scripts
-#define IWID_BOOKMARKS     (1ULL << BWN_BOOKMARKS    ) ///< bookmarks list
-#define IWID_TILIST        (1ULL << BWN_TILIST       ) ///< type listing
-#define IWID_TIL_VIEW      (1ULL << BWN_TIL_VIEW     ) ///< type library's toplevel widget
-#define IWID_TYPE_EDITOR   (1ULL << BWN_TYPE_EDITOR  ) ///< a type editor
-#define IWID_XREF_TREE     (1ULL << BWN_XREF_TREE   ) ///< xref tree widget
+#define IWID_EXPORTS       builtin_widget_mask_from_id(BWN_EXPORTS      ) ///< exports
+#define IWID_IMPORTS       builtin_widget_mask_from_id(BWN_IMPORTS      ) ///< imports
+#define IWID_NAMES         builtin_widget_mask_from_id(BWN_NAMES        ) ///< names
+#define IWID_FUNCS         builtin_widget_mask_from_id(BWN_FUNCS        ) ///< functions
+#define IWID_STRINGS       builtin_widget_mask_from_id(BWN_STRINGS      ) ///< strings
+#define IWID_SEGS          builtin_widget_mask_from_id(BWN_SEGS         ) ///< segments
+#define IWID_SEGREGS       builtin_widget_mask_from_id(BWN_SEGREGS      ) ///< segment registers
+#define IWID_SELS          builtin_widget_mask_from_id(BWN_SELS         ) ///< selectors
+#define IWID_SIGNS         builtin_widget_mask_from_id(BWN_SIGNS        ) ///< signatures
+#define IWID_TILS          builtin_widget_mask_from_id(BWN_TILS         ) ///< type libraries
+#define IWID_TITREE        builtin_widget_mask_from_id(BWN_TITREE       ) ///< type library widget's (e.g., "Local types") chooser
+#define IWID_RESERVED_1    builtin_widget_mask_from_id(BWN_RESERVED_1   ) ///< Reserved
+#define IWID_PROBS         builtin_widget_mask_from_id(BWN_PROBS        ) ///< problems
+#define IWID_BPTS          builtin_widget_mask_from_id(BWN_BPTS         ) ///< breakpoints
+#define IWID_THREADS       builtin_widget_mask_from_id(BWN_THREADS      ) ///< threads
+#define IWID_MODULES       builtin_widget_mask_from_id(BWN_MODULES      ) ///< modules
+#define IWID_TRACE         builtin_widget_mask_from_id(BWN_TRACE        ) ///< tracing view
+#define IWID_CALL_STACK    builtin_widget_mask_from_id(BWN_CALL_STACK   ) ///< call stack
+#define IWID_XREFS         builtin_widget_mask_from_id(BWN_XREFS        ) ///< xrefs
+#define IWID_SEARCH        builtin_widget_mask_from_id(BWN_SEARCH       ) ///< search results
+#define IWID_FRAME         builtin_widget_mask_from_id(BWN_FRAME        ) ///< function frame
+#define IWID_NAVBAND       builtin_widget_mask_from_id(BWN_NAVBAND      ) ///< navigation band
+#define IWID_DISASM        builtin_widget_mask_from_id(BWN_DISASM       ) ///< disassembly views
+#define IWID_HEXVIEW       builtin_widget_mask_from_id(BWN_HEXVIEW      ) ///< hex views
+#define IWID_NOTEPAD       builtin_widget_mask_from_id(BWN_NOTEPAD      ) ///< notepad
+#define IWID_OUTPUT        builtin_widget_mask_from_id(BWN_OUTPUT       ) ///< output
+#define IWID_CLI           builtin_widget_mask_from_id(BWN_CLI          ) ///< input line
+#define IWID_WATCH         builtin_widget_mask_from_id(BWN_WATCH        ) ///< watches
+#define IWID_LOCALS        builtin_widget_mask_from_id(BWN_LOCALS       ) ///< locals
+#define IWID_STKVIEW       builtin_widget_mask_from_id(BWN_STKVIEW      ) ///< stack view
+#define IWID_CHOOSER       builtin_widget_mask_from_id(BWN_CHOOSER      ) ///< chooser
+#define IWID_SHORTCUTCSR   builtin_widget_mask_from_id(BWN_SHORTCUTCSR  ) ///< shortcuts chooser
+#define IWID_SHORTCUTWIN   builtin_widget_mask_from_id(BWN_SHORTCUTWIN  ) ///< shortcuts window
+#define IWID_CPUREGS       builtin_widget_mask_from_id(BWN_CPUREGS      ) ///< registers
+#define IWID_SO_STRUCTS    builtin_widget_mask_from_id(BWN_SO_STRUCTS   ) ///< stroff
+#define IWID_SO_OFFSETS    builtin_widget_mask_from_id(BWN_SO_OFFSETS   ) ///< stroff
+#define IWID_CMDPALCSR     builtin_widget_mask_from_id(BWN_CMDPALCSR    ) ///< command palette
+#define IWID_CMDPALWIN     builtin_widget_mask_from_id(BWN_CMDPALWIN    ) ///< command palette
+#define IWID_SNIPPETS      builtin_widget_mask_from_id(BWN_SNIPPETS     ) ///< snippets
+#define IWID_CUSTVIEW      builtin_widget_mask_from_id(BWN_CUSTVIEW     ) ///< custom viewers
+#define IWID_ADDRWATCH     builtin_widget_mask_from_id(BWN_ADDRWATCH    ) ///< address watches
+#define IWID_PSEUDOCODE    builtin_widget_mask_from_id(BWN_PSEUDOCODE   ) ///< decompiler
+#define IWID_RESERVED_2    builtin_widget_mask_from_id(BWN_RESERVED_2   ) ///< Reserved
+#define IWID_RESERVED_3    builtin_widget_mask_from_id(BWN_RESERVED_3   ) ///< Reserved
+#define IWID_MDVIEWCSR     builtin_widget_mask_from_id(BWN_MDVIEWCSR    ) ///< lumina md view
+#define IWID_DISASM_ARROWS builtin_widget_mask_from_id(BWN_DISASM_ARROWS) ///< arrows widget
+#define IWID_CV_LINE_INFOS builtin_widget_mask_from_id(BWN_CV_LINE_INFOS) ///< lineinfo widget
+#define IWID_SRCPTHMAP_CSR builtin_widget_mask_from_id(BWN_SRCPTHMAP_CSR) ///< mappings chooser
+#define IWID_SRCPTHUND_CSR builtin_widget_mask_from_id(BWN_SRCPTHUND_CSR) ///< undesired chooser
+#define IWID_UNDOHIST      builtin_widget_mask_from_id(BWN_UNDOHIST     ) ///< Undo history
+#define IWID_SNIPPETS_CSR  builtin_widget_mask_from_id(BWN_SNIPPETS_CSR ) ///< snippets chooser
+#define IWID_SCRIPTS_CSR   builtin_widget_mask_from_id(BWN_SCRIPTS_CSR  ) ///< recent scripts
+#define IWID_BOOKMARKS     builtin_widget_mask_from_id(BWN_BOOKMARKS    ) ///< bookmarks list
+#define IWID_TILIST        builtin_widget_mask_from_id(BWN_TILIST       ) ///< type listing
+#define IWID_TIL_VIEW      builtin_widget_mask_from_id(BWN_TIL_VIEW     ) ///< type library's toplevel widget
+#define IWID_TYPE_EDITOR   builtin_widget_mask_from_id(BWN_TYPE_EDITOR  ) ///< a type editor
+#define IWID_MICROCODE     builtin_widget_mask_from_id(BWN_MICROCODE    ) ///< microcode view (part of hexrays decompiler)
+#define IWID_XREF_TREE     builtin_widget_mask_from_id(BWN_XREF_TREE    ) ///< xref tree widget
 
 #define IWID_ANY_LISTING   (IWID_DISASM|IWID_HEXVIEW|IWID_TILIST|IWID_FRAME|IWID_PSEUDOCODE|IWID_CUSTVIEW) ///< anything that uses a listing widget
-#define IWID_EA_LISTING    (IWID_DISASM|IWID_HEXVIEW|IWID_PSEUDOCODE) ///< anything that can be used to represent data/code at an address
-#define IWID_ALL           0xFFFFFFFFFFFFFFFFULL       ///< mask
+#define IWID_EA_LISTING    (IWID_DISASM|IWID_HEXVIEW|IWID_PSEUDOCODE)     ///< anything that can be used to represent data/code at an address
+#define IWID_ALL           (uint128(0)-1)                                 ///< mask
 
 ///@}
 
@@ -2779,18 +2807,15 @@ typedef int twidget_type_t; ///< \ref BWN_
 inline bool is_chooser_widget(twidget_type_t t)
 {
   return t == BWN_CHOOSER
-      || (t >= BWN_EXPORTS && t <= BWN_SEARCH && t != BWN_CALLS)
+      || (t >= BWN_EXPORTS && t <= BWN_SEARCH && t != BWN_FUNCS && t != BWN_TITREE && t != BWN_NAMES && t != BWN_IMPORTS && t != BWN_BPTS)
       || t == BWN_SHORTCUTCSR
       || t == BWN_CMDPALCSR
-      || t == BWN_CALLS_CALLERS
-      || t == BWN_CALLS_CALLEES
       || t == BWN_MDVIEWCSR
       || t == BWN_SRCPTHMAP_CSR
       || t == BWN_SRCPTHUND_CSR
       || t == BWN_UNDOHIST
       || t == BWN_SNIPPETS_CSR
-      || t == BWN_SCRIPTS_CSR
-      || t == BWN_BOOKMARKS;
+      || t == BWN_SCRIPTS_CSR;
 }
 
 
@@ -2980,20 +3005,17 @@ inline bool is_action_enabled(action_state_t s)
 /// should call the edit() callback for the corresponding row.
 #define CH_RENAME_IS_EDIT 0x00040000
 
-#define CH_BUILTIN_SHIFT 19
-#define CH_BUILTIN(id)   ((id+1) << CH_BUILTIN_SHIFT)
+#define OBSOLETE_CH_BUILTIN_SHIFT 19
+#define OBSOLETE_CH_BUILTIN(id)   ((id+1) << OBSOLETE_CH_BUILTIN_SHIFT)
 /// Mask for builtin chooser numbers. Plugins should not use them.
-#define CH_BUILTIN_MASK  (0x3F << CH_BUILTIN_SHIFT)
+#define OBSOLETE_CH_BUILTIN_MASK  (0x3F << OBSOLETE_CH_BUILTIN_SHIFT)
 
-/// The chooser can provide a dirtree_t, meaning a tree-like structure
-/// can be provided to the user (instead of a flat table)
-#define CH_HAS_DIRTREE     0x02000000
-
-#define CH_TM_NO_TREE      0x00000000 ///< chooser will show in no-tree mode
-#define CH_TM_FOLDERS_ONLY 0x04000000 ///< chooser will show in folders-only mode
-#define CH_TM_FULL_TREE    0x08000000 ///< chooser will show in full-tree mode
-#define CH_TM_SHIFT        26
-#define CH_TM_MASK         (0x3 << CH_TM_SHIFT)
+#define OBSOLETE_CH_HAS_DIRTREE     0x02000000 // Deprecated
+#define OBSOLETE_CH_TM_NO_TREE      0x00000000 // Deprecated
+#define OBSOLETE_CH_TM_FOLDERS_ONLY 0x04000000 // Deprecated
+#define OBSOLETE_CH_TM_FULL_TREE    0x08000000 // Deprecated
+#define OBSOLETE_CH_TM_SHIFT        26         // Deprecated
+#define OBSOLETE_CH_TM_MASK         (0x3 << OBSOLETE_CH_TM_SHIFT) // Deprecated
 
 /// The chooser can be used in a diffing/merging workflow
 #define CH_HAS_DIFF        0x10000000
@@ -3004,20 +3026,15 @@ inline bool is_action_enabled(action_state_t s)
 /// The chooser will not have filtering abilities
 #define CH_NO_FILTER       0x40000000
 
-/// the chooser tree is not persisted (it is not loaded on startup and is
-/// not saved on exit)
-#define CH_NON_PERSISTED_TREE 0x80000000
+#define OBSOLETE_CH_NON_PERSISTED_TREE 0x80000000
 ///@}
 
 /// \defgroup CH2_ Extended chooser flags
 /// used as 'chooser_base_t::flags2'
 ///@{
-
-/// The chooser is lazy-loaded; it receives the callback do_lazy_load_dir()
-/// (only meaningful when CH_HAS_DIRTREE is set)
-#define CH2_LAZY_LOADED 0x0001
+#define OBSOLETE_CH2_LAZY_LOADED     0x0001 // Deprecated
+#define OBSOLETE_CH2_HAS_INODE2INDEX 0x0002 // Deprecated
 ///@}
-#define CH2_HAS_INODE2INDEX 0x0002
 
 /// \defgroup CHCOL_ Chooser column flags
 /// used by 'widths' parameter for \ref choosers
@@ -3045,11 +3062,7 @@ inline bool is_action_enabled(action_state_t s)
                                     ///< to build hints for the dragging undo
                                     ///< label. This should be provided for at
                                     ///< most one column for any given chooser.
-#define CHCOL_INODENAME 0x00400000  ///< if CH_HAS_DIRTREE has been specified,
-                                    ///< this instructs the chooser that this
-                                    ///< column shows the inode name. This
-                                    ///< should be provided for at most one
-                                    ///< column for any given chooser.
+#define OBSOLETE_CHCOL_INODENAME 0x00400000  // Deprecated
 ///@}
 
 
@@ -3132,6 +3145,18 @@ typedef qvector<chooser_row_info_t> chooser_row_info_vec_t;
 #define GCRF_ALL       (GCRF_HIGH_BIT | 3)  ///< Return all rows
 ///@}
 
+/// \defgroup GCIF_ Flags for ui_get_current_items.
+///@{
+#define GCIF_SELECTION 0x1 ///< Selected row (tabular views), or current item (or possibly selected range) in disassembly
+#define GCIF_CURRENT   0x2 ///< Current row (tabular views), or current item in disassembly
+///@}
+
+/// Item type to retrieve through ui_get_current_items
+enum item_type_query_t
+{
+  itq_functions,
+};
+
 /// the standard action description
 /// The chooser has 4 standard actions: Insert, Delete, Edit, Refresh.
 /// We used the term "popup actions" before, but now we prefer "standard
@@ -3169,9 +3194,11 @@ struct chooser_base_t
   %immutable;
 #endif
 protected:
-  uint8 version = 3;  ///< version of the class
+  uint8 version = 4;  ///< version of the class
+                      // 4: extended storage for builtin id from 6 bits to 8
   uint8 reserved = 0;
-  uint16 flags2;      ///< \ref CH2_
+  uint8 flags2;      ///< \ref CH2_
+  int8 builtin_id;
   uint32 flags;       ///< \ref CH_
 
 public:
@@ -3242,13 +3269,28 @@ public:
           const int *widths_ = nullptr,
           const char *const *header_ = nullptr,
           const char *title_ = nullptr,
-          uint16 flags2_ = 0)
+          uint8 flags2_ = 0,
+          twidget_type_t widget_type_ = BWN_UNKNOWN)
     : flags2(flags2_),
+      builtin_id(widget_type_),
       flags(flags_),
       title(title_),
       columns(columns_),
       widths(widths_),
-      header(header_) {}
+      header(header_)
+      {
+        auto old_builtin_id = ((flags & OBSOLETE_CH_BUILTIN_MASK) >> OBSOLETE_CH_BUILTIN_SHIFT) - 1;
+
+        if ( old_builtin_id != BWN_UNKNOWN )
+        {
+          QASSERT(0, builtin_id == BWN_UNKNOWN);
+          builtin_id = old_builtin_id;
+
+          flags &= ~OBSOLETE_CH_BUILTIN_MASK;
+        }
+
+        QASSERT(0, static_cast<int32_t>(static_cast<int8_t>(widget_type_)) == widget_type_);
+      }
   virtual ~chooser_base_t() {}
   DEFINE_MEMORY_ALLOCATION_FUNCS()
 
@@ -3325,9 +3367,16 @@ public:
   /// should selection of the already opened non-modal chooser be changed?
   bool is_force_default() const { return (flags & CH_FORCE_DEFAULT) != 0; }
   /// get number of the built-in chooser
-  uint get_builtin_number() const
+  twidget_type_t get_builtin_number() const
   {
-    return ((flags & CH_BUILTIN_MASK) >> CH_BUILTIN_SHIFT) - 1;
+    auto old_id = ((flags & OBSOLETE_CH_BUILTIN_MASK) >> OBSOLETE_CH_BUILTIN_SHIFT) - 1;
+    if ( version < 4 )
+      return old_id;
+    else
+    {
+      QASSERT(0, old_id == -1);
+      return builtin_id;
+    }
   }
   /// enable or disable generation of ui_get_chooser_item_attrs events
   void set_ask_item_attrs(bool enable)
@@ -3343,8 +3392,6 @@ public:
   bool is_quick_filter_visible_initially() const { return (flags & CH_QFLT) != 0; }
   // what mode should the quick filter initially be put in?
   int get_quick_filter_initial_mode() const { return flags & CH_QFTYP_MASK; }
-  // does the chooser have the ability to show a tree view?
-  bool has_dirtree() const { return (flags & CH_HAS_DIRTREE) != 0; }
   // does the chooser have the ability to participate in a diff/merge workflow?
   bool has_diff_capability() const { return (flags & CH_HAS_DIFF) != 0; }
   // does chooser have sorting abilities?
@@ -3353,12 +3400,9 @@ public:
   bool can_filter() const { return (flags & CH_NO_FILTER) == 0; }
   // should renaming trigger the 'edit' callback?
   bool should_rename_trigger_edit() const { return (flags & CH_RENAME_IS_EDIT) != 0; }
-  // is the chooser dirtree persisted?
-  bool is_dirtree_persisted() const { return (flags & CH_NON_PERSISTED_TREE) == 0; }
   // is the chooser lazy-loaded?
-  bool is_lazy_loaded() const { return version >= 3 && (flags2 & CH2_LAZY_LOADED) != 0; }
+  bool is_lazy_loaded() const { return version >= 3 && (flags2 & 0x0001) != 0; }
   // chooser_implement inode2index
-  bool has_inode_to_index() const { return version >= 3 && (flags2 & CH2_HAS_INODE2INDEX) != 0; }
 
   /// initialize the chooser and populate it.
   /// \retval false  the chooser is empty, do not display it
@@ -3394,15 +3438,6 @@ public:
   virtual ea_t idaapi get_ea(size_t /*n*/) const { return BADADDR; }
 
   /// return value of ins(), del(), edit(), enter(), refresh() callbacks
-  ///
-  /// If the chooser implements get_dirtree(), and has ins() and/or del()
-  /// capabilities, the meaning of the returned index(es) combined with
-  /// ALL_CHANGED and SELECTION_CHANGED must be as follows:
-  ///  - for ins(): the index (in case of a chooser_t, or first index
-  ///    in case of a chooser_multi_t), will be the index of the row
-  ///    that was inserted.
-  ///  - for del(): the index (or indexes in case of a chooser_multi_t),
-  ///    will be the index(es) of the row(s) that was(were) deleted.
   enum cbres_t
   {
     NOTHING_CHANGED,
@@ -3447,12 +3482,14 @@ struct chooser_t : public chooser_base_t
             const int *widths_ = nullptr,
             const char *const *header_ = nullptr,
             const char *title_ = nullptr,
-            uint16 flags2_ = 0)
+            uint8 flags2_ = 0,
+            twidget_type_t widget_type_ = BWN_UNKNOWN)
     : chooser_base_t(
               (flags_ & ~CH_MULTI),
               columns_, widths_, header_,
               title_,
-              flags2_) {}
+              flags2_,
+              widget_type_) {}
 
   /// Display a generic list chooser and allow the user to select an item.
   /// May be overridden in derived choosers.
@@ -3516,15 +3553,10 @@ struct chooser_t : public chooser_base_t
   /// \param n  index of the new selected item
   virtual void idaapi select(ssize_t /*n*/) const newapi {}
 
-  /// get the dirtree_t that will be used to present a tree-like
-  /// structure to the user (see CH_HAS_DIRTREE)
-  /// \return the dirtree_t, or nullptr
+  /// Deprecated. Please do not use.
   virtual dirtree_t *idaapi get_dirtree() newapi { return nullptr; }
 
-  /// Map an item index to a dirtree_t inode
-  /// This is necessary only if CH_HAS_DIRTREE is specified
-  /// \param n index of the item
-  /// \return the inode number
+  /// Deprecated. Please do not use.
   virtual inode_t idaapi index_to_inode(size_t /*n*/) const newapi { return inode_t(BADADDR); }
 
   /// Map an item index to a diffpos_t
@@ -3600,12 +3632,14 @@ struct chooser_multi_t : public chooser_base_t
           const int *widths_ = nullptr,
           const char *const *header_ = nullptr,
           const char *title_ = nullptr,
-          uint16 flags2_ = 0)
+          uint8 flags2_ = 0,
+          twidget_type_t widget_type_ = BWN_UNKNOWN)
     : chooser_base_t(
               flags_ | CH_MULTI,
               columns_, widths_, header_,
               title_,
-              flags2_) {}
+              flags2_,
+              widget_type_) {}
 
   /// Display a generic list chooser and allow the user to select an item.
   /// May be overridden in derived choosers.
@@ -4581,6 +4615,43 @@ struct action_ctx_base_t
   dirtree_selection_t *dirtree_selection; ///< the current dirtree_t selection (if applicable)
 
   til_type_ref_t *type_ref; ///< a reference to the current type (if 'widget' is a type listing widget; nullptr otherwise)
+
+  enum cxtctl_t
+  {
+    ctxctl_none = 0,
+    ctxctl_get_selection_as_ordinals,
+  };
+
+  /// Attempt converting the current selection (flat view, tree view, ...)
+  /// into a set of ordinals & a type info library.
+  ///
+  /// Because selections can be large,
+  /// *this should only be done upon action activation, not update*.
+  ///
+  /// A success indicates that the context/widget qualifies for this
+  /// operation (if passed, `out_til` will be filled), but does not
+  /// guarantee that any ordinal was retrieved (e.g., in case
+  /// only folders are selected.)
+  ///
+  /// \param out_til The type info library used by the widget
+  /// \param out_ordinals Ordinals storage
+  /// \param max_count The maximum number of ordinals to retrieve
+  /// \param flags Reserved
+  /// \return success
+  bool get_selection_as_ordinals(
+        const til_t **out_til,
+        ordvec_t *out_ordinals,
+        size_t max_count=size_t(-1),
+        uint32 flags=0) const
+  {
+    return callui(ui_action_ctx_base_ctl,
+                  ctxctl_get_selection_as_ordinals,
+                  this,
+                  out_til,
+                  out_ordinals,
+                  max_count,
+                  flags).cnd;
+  }
 };
 
 //-------------------------------------------------------------------------
@@ -4780,7 +4851,7 @@ THREAD_SAFE inline int execute_ui_requests(ui_requests_t *reqs)
 
 /// Execute a variable number of UI requests (::ui_execute_ui_requests).
 /// The UI requests will be dispatched in the context of the main thread.
-/// \param req  pointer to the first request ,use nullptr to terminate the var arg request list
+/// \param req  pointer to the first request, use nullptr to terminate the varadic request list
 /// \return a request id: a unique number that can be used to cancel the request
 
 THREAD_SAFE inline int execute_ui_requests(ui_request_t *req, ...)
@@ -4876,7 +4947,7 @@ inline void refresh_idaview()          { callui(ui_refreshmarked); }
 
 
 /// Refresh all disassembly views (::ui_refresh), forces an immediate refresh.
-/// Please consider request_refresh() instead
+/// Please consider mark_builtin_widgets() instead
 
 inline void refresh_idaview_anyway()   { callui(ui_refresh); }
 
@@ -5912,9 +5983,9 @@ inline TWidget *get_current_viewer()
 /// \param mask an OR'ed set of IWID_* to limit the search to
 /// \return the viewer, if found
 
-inline TWidget *get_last_widget(uint64 mask=uint64(-1))
+inline TWidget *get_last_widget(builtin_widgets_mask_t mask=IWID_ALL)
 {
-  return (TWidget *)callui(ui_get_last_widget, mask).vptr;
+  return (TWidget *)callui(ui_get_last_widget, low(mask), high(mask)).vptr;
 }
 
 /// Open function prototype editor to edit function type and create new type.
@@ -6485,7 +6556,7 @@ inline TWidget *open_tils_window()
 
 inline TWidget *open_loctypes_window(int ordinal, const tif_cursor_t *cursor=nullptr)
 {
-  return (TWidget *) callui(ui_open_builtin2, BWN_TICSR, ordinal, cursor).vptr;
+  return (TWidget *) callui(ui_open_builtin2, BWN_TITREE, ordinal, cursor).vptr;
 }
 
 /// Open the sub-til window (::ui_open_builtin2).
@@ -6496,14 +6567,6 @@ inline TWidget *open_loctypes_window(int ordinal, const tif_cursor_t *cursor=nul
 inline TWidget *open_til_view_window(tinfo_t *tif, const tif_cursor_t *cursor=nullptr)
 {
   return (TWidget *) callui(ui_open_builtin2, BWN_TIL_VIEW, tif, cursor).vptr;
-}
-
-/// Open the function calls window (::ui_open_builtin).
-/// \return pointer to resulting window
-
-inline TWidget *open_calls_window(ea_t ea)
-{
-  return (TWidget *) callui(ui_open_builtin, BWN_CALLS, ea).vptr;
 }
 
 /// Open the problems window (::ui_open_builtin).
@@ -6840,7 +6903,7 @@ inline ssize_t choose(chooser_base_t *ch, const void *def_item)
 
 /// Get the underlying object of the specified chooser (::ui_get_chooser_obj).
 ///
-/// This attemps to find the choser by its title and, if found, returns
+/// This attempts to find the chooser by its title and, if found, returns
 /// the result of calling its chooser_base_t::get_chooser_obj() method.
 ///
 /// \note This is object is chooser-specific.
@@ -6880,7 +6943,7 @@ inline bool get_chooser_rows(
 
 
 /// Enable item-specific attributes for chooser items (::ui_enable_chooser_item_attrs).
-/// For example: color list items differently depending on a criterium.             \n
+/// For example: color list items differently depending on a criterion.             \n
 /// If enabled, the chooser will generate ui_get_chooser_item_attrs                 \n
 /// events that can be intercepted by a plugin to modify the item attributes.       \n
 /// This event is generated only in the GUI version of IDA.                         \n
@@ -7001,7 +7064,7 @@ AS_PRINTF(2, 3) inline bool ask_addr(ea_t *addr, const char *format, ...)
 }
 
 
-/// Display a dialog box and wait for the user to input an segment name (::ui_ask_seg).
+/// Display a dialog box and wait for the user to input a segment name (::ui_ask_seg).
 /// This function allows to enter segment register names, segment base
 /// paragraphs, segment names to denote a segment.
 /// \param sel      in/out parameter. contains selector of the segment
@@ -7019,7 +7082,7 @@ AS_PRINTF(2, 3) inline bool ask_seg(sel_t *sel, const char *format, ...)
 }
 
 
-/// Display a dialog box and wait for the user to input an number (::ui_ask_long).
+/// Display a dialog box and wait for the user to input a number (::ui_ask_long).
 /// The number is represented in C-style.
 /// This function allows to enter any IDC expression and
 /// properly calculates it.
@@ -7051,7 +7114,7 @@ AS_PRINTF(2, 3) inline bool ask_long(sval_t *value, const char *format, ...)
 idaman bool ida_export_data batch;
 
 
-/// Exiting because of a a fatal error?
+/// Exiting because of a fatal error?
 /// Is non-zero if we are exiting with from the error() function.
 
 idaman int ida_export_data errorexit;
@@ -7794,7 +7857,7 @@ AS_PRINTF(5, 6) inline int ask_buttons(
 }
 
 //------------------------------------------------------------------------
-/* Format of dialog box (actually they are mutliline strings
+/* Format of dialog box (actually they are multiline strings
                          delimited by newline characters)
 
   The very first line of dialog box can specify a dialog box
@@ -7971,7 +8034,7 @@ AS_PRINTF(4, 5) inline bool ask_text(
 
 
 //---------------------------------------------------------------------------
-//      A S K   A D D R E S S E S ,   N A M E S ,   N U M B E R S ,   E T C .
+//      A S K   A D D R E S S E S,   N A M E S,   N U M B E R S,   E T C.
 //---------------------------------------------------------------------------
 
 /// Display a dialog box and wait for the user to input a file name (::ui_ask_file).
@@ -8281,7 +8344,7 @@ idaman size_t ida_export b2a64(char *buf, size_t bufsize, uint64 x, int nbytes, 
 
 
 /// Get max number of UTF-8 characters required to represent
-/// a given type of value, with a given size (without leading zeroes).
+/// a given type of value, with a given size (without leading zeros).
 /// \param nbytes  size of number
 /// \param flag    should be one of FF_ for #MS_0TYPE
 /// \param n       if 1, shr 'flag' by 4
@@ -8289,7 +8352,7 @@ idaman size_t ida_export b2a64(char *buf, size_t bufsize, uint64 x, int nbytes, 
 idaman size_t ida_export btoa_width(int nbytes, flags64_t flag, int n);
 
 
-/// Same as b2a32(), but will generate a string without any leading zeroes.
+/// Same as b2a32(), but will generate a string without any leading zeros.
 /// Can be used to output some numbers in the instructions.
 
 idaman size_t ida_export btoa32(char *buf, size_t bufsize, uint32 x, int radix=0);
@@ -8316,8 +8379,8 @@ idaman size_t ida_export btoa128(char *buf, size_t bufsize, uint128 x, int radix
 
 
 /// Convert instruction operand immediate number to UTF-8.
-/// This is the main function to output numbers in the instruction operands.         \n
-/// It prints the number with or without the leading zeroes depending on the flags.  \n
+/// This is the main function to output numbers in the instruction operands.        \n
+/// It prints the number with or without the leading zeros depending on the flags.  \n
 /// This function is called from out_value(). Please use out_value() if you can.
 
 idaman size_t ida_export numop2str(
@@ -8572,7 +8635,18 @@ DEPRECATED inline bool del_idc_hotkey(const char *hotkey)
 {
   return callui(ui_obsolete_del_idckey, hotkey).cnd;
 }
+DEPRECATED inline TWidget *open_calls_window(ea_t ea)
+{
+  return (TWidget *) callui(ui_open_builtin, BWN_RESERVED_1, ea).vptr;
+}
 idaman DEPRECATED void ida_export ida_checkmem(const char *file, int line);
+
+idaman DEPRECATED void ida_export request_refresh(uint64 mask, bool cnd=true);
+idaman DEPRECATED bool ida_export is_refresh_requested(uint64 mask);
+#  ifndef SWIG
+idaman DEPRECATED uint64 ida_export get_dirty_infos();
+#  endif // SWIG
+
 #endif
 
 #endif // __KERNWIN_HPP

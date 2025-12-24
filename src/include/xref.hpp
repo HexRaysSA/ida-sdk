@@ -403,6 +403,8 @@ typedef qvector<svalvec_t> casevec_t;
 
 
 /// Get detailed information about the switch table cases.
+/// \note CASEVEC may be nullptr. In this case, TARGETS are calculated
+/// in a simpler way.
 /// \param casevec  vector of case values...
 /// \param targets  ...and corresponding target addresses
 /// \param insn_ea  address of the 'indirect jump' instruction

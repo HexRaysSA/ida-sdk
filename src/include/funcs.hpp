@@ -556,7 +556,7 @@ idaman int ida_export set_func_name_if_jumpfunc(func_t *pfn, const char *oldname
 idaman ea_t ida_export calc_thunk_func_target(func_t *pfn, ea_t *fptr);
 
 
-/// Does the function return?.
+/// Does the function return?
 /// To calculate the answer, #FUNC_NORET flag and is_noret() are consulted
 /// The latter is required for imported functions in the .idata section.
 /// Since in .idata we have only function pointers but not functions, we have
@@ -917,7 +917,7 @@ idaman int ida_export apply_idasgn_to(const char *signame, ea_t ea, bool is_star
 idaman int ida_export get_idasgn_qty(void);
 
 
-/// Get number of the the current signature.
+/// Get number of the current signature.
 /// \return 0..n-1
 
 idaman int ida_export get_current_idasgn(void);

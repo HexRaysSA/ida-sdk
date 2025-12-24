@@ -606,7 +606,7 @@ bool pdb_til_builder_t::handle_symbol_at_ea(
         if ( sym.get_type(func_sym) == S_OK )
         {
           tpinfo_t tpi2;
-          if ( really_convert_type(&tpi2, *func_sym, &sym, SymTagFunctionType) == cvt_ok )
+          if ( really_convert_type(&tpi2, name.c_str(), *func_sym, &sym, SymTagFunctionType) == cvt_ok )
             tpi.type.swap(tpi2.type); // successfully retrieved
         }
       }

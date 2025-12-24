@@ -184,9 +184,6 @@ ssize_t idaapi m65816_t::on_event(ssize_t msgid, va_list va)
       {
         segment_t *sptr = va_arg(va, segment_t *);
 
-        // default DS is equal to CS
-        sptr->defsr[rDs - ph.reg_first_sreg] = sptr->sel;
-
         // detect SNES bank 0
         if ( xlat(0) == (sptr->start_ea & 0xff0000) )
         {

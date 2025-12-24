@@ -661,8 +661,10 @@ idaman bool ida_export is_in_nlist(ea_t ea);
 idaman ea_t ida_export get_nlist_ea(size_t idx);
 
 /// Get name using idx
+/// The returned pointer is invalidated on any modification to the name list.
 
 idaman const char *ida_export get_nlist_name(size_t idx);
+
 
 /// Rebuild the name list
 

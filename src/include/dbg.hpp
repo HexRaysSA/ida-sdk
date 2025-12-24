@@ -19,7 +19,7 @@
   See \ref dbg_funcs for a complete explanation of these functions.
 
   These functions are inlined for the kernel.
-  They are not inlined for the user-interfaces.
+  They are not inlined for the user interface.
 */
 
 //--------------------------------------------------------------------
@@ -85,9 +85,9 @@ idaman debugger_t ida_export_data *dbg;
 /// If the plugin wants to access the process memory from a notification point,
 /// it should call invalidate_dbgmem_config() and/or invalidate_dbgmem_contents()
 /// functions. The invalidate_dbgmem_config() is really slow, so do not call it
-/// unless the process memory config have changed after the last time the process
+/// unless the process memory config has changed after the last time the process
 /// was suspended. The invalidate_dbgmem_contents() is fast and flushes the
-/// memory cache in the ida kernel. Without it, functions like get_byte() would
+/// memory cache in the IDA kernel. Without it, functions like get_byte() would
 /// return stale values!
 enum dbg_notification_t
 {
@@ -651,7 +651,7 @@ inline bool idaapi request_step_into(void) { return callui(ui_dbg_request_step_i
 
 /// Execute one instruction in the current thread,
 /// but without entering into functions.
-/// Others threads keep suspended.
+/// Others threads are kept suspended.
 /// \sq{Type,         Asynchronous function - available as Request,
 ///     Notification, ::dbg_step_over}
 
@@ -896,6 +896,9 @@ struct bpt_location_t
   ea_t ea(void) const { return info; }                                ///< Get address (::BPLT_ABS)
 
   bpt_location_t(void) : info(BADADDR), index(0), loctype(BPLT_ABS) {}  ///< Constructor (default type is ::BPLT_ABS)
+
+  /// Locations that are absolute+BADADDR, are considered invalid
+  bool valid() const { return loctype != BPLT_ABS || info != BADADDR; }
 
   /// Specify an absolute address location
   void set_abs_bpt(ea_t a)
@@ -2088,7 +2091,7 @@ inline THREAD_SAFE bool have_set_options(const debugger_t *_dbg)
 }
 
 /// Convenience function to set debugger specific options.
-/// It checks if the debugger is present and calls function.
+/// It checks if the debugger is present and calls the function.
 
 inline const char *idaapi set_dbg_options(
         debugger_t *_dbg,
@@ -2675,7 +2678,7 @@ inline bool idaapi set_bptloc_group(const bpt_location_t &bptloc, const char *gr
 /// \param[out] grp_name absolute path to the breakpoint dirtree folder, can be null
 /// \param bptloc bptlocation of the bpt
 /// \return success
-/// \retval true breakpoint correclty moved to the directory
+/// \retval true breakpoint correctly moved to the directory
 inline bool idaapi get_bpt_group(qstring *grp_name, const bpt_location_t &bptloc)             { return callui(ui_dbg_get_bpt_group, grp_name, &bptloc).cnd; }
 
 /// Retrieve the list of absolute path of all folders of bpt dirtree
@@ -2700,7 +2703,7 @@ inline bool idaapi rename_bptgrp(const char *old_name, const char *new_name)    
 /// \return success
 inline bool idaapi del_bptgrp(const char *name)                                               { return callui(ui_dbg_del_bptgrp, name).cnd; }
 
-/// Retrieve a copy the bpts stored in a folder
+/// Retrieve a copy of the bpts stored in a folder
 /// \sq{Type,         Synchronous function,
 ///     Notification, none (synchronous function)}
 /// \param[out] bpts : pointer to a vector where the copy of bpts are stored
@@ -2713,9 +2716,9 @@ inline ssize_t idaapi get_grp_bpts(bpt_vec_t *bpts, const char *grp_name)       
 ///     Notification, none (synchronous function)}
 /// \param bptgrp_name absolute path to the folder
 /// \param enable by default true, enable bpts, false disable bpts
-/// \retval -1 an error occured
+/// \retval -1 an error occurred
 /// \retval 0 no changes
-/// \retval >0 nubmers of bpts udpated
+/// \retval >0 numbers of bpts updated
 inline int idaapi enable_bptgrp(const char *bptgrp_name, bool enable=true)                    { return callui(ui_dbg_enable_bptgrp, bptgrp_name, enable).i; }
 inline bool idaapi get_local_vars(srcinfo_provider_t *prov, ea_t ea, source_items_t *out)     { return callui(ui_dbg_get_local_vars, prov, ea, out).cnd; }
 inline bool idaapi srcdbg_request_step_into(void)                                             { return callui(ui_dbg_srcdbg_request_step_into).cnd; }
@@ -2733,7 +2736,7 @@ inline drc_t idaapi dbg_bin_search(ea_t *out, ea_t start_ea, ea_t end_ea, const 
                                                                                               { return drc_t(callui(ui_dbg_bin_search, out, start_ea, end_ea, &data, srch_flags, errbuf).i); }
 inline bool idaapi dbg_can_query(debugger_t *_dbg)
 {
-  // Debugger can be queried IIF it is set and either currently in
+  // Debugger can be queried iif it is set and either currently in
   // suspended state, or can be queried while not in suspended state
   return _dbg != nullptr && (_dbg->may_disturb() || get_process_state() < DSTATE_NOTASK);
 }
@@ -2769,6 +2772,16 @@ inline const char *idaapi get_bptloc_string(int i)                              
 // Do not use these functions! They will be removed!
 idaman void ida_export lock_dbgmem_config(void);
 idaman void ida_export unlock_dbgmem_config(void);
+
+
+struct dbg_deref_options_t
+{
+private:
+  size_t cb = sizeof(dbg_deref_options_t);
+public:
+  int deref_limit = 5;
+  bool hide_default_segments = true;
+};
 
 
 #endif

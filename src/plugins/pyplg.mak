@@ -1,19 +1,14 @@
 
 # definitions for idapython (& other plugins dynamically linked to Python)
+# PYTHON_CFLAGS/PYTHON_LDFLAGS may be pre-set for cross-compilation (via PYTHON_LDFLAGS_SET)
 ifdef __NT__
-  PYTHON_CFLAGS  := -I"$(PYTHON_ROOT)/include"
-  PYTHON_LDFLAGS := "/LIBPATH:$(PYTHON_ROOT)/libs/"
+  PYTHON_CFLAGS  ?= -I"$(PYTHON_ROOT)/include"
+  PYTHON_LDFLAGS ?= "/LIBPATH:$(PYTHON_ROOT)/libs/"
 else
-  PYTHON_CFLAGS := $(shell $(PYTHON)-config --includes)
-  ifdef __MAC__
-    # on macOS, we'll also load libpython3 using RTLD_GLOBAL to avoid having
-    # to patch idapython's dylib.
-    # for that to work, the users of libpython3 must be built using a flat namespace
-    # to avoid that idapython3 fails to load if it can't load its libpython dependency,
-    # we use a weak link.
-    PYTHON_LDFLAGS := $(shell $(PYTHON)-config --ldflags) -weak-l$(PYTHON_VERNAME) -flat_namespace
-  else
-    # Yay! https://bugs.python.org/issue36721
+  PYTHON_CFLAGS ?= $(shell $(PYTHON)-config --includes)
+  # Yay! https://bugs.python.org/issue36721
+  # Skip python-config if PYTHON_LDFLAGS_SET=1 (cross-compilation)
+  ifndef PYTHON_LDFLAGS_SET
     ifeq ($(USE_EMBED),true)
       PYTHON_LDFLAGS := $(shell $(PYTHON)-config --ldflags --embed)
     else

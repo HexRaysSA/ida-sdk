@@ -67,10 +67,13 @@ extern int data_id;
 
 #define         o_bit       o_idpspec0
 //------------------------------------------------------------------------
-enum nec_registers { rX, rA, rC, rB, rE, rD, rL, rH, rAX, rBC, rDE, rHL,
-                     rPSW, rSP, rS, rCC, rDPR,
-                     bCY,
-                     Rcs, Rds };
+enum nec_registers
+{
+  rX, rA, rC, rB, rE, rD, rL, rH, rAX, rBC, rDE, rHL,
+  rPSW, rSP, rS, rCC, rDPR,
+  bCY,
+  Rcs, Rds
+};
 
 enum bitOper { SADDR=0, SFR, A, PSW, HL, CY };
 //------------------------------------------------------------------------

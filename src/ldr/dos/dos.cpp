@@ -21,7 +21,8 @@ const char e_exe[] = "exe";
 
 static jmp_buf jmpb;
 
-#define R_ss 18         // this comes from intel.hpp
+#define R_ss 31 // from pc/intel.hpp
+#define R_ds 32 // from pc/intel.hpp
 
 //--------------------------------------------------------------------------
 //
@@ -168,8 +169,9 @@ void add_segm_by_selector(sel_t base, const char *sclass)
     s.start_ea = sel2ea(base);
     s.end_ea   = inf_get_omax_ea();
     s.align   = saRelByte;
-    s.comb    = sclass != nullptr && strcmp(sclass, "STACK") == 0 ? scStack : scPub;
+    s.comb    = sclass != nullptr && streq(sclass, "STACK") ? scStack : scPub;
     add_segm_ex(&s, nullptr, sclass, ADDSEG_SPARSE | ADDSEG_NOSREG);
+    set_default_sreg_value(getseg(s.start_ea), R_ds, BADSEL);
   }
 }
 

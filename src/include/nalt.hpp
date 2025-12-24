@@ -17,8 +17,7 @@
 
   Each address in the program has a corresponding netnode: netnode(ea).
 
-  If we have no information about an address, the corresponding
-  netnode is not created.
+  If no information exists for an address, its corresponding netnode is not created.
   Otherwise we will create a netnode and save information in it.
   All variable length information (names, comments, offset information, etc)
   is stored in the netnode.
@@ -57,9 +56,9 @@
 //#define  NALT_STROFF0  13        // struct offset, struct id for the first operand
 //#define  NALT_STROFF1  14        // struct offset, struct id for the second operand
 #define  NALT_PURGE    15          ///< number of bytes purged from the stack when a function is called indirectly
-#define  NALT_STRTYPE  16          ///< type of string item
+#define  NALT_STRTYPE  16          ///< type of a string item
 #define  NALT_ALIGN    17          ///< alignment value if the item is #FF_ALIGN
-                                   ///< (should by equal to power of 2)
+                                   ///< (should be equal to a power of 2)
 //#define  NALT_HIGH0    18        // linear address of byte referenced by
 //                                 // high 16 bits of an offset (FF_0HIGH)
 //#define  NALT_HIGH1    19        // linear address of byte referenced by
@@ -183,7 +182,7 @@
 /// \defgroup N_DESK UI desktops
 ///@{
 #define IDB_DESKTOPS_NODE_NAME "$ desktops"
-                                     ///< hash indexed by desktop name with dekstop netnode
+                                     ///< hash indexed by desktop name with desktop netnode
 #define IDB_DESKTOPS_TAG       'S'   ///< tag to store desktop blob & timestamp
 #define IDB_DESKTOPS_TIMESTAMP nodeidx_t(-1)
                                      ///< desktop timestamp index
@@ -217,7 +216,7 @@ idaman tid_t ida_export get_strid(ea_t ea);
 struct xrefpos_t
 {
   ea_t ea;
-  uchar type;  // the type of xref (::cref_t & ::dref_t)
+  uchar type;  // the xref type (::cref_t or ::dref_t)
   xrefpos_t(ea_t ea_ = BADADDR, uchar type_ = 0) : ea(ea_), type(type_) {}
   bool is_valid() const { return ea != BADADDR; }
 };
@@ -231,7 +230,7 @@ inline void idaapi del_xrefpos(ea_t ea) { getnode(ea).supdel(NSUP_XREFPOS); }
 /// \defgroup AFL_ Additional flags for the location
 /// All 32-bits of the main flags (bytes.hpp) are used up.
 /// Additional flags keep more information about addresses.
-/// AFLNOTE: DO NOT use these flags directly unless there is absolutely no way.
+/// AFLNOTE: DO NOT use these flags directly unless absolutely necessary.
 /// They are too low level and may corrupt the database.
 ///@{
 #define AFL_LINNUM      0x00000001     ///< has line number info
@@ -241,7 +240,7 @@ inline void idaapi del_xrefpos(ea_t ea) { getnode(ea).supdel(NSUP_XREFPOS); }
 #define AFL_HIDDEN      0x00000010     ///< the item is hidden completely
 #define AFL_MANUAL      0x00000020     ///< the instruction/data is specified by the user
 #define AFL_NOBRD       0x00000040     ///< the code/data border is hidden
-#define AFL_ZSTROFF     0x00000080     ///< display struct field name at 0 offset when displaying an offset.
+#define AFL_ZSTROFF     0x00000080     ///< display struct field name at offset 0 when displaying an offset.
                                        ///< example:
                                        ///<   \v{offset somestruct.field_0}
                                        ///< if this flag is clear, then
@@ -256,9 +255,9 @@ inline void idaapi del_xrefpos(ea_t ea) { getnode(ea).supdel(NSUP_XREFPOS); }
 #define AFL_TI1         0x00002000     ///< has typeinfo for operand 1? (#NSUP_OPTYPES+1)
 #define AFL_LNAME       0x00004000     ///< has local name too (#FF_NAME should be set)
 #define AFL_TILCMT      0x00008000     ///< has type comment? (such a comment may be changed by IDA)
-#define AFL_LZERO0      0x00010000     ///< toggle leading zeroes for the 1st operand
-#define AFL_LZERO1      0x00020000     ///< toggle leading zeroes for the 2nd operand
-#define AFL_COLORED     0x00040000     ///< has user defined instruction color?
+#define AFL_LZERO0      0x00010000     ///< toggle leading zeros for the 1st operand
+#define AFL_LZERO1      0x00020000     ///< toggle leading zeros for the 2nd operand
+#define AFL_COLORED     0x00040000     ///< has user-defined instruction color?
 #define AFL_TERSESTR    0x00080000     ///< terse structure variable display?
 #define AFL_SIGN0       0x00100000     ///< code: toggle sign of the 1st operand
 #define AFL_SIGN1       0x00200000     ///< code: toggle sign of the 2nd operand
@@ -272,7 +271,7 @@ inline void idaapi del_xrefpos(ea_t ea) { getnode(ea).supdel(NSUP_XREFPOS); }
                                        ///< (comes from the user or type library)
                                        ///< if not set see #AFL_TYPE_GUESSED
 #define AFL_RETFP       0x04000000     ///< function returns a floating point value
-#define AFL_USEMODSP    0x08000000     ///< insn modifes SP and uses the modified value;
+#define AFL_USEMODSP    0x08000000     ///< insn modifies SP and uses the modified value;
                                        ///< example: pop [rsp+N]
 #define AFL_NOTCODE     0x10000000     ///< autoanalysis should not create code here
 #define AFL_NOTPROC     0x20000000     ///< autoanalysis should not create proc here
@@ -552,29 +551,29 @@ idaman void   ida_export del_str_type(ea_t ea);
 ///< Character-terminated string. The termination characters are kept in
 ///< the next bytes of string type.
 #define STRTYPE_TERMCHR   (STRWIDTH_1B|STRLYT_TERMCHR<<STRLYT_SHIFT)
-///< C-style string.
+///< C-style string
 #define STRTYPE_C         STRTYPE_TERMCHR
-///< Zero-terminated 16bit chars
+///< Zero-terminated 16-bit chars
 #define STRTYPE_C_16      (STRWIDTH_2B|STRLYT_TERMCHR<<STRLYT_SHIFT)
-///< Zero-terminated 32bit chars
+///< Zero-terminated 32-bit chars
 #define STRTYPE_C_32      (STRWIDTH_4B|STRLYT_TERMCHR<<STRLYT_SHIFT)
 ///< Pascal-style, one-byte length prefix
 #define STRTYPE_PASCAL    (STRWIDTH_1B|STRLYT_PASCAL1<<STRLYT_SHIFT)
-///< Pascal-style, 16bit chars, one-byte length prefix
+///< Pascal-style, 16-bit chars, one-byte length prefix
 #define STRTYPE_PASCAL_16 (STRWIDTH_2B|STRLYT_PASCAL1<<STRLYT_SHIFT)
-///< Pascal-style, 32bit chars, one-byte length prefix
+///< Pascal-style, 32-bit chars, one-byte length prefix
 #define STRTYPE_PASCAL_32 (STRWIDTH_4B|STRLYT_PASCAL1<<STRLYT_SHIFT)
 ///< Pascal-style, two-byte length prefix
 #define STRTYPE_LEN2      (STRWIDTH_1B|STRLYT_PASCAL2<<STRLYT_SHIFT)
-///< Pascal-style, 16bit chars, two-byte length prefix
+///< Pascal-style, 16-bit chars, two-byte length prefix
 #define STRTYPE_LEN2_16   (STRWIDTH_2B|STRLYT_PASCAL2<<STRLYT_SHIFT)
-///< Pascal-style, 32bit chars, two-byte length prefix
+///< Pascal-style, 32-bit chars, two-byte length prefix
 #define STRTYPE_LEN2_32   (STRWIDTH_4B|STRLYT_PASCAL2<<STRLYT_SHIFT)
 ///< Pascal-style, four-byte length prefix
 #define STRTYPE_LEN4      (STRWIDTH_1B|STRLYT_PASCAL4<<STRLYT_SHIFT)
-///< Pascal-style, 16bit chars, four-byte length prefix
+///< Pascal-style, 16-bit chars, four-byte length prefix
 #define STRTYPE_LEN4_16   (STRWIDTH_2B|STRLYT_PASCAL4<<STRLYT_SHIFT)
-///< Pascal-style, 32bit chars, four-byte length prefix
+///< Pascal-style, 32-bit chars, four-byte length prefix
 #define STRTYPE_LEN4_32   (STRWIDTH_4B|STRLYT_PASCAL4<<STRLYT_SHIFT)
 ///@}
 
@@ -638,7 +637,7 @@ inline THREAD_SAFE size_t get_str_type_prefix_length(int32 strtype)
 #define STRENC_NONE    0xFF  ///< force no-conversion encoding
 
 /// \name Alignment value
-/// (should be power of 2)
+/// (should be a power of 2)
 /// These functions may be used if necessary (despite of the AFLNOTE above).
 ///@{
 inline uint32 get_alignment(ea_t ea)
@@ -671,7 +670,7 @@ struct array_parameters_t
 {
   int32 flags;
 #define AP_ALLOWDUPS    0x00000001      ///< use 'dup' construct
-#define AP_SIGNED       0x00000002      ///< treats numbers as signed
+#define AP_SIGNED       0x00000002      ///< treat numbers as signed
 #define AP_INDEX        0x00000004      ///< display array element indexes as comments
 #define AP_ARRAY        0x00000008      ///< create as array (this flag is not stored in database)
 #define AP_IDXBASEMASK  0x000000F0      ///< mask for number base of the indexes
@@ -771,7 +770,7 @@ struct switch_info_t
   }
   void set_jtable_element_size(int size)
   {
-    flags &= ~SWI_J32|SWI_JSIZE;
+    flags &= ~(SWI_J32|SWI_JSIZE);
     switch ( size )
     {
       case 4:
@@ -802,7 +801,7 @@ struct switch_info_t
   }
   void set_vtable_element_size(int size)
   {
-    flags &= ~SWI_V32|SWI_VSIZE;
+    flags &= ~(SWI_V32|SWI_VSIZE);
     switch ( size )
     {
       case 4:
@@ -971,17 +970,19 @@ typedef uchar reftype_t;  ///< see \ref reftype_
 ///@{
 const reftype_t
   V695_REF_OFF8 = 0,      ///< reserved
-  REF_OFF16  = 1,         ///< 16bit full offset
-  REF_OFF32  = 2,         ///< 32bit full offset
-  REF_LOW8   = 3,         ///< low 8bits of 16bit offset
-  REF_LOW16  = 4,         ///< low 16bits of 32bit offset
-  REF_HIGH8  = 5,         ///< high 8bits of 16bit offset
-  REF_HIGH16 = 6,         ///< high 16bits of 32bit offset
+  REF_OFF16  = 1,         ///< 16-bit full offset
+  REF_OFF32  = 2,         ///< 32-bit full offset
+  REF_LOW8   = 3,         ///< low 8 bits of 16-bit offset
+  REF_LOW16  = 4,         ///< low 16 bits of 32-bit offset
+  REF_HIGH8  = 5,         ///< high 8 bits of 16-bit offset
+  REF_HIGH16 = 6,         ///< high 16 bits of 32-bit offset
   V695_REF_VHIGH  = 7,    ///< obsolete
   V695_REF_VLOW   = 8,    ///< obsolete
-  REF_OFF64  = 9,         ///< 64bit full offset
-  REF_OFF8   = 10,        ///< 8bit full offset
-  REF_LAST = REF_OFF8;
+  REF_OFF64  = 9,         ///< 64-bit full offset
+  REF_OFF8   = 10,        ///< 8-bit full offset
+  REF_LOW32  = 11,        ///< low 32 bits of 64-bit offset
+  REF_HIGH32 = 12,        ///< high 32 bits of 64-bit offset
+  REF_LAST = REF_HIGH32;
 ///@}
 
 /// Can the target be calculated using operand value?
@@ -1010,7 +1011,7 @@ struct refinfo_t
                                   ///< refinfo_t::base will be forced to get_imagebase();
                                   ///< such a reference is displayed with the \ash{a_rva} keyword
 #define REFINFO_PASTEND   0x0020  ///< reference past an item;
-                                  ///< it may point to an nonexistent address;
+                                  ///< it may point to a nonexistent address;
                                   ///< do not destroy alignment dirs
 #define REFINFO_CUSTOM    0x0040  ///< a custom reference.
                                   ///< see custom_refinfo_handler_t.
@@ -1026,6 +1027,7 @@ struct refinfo_t
 #define REFINFO_NO_ONES   0x0800  ///< an opval of ~0 will be considered invalid
 #define REFINFO_SELFREF   0x1000  ///< the self-based reference;
                                   ///< refinfo_t::base will be forced to the reference address
+#define REFINFO_USER      0x2000  ///< ignore fixup when processing this refinfo
 ///@}
 
   reftype_t type(void) const
@@ -1045,9 +1047,10 @@ struct refinfo_t
   bool is_custom(void)    const { return (flags & REFINFO_CUSTOM) != 0; }
   bool is_subtract(void)  const { return (flags & REFINFO_SUBTRACT) != 0; }
   bool is_signed(void)    const { return (flags & REFINFO_SIGNEDOP) != 0; }
-  bool is_no_zeros(void)   const { return (flags & REFINFO_NO_ZEROS) != 0; }
-  bool is_no_ones(void)  const { return (flags & REFINFO_NO_ONES) != 0; }
+  bool is_no_zeros(void)  const { return (flags & REFINFO_NO_ZEROS) != 0; }
+  bool is_no_ones(void)   const { return (flags & REFINFO_NO_ONES) != 0; }
   bool is_selfref(void)   const { return (flags & REFINFO_SELFREF) != 0; }
+  bool is_user(void)      const { return (flags & REFINFO_USER) != 0; }
 
   // RT can include REFINFO_CUSTOM bit
   void set_type(reftype_t rt)
@@ -1080,7 +1083,7 @@ struct custom_refinfo_handler_t
 {
   int32 cbsize;                 ///< size of this structure
   const char *name;             ///< Format name, must be unique
-  const char *desc;             ///< Refinfo description to use in Ctrl-R dialog
+  const char *desc;             ///< Description shown in the Ctrl-R dialog
   int props;                    ///< properties (currently 0)
 /// \defgroup RHF_ Refinfo handler properties
 /// Used by custom_refinfo_handler_t::props
@@ -1160,7 +1163,7 @@ inline const custom_refinfo_handler_t *idaapi get_custom_refinfo_handler(
   return ri.is_custom() ? get_custom_refinfo(ri.type()) : nullptr;
 }
 
-// inline implementaion
+// inline implementation
 inline bool is_reftype_target_optional(reftype_t type)
 {
   if ( (type & REFINFO_CUSTOM) != 0 )
@@ -1196,7 +1199,7 @@ typedef qvector<refinfo_desc_t> refinfo_desc_vec_t;
 idaman void ida_export get_refinfo_descs(refinfo_desc_vec_t *descs);
 
 
-#define MAXSTRUCPATH  32        ///< maximal inclusion depth of unions
+#define MAXSTRUCPATH  32        ///< maximum inclusion depth for nested unions
 
 /// Information for structure offsets.
 /// ids[0] contains the id of the structure.
@@ -1339,7 +1342,7 @@ inline void idaapi del_op_tinfo(ea_t ea, int n) { set_op_tinfo(ea, n, nullptr); 
 #define RIDX_INCLUDE              1100     ///< assembler include file name
 #define RIDX_SMALL_IDC            1200     ///< Instant IDC statements, blob
 #define RIDX_DUALOP_GRAPH         1300     ///< Graph text representation options
-#define RIDX_DUALOP_TEXT          1301     ///< Text text representation options
+#define RIDX_DUALOP_TEXT          1301     ///< Text representation options
 #define RIDX_MD5                  1302     ///< MD5 of the input file
 #define RIDX_IDA_VERSION          1303     ///< version of ida which created the database
 
@@ -1615,6 +1618,21 @@ idaman int ida_export enum_import_names(int mod_index, import_enum_cb_t *callbac
 /// Delete all imported modules information
 
 idaman void ida_export delete_imports(void);
+
+/// Get import module entry for EA
+/// \param[out] entry  import entry
+/// \param      ea     address
+/// \retval success and ENTRY is filled
+
+struct import_entry_t
+{
+  qstring name;               ///< name of import entry (may be empty)
+  qvector<uval_t> ordinals;   ///< import ordinals (may be empty)
+  int mod_index = -1;         ///< module
+};
+
+idaman bool ida_export get_import_entry(import_entry_t *entry, ea_t ea);
+
 ///@}
 
 

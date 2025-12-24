@@ -44,8 +44,13 @@ BASE_OBJS += $(BASE_OBJS-1) $(F)symelf$(O)
 
 #----------------------------------------------------------------------
 ifdef __LINUX__
-  SERVER_LDFLAGS += -Wl,--version-script=linux_debmod.script
-  SERVER_LDFLAGS += $(OUTMAP)$(F)$(@F).map
+  ifeq ($(and $(__ARM__),$(CROSS_COMPILING)),1)
+    SERVER_LDFLAGS += -static-libstdc++ $(ARCH_FLAGS)
+    SERVER_POSTACTION=$(STRIP) $@
+  else
+    SERVER_LDFLAGS += -Wl,--version-script=linux_debmod.script
+    SERVER_LDFLAGS += $(OUTMAP)$(F)$(@F).map
+  endif
   SERVER_STDLIBS += -lthread_db -lrt -lc -lpthread -ldl
 endif
 SERVER_OBJS += $(BASE_OBJS)

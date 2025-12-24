@@ -95,6 +95,8 @@ void out_tms320c6_t::out_pre_mode(int mode)
   out_symbol('*');
   switch ( mode )
   {
+    case -1:    // *R
+      break;
     case 0x08:  // 1000 *--R[cst]
     case 0x0C:  // 1100 *--Rb[Ro]
       out_symbol('-');

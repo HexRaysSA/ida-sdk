@@ -132,11 +132,11 @@ bool til_builder_t::get_symbol_name(pdb_sym_t &sym, qstring &buf)
 //----------------------------------------------------------------------------
 bool til_builder_t::get_symbol_type(tpinfo_t *out, pdb_sym_t &sym, uint32 *p_ord)
 {
+  qstring sym_name;
+  sym.get_name(&sym_name);
 #ifdef PDEBSYM
   static int zz=0; ++zz;
   int zzz = zz;
-  qstring sym_name;
-  sym.get_name(&sym_name);
   DWORD sym_id = 0;
   sym.get_symIndexId(&sym_id);
   msg("PDEB: %d: get_symbol_type sym_id=%d '%s'\n", zzz, sym_id, sym_name.c_str());
@@ -145,7 +145,7 @@ bool til_builder_t::get_symbol_type(tpinfo_t *out, pdb_sym_t &sym, uint32 *p_ord
   pdb_sym_janitor_t janitor_pType(pType);
   if ( sym.get_type(pType) != S_OK )
     return false;
-  bool ok = retrieve_type(out, *pType, nullptr, p_ord);
+  bool ok = retrieve_type(out, sym_name.c_str(), *pType, nullptr, p_ord);
 #ifdef PDEBSYM
   DWORD typsym_id = 0;
   pType->get_symIndexId(&typsym_id);
@@ -154,10 +154,74 @@ bool til_builder_t::get_symbol_type(tpinfo_t *out, pdb_sym_t &sym, uint32 *p_ord
   return ok;
 }
 
-//----------------------------------------------------------------------------
-bool til_builder_t::fix_ctor_to_return_ptr(func_type_data_t *fti, pdb_sym_t *parent)
+//-----------------------------------------------------------------------------
+// substitute the template specialisations with '_' chars
+inline bool subst_template_spec(qstring *buf)
 {
-  if ( inf_get_app_bitness() != 32 || parent == nullptr )
+  const char *const start = buf->c_str();
+  const char *p0 = start;
+  while ( (p0 = qstrchr(p0, '<')) != nullptr )
+  {
+    int balance = 1;
+    const char *p = p0 + 1;
+    while ( (p=strpbrk(p+1, "<>")) != nullptr )
+    {
+      balance += *p == '<' ? 1 : -1;
+      if ( balance == 0 )
+        break;
+    }
+    if ( p == nullptr )
+      return false; // unbalanced <>
+    p++;
+    buf->fill(p0 - start, '_', p - p0);
+    p0 = p;
+  }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+static bool get_last_part_of_qualname(
+        qstring *suffix,
+        const char *class_name)
+{
+  // fast checks
+  if ( class_name == nullptr || class_name[0] == '\0' )
+    return false;
+  if ( strpbrk(class_name, ":<>") == nullptr )
+  {
+    // trivial case
+    *suffix = class_name;
+    return true;
+  }
+
+  // let's start from
+  // std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >
+  qstring tmp = class_name;
+  // at first process template specialisations
+  if ( !subst_template_spec(&tmp) )
+    return false;
+  // now we transform to
+  // std::basic_string____________________________________________________________
+  const char *p = qstrrchr(tmp.begin(), ':');
+  *suffix = p == nullptr
+          ? class_name
+          : qstring(class_name + ((p+1) - tmp.begin()));
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool til_builder_t::fix_ctor_to_return_ptr(
+        func_type_data_t *fti,
+        const char *meth_name,
+        pdb_sym_t &sym)
+{
+  if ( meth_name == nullptr || meth_name[0] == '\0' )
+    return false;
+
+  // make sure we retrieve class type first
+  pdb_sym_t *pParent = pdb_access->create_sym();
+  pdb_sym_janitor_t janitor_pParent(pParent);
+  if ( sym.get_classParent(pParent) != S_OK || pParent->empty() )
     return false;
 
   // detect constructor
@@ -171,14 +235,34 @@ bool til_builder_t::fix_ctor_to_return_ptr(func_type_data_t *fti, pdb_sym_t *par
   if ( !class_type.get_type_name(&class_name) )
     return false;
 
-  qstring funcname;
-  parent->get_name(&funcname);
-  qstring ctor_name;
-  ctor_name.sprnt("%s::%s", class_name.c_str(), class_name.c_str());
-  if ( ctor_name != funcname )
+  ddeb(("PDEB: fix_ctor_to_return_ptr class_name %s\n", class_name.c_str()));
+  ddeb(("PDEB: fix_ctor_to_return_ptr meth_name  %s\n", meth_name));
+
+  // class_name: boost::system::error_code
+  // meth_name : boost::system::error_code::error_code
+  // or
+  // class_name: boost::filesystem::path
+  // meth_name : boost::filesystem::path::path<wchar_t const *>
+  // or
+  // class_name: std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >
+  // meth_name : std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >
+
+  qstring unqual_class_name;
+  get_last_part_of_qualname(&unqual_class_name, class_name.c_str());
+
+  qstring ctor;
+  ctor.append(class_name);
+  ctor.append("::");
+  ctor.append(unqual_class_name);
+  ddeb(("PDEB: fix_ctor_to_return_ptr ctor_name  %s\n", ctor.c_str()));
+  size_t ctor_len = ctor.length();
+
+  bool is_ctor = strneq(meth_name, ctor.c_str(), ctor_len)
+              && (meth_name[ctor_len] == '\0' || meth_name[ctor_len] == '<' );
+  if ( !is_ctor )
     return false;
 
-  ddeb(("PDEB: detected constructor %s\n", funcname.c_str()));
+  ddeb(("PDEB: detected constructor %s\n", ctor.c_str()));
 
   // do not set FTI_CTOR, normally IDA ignores ctor/dtor return type
   fti->flags &= ~FTI_CTOR;
@@ -340,13 +424,15 @@ callcnv_t til_builder_t::retrieve_arguments(
       {
         return S_OK;
       }
+      qstring arg_name;
+      sym.get_name(&arg_name);
       tpinfo_t tpi;
-      bool cvt_succeeded = tb->retrieve_type(&tpi, sym, parent);
+      bool cvt_succeeded = tb->retrieve_type(&tpi, arg_name.c_str(), sym, parent);
       if ( cvt_succeeded || tpi.is_notype )
       {
         funcarg_t &arg = fi.push_back();
         arg.type = tpi.type;
-        sym.get_name(&arg.name);
+        arg.name.swap(arg_name);
       }
       return S_OK;
     }
@@ -505,8 +591,11 @@ bool til_builder_t::is_member_func(tinfo_t *class_type, pdb_sym_t &typeSym, pdb_
   if ( typeSym.get_classParent(pParent) != S_OK || pParent->empty() )
     return false;
 
+  qstring class_name;
+  pParent->get_name(&class_name);
+
   tpinfo_t tpi;
-  if ( !retrieve_type(&tpi, *pParent, nullptr) )
+  if ( !retrieve_type(&tpi, class_name.c_str(), *pParent, nullptr) )
     return false; // failed to retrieve the parent's type
 
   class_type->swap(tpi.type);
@@ -532,7 +621,8 @@ bool til_builder_t::is_stack_reg(int reg) const
 //----------------------------------------------------------------------
 bool til_builder_t::is_frame_reg(int reg) const
 {
-  return reg == get_frame_reg(pdb_access->get_machine_type());
+  return reg == CV_ALLREG_VFRAME
+      || reg == get_frame_reg(pdb_access->get_machine_type());
 }
 
 //----------------------------------------------------------------------------
@@ -1005,7 +1095,7 @@ cvt_code_t til_builder_t::make_vtable_struct(tinfo_t *out, pdb_sym_t &_sym)
       bool is_intro_virtual = get_vfptr_offset(&vfptr_offset, sym);
 
       tpinfo_t tpi;
-      if ( is_intro_virtual && tb->retrieve_type(&tpi, sym, parent) )
+      if ( is_intro_virtual && tb->retrieve_type(&tpi, name.c_str(), sym, parent) )
       {
         ddeb(("PDEB:   make_vtable_struct add '%s' vptr offset %u\n", tpi.type.dstr(), vfptr_offset));
         add_vftable_member(&vftinfo->udt, tpi.type, name.c_str(), vfptr_offset);
@@ -1032,6 +1122,7 @@ cvt_code_t til_builder_t::make_vtable_struct(tinfo_t *out, pdb_sym_t &_sym)
   bool ok = false;
   if ( !vftinfo.udt.empty() )
   {
+    vftinfo.udt.deduplicate_members();
     out->create_udt(vftinfo.udt, BTF_STRUCT);
     ddeb(("PDEB: %d make_vtable_struct collected vftable '%s'\n", zzlevel, out->dstr()));
     ok = out->calc_udt_aligns();
@@ -1154,6 +1245,8 @@ void til_builder_t::fix_thisarg_type(const qstring &udt_name)
 
   if ( changed )
   {
+    if ( (udt.taudt_bits & TAUDT_VFTABLE) != 0 )
+      udt.deduplicate_members();
     tinfo.create_udt(udt, BTF_STRUCT);
     tinfo.set_named_type(nullptr, udt_vft_name.c_str(), NTF_REPLACE);
   }
@@ -1195,7 +1288,7 @@ cvt_code_t til_builder_t::convert_udt(
       // assert: intro virtual or data member
 
       tpinfo_t tpi;
-      if ( !tb->retrieve_type(&tpi, sym, parent) )
+      if ( !tb->retrieve_type(&tpi, name.c_str(), sym, parent) )
         return S_OK;
 
       if ( is_intro_virtual )
@@ -1352,6 +1445,7 @@ cvt_code_t til_builder_t::convert_udt(
   {
     if ( vtinfo.base0.empty() )
     {
+      vtinfo.udt.deduplicate_members();
       tinfo_t vft_tif;
       if ( vft_tif.create_udt(vtinfo.udt, BTF_STRUCT)
         && vft_tif.calc_udt_aligns() )
@@ -1707,6 +1801,8 @@ cvt_code_t til_builder_t::create_udt(tinfo_t *out, pdb_udt_type_data_t *udt, int
   type_t bt = udt->is_union ? BTF_UNION : BTF_STRUCT;
   udt_type_data_t tinfo_udt;
   udt->convert_to_tinfo_udt(&tinfo_udt);
+  if ( (tinfo_udt.taudt_bits & TAUDT_VFTABLE) != 0 )
+    tinfo_udt.deduplicate_members();
   if ( !out->create_udt(tinfo_udt, bt) )
     return cvt_failed;
   if ( !out->calc_udt_aligns(SUDT_GAPS|SUDT_UNEX) )
@@ -1803,6 +1899,7 @@ inline type_t get_sym_modifiers(pdb_sym_t &sym)
 //----------------------------------------------------------------------
 cvt_code_t til_builder_t::really_convert_type(
         tpinfo_t *out,
+        const char *symbol_name,
         pdb_sym_t &sym,
         pdb_sym_t *parent,
         DWORD tag)
@@ -1964,8 +2061,8 @@ FAILED_ARRAY:
             }
             if ( add_this )
               fi.insert(fi.begin(), thisarg);
-            if ( cc == CM_CC_THISCALL )
-              fix_ctor_to_return_ptr(&fi, parent);
+            if ( add_this || cc == CM_CC_THISCALL )
+              fix_ctor_to_return_ptr(&fi, symbol_name, sym);
           }
           if ( is_user_cc(cc) )
           {
@@ -1997,6 +2094,24 @@ FAILED_ARRAY:
           }
         }
         fi.set_cc(cc);
+#ifdef PDEB
+        {
+          static size_t func_counter = 0;
+          ++func_counter;
+          msg("PDEB: SymTagFunctionType %s %" FMT_Z"\n", symbol_name != nullptr ? symbol_name : "<NULL>", func_counter);
+          msg("  flags=0x%X cc=0x%" FMT_64 "X\n", fi.flags, fi.get_cc());
+          char buf[MAXSTR];
+          print_argloc(buf, sizeof(buf), fi.retloc, 0, PRALOC_STKOFF);
+          msg("  rettype='%s' retloc='%s'\n", fi.rettype.dstr(), buf);
+          int idx = 0;
+          for ( const auto &a : fi )
+          {
+            print_argloc(buf, sizeof(buf), a.argloc, 0, PRALOC_STKOFF);
+            msg("  [%d] name=%s type='%s' argloc='%s'\n", idx, a.name.c_str(), a.type.dstr(), buf);
+            idx++;
+          }
+        }
+#endif
         out->type.create_func(fi);
       }
       break;
@@ -2088,6 +2203,7 @@ FAILED_ARRAY:
 //----------------------------------------------------------------------
 cvt_code_t til_builder_t::convert_type(
         tpinfo_t *out,
+        const char *symbol_name,
         pdb_sym_t &sym,
         pdb_sym_t *parent,
         DWORD type,
@@ -2104,7 +2220,7 @@ cvt_code_t til_builder_t::convert_type(
   if ( p == typemap.end() )
   {
     tpinfo_t tpi;
-    tpi.cvt_code = really_convert_type(&tpi, sym, parent, tag);
+    tpi.cvt_code = really_convert_type(&tpi, symbol_name, sym, parent, tag);
     p = typemap.insert(std::make_pair(type, tpi)).first;
   }
   tpinfo_t &tpi = p->second;
@@ -2299,7 +2415,7 @@ cvt_code_t til_builder_t::handle_overlapping_members(pdb_udt_type_data_t *udt) c
     if ( p == end )
       break;
 NEXT:
-    if ( last->end() < p->end() )
+    if ( last == end || last->end() < p->end() )
       last = p;
   }
   return cvt_ok;
@@ -2392,11 +2508,8 @@ cvt_code_t til_builder_t::create_udt_ref(tinfo_t *out, pdb_udt_type_data_t *udt,
   if ( code != cvt_ok )
     return code;
 
-  qtype type, fields;
-  tif.serialize(&type, &fields);
-
   qstring name;
-  build_anon_type_name(&name, type.begin(), fields.begin());
+  tif.build_anon_type_name(&name);
   uint32 ord = get_type_ordinal(ti, name.c_str());
   if ( ord == 0 )
   {
@@ -2413,6 +2526,7 @@ cvt_code_t til_builder_t::create_udt_ref(tinfo_t *out, pdb_udt_type_data_t *udt,
 //----------------------------------------------------------------------------
 bool til_builder_t::retrieve_type(
         tpinfo_t *out,
+        const char *symbol_name,
         pdb_sym_t &sym,
         pdb_sym_t *parent,
         uint32 *p_ord)
@@ -2455,7 +2569,7 @@ bool til_builder_t::retrieve_type(
   // udt fields and simple types are converted without allocating
   // an ordinal number
   if ( tag == SymTagData || ns.empty() )
-    return convert_type(out, sym, parent, sym_id, tag) != cvt_failed;
+    return convert_type(out, symbol_name, sym, parent, sym_id, tag) != cvt_failed;
 
   // give a unique name to unnamed types so they can be told apart
   // this is a temporary name, it will be replaced by $hex..
@@ -2483,7 +2597,7 @@ bool til_builder_t::retrieve_type(
     {
       // now convert the type information, recursive types won't bomb
       tpinfo_t tpi2;
-      cvt_code_t cc = convert_type(&tpi2, sym, parent, sym_id, tag);
+      cvt_code_t cc = convert_type(&tpi2, symbol_name, sym, parent, sym_id, tag);
       if ( cc != cvt_ok ) // failed or typedef
       {
         creating.erase(ns);
@@ -2506,10 +2620,6 @@ bool til_builder_t::retrieve_type(
         return true;
       }
 
-      qtype type, fields;
-      if ( !tpi2.type.serialize(&type, &fields) )
-        INTERR(30408);
-
       // Function types are saved as symbols
       if ( tag == SymTagFunction )
       {
@@ -2524,7 +2634,7 @@ bool til_builder_t::retrieve_type(
       bool reuse_anon_type = false;
       if ( is_unnamed ) // this type will be referenced, so create a name for it
       {
-        build_anon_type_name(&ns, type.begin(), fields.begin());
+        tpi2.type.build_anon_type_name(&ns);
         ord = get_type_ordinal(ti, ns.c_str());
         if ( ord != 0 ) // this type already exists, just reuse it
         {
@@ -2537,6 +2647,9 @@ bool til_builder_t::retrieve_type(
       {
         ord = end_creation(ns);
         int ntf_flags = NTF_NOBASE|NTF_FIXNAME|NTF_REPLACE;
+        qtype type, fields;
+        if ( !tpi2.type.serialize(&type, &fields) )
+          INTERR(30408);
         tinfo_t tif;
         tinfo_code_t code = tif.deserialize(ti, &type, &fields)
                           ? tif.set_numbered_type(ti, ord, ntf_flags, ns.empty() ? nullptr : ns.c_str())
@@ -2706,7 +2819,7 @@ HRESULT til_builder_t::handle_types(pdb_sym_t &global_sym)
     virtual HRESULT do_visit_child(pdb_sym_t &sym) override
     {
       tpinfo_t tpi;
-      if ( tb->retrieve_type(&tpi, sym, parent) )
+      if ( tb->retrieve_type(&tpi, nullptr, sym, parent) )
         counter++;
       return S_OK;
     }

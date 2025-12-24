@@ -27,10 +27,9 @@ const size_t rasm_keyword_count = qnumber(rasm_keywords);
 GCC_DIAG_OFF(nonnull)
 
 //-------------------------------------------------------------------------
-typedef std::deque<qstring> strlist;
 struct mblock_dumper_t : public vd_printer_t
 {
-  strlist lines;
+  qstrvec_t lines;
   int nline = 0;
   int serial = 0;
   AS_PRINTF(3, 4) int print(int indent, const char *format, ...) override
@@ -105,13 +104,11 @@ const char *class::dstr() const  \
 // See c.cpp for references to dstr() functions
 DEFINE_DSTR(bitset_t)
 DEFINE_DSTR(rlist_t)
-DEFINE_DSTR(ivl_t)
 DEFINE_DSTR(vivl_t)
+DEFINE_DSTR(ivl_t)
 DEFINE_DSTR(ivlset_t)
 DEFINE_DSTR(mlist_t)
 DEFINE_DSTR(lattice_t)
-DEFINE_DSTR(ivl64_t)
-DEFINE_DSTR(ivlset64_t)
 DEFINE_DSTR(valrng_t)
 DEFINE_DSTR(valranges_t)
 DEFINE_DSTR(chain_t)
@@ -142,7 +139,6 @@ void dgr(citem_t *item)
 #endif
 
 //-------------------------------------------------------------------------
-#ifdef __EA64__
 static ea_t align_badaddr(const hexrays_vars_t &hv, ea_t ea)
 {
   // represent BADADDR as 0xffffffff if ida64 is running with a 32bit binary
@@ -154,16 +150,6 @@ static ea_t align_badaddr(ea_t ea)
        ? align_badaddr(*GET_MODULE_DATA(hexrays_vars_t), ea)
        : ea;
 }
-#else
-static ea_t align_badaddr(const hexrays_vars_t &, ea_t ea)
-{
-  return ea;
-}
-static ea_t align_badaddr(ea_t ea)
-{
-  return ea;
-}
-#endif
 
 //------------------------------------------------------------------------------
 entity_anchor_t mba_print_helper_t::append_anchor(qstring *out, const void *entity) const
@@ -183,6 +169,22 @@ entity_anchor_t mba_print_helper_t::append_anchor(qstring *out, const void *enti
 
   anchor_object_start(out, p->second);
   return p->second;
+}
+
+//-------------------------------------------------------------------------
+const char *ivlset_t::dstr_vr() const
+{
+  qstring *buf = debug_getbuf();
+  print_vrs(buf);
+  return buf->c_str();
+}
+
+//-------------------------------------------------------------------------
+const char *ivl_t::dstr_vr() const
+{
+  qstring *buf = debug_getbuf();
+  print_vr(buf);
+  return buf->c_str();
 }
 
 //-------------------------------------------------------------------------
@@ -206,7 +208,8 @@ GCC_DIAG_OFF(nonnull)
   CALL_DSTR(ivlset_t);
   CALL_DSTR(mlist_t);
   CALL_DSTR(lattice_t);
-  CALL_DSTR(ivl64_t);
+  CALL_DSTR(ivl_t);
+  CALL_DSTR(ivlset_t);
   CALL_DSTR(valrng_t);
   CALL_DSTR(valranges_t);
   CALL_DSTR(chain_t);
@@ -385,6 +388,7 @@ qstring print_lvinf(const mvm_t &mvm, const lvar_saved_info_t &lsi)
     " NOPTR",
     " NOMAP",
     " UNUSED",
+    " NOPROP",
   };
   for ( size_t j=0; j < qnumber(bits); j++ )
     if ( (lsi.flags & (1<<j)) != 0 )
@@ -698,7 +702,7 @@ void mblock_t::vdump_block(const char *title, va_list va) const
     char path[QMAXPATH];
     sv.get_dump_file_name(path, sizeof(path), serial);
 
-    strlist oldlines;
+    qstrvec_t oldlines;
     oldlines.swap(md.lines);
     md.nline = 0;
     md.serial = serial;
@@ -743,8 +747,8 @@ void mblock_t::vdump_block(const char *title, va_list va) const
       qfprintf(fp, "\nendp\n");
       qfclose(fp);
     }
-    eavec_t seen_calls;
-    verify(&seen_calls);
+    micro_verifier_t mv;
+    verify(mv);
   } //lint !e593 custodial pointer possibly not freed nor returned
   sv.emulate_and_check(header.c_str(), mba, this);
 }
@@ -1443,6 +1447,28 @@ const char *minsn_opcode_name(int opcode)
 }
 
 //-------------------------------------------------------------------------
+void minsn_t::out_oprop_bit(qstring *out, int bit, const char *name) const
+{
+  if ( (l.oprops & bit) != 0
+    || (r.oprops & bit) != 0
+    || (d.oprops & bit) != 0 )
+  {
+    char buf[32];
+    char *ptr = qstpncpy(buf, name, sizeof(buf));
+    char *end = buf + sizeof(buf);
+    APPCHAR(ptr, end, '(');
+    if ( (l.oprops & bit) != 0 )
+      APPCHAR(ptr, end, 'l');
+    if ( (r.oprops & bit) != 0 )
+      APPCHAR(ptr, end, 'r');
+    if ( (d.oprops & bit) != 0 )
+      APPCHAR(ptr, end, 'd');
+    APPEND(ptr, end, ") ");
+    out->append(buf);
+  }
+}
+
+//-------------------------------------------------------------------------
 void minsn_t::print(qstring *out, mba_print_helper_t &prh, int shins_flags) const
 {
   lexical_anchor_printer_t insn_anchor(prh, out, this);
@@ -1522,57 +1548,10 @@ void minsn_t::print(qstring *out, mba_print_helper_t &prh, int shins_flags) cons
   int split = get_split_size();
   if ( split != 0 )
     out->cat_sprnt("split%d ", split);
-  if ( l.is_udt() || r.is_udt() || d.is_udt() )
-  {
-    char buf[10]; // "udt(lrd) "
-                  //  123456789
-    char *ptr = qstpncpy(buf, "udt(", sizeof(buf));
-    if ( l.is_udt() )
-      *ptr++ = 'l';
-    if ( r.is_udt() )
-      *ptr++ = 'r';
-    if ( d.is_udt() )
-      *ptr++ = 'd';
-    *ptr++ = ')';
-    *ptr++ = ' ';
-    *ptr++ = '\0';
-    out->append(buf);
-  }
-  if ( !is_fpinsn()
-    && (l.probably_floating()
-     || r.probably_floating()
-     || d.probably_floating()) )
-  {
-    char buf[12]; // "float(lrd) "
-                  //  123456789012
-    char *ptr = qstpncpy(buf, "float(", sizeof(buf));
-    if ( l.probably_floating() )
-      *ptr++ = 'l';
-    if ( r.probably_floating() )
-      *ptr++ = 'r';
-    if ( d.probably_floating() )
-      *ptr++ = 'd';
-    *ptr++ = ')';
-    *ptr++ = ' ';
-    *ptr++ = '\0';
-    out->append(buf);
-  }
-  if ( l.is_lowaddr() || r.is_lowaddr() || d.is_lowaddr() )
-  {
-    char buf[14]; // "lowaddr(lrd) "
-                  //  12345678901234
-    char *ptr = qstpncpy(buf, "lowaddr(", sizeof(buf));
-    if ( l.is_lowaddr() )
-      *ptr++ = 'l';
-    if ( r.is_lowaddr() )
-      *ptr++ = 'r';
-    if ( d.is_lowaddr() )
-      *ptr++ = 'd';
-    *ptr++ = ')';
-    *ptr++ = ' ';
-    *ptr++ = '\0';
-    out->append(buf);
-  }
+  out_oprop_bit(out, OPROP_UDT, "udt");
+  if ( !is_fpinsn() )
+    out_oprop_bit(out, OPROP_FLOAT, "float");
+  out_oprop_bit(out, OPROP_LOWADDR, "lowaddr");
 
   const mba_t *const mba = prh.mba != nullptr ? prh.mba : GMBA;
   if ( mba != nullptr )
@@ -1949,13 +1928,13 @@ void ivlset_t::print(qstring *out) const
 }
 
 //-------------------------------------------------------------------------
-void ivlset64_t::print(qstring *out) const
+void ivlset_t::print_vrs(qstring *out) const
 {
   for ( const_iterator p=begin(); p != end(); ++p )
   {
     if ( p != begin() )
       out->append(',');
-    p->print(out);
+    p->print_vr(out);
   }
 }
 

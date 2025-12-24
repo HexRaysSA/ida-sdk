@@ -383,19 +383,40 @@ public:
   /// Return the defining address.
   ea_t get_def_ea() const
   {
-    return !is_value_unique() ? BADADDR : vals.begin()->def_ea;
+    return vals.size() != 1 ? BADADDR : vals.begin()->def_ea;
   }
   /// Return the defining instruction code (processor specific).
   uint16 get_def_itype() const
   {
-    return !is_value_unique() ? 0 : vals.begin()->def_itype;
+    return vals.size() != 1 ? 0 : vals.begin()->def_itype;
   }
   /// Return the aborting depth if the value is ABORTED
   int get_aborting_depth() const
   {
-    if ( !aborted() || !is_value_unique() )
+    if ( !aborted() || vals.size() != 1 )
       return -1;
     return int32(vals.begin()->val);
+  }
+  /// Set the defining instruction
+  /// The value of the destination register after the mov instruction is
+  /// equal to the value of the source register before it. Therefore, we can
+  /// consider this instruction as defining that value.
+  bool set_def_itype_for_mov(const insn_t &insn)
+  {
+    if ( vals.size() != 1
+      || vals.begin()->def_ea != insn.ea
+      || vals.begin()->def_itype != 0 )
+    {
+      return false;
+    }
+    if ( state == NUMADDR )
+      state = NUMINSN;
+    else if ( state == SPDADDR )
+      state = SPDINSN;
+    else
+      return false;
+    vals.begin()->def_itype = insn.itype;
+    return true;
   }
 
   /// Return a const iterator to the first value.

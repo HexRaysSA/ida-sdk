@@ -169,8 +169,8 @@ How to build the SDK from the command-line
   directory
 
     mo.bat    - will build components for ida.exe
-    mso.bat   - will build win64_remote64.exe
-    mso32.bat - will build win32_remote.exe
+    mso.bat   - will build win64_remote.exe
+    m32x86so.bat - will build win32_remote32.exe
 
   They accept a '-j' argument, to parallelize the build:
 

@@ -17,9 +17,9 @@
 
 static const idbattr_info_t idbattr_info[] =
 {
-  MERGE_POINTER(GP_EA_IDX,   "analysis.global_pointer"),
-  MERGE_POINTER(CTBP_EA_IDX, "analysis.callt_base_pointer"),
-  MERGE_POINTER(TP_EA_IDX,   "analysis.text_pointer"),
+  MERGE_POINTER(nec850_t::GP_EA_IDX,   "analysis.global_pointer"),
+  MERGE_POINTER(nec850_t::CTBP_EA_IDX, "analysis.callt_base_pointer"),
+  MERGE_POINTER(nec850_t::TP_EA_IDX,   "analysis.text_pointer"),
 };
 
 DEFINE_SIMPLE_PROCMOD_HANDLER(idbattr_info)

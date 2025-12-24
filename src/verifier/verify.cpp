@@ -19,67 +19,96 @@
 //lint -esym(413,pair)
 //lint -esym(413,op_parent_info_t::curins)
 
+static int got_interr = 0;
+
+//-------------------------------------------------------------------------
+NORETURN void micro_verifier_t::MINSN_INTERR(int code) const
+{
+  if ( got_interr++ == 0 )
+    msg("INSN: %a: %s\n", curins->ea, curins->dstr());
+  INTERR(code);
+}
+
+//-------------------------------------------------------------------------
+NORETURN void micro_verifier_t::MBLOCK_INTERR(int code) const
+{
+  if ( got_interr++ == 0 )
+  {
+    msg("BLOCK %d\n", blk->serial);
+    blk->dump_block("INTERR %d", code);
+  }
+  INTERR(code);
+}
+
+//-------------------------------------------------------------------------
+NORETURN void micro_verifier_t::LVAR_INTERR(int code) const
+{
+  if ( got_interr++ == 0 )
+    msg("LVAR %s\n", lvar->dstr());
+  INTERR(code);
+}
+
 //-------------------------------------------------------------------------
 bool hexrays_vars_t::should_verify()
 {
 #ifndef NDEBUG
-  return true;
+  return true; // debug version: always verify
 #else
   return under_debugger || (vdrun_flags & VDRUN_TEST) != 0;
 #endif
 }
 
 //-------------------------------------------------------------------------
-void mcallinfo_t::verify(const micro_verifier_t &mv, int size) const
+void mcallinfo_t::verify(micro_verifier_t &mv, int size) const
 {
   if ( cc == CM_CC_INVALID )
-    INTERR(50733); // invalid calling convention is used
+    mv.MINSN_INTERR(50733); // invalid calling convention is used
   // check args
   for ( int i=0; i < args.size(); i++ )
   {
     const mcallarg_t &a = args[i];
     if ( !a.type.is_correct() )
-      INTERR(50734); // incorrect argument type
+      mv.MINSN_INTERR(50734); // incorrect argument type
     if ( a.type.get_size() != a.size )
-      INTERR(50735); // argument size and its type size mismatch
+      mv.MINSN_INTERR(50735); // argument size and its type size mismatch
     if ( a.size == 0 )
-      INTERR(50736); // zero sized argument
+      mv.MINSN_INTERR(50736); // zero sized argument
     if ( a.ea != BADADDR && !is_mapped(mv.mba->map_fict_ea(a.ea)) )
-      INTERR(51066); // argument defined at non-existent address
+      mv.MINSN_INTERR(51066); // argument defined at non-existent address
     if ( verify_argloc(a.argloc, a.size, nullptr) != 0 )
-      INTERR(50732); // wrong argument location
+      mv.MINSN_INTERR(50732); // wrong argument location
     // we already checked that the operand size is equal to type size
     a.verify(mv, VMOP_ANYSIZE);
     if ( a.empty() )
-      INTERR(50737); // argument of mop_z type
+      mv.MINSN_INTERR(50737); // argument of mop_z type
     if ( !is_acceptable_argtype(i, args[i].type) )
-      INTERR(52016); // impossible argument type
+      mv.MINSN_INTERR(52016); // impossible argument type
   }
   if ( solid_args > args.size() )
-    INTERR(50738); // too short argument list
+    mv.MINSN_INTERR(50738); // too short argument list
   if ( !return_type.is_correct() )
-    INTERR(50739); // incorrect return type
+    mv.MINSN_INTERR(50739); // incorrect return type
   if ( !pass_regs.empty() )
   {
     if ( !mv.mba->has_passregs() )
-      INTERR(51087); // passthrough registers exist but HAS_PASSREGS is not set
+      mv.MINSN_INTERR(51087); // passthrough registers exist but HAS_PASSREGS is not set
     if ( !pass_regs.is_subset_of(spoiled) )
-      INTERR(50991); // passthrough registers must be part of SPOILED
+      mv.MINSN_INTERR(50991); // passthrough registers must be part of SPOILED
   }
   if ( (flags & FCI_NOSPL) == 0 && !return_regs.is_subset_of(spoiled) )
-    INTERR(50740); // return registers must be part of SPOILED
+    mv.MINSN_INTERR(50740); // return registers must be part of SPOILED
   if ( !dead_regs.is_subset_of(return_regs) )
-    INTERR(50741); // DEAD_REGS must be part of return registers
+    mv.MINSN_INTERR(50741); // DEAD_REGS must be part of return registers
 
   if ( size == NOSIZE )
-    INTERR(50742); // call retval size is NOSIZE?!
+    mv.MINSN_INTERR(50742); // call retval size is NOSIZE?!
   if ( size != 0 && return_type.is_udt() && return_type.get_size() != size )
-    INTERR(52862); // wrong size of return type
+    mv.MINSN_INTERR(52862); // wrong size of return type
   if ( (flags & FCI_PROP) == 0 )
   {
     mlist_t tmp = used_retvals();
     if ( tmp.reg.count() != size )
-      INTERR(50743); // size of registers returned from a call mismatches the retval size
+      mv.MINSN_INTERR(50743); // size of registers returned from a call mismatches the retval size
     int s2 = 0;
     int vmop = 0;
     // special handling for long double (10 bytes)
@@ -94,12 +123,12 @@ void mcallinfo_t::verify(const micro_verifier_t &mv, int size) const
     if ( flags & FCI_DEAD )  // some return registers are dead
     {
       if ( s2 < size )
-        INTERR(50744); // size of return registers mismatches the retval size
+        mv.MINSN_INTERR(50744); // size of return registers mismatches the retval size
     }
     else
     {
       if ( s2 != size )
-        INTERR(50745); // size of return registers mismatches the retval size
+        mv.MINSN_INTERR(50745); // size of return registers mismatches the retval size
     }
   }
 }
@@ -109,17 +138,17 @@ void mcases_t::verify(const micro_verifier_t &mv) const
 {
   int n = targets.size();
   if ( n != values.size() )
-    INTERR(50746); // switch: sizes of values and targets mismatch
+    mv.MINSN_INTERR(50746); // switch: sizes of values and targets mismatch
   if ( n == 0 )
-    INTERR(50747); // switch: no targets?!
+    mv.MINSN_INTERR(50747); // switch: no targets?!
   if ( n == 1 )
   {
     int nvals = values[0].size();
     if ( nvals == 0 )
-      INTERR(50748); // switch: only single 'default' case?!
+      mv.MINSN_INTERR(50748); // switch: only single 'default' case?!
   }
   bool seen_default = false;
-  std::set<uint64> seen;
+  qset<uint64> seen;
   easet_t targset;
   for ( int i=0; i < n; i++ )
   {
@@ -127,19 +156,18 @@ void mcases_t::verify(const micro_verifier_t &mv) const
     if ( v.empty() )
     {
       if ( seen_default )
-        INTERR(50750); // switch: duplicate 'default' cases?!
+        mv.MINSN_INTERR(50750); // switch: duplicate 'default' cases?!
       seen_default = true;
     }
     for ( int j=0; j < v.size(); j++ )
       if ( !seen.insert(v[j]).second )
-        INTERR(50751); // switch: duplicate case value
+        mv.MINSN_INTERR(50751); // switch: duplicate case value
     int b = targets[i];
     if ( b <= 0 || b >= mv.mba->qty )
-      INTERR(50752); // switch: wrong case target
+      mv.MINSN_INTERR(50752); // switch: wrong case target
     if ( !targset.insert(b).second )
-      INTERR(50753); // switch: duplicate target
+      mv.MINSN_INTERR(50753); // switch: duplicate target
   }
-
 }
 
 //-------------------------------------------------------------------------
@@ -179,7 +207,7 @@ static bool is_va_list_align(const mvm_t &mvm, const lvar_t &v, int flags)
 }
 
 //-------------------------------------------------------------------------
-void mop_t::verify(const micro_verifier_t &mv, int flags) const
+void mop_t::verify(micro_verifier_t &mv, int flags) const
 {
   const mvm_t &mvm = mv.mba->mvm;
   // check the operand size
@@ -193,18 +221,18 @@ void mop_t::verify(const micro_verifier_t &mv, int flags) const
     case mop_b:           // basic blocks have no size
     case mop_c:           // cases have no size
       if ( size != NOSIZE )
-        INTERR(50754); // meaningless 'size' value
+        mv.MINSN_INTERR(50754); // meaningless 'size' value
     case mop_h:           // helper functions have no size
       break;
     case mop_str:
       if ( size != addrsize(mvm) )
-        INTERR(50755); // constant strings must be ADDRSIZE
+        mv.MINSN_INTERR(50755); // constant strings must be ADDRSIZE
       // fallthrough
     case mop_n:
       if ( size <= 0 || size > 8 )
-        INTERR(51586); // bad constant size
+        mv.MINSN_INTERR(51586); // bad constant size
       if ( (flags & VMOP_ANYSIZE) == 0 && !is_pow2(size) )
-        INTERR(51587); // bad constant size
+        mv.MINSN_INTERR(51587); // bad constant size
       break;
     case mop_r:
     default:
@@ -213,7 +241,7 @@ void mop_t::verify(const micro_verifier_t &mv, int flags) const
       {
         // &reg must be used with the size info.
         if ( t != mop_r && t != mop_sc && t != mop_l && size != NOSIZE )
-          INTERR(50756); // unknown operand size is forbidden
+          mv.MINSN_INTERR(50756); // unknown operand size is forbidden
       }
       else if ( (flags & VMOP_ANYSIZE) == 0 && !is_udt() )
       {
@@ -228,15 +256,15 @@ void mop_t::verify(const micro_verifier_t &mv, int flags) const
           {
             processor_t &ph = PH;
             if ( size != ph.sizeof_ldbl() && size != ph.tbyte_size )
-              INTERR(50757); // bad operand size
+              mv.MINSN_INTERR(50757); // bad operand size
           }
         }
         if ( !is_valid_fp_size(size) )
         {
           if ( (flags & VMOP_FPVAL) != 0 )
-            INTERR(51275); // bad floating operand size
+            mv.MINSN_INTERR(51275); // bad floating operand size
           if ( probably_floating() )
-            INTERR(52064); // bad possibly floating operand size
+            mv.MINSN_INTERR(52064); // bad possibly floating operand size
         }
       }
       break;
@@ -250,70 +278,71 @@ void mop_t::verify(const micro_verifier_t &mv, int flags) const
       // check that the address fits 32bit if ida64 is running 32bit binary
       // assert: mvm.addrsize <= sizeof(ea_t)
       if ( g != BADADDR && !mv.fits_ea_space(g) )
-        INTERR(52673); // address does not fit the address space
+        mv.MINSN_INTERR(52673); // address does not fit the address space
       break;
     case mop_n: // immediate
       if ( nnn == nullptr )
-        INTERR(50758); // missing constant info
+        mv.MINSN_INTERR(50758); // missing constant info
       if ( nnn->ea != BADADDR && !is_mapped(mv.mba->map_fict_ea(nnn->ea)) )
-        INTERR(50759); // bad definition address of a constant
+        mv.MINSN_INTERR(50759); // bad definition address of a constant
       if ( nnn->opnum > UA_MAXOP )
-        INTERR(50760); // bad operand number of a constant
+        mv.MINSN_INTERR(50760); // bad operand number of a constant
       if ( size < sizeof(uint64) && (nnn->value & ~(left_shift(uint64(1), size*8)-1)) != 0 )
-        INTERR(50761); // illegal bits in constant value
+        mv.MINSN_INTERR(50761); // illegal bits in constant value
       break;
     case mop_S: // local stack variable                     LOW
       if ( mv.mba != nullptr && s->mba != mv.mba )
-        INTERR(50762); // foreign stack variable (from another mba)
+        mv.MINSN_INTERR(50762); // foreign stack variable (from another mba)
       if ( s->off < 0 )
-        INTERR(50763); // stack variables must have a positive offset
+        mv.MINSN_INTERR(50763); // stack variables must have a positive offset
       if ( s->off != mv.ea2sval(s->off) )
-        INTERR(52679);     // overflow
+        mv.MINSN_INTERR(52679);     // overflow
       break;
     case mop_r: // register                                 LOW
       if ( r < 0 )
-        INTERR(50764); // negative microregister number is wrong
+        mv.MINSN_INTERR(50764); // negative microregister number is wrong
       if ( is_bit_reg(mvm) && size != 1 && mv.curins->opcode != m_ext )
-        INTERR(50765); // bit registers must have size=1
+        mv.MINSN_INTERR(50765); // bit registers must have size=1
       if ( size <= 0 )
-        INTERR(50766); // bad register size
+        mv.MINSN_INTERR(50766); // bad register size
       break;
     case mop_d: // result of another instruction
       {
         if ( d == nullptr )
-          INTERR(50767); // missing sub-instruction
+          mv.MINSN_INTERR(50767); // missing sub-instruction
         if ( size != d->d.size )
-          INTERR(50768); // sub-instruction size mismatch
-        micro_verifier_t mv2 = mv;
-        mv2.curins = d;
-        d->verify(mv2, false);
+          mv.MINSN_INTERR(50768); // sub-instruction size mismatch
+        minsn_t *saved = mv.curins;
+        mv.curins = d;
+        d->verify(mv, false);
+        mv.curins = saved;
       }
       break;
     case mop_b: // micro basic block (mblock_t)
       if ( !mv.mba->is_pattern() && (b < 0 || b >= mv.mba->qty) )
-        INTERR(50770); // bad block number
+        mv.MINSN_INTERR(50770); // bad block number
       if ( (flags & VMOP_MOPB) == 0 )
-        INTERR(51650); // block number is forbidden for the operand
+        mv.MINSN_INTERR(51650); // block number is forbidden for the operand
       break;
     case mop_f: // list of arguments
       if ( f == nullptr )
-        INTERR(50771); // missing list of arguments
+        mv.MINSN_INTERR(50771); // missing list of arguments
       f->verify(mv, size);
       if ( &mv.curins->d != this )
-        INTERR(50772); // argument list is valid only as the 'd' operand
+        mv.MINSN_INTERR(50772); // argument list is valid only as the 'd' operand
       if ( !is_mcode_call(mv.curins->opcode) )
-        INTERR(50773); // argument list can be used only in a 'call' instruction
+        mv.MINSN_INTERR(50773); // argument list can be used only in a 'call' instruction
       break;
     case mop_l: // local variable
       if ( l->mba == nullptr )
-        INTERR(50774); // lvar operand: missing reference to the microcode object
+        mv.MINSN_INTERR(50774); // lvar operand: missing reference to the microcode object
       if ( mv.mba != nullptr )
       {
         if ( l->mba != mv.mba )
-          INTERR(50775); // lvar operand: reference to foreign microcode object
+          mv.MINSN_INTERR(50775); // lvar operand: reference to foreign microcode object
         const lvars_t &lvs = mv.mba->vars;
         if ( l->idx >= lvs.size() )
-          INTERR(50776); // lvar operand: wrong variable index
+          mv.MINSN_INTERR(50776); // lvar operand: wrong variable index
         if ( !mv.mba->lvar_alloc_failed() )
         {
           const lvar_t &v = lvs[l->idx];
@@ -325,75 +354,79 @@ void mop_t::verify(const micro_verifier_t &mv, int flags) const
             if ( size == NOSIZE )
             { // allow address references past end of item: &buf[sizeof(buf)]
               if ( v.width < l->off && !is_va_list_align(mvm, v, flags) )
-                INTERR(50777); // lvar operand: reference past end of variable
+                mv.MINSN_INTERR(50777); // lvar operand: reference past end of variable
             }
             else
             { // allow references only in the middle of the item
               if ( v.width <= l->off )
-                INTERR(50778); // lvar operand: reference past end of variable
+                mv.MINSN_INTERR(50778); // lvar operand: reference past end of variable
             }
           }
           if ( l->off < 0 )
-            INTERR(50779); // lvar operand: reference before start of variable
+            mv.MINSN_INTERR(50779); // lvar operand: reference before start of variable
         }
       }
       break;
     case mop_a: // address of variable (mop_l, mop_v, mop_S, mop_r)
       if ( a == nullptr )
-        INTERR(51067); // missing operand in mop_a
+        mv.MINSN_INTERR(51067); // missing operand in mop_a
       if ( a->t != mop_l && a->t != mop_v && a->t != mop_S )
       {
         if ( a->is_scattered() )
         {
-          // accept scattered consisting of a single stack part: can be produced
+          // accept scattered consisting of a single stack/kreg part: can be produced
           // to keep type of the operand (e.g. optimize_golang_helper)
+          // or by replace_mop_by_kreg()
           vivl_t ivl;
-          if ( !a->scif->loc_to_vivl(&ivl, a->size) || !ivl.is_stkoff() )
-            INTERR(52863);
+          if ( !a->scif->loc_to_vivl(&ivl, a->size)
+            || !ivl.is_stkoff() && !ivl.is_kreg(mvm) )
+          {
+            mv.MINSN_INTERR(52863);
+          }
         }
         else if ( a->t != mop_r || mv.curins->l.t != mop_h && !a->is_kreg(mvm) )
         {
-          INTERR(50780); // addresses of registers are allowed only in helper functions
+          mv.MINSN_INTERR(50780); // addresses of registers are allowed only in helper functions
         }
       }
       if ( size > addrsize(mvm) )
-        INTERR(50781); // wrong size of an operand address
+        mv.MINSN_INTERR(50781); // wrong size of an operand address
       a->verify(mv, VMOP_ADRUSED);
       break;
     case mop_h: // helper function
       if ( helper == nullptr || helper[0] == 0 )
-        INTERR(50782); // wrong helper name
+        mv.MINSN_INTERR(50782); // wrong helper name
       if ( mv.curins->opcode != m_call )
-        INTERR(50784); // helper can be used only in a 'call' instruction
+        mv.MINSN_INTERR(50784); // helper can be used only in a 'call' instruction
       break;
     case mop_str:
       if ( cstr == nullptr )
-        INTERR(50785); // missing string constant
+        mv.MINSN_INTERR(50785); // missing string constant
       break;
     case mop_c: // cases
       if ( (flags & VMOP_MOPC) == 0 )
-        INTERR(51651); // unexpected list of cases
+        mv.MINSN_INTERR(51651); // unexpected list of cases
       if ( c == nullptr )
-        INTERR(50786); // missing list of cases
+        mv.MINSN_INTERR(50786); // missing list of cases
       c->verify(mv);
       break;
     case mop_fn:
       if ( fpc == nullptr )
-        INTERR(50787); // missing floating point constant
+        mv.MINSN_INTERR(50787); // missing floating point constant
       if ( uint(fpc->nbytes) > 16 )
-        INTERR(50788); // size of a floating point constant is too big
+        mv.MINSN_INTERR(50788); // size of a floating point constant is too big
       break;
     case mop_p:
       if ( pair == nullptr )
-        INTERR(50789); // missing info about a mop_p operand
+        mv.MINSN_INTERR(50789); // missing info about a mop_p operand
       if ( pair->lop.size != pair->hop.size )
-        INTERR(50790); // low and high operand pairs must be of the same size
+        mv.MINSN_INTERR(50790); // low and high operand pairs must be of the same size
       if ( size != pair->lop.size+pair->hop.size )
-        INTERR(50791); // inconsistent size of a pair operand
+        mv.MINSN_INTERR(50791); // inconsistent size of a pair operand
       if ( !valid_pair_part(pair->lop.t) )
-        INTERR(50792); // invalid low pair part
+        mv.MINSN_INTERR(50792); // invalid low pair part
       if ( !valid_pair_part(pair->hop.t) )
-        INTERR(50793); // invalid high pair part
+        mv.MINSN_INTERR(50793); // invalid high pair part
       pair->lop.verify(mv, 0);
       pair->hop.verify(mv, 0);
       // both parts of the pair can be calculated in any order
@@ -406,7 +439,7 @@ void mop_t::verify(const micro_verifier_t &mv, int flags) const
         if ( !mv.mba->lvars_allocated()
           && !mv.blk->can_make_pair(pair->lop, pair->hop) )
         {
-          INTERR(52045); // calculation order of pair parts may change the result
+          mv.MINSN_INTERR(52045); // calculation order of pair parts may change the result
                          // in other words, pair parts may depend on each other,
                          // this is wrong
         }
@@ -417,7 +450,7 @@ void mop_t::verify(const micro_verifier_t &mv, int flags) const
         // only scattered vdlocs are allowed, other vdlocs must be
         // represented by other operand types
         if ( !scif->is_scattered() )
-          INTERR(51135); // a scattered operand must have a scattered location
+          mv.MINSN_INTERR(51135); // a scattered operand must have a scattered location
         ushort last = 0;
         const scattered_aloc_t &scvl = scif->scattered();
         scattered_aloc_t::const_iterator p = scvl.begin();
@@ -425,18 +458,18 @@ void mop_t::verify(const micro_verifier_t &mv, int flags) const
         while ( p != pend )
         {
           if ( p->off < last )
-            INTERR(51136); // scattered: wrong part offset
+            mv.MINSN_INTERR(51136); // scattered: wrong part offset
           if ( ushort(p->off+p->size) < p->off )
-            INTERR(51137); // scattered: wrong part offset
+            mv.MINSN_INTERR(51137); // scattered: wrong part offset
           last = p->off + p->size;
           if ( !p->is_stkoff() && !p->is_reg1() )
-            INTERR(51138); // scattered: only simple reg/stack locations are permitted
+            mv.MINSN_INTERR(51138); // scattered: only simple reg/stack locations are permitted
           ++p;
         }
       }
       break;
     default:
-      INTERR(50794); // wrong operand type
+      mv.MINSN_INTERR(50794); // wrong operand type
   }
 }
 
@@ -456,19 +489,20 @@ bool mop_t::is_valid_m_ext_op(const mvm_t &mvm, ea_t ea) const
 
 //-------------------------------------------------------------------------
 static void verify_segoff(
-        const mba_t *mba,
+        micro_verifier_t &mv,
         const mop_t &seg,
         const mop_t &off,
         int opsize)
 {
+  mba_t *mba = mv.mba;
   const mvm_t &mvm = mba->mvm;
   if ( off.size != addrsize(mvm) )
     if ( ((mvm.flags & MVM_OFF16_OK) == 0 || off.size != 2) )
-      INTERR(50826); // wrong offset size
+      mv.MINSN_INTERR(50826); // wrong offset size
   if ( seg.size != 2 )
-    INTERR(50827);   // wrong segment size
+    mv.MINSN_INTERR(50827);   // wrong segment size
   if ( opsize <= 0 )
-    INTERR(52816);   // wrong operand size
+    mv.MINSN_INTERR(52816);   // wrong operand size
 
   // complain about resolvable [seg,off] pairs because they may cause
   // problems at the ctree generation time.
@@ -478,7 +512,7 @@ static void verify_segoff(
     && (seg.r == mvm.mr_ds || seg.r == mvm.mr_cs || seg.r == mvm.mr_ss)
     && mba->is_memref_resolvable(off, opsize) )
   {
-    INTERR(52503); // memory reference must have been resolved
+    mv.MINSN_INTERR(52503); // memory reference must have been resolved
   }
 }
 
@@ -486,21 +520,22 @@ static void verify_segoff(
 void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
 {
   const mvm_t &mvm = mv.mba->mvm;
+  mv.curins = CONST_CAST(minsn_t*)(this);
   if ( !mv.mba->is_pattern() )
   {
     if ( ea == BADADDR )
-      INTERR(50795); // unknown instruction address
+      mv.MINSN_INTERR(50795); // unknown instruction address
     ea_t org_ea = mv.mba->map_fict_ea(ea);
     if ( !mv.mba->range_contains(org_ea) )
-      INTERR(50863); // wrong instruction address
+      mv.MINSN_INTERR(50863); // wrong instruction address
   }
   // check insn list
   if ( next != nullptr && next->prev != this )
-    INTERR(50797); // inconsistent instruction list pointers
+    mv.MINSN_INTERR(50797); // inconsistent instruction list pointers
   if ( prev != nullptr && prev->next != this )
-    INTERR(50798); // inconsistent instruction list pointers
+    mv.MINSN_INTERR(50798); // inconsistent instruction list pointers
   if ( !with_target && (prev != nullptr || next != nullptr) )
-    INTERR(50799); // a subinstruction may not be part of an instruction list
+    mv.MINSN_INTERR(50799); // a subinstruction may not be part of an instruction list
 
   bool hasd = !d.empty();
   int lf = 0;
@@ -509,7 +544,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
 
   // propagated instructions == subinstructions
   if ( !with_target && !is_mcode_propagatable(opcode) )
-    INTERR(50800); // this opcode cannot be used in a subinstruction
+    mv.MINSN_INTERR(50800); // this opcode cannot be used in a subinstruction
 
   // check fpinsn flag
   switch ( opcode )
@@ -534,13 +569,13 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
       break;
     default:
       if ( is_mcode_fpu(opcode) != is_fpinsn() )
-        INTERR(50801); // wrong FPINSN mark
+        mv.MINSN_INTERR(50801); // wrong FPINSN mark
       break;
   }
 
   // check other IPROP_... bits
   if ( is_extstx() && opcode != m_ext )
-    INTERR(52723); // IPROP_EXTSTX may be set only for m_ext
+    mv.MINSN_INTERR(52723); // IPROP_EXTSTX may be set only for m_ext
 
   switch ( opcode )
   {
@@ -567,7 +602,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_jtbl:
     case m_ret:
       if ( !with_target )
-        INTERR(50802); // cannot be a subinstruction
+        mv.MINSN_INTERR(50802); // cannot be a subinstruction
       break;
     // these insns may be propagated
     case m_add:
@@ -615,7 +650,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_fmul:
     case m_fdiv:
       if ( hasd != with_target )
-        INTERR(50803); // subinstructions must lack the 'd' operand
+        mv.MINSN_INTERR(50803); // subinstructions must lack the 'd' operand
                        // top level instructions must have the 'd' operand
       break;
       // ldx/mov/div/mod instructions without the target are allowed even at the top level
@@ -638,11 +673,11 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_icall:
       break;
     default:
-      INTERR(50804); // wrong instruction opcode
+      mv.MINSN_INTERR(50804); // wrong instruction opcode
   }
 
   if ( !with_target && (next != nullptr || prev != nullptr) )
-    INTERR(50805); // subinstructions must not have prev or next fields
+    mv.MINSN_INTERR(50805); // subinstructions must not have prev or next fields
 
   // check operand presence
   switch ( opcode )
@@ -653,7 +688,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
         || !r.empty()
         || !d.empty() )
       {
-        INTERR(50806); // operand(s) are forbidden
+        mv.MINSN_INTERR(50806); // operand(s) are forbidden
       }
       break;
     case m_ext:
@@ -661,18 +696,18 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
       rf |= VMOP_ANYSIZE;
       df |= VMOP_ANYSIZE;
       if ( !l.is_valid_m_ext_op(mvm, ea) )
-        INTERR(50807); // wrong operand of m_ext
+        mv.MINSN_INTERR(50807); // wrong operand of m_ext
       if ( !r.is_valid_m_ext_op(mvm, ea) )
-        INTERR(50808); // wrong operand of m_ext
+        mv.MINSN_INTERR(50808); // wrong operand of m_ext
       if ( !d.is_valid_m_ext_op(mvm, ea) )
-        INTERR(50809); // wrong operand of m_ext
+        mv.MINSN_INTERR(50809); // wrong operand of m_ext
       break;
     case m_push:
       if ( l.empty()
         || !r.empty()
         || !d.empty() )
       {
-        INTERR(50811); // wrong operands
+        mv.MINSN_INTERR(50811); // wrong operands
       }
       break;
     case m_goto:
@@ -680,7 +715,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
         || !r.empty()
         || !d.empty() )
       {
-        INTERR(50812); // wrong operands
+        mv.MINSN_INTERR(50812); // wrong operands
       }
       lf = VMOP_ADRUSED | VMOP_MOPB;
       break;
@@ -689,7 +724,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
         || r.empty()
         || d.empty() )
       {
-        INTERR(50813); // wrong operands
+        mv.MINSN_INTERR(50813); // wrong operands
       }
       break;
     case m_stx:
@@ -728,7 +763,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_fmul:
     case m_fdiv:
       if ( l.empty() || r.empty() )
-        INTERR(50815); // wrong operands
+        mv.MINSN_INTERR(50815); // wrong operands
       break;
     case m_low:
     case m_high:
@@ -747,7 +782,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_f2f:
     case m_fneg:
       if ( l.empty() || !r.empty() )
-        INTERR(50817); // wrong operands
+        mv.MINSN_INTERR(50817); // wrong operands
       break;
     case m_und:
       df |= VMOP_ANYSIZE;
@@ -757,7 +792,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
         || !r.empty()
         || d.empty() )
       {
-        INTERR(50818); // wrong operands
+        mv.MINSN_INTERR(50818); // wrong operands
       }
       break;
     case m_jcnd:
@@ -765,7 +800,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
         || !r.empty()
         || d.t != mop_v && d.t != mop_b )
       {
-        INTERR(50819); // wrong operands
+        mv.MINSN_INTERR(50819); // wrong operands
       }
       df = VMOP_ADRUSED | VMOP_MOPB;
       break;
@@ -783,7 +818,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
         || r.empty()
         || d.t != mop_v && d.t != mop_b )
       {
-        INTERR(50820); // wrong operands
+        mv.MINSN_INTERR(50820); // wrong operands
       }
       df = VMOP_ADRUSED | VMOP_MOPB;
       break;
@@ -792,13 +827,13 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
         || r.t != mop_c
         || !d.empty() )
       {
-        INTERR(50821); // wrong operands
+        mv.MINSN_INTERR(50821); // wrong operands
       }
       rf |= VMOP_MOPC;
       break;
     case m_call:
       if ( !r.empty() )
-        INTERR(50822); // wrong operands
+        mv.MINSN_INTERR(50822); // wrong operands
       lf = VMOP_ADRUSED;
       [[fallthrough]];
     case m_icall:
@@ -808,21 +843,20 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
         case mop_b:
         case mop_f:
         case mop_a:
-          INTERR(50823); // wrong operands
+          mv.MINSN_INTERR(50823); // wrong operands
       }
       if ( mv.blk != nullptr && (mv.blk->flags & MBL_CALL) != 0 && !d.is_arglist() )
-        INTERR(50824); // call without an argument list?!
+        mv.MINSN_INTERR(50824); // call without an argument list?!
       // each call must have a unique address. we need this to avoid confusion
-      // and interrs during type derivation. however, we enforce this rule only
+      // and MINSN_INTERRs during type derivation. however, we enforce this rule only
       // if MBA2_NO_DUP_CALLS is set because users may install third party
       // plugins that make copies of calls.
       if ( (mv.mba->flags2 & MBA2_NO_DUP_CALLS) != 0
-        && mv.seen_calls != nullptr
         && l.t != mop_h // ignore helpers
         && !mv.mba->is_pattern() )
       {
-        if ( !mv.seen_calls->add_unique(ea) )
-          INTERR(51264); // indistinguishable call instructions
+        if ( !mv.seen_calls.add_unique(ea) )
+          mv.MINSN_INTERR(51264); // indistinguishable call instructions
       }
       break;
   }
@@ -831,13 +865,13 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
   switch ( opcode )
   {
     case m_ijmp:
-      verify_segoff(mv.mba, r, d, addrsize(mvm));
+      verify_segoff(mv, r, d, addrsize(mvm));
       break;
     case m_stx:
-      verify_segoff(mv.mba, r, d, l.size);
+      verify_segoff(mv, r, d, l.size);
       break;
     case m_ldx:
-      verify_segoff(mv.mba, l, r, d.size);
+      verify_segoff(mv, l, r, d.size);
       break;
     case m_add:
     case m_sub:
@@ -854,7 +888,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_fmul:
     case m_fdiv:
       if ( r.size != d.size )
-        INTERR(50830); // wrong operand sizes
+        mv.MINSN_INTERR(50830); // wrong operand sizes
       // no break
     case m_jnz:
     case m_jz:
@@ -867,7 +901,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_jl:
     case m_jle:
       if ( l.size != r.size )
-        INTERR(50831); // wrong operand sizes
+        mv.MINSN_INTERR(50831); // wrong operand sizes
       break;
     case m_cfadd:
     case m_ofadd:
@@ -884,27 +918,27 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_setle:
     case m_seto:
       if ( l.size != r.size )
-        INTERR(50832); // wrong operand sizes
+        mv.MINSN_INTERR(50832); // wrong operand sizes
       // no break
     case m_sets:
       if ( d.size != 1 )
-        INTERR(50833); // wrong operand size
+        mv.MINSN_INTERR(50833); // wrong operand size
       break;
     case m_cfshl:
     case m_cfshr:
       if ( r.size != 1 || d.size != 1 )
-        INTERR(50834); // wrong operand sizes
+        mv.MINSN_INTERR(50834); // wrong operand sizes
       break;
     case m_shl:
     case m_shr:
     case m_sar:
       if ( r.size != 1 )
-        INTERR(50835); // wrong operand size
+        mv.MINSN_INTERR(50835); // wrong operand size
       if ( r.t == mop_n )
       {
         int shm = mvm.get_shift_mask(l.size);
         if ( shm != 0 && uint8(r.nnn->value) > shm )
-          INTERR(52118); // wrong shift value
+          mv.MINSN_INTERR(52118); // wrong shift value
       }
       // no break
     case m_ldc:
@@ -913,21 +947,21 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_bnot:
     case m_fneg:
       if ( l.size != d.size )
-        INTERR(50836); // wrong operand sizes
+        mv.MINSN_INTERR(50836); // wrong operand sizes
       break;
     case m_lnot:
       if ( l.size != 1 || d.size != 1 )
-        INTERR(52338); // wrong operand size for lnot
+        mv.MINSN_INTERR(52338); // wrong operand size for lnot
       break;
     case m_xds:
     case m_xdu:
       if ( l.size >= d.size )
-        INTERR(50837); // wrong operand sizes
+        mv.MINSN_INTERR(50837); // wrong operand sizes
       break;
     case m_low:
     case m_high:
       if ( l.size <= d.size )
-        INTERR(50838); // wrong operand sizes
+        mv.MINSN_INTERR(50838); // wrong operand sizes
       if ( l.is_insn() )
       {
         const minsn_t *ld = l.d;
@@ -948,13 +982,13 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
       case mop_d:
         if ( opcode == m_und && d.d->opcode == m_ldx )
           break;  // und ss:(sp+#N) is allowed
-        INTERR(50839); // the destination cannot be another insn
+        mv.MINSN_INTERR(50839); // the destination cannot be another insn
       case mop_a:
       case mop_n:
       case mop_fn:
       case mop_str:
       case mop_h:
-        INTERR(51652); // wrong instruction destination
+        mv.MINSN_INTERR(51652); // wrong instruction destination
     }
   }
 
@@ -970,82 +1004,95 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
   }
 
   if ( is_assert() && !is_mov() )
-    INTERR(52123); // only mov/f2f instructions may be assertions
+    mv.MINSN_INTERR(52123); // only mov/f2f instructions may be assertions
 
   // check each operand
-  mv.curins = CONST_CAST(minsn_t*)(this);
   l.verify(mv, lf);
   r.verify(mv, rf);
   d.verify(mv, df);
 }
 
 //-------------------------------------------------------------------------
-void mblock_t::verify(eavec_t *seen_calls) const
+void mblock_t::verify_insn(const minsn_t *m) const
+{
+  micro_verifier_t mv;
+  mv.blk = CONST_CAST(mblock_t *)(this);
+  mv.mba = mv.blk->mba;
+  bool with_target = !m->d.empty();
+  m->verify(mv, with_target);
+}
+
+//-------------------------------------------------------------------------
+void mblock_t::verify(micro_verifier_t &mv) const
 {
   if ( (mba->get_mba_flags2() & MBA2_DONT_VERIFY) != 0 )
     return;
+
+  mv.mba = mba;
+  mv.blk = const_cast<mblock_t *>(this);
+
   if ( nextb != nullptr && nextb->prevb != this )
-    INTERR(50840); // corrupted block list
+    mv.MBLOCK_INTERR(50840); // corrupted block list
   if ( prevb != nullptr && prevb->nextb != this )
-    INTERR(50841); // corrupted block list
+    mv.MBLOCK_INTERR(50841); // corrupted block list
 
   if ( (nextb == nullptr) != (mba->qty-1 == serial) )
-    INTERR(50842); // wrong end of the block list
+    mv.MBLOCK_INTERR(50842); // wrong end of the block list
   if ( (prevb == nullptr) != (serial == 0) )
-    INTERR(50843); // wrong beginning of the block list
+    mv.MBLOCK_INTERR(50843); // wrong beginning of the block list
 
   int all = MBL_PRIV|MBL_FAKE|MBL_GOTO|MBL_TCAL|MBL_PUSH|MBL_DMT64|MBL_COMB
           | MBL_PROP|MBL_DEAD|MBL_LIST|MBL_INCONST|MBL_CALL|MBL_BACKPROP
           | MBL_NORET|MBL_DSLOT|MBL_VALRANGES|MBL_KEEP|MBL_INLINED|MBL_EXTFRAME;
   if ( flags & ~all )
-    INTERR(50844); // unknown bits in the block flags
+    mv.MBLOCK_INTERR(50844); // unknown bits in the block flags
   if ( !needs_propagation() && lists_dirty() && (flags & MBL_INCONST) == 0 )
-    INTERR(50845); // use-def lists must be ready if propagation is not requested
+    mv.MBLOCK_INTERR(50845); // use-def lists must be ready if propagation is not requested
 
   if ( !mustbuse.is_subset_of(maybuse) )
-    INTERR(50846); // must-use locations must be subset of may-use locations
+    mv.MBLOCK_INTERR(50846); // must-use locations must be subset of may-use locations
   if ( !mustbdef.is_subset_of(maybdef) )
-    INTERR(50847); // must-def locations must be subset of may-def locations
+    mv.MBLOCK_INTERR(50847); // must-def locations must be subset of may-def locations
 
   if ( serial == 0 || type == BLT_STOP || type == BLT_XTRN )
   {
     if ( head != nullptr && !mba->is_pattern() )
-      INTERR(51814); // entry/exit/extern blocks must be empty
+      mv.MBLOCK_INTERR(51814); // entry/exit/extern blocks must be empty
     if ( !mustbuse.empty() || !mustbdef.empty() )
-      INTERR(50848); // entry/exit/extern blocks: cannot define/use anything
+      mv.MBLOCK_INTERR(50848); // entry/exit/extern blocks: cannot define/use anything
     if ( serial == 0 )
     {
       if ( !maybuse.empty() )
-        INTERR(50849); // entry block: may not use anything
+        mv.MBLOCK_INTERR(50849); // entry block: may not use anything
     }
     else
     {
       if ( !maybdef.empty() )
-        INTERR(50850); // exit/extern blocks: may not define anything
+        mv.MBLOCK_INTERR(50850); // exit/extern blocks: may not define anything
     }
   }
 
   if ( serial >= mba->qty )
-    INTERR(50851); // wrong block serial number
+    mv.MBLOCK_INTERR(50851); // wrong block serial number
   if ( mba->natural[serial] != this )
-    INTERR(50852); // corrupted 'natural' block array
+    mv.MBLOCK_INTERR(50852); // corrupted 'natural' block array
 
   if ( minbstkref != 0 && mba->minstkref > minbstkref )
-    INTERR(50853); // wrong minbstkref
+    mv.MBLOCK_INTERR(50853); // wrong minbstkref
 
   if ( (flags & MBL_EXTFRAME) != 0 )
   {
     if ( subframe_idx == mba_t::MAIN_SUBFRAME_IDX )
-      INTERR(52729); // the main chunk cannot have a subframe
+      mv.MBLOCK_INTERR(52729); // the main chunk cannot have a subframe
     if ( subframe_idx >= mba->subframes.size() )
-      INTERR(52730); // wrong subframe index
+      mv.MBLOCK_INTERR(52730); // wrong subframe index
     if ( local_minstkref != 0 )
     {
       const subframe_t &sf = mba->subframes[subframe_idx];
       if ( local_minstkref != sf.top() && !sf.contains(local_minstkref) )
-        INTERR(52731); // wrong local minstkef of a subframe
+        mv.MBLOCK_INTERR(52731); // wrong local minstkef of a subframe
       if ( local_minstkref < sf.minstkref )
-        INTERR(52732); // too low subframe minstkref
+        mv.MBLOCK_INTERR(52732); // too low subframe minstkref
     }
   }
 
@@ -1062,7 +1109,7 @@ void mblock_t::verify(eavec_t *seen_calls) const
         // its use-list is calculated by refine_return_type and must not
         // be destroyed
         if ( lists_dirty() && mba->callinfo_built() )
-          INTERR(51328); // exit block with dirty use-def lists?!
+          mv.MBLOCK_INTERR(51328); // exit block with dirty use-def lists?!
         break;
       case BLT_XTRN: // external block
       case BLT_0WAY: // does not have successors
@@ -1074,9 +1121,9 @@ void mblock_t::verify(eavec_t *seen_calls) const
         if ( is_call_block() )
         {
           if ( tail->is_noret_call(hv.mvm, NORET_FORBID_ANALYSIS) ) // -V595 tail is used before verifying against nullptr
-            INTERR(51774);    // should be BLT_0WAY
+            mv.MBLOCK_INTERR(51774);    // should be BLT_0WAY
           if ( nsucc() == 0 || succ(0) != serial+1 )
-            INTERR(50854); // 1-way call block must pass execution to the next block
+            mv.MBLOCK_INTERR(50854); // 1-way call block must pass execution to the next block
         }
         break;
       case BLT_2WAY: // passes execution to two blocks
@@ -1086,21 +1133,21 @@ void mblock_t::verify(eavec_t *seen_calls) const
         ns = nsucc();
         break;
       default:
-        INTERR(51815); // wrong block type
+        mv.MBLOCK_INTERR(51815); // wrong block type
     }
     // jtbl instructions always imply BLT_NWAY
     if ( (type == BLT_NWAY) != (tail != nullptr && tail->opcode == m_jtbl) )
-      INTERR(50855); // n-way blocks can be used only with jtbl instructions
+      mv.MBLOCK_INTERR(50855); // n-way blocks can be used only with jtbl instructions
 
     if ( nsucc() != ns )
-      INTERR(50856); // wrong size of a block successor set
+      mv.MBLOCK_INTERR(50856); // wrong size of a block successor set
     for ( int i=0; i < ns; i++ )
     {
       int n = succ(i);
       if ( n < 0 || n >= mba->qty )
-        INTERR(50857); // wrong block number is the successor set
+        mv.MBLOCK_INTERR(50857); // wrong block number is the successor set
       if ( !mba->natural[n]->predset.has(serial) )
-        INTERR(50858); // inconsistent predecessor set
+        mv.MBLOCK_INTERR(50858); // inconsistent predecessor set
     }
 
     // check that the successor list is correct
@@ -1109,7 +1156,7 @@ void mblock_t::verify(eavec_t *seen_calls) const
     {
       case m_jtbl:
         if ( tail->r.t != mop_c )
-          INTERR(50859); // jtbl without the case list?!
+          mv.MBLOCK_INTERR(50859); // jtbl without the case list?!
         outs = tail->r.c->targets;
         break;
       case m_goto:
@@ -1145,7 +1192,7 @@ void mblock_t::verify(eavec_t *seen_calls) const
         break;
     }
     if ( outs != succset )
-      INTERR(50860); // wrong successor set
+      mv.MBLOCK_INTERR(50860); // wrong successor set
   }
 
   // check that predecessors have us in their succset's
@@ -1153,7 +1200,7 @@ void mblock_t::verify(eavec_t *seen_calls) const
   {
     int p = pred(i);
     if ( !mba->natural[p]->succset.has(serial) )
-      INTERR(50861); // inconsistent successor set
+      mv.MBLOCK_INTERR(50861); // inconsistent successor set
   }
 
   // check that predecessors are unique
@@ -1163,43 +1210,38 @@ void mblock_t::verify(eavec_t *seen_calls) const
     {
       int p = pred(i);
       if ( !pr.insert(p).second )
-        INTERR(50862); // duplicate predecessors
+        mv.MBLOCK_INTERR(50862); // duplicate predecessors
     }
   }
 
   bool found_tail = false;
-  micro_verifier_t mv;
-  mv.mba = mba;
-  mv.blk = CONST_CAST(mblock_t *)(this);
-  mv.seen_calls = seen_calls;
   for ( minsn_t *i=head; i != nullptr; i=i->next )
   {
     mv.topins = i;
-    mv.curins = i;
     i->verify(mv, true);
     if ( i == tail )
       found_tail = true;
     else if ( must_mcode_close_block(i->opcode, i->d.empty()) )
-      INTERR(50864); // opcode must be the last instruction in a block
+      mv.MBLOCK_INTERR(50864); // opcode must be the last instruction in a block
     if ( (flags & MBL_PUSH) == 0 // converted push/pop to mov instructions?
       && (i->opcode == m_push || i->opcode == m_pop) )
     {
-      INTERR(50865); // push/pop may be present only before converting them
+      mv.MBLOCK_INTERR(50865); // push/pop may be present only before converting them
     }
   }
 
   if ( !empty() )
   {
     if ( !found_tail )
-      INTERR(50866); // non-empty block without the tail instruction?!
+      mv.MBLOCK_INTERR(50866); // non-empty block without the tail instruction?!
     if ( head->prev != nullptr )
-      INTERR(50867); // head must be the first instruction
+      mv.MBLOCK_INTERR(50867); // head must be the first instruction
     if ( tail->next != nullptr )
-      INTERR(50868); // tail must be the last instruction
+      mv.MBLOCK_INTERR(50868); // tail must be the last instruction
     if ( (mba->get_mba_flags() & MBA_NOFUNC) == 0 )
     {
       if ( start >= end && (flags & MBL_FAKE) == 0 )
-        INTERR(50869); // wrong block boundaries
+        mv.MBLOCK_INTERR(50869); // wrong block boundaries
       if ( end != BADADDR
         && getf_reginsn(head) != nullptr
         && (mba->get_mba_flags() & MBA_CMBBLK) != 0
@@ -1208,16 +1250,16 @@ void mblock_t::verify(eavec_t *seen_calls) const
         // since we subtract one, we cannot use mba_t::range_contains directly
         ea_t real_end = mba->map_fict_ea(end);
         if ( !mba->mbr.range_contains(real_end-1) )
-          INTERR(50870); // block outside of function boundaries
+          mv.MBLOCK_INTERR(50870); // block outside of function boundaries
       }
     }
   }
   else
   {
     if ( head != nullptr )
-      INTERR(50871); // empty block: head instruction must not exist
+      mv.MBLOCK_INTERR(50871); // empty block: head instruction must not exist
     if ( tail != nullptr )
-      INTERR(50872); // empty block: tail instruction must not exist
+      mv.MBLOCK_INTERR(50872); // empty block: tail instruction must not exist
   }
 
   if ( lists_ready()
@@ -1263,15 +1305,15 @@ void mblock_t::verify(eavec_t *seen_calls) const
     test_maybdef.sub(temp);
     test_dnu.sub(extract_restricted_list(mba, temp));
     if ( test_maybuse != maybuse )
-      INTERR(50873); // wrong maybuse
+      mv.MBLOCK_INTERR(50873); // wrong maybuse
     if ( test_maybdef != maybdef )
-      INTERR(50874); // wrong maybdef
+      mv.MBLOCK_INTERR(50874); // wrong maybdef
     if ( test_mustbuse != mustbuse )
-      INTERR(50875); // wrong mustbuse
+      mv.MBLOCK_INTERR(50875); // wrong mustbuse
     if ( test_mustbdef != mustbdef )
-      INTERR(50876); // wrong mustbdef
+      mv.MBLOCK_INTERR(50876); // wrong mustbdef
     if ( test_dnu != dnu )
-      INTERR(50877); // wrong dnu
+      mv.MBLOCK_INTERR(50877); // wrong dnu
 
     // block should access only main frame or its local frame
     ea_t sp = mba->spbase;
@@ -1289,7 +1331,7 @@ void mblock_t::verify(eavec_t *seen_calls) const
     {
       // block can use memory above subframe if a function call has too many stkargs
       if ( !mba->subframe_overflow() )
-        INTERR(52724); // block reads from a wrong stack location
+        mv.MBLOCK_INTERR(52724); // block reads from a wrong stack location
     }
     if ( invisible_mem.mem.has_common(mustbdef.mem) )
     {
@@ -1303,7 +1345,8 @@ void mblock_t::verify(eavec_t *seen_calls) const
       //   3. this word is defined by an insn at the same address as the tail
       //   4. nothing more contained by invisible_mem is defined in the block
       bool can_accept = false;
-      QASSERT(52853, tail != nullptr);
+      if ( tail == nullptr )
+        mv.MBLOCK_INTERR(52853); // expected goto
       size_t spwidth = hv.addrsize();
       if ( sf.bottom >= spwidth
         && tail->opcode == m_goto
@@ -1328,18 +1371,19 @@ void mblock_t::verify(eavec_t *seen_calls) const
           }
         }
       }
-      QASSERT(52733, can_accept); // block writes to a wrong stack location
+      if ( !can_accept )
+        mv.MBLOCK_INTERR(52733); // block writes to a wrong stack location
     }
   }
 
   const mlist_t &tmp = get_temp_regs(mba->mvm);
   if ( maybuse.has_common(tmp) )
-    INTERR(50920); // temporary registers cannot cross block boundaries
+    mv.MBLOCK_INTERR(50920); // temporary registers cannot cross block boundaries
 }
 
 //-------------------------------------------------------------------------
 // verify input arguments
-void mba_t::verify_args() const
+void mba_t::verify_args(micro_verifier_t &mv) const
 {
   // do not check first stkoff if MBA2_ARGIDX_OK is not yet set
   // (necessary dummy arguments can be added by tune_cc())
@@ -1357,8 +1401,9 @@ void mba_t::verify_args() const
   for ( int i=0; i < argidx.size(); i++ )
   {
     const lvar_t &v = vars[argidx[i]];
+    mv.lvar = &v;
     if ( !v.is_arg_var() )
-      INTERR(50906); // non-argvar in the argument list
+      mv.LVAR_INTERR(50906); // non-argvar in the argument list
 
     if ( lvar_alloc_failed() )
       continue;
@@ -1366,13 +1411,13 @@ void mba_t::verify_args() const
     mlist_t vlst;
     v.append_list(this, &vlst);
     if ( vlst.has_common(used) )
-      INTERR(50904); // overlapping arguments
+      mv.LVAR_INTERR(50904); // overlapping arguments
     used.add(vlst);
 
     if ( is_user_cc(cc) && nargs() < hv.hrcfg.max_func_args )
     {
       if ( !argloc_verifier.validate_next_vdloc(v.location, v.type(), v.width) )
-        INTERR(51053); // incorrect argument locations for usercall
+        mv.LVAR_INTERR(51053); // incorrect argument locations for usercall
     }
   }
   if ( is_cdtr() )
@@ -1417,78 +1462,79 @@ static void verify_lvar_names(const strings_t &s1, const strings_t &s2)
 }
 
 //-------------------------------------------------------------------------
-void mba_t::verify_lvars(bool check_args) const
+void mba_t::verify_lvars(micro_verifier_t &mv, bool check_args) const
 {
   strings_t names;
-  std::set<lvar_locator_t> seen;
+  qset<lvar_locator_t> seen;
   for ( int i=0; i < vars.size(); i++ )
   {
     const lvar_t &v = vars[i];
-    if ( v.name.empty() )
-      QASSERT(50891, lvars_renamed()); // empty variable names are permitted only at the final stage
-    else
+    mv.lvar = &v;
+    if ( !v.name.empty() )
       names.insert(v.name);
+    else if ( !lvars_renamed() )
+      mv.LVAR_INTERR(50891); // empty variable names are permitted only at the final stage
     if ( v.type().empty() )
-      INTERR(50892); // lvar without a type
+      mv.LVAR_INTERR(50892); // lvar without a type
     if ( !v.type().is_correct() )
-      INTERR(50893); // incorrect lvar type
+      mv.LVAR_INTERR(50893); // incorrect lvar type
     // the public version won't check this for now.
     // however, we will enforce this requirement in the future
 #ifdef TESTABLE_BUILD
     if ( v.defea == BADADDR && precise_defeas() )
-      INTERR(50894); // wrong lvar definition address
+      mv.LVAR_INTERR(50894); // wrong lvar definition address
 #endif
     if ( v.defblk < 0 || v.defblk >= qty && qty > 0 )
-      INTERR(50895); // wrong lvar definition block number
+      mv.LVAR_INTERR(50895); // wrong lvar definition block number
     if ( argidx_ok() )
     {
       if ( v.is_arg_var() )
       {
         if ( v.defblk != 0 )
-          INTERR(50896); // arguments must be defined in block #0
+          mv.LVAR_INTERR(50896); // arguments must be defined in block #0
         if ( lvars_allocated() )
         { // check argidx only when lvars are allocated
           if ( !argidx.has(i) )
-            INTERR(50897); // an argument variable is not in the argument list
+            mv.LVAR_INTERR(50897); // an argument variable is not in the argument list
         }
       }
       else
       {
         if ( v.is_thisarg() )
-          INTERR(51888); // 'this' variable is not marked as argument
+          mv.LVAR_INTERR(51888); // 'this' variable is not marked as argument
       }
       if ( check_args && v.is_arg_var() == v.is_notarg() )
-        INTERR(52036); // lvar is marked as argument and non-argument
+        mv.LVAR_INTERR(52036); // lvar is marked as argument and non-argument
     }
     if ( v.width <= 0 )
-      INTERR(51297); // wrong variable size
+      mv.LVAR_INTERR(51297); // wrong variable size
     if ( v.type().get_size() != v.width )
     {
       if ( !v.is_unpadded() )
-        INTERR(50898); // variable type and size mistmatch
+        mv.LVAR_INTERR(50898); // variable type and size mistmatch
       if ( v.width != v.type().get_unpadded_size() )
-        INTERR(51926); // variable type and size mismatch even when taking into account the padding
+        mv.LVAR_INTERR(51926); // variable type and size mismatch even when taking into account the padding
     }
     if ( v.location.is_badloc() )
-      INTERR(51219); // wrong variable location
+      mv.LVAR_INTERR(51219); // wrong variable location
     if ( retvaridx == i )
     {
       if ( v.location.has_stkoff() && !has_stack_retval() )
-        INTERR(50899); // return value cannot have any stack part
+        mv.LVAR_INTERR(50899); // return value cannot have any stack part
       if ( !v.is_result_var() )
-        INTERR(50900); // return variable is not marked as such
+        mv.LVAR_INTERR(50900); // return variable is not marked as such
     }
     else
     {
       if ( v.is_result_var() )
-        INTERR(50901); // a variable is marked as retval but is not returned
+        mv.LVAR_INTERR(50901); // a variable is marked as retval but is not returned
     }
     if ( (flags2 & MBA2_NO_DUP_LVARS) != 0
       && precise_defeas()
       && !lvar_alloc_failed()
       && !seen.insert(v).second )
     {
-      INTERR(50902); // two indistinguishable variables (the same location and defea)
+      mv.LVAR_INTERR(50902); // two indistinguishable variables (the same location and defea)
     }
   }
   if ( lvar_names_ok() )
@@ -1507,12 +1553,12 @@ void mba_t::verify(bool always) const
   bool real_code = !is_pattern() && (flags & MBA_LOADED) == 0;
   int cnt = 0;
   ivlset_t fbody;
-  eavec_t seen_calls;
+  micro_verifier_t mv;
   for ( mblock_t *b=blocks; b != nullptr; b=b->nextb )
   {
-    b->verify(&seen_calls);
+    b->verify(mv);
     if ( natural[cnt] != b )
-      INTERR(50878); // inconsistent basic block numbering
+      mv.MBLOCK_INTERR(50878); // inconsistent basic block numbering
 //msg("%d: %a..%a\n", cnt, b->start, b->end);
     if ( real_code && (b->flags & MBL_FAKE) == 0 && (flags & MBA_PREOPT) == 0 )
     {
@@ -1645,9 +1691,9 @@ void mba_t::verify(bool always) const
   }
 
   if ( !is_pattern() )
-    verify_lvars(true);
+    verify_lvars(mv, true);
 
-  verify_args();
+  verify_args(mv);
 
   if ( retvaridx != -1 && (retvaridx < 0 || retvaridx >= vars.size()) )
     INTERR(50911); // wrong index of the return variable
@@ -1709,14 +1755,14 @@ void pattern_t::verify(bool always) const
 // unfortunately this requirement is too strong for the moment.
 // there are some instructions (adc, for example), that
 // update their destinations multiple times. we will have to
-// this this in the future. meanwhile, this check is commented out.
+// fix this in the future. meanwhile, this check is commented out.
 void mba_t::verify_dest_eas() const
 {
 /*
   struct ida_local dest_ea_verifier_t : public minsn_visitor_t
   {
     const mlist_t &tempregs;
-    std::set<lvar_locator_t> seen;
+    qset<lvar_locator_t> seen;
     int idaapi visit_minsn()
     {
       if ( curins->modifies_d() )
@@ -1775,13 +1821,22 @@ void mba_t::verify_stkpnts(bool cumulative_spds, bool good_stacksize) const
 /*
 Some common interrs that occur in other parts of the decompiler:
 
+50311 bitset_t::add() received negative bit number.
+50312 bitset_t::add() received wrong arguments, bit+size overflowed.
+
+50340 local variable allocation failed to reach the fixed point.
+      this error is usually due to a flaw in the variable allocation logic.
+      if possible, please send us the idb file so we can fix the bug.
+
 50409 a 'nop' instruction is still present in the microcode at the ctree
       generation time. this error is usually caused by modifying the microcode
       without informing the decompiler, i.e. erroneously returning 0
       from a callback.
 
-50340 local variable allocation failed to reach the fixed point.
-      this error is usually due to a flaw in the variable allocation logic.
-      if possible, please send us the idb file so we can fix the bug.
+50420 attempt to free an invalid kernel register.
+
+52368 mismatch between the type and location of a register argument.
+      even a type that matches the slot size (uint64 for 64bit apps)
+      did not match.
 
 */

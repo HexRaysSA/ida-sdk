@@ -61,6 +61,7 @@ struct fptr_info_t
                                 // instruction in a VPT predication block, see VPT_THEN, VPT_ELSE
 #define aux_vpt_then  0x180000  // (MVE) the insn is in the THEN section of a VPT predication block
 #define aux_vpt_else  0x080000  // (MVE) the insn is in the ELSE section of a VPT predication block
+#define aux_sve       0x800000  // (SVE) this is an SVE or SME instruction
 
 // assembler flags
 #define UAS_GNU         0x0001  // GNU assembler
@@ -72,6 +73,13 @@ struct fptr_info_t
 #define amxop           insnpref        // AMX operation number
 #define neon_suffix     insnpref        // the first neon suffix
 #define pac_flags       insnpref        // PAC instruction suffix flags
+
+// dtype used for SVE/SME registers which have implementation-defined size
+#define dt_sve_p        dt_byte32       // predicate registers (actually multiple of  16 bits)
+                                        // when used with XPC, denotes ZT0
+#define dt_sve_z        dt_byte64       // SVE vector registers Zx (multiple of 128 bits, up to 2048)
+                                        // when used with XPC, denotes ZA
+
 
 // data type of NEON and vector VFP instructions (for the suffix)
 enum neon_datatype_t ENUM_SIZE(char)
@@ -259,6 +267,8 @@ enum shift_t
   SXTH,
   SXTW,
   SXTX,
+  // SVE/SME, shift by vector size
+  MULVL,
 };
 
 //------------------------------------------------------------------
@@ -1052,6 +1062,7 @@ struct mmtype_t
   const type_t *type;
   const type_t *fields;
   tinfo_t tif;
+  bool variadic;
 };
 
 //------------------------------------------------------------------
@@ -1096,14 +1107,89 @@ void opimm_vfp(op_t &x, uint32 imm8, int sz);
 void ana_hint(insn_t &insn, int hint);
 int arm_get_reg_index(const char *name, bool as_mainreg, bitrange_t *pbitrange, bool is_a64);
 
+//-------------------------------------------------------------------------
+// the list of registers
+struct reglist_t : public reglist_base_t<reglist_t>
+{
+  bool a64;
+
+  reglist_t(bool _a64) : a64(_a64) {}
+  template<typename... Args>
+  static reglist_t make(bool _a64, Args... args)
+  {
+    reglist_t res(_a64);
+    res.add(args...);
+    return res;
+  }
+  static reglist_t make_raw(bool _a64, uint64 _regs)
+  {
+    reglist_t res(_a64);
+    res.add_raw(_regs);
+    return res;
+  }
+  void add_raw(uint64 _regs) { regs |= _regs; }
+  void add_reglist(const op_t &x) // x.type == o_reglist
+  {
+    if ( !a64 )
+      add_raw(uint16(x.reglist));
+  }
+  void add_fpreglist(const op_t &x);
+
+protected:
+  friend reglist_base_t<reglist_t>;
+  // Arm32                          AArch64
+  // 0-15  R0-R15                   0-31  X0-X31
+  // 16-47 S0-S31 (D0-D15, Q0-Q7)   32-63 V0-V31
+  // 48-63 D16-D31 (Q8-Q15)
+  uint64 encode(int r) const
+  {
+    if ( a64 )
+    {
+      return r >= X0 && r <= X30 ? 1ull << (r - X0)
+           : r == XSP            ? 1ull << 31
+           : r >= V0 && r <= V31 ? 1ull << (r - V0 + 32)
+           : 0ull;
+    }
+    else
+    {
+      return r >= 0   && r <= R15 ? 1ull   << r
+           : r >= S0  && r <= S31 ? 1ull   << (r - S0 + 16)
+           : r >= D0  && r <= D15 ? 3ull   << ((r - D0) * 2 + 16)
+           : r >= Q0  && r <= Q7  ? 0xFull << ((r - Q0) * 4 + 16)
+           : r >= D16 && r <= D31 ? 1ull   << (r - D16 + 48)
+           : r >= Q8  && r <= Q15 ? 3ull   << ((r - Q8) * 2 + 48)
+           : 0ull;
+    }
+
+  }
+  int decode(int b) const
+  {
+    if ( a64 )
+    {
+      return b >= 0 && b <= 30  ? b + X0
+           : b == 31            ? XSP
+           : b >= 32 && b <= 63 ? b - 32 + V0
+           : -1;
+    }
+    else
+    {
+      return b >= 0 && b <= 15  ? b + R0
+           : b >= 16 && b <= 47 ? b - 16 + S0   // as "singleword" register
+           : b >= 48 && b <= 63 ? b - 48 + D16  // as "doubleword" register
+           : -1;
+    }
+  }
+};
+
 //======================================================================
 // common inline functions used by analyzer
 //----------------------------------------------------------------------
-inline void oreglist(op_t &x, int regs)
+inline void oreglist(op_t &x, const reglist_t &regs)
 {
   x.type = o_reglist;
   x.dtype = dt_dword;
-  x.reglist = regs;
+  // assert: !regs.a64 && (regs.regs & ~0xFFFF) == 0
+  x.reglist = regs.regs;
 }
 
 //----------------------------------------------------------------------
@@ -1257,7 +1343,7 @@ struct it_info_t
          : (_mask & 4) != 0 ? 2
          :                    1;
   }
-  it_info_t(uint8 _cond, uint8 _mask)
+  it_info_t(cond_t _cond, uint8 _mask)
     : size(calc_size(_mask)), cond(_cond), mask(_mask) {}
   operator uval_t() const { return size | (cond << 8) | (mask << 16); }
 
@@ -1371,110 +1457,6 @@ public:
   void invalidate() { cache.clear(); }
 };
 
-//-------------------------------------------------------------------------
-// the list of registers
-struct reglist_t
-{
-  // Arm32                          AArch64
-  // 0-15  R0-R15                   0-31  X0-X31
-  // 16-47 S0-S31 (D0-D15, Q0-Q7)   32-63 V0-V31
-  // 48-63 D16-D31 (Q8-Q15)
-  uint64 regs = 0;
-  bool a64;
-
-  reglist_t(bool _a64) : a64(_a64) {}
-  template<typename... Args>
-  static reglist_t make(bool _a64, Args... args)
-  {
-    reglist_t res(_a64);
-    res.add(args...);
-    return res;
-  }
-  static reglist_t make_raw(bool _a64, uint64 _regs)
-  {
-    reglist_t res(_a64);
-    res.add_raw(_regs);
-    return res;
-  }
-  bool empty() const { return regs == 0; }
-  int count() const { return bitcount(regs); }
-  void add(int r) { regs |= encode(r); }
-  template<typename... Args>
-  void add(int r, Args... args) { add(r); add(args...); }
-  void add(reglist_t r) { regs |= r.regs; }
-  void add_raw(uint64 _regs) { regs |= _regs; }
-  void add_reglist(const op_t &x) // x.type == o_reglist
-  {
-    if ( !a64 )
-      add_raw(uint16(x.reglist));
-  }
-  void add_fpreglist(const op_t &x);
-  void del(int r) { regs &= ~encode(r); }
-  bool has(int r) const { return (regs & encode(r)) != 0; }
-  void intersect(reglist_t r) { regs &= r.regs; }
-  bool has_any(reglist_t r) const { return (regs & r.regs) != 0; }
-  int for_each(std::function<int(int)> pred) const
-  {
-    for ( int reg = bitcountr_zero(regs); reg < 64; ++reg )
-    {
-      if ( (regs & (1ull << reg)) != 0 )
-      {
-        int code = pred(decode(reg));
-        if ( code != 0 )
-          return code;
-      }
-    }
-    return 0;
-  }
-  int first_reg() const
-  {
-    return regs == 0 ? -1 : decode(bitcountr_zero(regs));
-  }
-
-protected:
-  // Arm32                          AArch64
-  // 0-15  R0-R15                   0-31  X0-X31
-  // 16-47 S0-S31 (D0-D15, Q0-Q7)   32-63 V0-V31
-  // 48-63 D16-D31 (Q8-Q15)
-  uint64 encode(int r) const
-  {
-    if ( a64 )
-    {
-      return r >= X0 && r <= X30 ? 1ull << (r - X0)
-           : r == XSP            ? 1ull << 31
-           : r >= V0 && r <= V31 ? 1ull << (r - V0 + 32)
-           : 0ull;
-    }
-    else
-    {
-      return r >= 0   && r <= R15 ? 1ull   << r
-           : r >= S0  && r <= S31 ? 1ull   << (r - S0 + 16)
-           : r >= D0  && r <= D15 ? 3ull   << ((r - D0) * 2 + 16)
-           : r >= Q0  && r <= Q7  ? 0xFull << ((r - Q0) * 4 + 16)
-           : r >= D16 && r <= D31 ? 1ull   << (r - D16 + 48)
-           : r >= Q8  && r <= Q15 ? 3ull   << ((r - Q8) * 2 + 48)
-           : 0ull;
-    }
-
-  }
-  int decode(int r) const
-  {
-    if ( a64 )
-    {
-      return r >= 0 && r <= 30  ? r + X0
-           : r == 31            ? XSP
-           : r >= 32 && r <= 63 ? r - 32 + V0
-           : -1;
-    }
-    else
-    {
-      return r >= 0 && r <= 15  ? r + R0
-           : r >= 16 && r <= 47 ? r - 16 + S0   // as "singleword" register
-           : r >= 48 && r <= 63 ? r - 48 + D16  // as "doubleword" register
-           : -1;
-    }
-  }
-};
 //-------------------------------------------------------------------------
 struct arm_reg_finder_t;
 arm_reg_finder_t *alloc_reg_finder(const arm_t &pm);
@@ -1643,10 +1625,18 @@ struct arm_t : public procmod_t
   fixup_type_t cfh_b14_id = 0;
   fixup_type_t cfh_b19_id = 0;
   fixup_type_t cfh_b26_id = 0;
+  fixup_type_t cfh_mv16_00_id = 0;
+  fixup_type_t cfh_mv16_16_id = 0;
+  fixup_type_t cfh_mv16_32_id = 0;
+  fixup_type_t cfh_mv16_48_id = 0;
   int ref_pg21_id = 0;           // ids of refinfo handlers
   int ref_hi12_id = 0;
   int ref_lo12_id = 0;
   int ref_lo21_id = 0;
+  int ref_mv16_00_id = 0;
+  int ref_mv16_16_id = 0;
+  int ref_mv16_32_id = 0;
+  int ref_mv16_48_id = 0;
 #endif
 
   // ids of fixup handlers
@@ -1771,7 +1761,8 @@ struct arm_t : public procmod_t
   int arm_calc_next_eas(eavec_t *res, const insn_t &insn, bool over);
   bool is_return_insn(const insn_t &insn, bool only_lr=false);
   bool recognize_many_branches(ea_t ea, insn_t *insn, bool t);
-  bool try_code_start(ea_t ea, bool respect_low_bit);
+  int guess_arm_or_thumb(ea_t ea, bool can_be_thumb, bool can_be_arm);
+  bool try_code_start(ea_t from, ea_t ea, bool respect_low_bit);
   bool try_offset(ea_t ea);
   ea_t calc_next_exec_insn(
         const insn_t &ins,

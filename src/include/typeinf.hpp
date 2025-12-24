@@ -95,7 +95,7 @@
 /// In serialized form, a type is represented by a byte sequence. (see \ref tf)
 /// We call it a type string.
 typedef uchar type_t;
-/// Inside a type string, a pascal-like string: dt length, characters
+/// Inside a type string, a Pascal-like string: dt length, characters
 typedef uchar p_string;
 /// several ::p_string's
 typedef uchar p_list;
@@ -180,10 +180,10 @@ const type_t    BTMT_CHAR    = 0x30;    ///< specify char or segment register
 ///@{
 const type_t    BT_BOOL      = 0x08;    ///< bool
 const type_t    BTMT_DEFBOOL = 0x00;    ///< size is model specific or unknown(?)
-const type_t    BTMT_BOOL1   = 0x10;    ///< size 1byte
-const type_t    BTMT_BOOL2   = 0x20;    ///< size 2bytes - !inf_is_64bit()
-const type_t    BTMT_BOOL8   = 0x20;    ///< size 8bytes - inf_is_64bit()
-const type_t    BTMT_BOOL4   = 0x30;    ///< size 4bytes
+const type_t    BTMT_BOOL1   = 0x10;    ///< size 1 byte
+const type_t    BTMT_BOOL2   = 0x20;    ///< size 2 bytes - !inf_is_64bit()
+const type_t    BTMT_BOOL8   = 0x20;    ///< size 8 bytes - inf_is_64bit()
+const type_t    BTMT_BOOL4   = 0x30;    ///< size 4 bytes
 ///@}
 
 /// \defgroup tf_float Basic type: float
@@ -409,7 +409,7 @@ const type_t BTF_UINT128  = BT_INT128 | BTMT_USIGNED;   ///< unsigned 128-bit va
 
 const type_t BTF_INT     = BT_INT | BTMT_UNKSIGN;       ///< int, unknown signedness
 const type_t BTF_UINT    = BT_INT | BTMT_USIGNED;       ///< unsigned int
-const type_t BTF_SINT    = BT_INT | BTMT_SIGNED;        ///< singed int
+const type_t BTF_SINT    = BT_INT | BTMT_SIGNED;        ///< signed int
 
 const type_t BTF_BOOL    = BT_BOOL;                     ///< boolean
 
@@ -429,12 +429,12 @@ const type_t BTF_TYPEDEF = BT_COMPLEX | BTMT_TYPEDEF;   ///< typedef
 //------------------------------------------------------------------------
 // convenience functions:
 
-inline THREAD_SAFE bool is_type_const(type_t t)    { return (t & BTM_CONST) != 0; }                      ///< See ::BTM_CONST
-inline THREAD_SAFE bool is_type_volatile(type_t t) { return (t & BTM_VOLATILE) != 0; }                   ///< See ::BTM_VOLATILE
+inline THREAD_SAFE bool is_type_const(type_t t)    { return (t & BTM_CONST) != 0; }    ///< See ::BTM_CONST
+inline THREAD_SAFE bool is_type_volatile(type_t t) { return (t & BTM_VOLATILE) != 0; } ///< See ::BTM_VOLATILE
 
-inline THREAD_SAFE type_t get_base_type(type_t t)  { return (t & TYPE_BASE_MASK); }                      ///< Get get basic type bits (::TYPE_BASE_MASK)
-inline THREAD_SAFE type_t get_type_flags(type_t t) { return (t & TYPE_FLAGS_MASK); }                     ///< Get type flags (::TYPE_FLAGS_MASK)
-inline THREAD_SAFE type_t get_full_type(type_t t)  { return (t & TYPE_FULL_MASK); }                      ///< Get basic type bits + type flags (::TYPE_FULL_MASK)
+inline THREAD_SAFE type_t get_base_type(type_t t)  { return (t & TYPE_BASE_MASK); }    ///< Get basic type bits (::TYPE_BASE_MASK)
+inline THREAD_SAFE type_t get_type_flags(type_t t) { return (t & TYPE_FLAGS_MASK); }   ///< Get type flags (::TYPE_FLAGS_MASK)
+inline THREAD_SAFE type_t get_full_type(type_t t)  { return (t & TYPE_FULL_MASK); }    ///< Get basic type bits + type flags (::TYPE_FULL_MASK)
 
 /// Is the type_t the last byte of type declaration?
 /// (there are no additional bytes after a basic type, see ::_BT_LAST_BASIC)
@@ -551,12 +551,13 @@ inline THREAD_SAFE bool is_type_bool(type_t t)    { return get_base_type(t) == B
 ///@{
 #define TAUDT_UNALIGNED 0x0040  ///< struct: unaligned struct
 #define TAUDT_MSSTRUCT  0x0020  ///< struct: gcc msstruct attribute
-#define TAUDT_CPPOBJ    0x0080  ///< struct: a c++ object, not simple pod type
+#define TAUDT_CPPOBJ    0x0080  ///< struct: a C++ object, not simple pod type
 #define TAUDT_VFTABLE   0x0100  ///< struct: is virtual function table
 #define TAUDT_FIXED     0x0400  ///< struct: fixed field offsets, stored in serialized form;
                                 ///<         cannot be set for unions
 #define TAUDT_TUPLE     0x0800  ///< tuple:  tuples are like structs but are
                                 ///<         returned differently from functions
+#define TAUDT_IFACE     0x1000  ///< interface: objc @interface
 ///@}
 
 /// \defgroup tattr_field Type attributes for udt fields
@@ -591,7 +592,7 @@ inline THREAD_SAFE bool is_type_bool(type_t t)    { return get_base_type(t) == B
                                 ///< only one of OCT/BIN bits can be set. they
                                 ///< are meaningful only if BTE_HEX is used.
 #define TAENUM_NUMSIGN  0x0400  ///< enum: signed representation, if BTE_HEX
-#define TAENUM_LZERO    0x0800  ///< enum: print numbers with leading zeroes (only for HEX/OCT/BIN)
+#define TAENUM_LZERO    0x0800  ///< enum: print numbers with leading zeros (only for HEX/OCT/BIN)
 ///@}
 
 #define TAH_ALL         0x7FF0  ///< all defined bits
@@ -649,7 +650,7 @@ inline THREAD_SAFE bool operator <(const bytevec_t &v1, const bytevec_t &v2)
 /// Extended type attributes.
 struct type_attr_t
 {
-  qstring key;          ///< one symbol keys are reserved to be used by the kernel
+  qstring key;          ///< one-symbol keys are reserved to be used by the kernel
                         ///< the ones starting with an underscore are reserved too
 #define TA_ORG_TYPEDEF "__org_typedef" ///< the original typedef name (simple string)
 #define TA_ORG_ARRDIM  "__org_arrdim"  ///< the original array dimension (pack_dd)
@@ -866,9 +867,9 @@ const cm_t  CM_M_FF      = 0x04;  ///< large:   code=far, data=far
 const cm_t  CM_M_NF      = 0x08;  ///< compact: code=near, data=far
 const cm_t  CM_M_FN      = 0x0C;  ///< medium:  code=far, data=near
 
-/// Does the given model specify far code?.
+/// Does the given model specify far code?
 inline THREAD_SAFE bool is_code_far(cm_t cm) { return((cm & 4) != 0); }
-/// Does the given model specify far data?.
+/// Does the given model specify far data?
 inline THREAD_SAFE bool is_data_far(cm_t cm) { return((cm &= CM_M_MASK) && cm != CM_M_FN); }
 ///@}
 
@@ -1469,7 +1470,7 @@ inline constexpr THREAD_SAFE bool is_vararg_cc(callcnv_t cc)
   return cc == CM_CC_ELLIPSIS || cc == CM_CC_SPECIALE;
 }
 
-/// Does the calling convention clean the stack arguments upon return?.
+/// Does the calling convention clean the stack arguments upon return?
 /// \note this function is valid only for x86 code
 inline constexpr THREAD_SAFE bool is_purging_cc(callcnv_t cc)
 {
@@ -2019,7 +2020,8 @@ inline void switch_to_golang()
 
 //--------------------------------------------------------------------------
 const size_t BADSIZE = size_t(-1);      ///< bad type size
-#define MAX_FUNC_ARGS   256             ///< max number of function arguments
+#define MAX_FUNC_ARGS    256            ///< max number of function arguments
+#define MAX_ARRAY_NELEMS 0x7FFFFFFF     ///< max number of array elements
 
 //--------------------------------------------------------------------------
 /// abstractness of declaration (see h2ti())
@@ -2082,6 +2084,7 @@ enum sclass_t    ///< storage class
                                        ///< it may contain qualified name and type names,
                                        ///< strictly speaking it is not a valid C++ code,
                                        ///< IDA Pro specific
+#define HTI_VOID_OK     0x00800000     ///< accept void as a standalone type
 ///@}
 
 
@@ -2178,6 +2181,7 @@ idaman bool ida_export parse_decl(
 #define PT_SEMICOLON 0x4000  ///< append the terminating semicolon
 #define PT_SYMBOL    0x8000  ///< accept a symbol name and return its type.
                              ///< e.g. "LoadLibrary" will return its prototype
+#define PT_VOID_OK  0x10000  ///< accept void as a standalone type
 ///@}
 
 
@@ -2271,25 +2275,25 @@ idaman int ida_export get_named_type(
 
 /// \defgroup NTF_  Flags for named types
 ///@{
-#define NTF_TYPE       0x0001   ///< type name
-#define NTF_SYMU       0x0008   ///< symbol, name is unmangled ('func')
-#define NTF_SYMM       0x0000   ///< symbol, name is mangled ('_func');
-                                ///< only one of #NTF_TYPE and #NTF_SYMU, #NTF_SYMM can be used
-#define NTF_NOBASE     0x0002   ///< don't inspect base tils (for get_named_type)
-#define NTF_REPLACE    0x0004   ///< replace original type (for set_named_type)
-#define NTF_UMANGLED   0x0008   ///< name is unmangled (don't use this flag)
-#define NTF_NOCUR      0x0020   ///< don't inspect current til file (for get_named_type)
-#define NTF_64BIT      0x0040   ///< value is 64bit
-#define NTF_FIXNAME    0x0080   ///< force-validate the name of the type when setting
-                                ///< (set_named_type, set_numbered_type only)
-#define NTF_IDBENC     0x0100   ///< the name is given in the IDB encoding;
-                                ///< non-ASCII bytes will be decoded accordingly
-                                ///< (set_named_type, set_numbered_type only)
-#define NTF_CHKSYNC    0x0200   ///< check that synchronization to IDB passed OK
-                                ///< (set_numbered_type, set_named_type)
-#define NTF_NO_NAMECHK 0x0400   ///< do not validate type name
-                                ///< (set_numbered_type, set_named_type)
-#define NTF_COPY       0x1000   ///< save a new type definition, not a typeref (tinfo_t::set_numbered_type, tinfo_t::set_named_type)
+#define NTF_TYPE       0x00000001   ///< type name
+#define NTF_SYMU       0x00000008   ///< symbol, name is unmangled ('func')
+#define NTF_SYMM       0x00000000   ///< symbol, name is mangled ('_func');
+                                    ///< only one of #NTF_TYPE and #NTF_SYMU, #NTF_SYMM can be used
+#define NTF_NOBASE     0x00000002   ///< don't inspect base tils (for get_named_type)
+#define NTF_REPLACE    0x00000004   ///< replace original type (for set_named_type)
+#define NTF_UMANGLED   0x00000008   ///< name is unmangled (don't use this flag)
+#define NTF_NOCUR      0x00000020   ///< don't inspect current til file (for get_named_type)
+#define NTF_64BIT      0x00000040   ///< value is 64-bit
+#define NTF_FIXNAME    0x00000080   ///< force-validate the name of the type when setting
+                                    ///< (set_named_type, set_numbered_type only)
+#define NTF_IDBENC     0x00000100   ///< the name is given in the IDB encoding;
+                                    ///< non-ASCII bytes will be decoded accordingly
+                                    ///< (set_named_type, set_numbered_type only)
+#define NTF_CHKSYNC    0x00000200   ///< check that synchronization to IDB passed OK
+                                    ///< (set_numbered_type, set_named_type)
+#define NTF_NO_NAMECHK 0x00000400   ///< do not validate type name
+                                    ///< (set_numbered_type, set_named_type)
+#define NTF_COPY       0x00001000   ///< save a new type definition, not a typeref (tinfo_t::set_numbered_type, tinfo_t::set_named_type)
 ///@}
 
 
@@ -2558,14 +2562,6 @@ idaman ssize_t ida_export create_numbered_type_name(qstring *buf, int32 ord);
 /// Ordinal names have the following format: '#' + set_de(ord)
 
 idaman bool ida_export is_ordinal_name(const char *name, uint32 *ord=nullptr);
-
-
-/// Generate a name like $hex_numbers based on the field types and names
-
-idaman void ida_export build_anon_type_name(
-        qstring *buf,
-        const type_t *type,
-        const p_list *fields);
 
 
 /// Compact numbered types to get rid of empty slots.
@@ -3014,6 +3010,8 @@ decl size_t ida_export value_repr_t__print_(const value_repr_t *_this, qstring *
 decl bool ida_export value_repr_t__parse_value_repr(value_repr_t *_this, const qstring &attr, type_t target_type); \
 decl ssize_t ida_export udt_type_data_t__find_member(const udt_type_data_t *_this, udm_t *udm, int strmem_flags); \
 decl ssize_t ida_export udt_type_data_t__get_best_fit_member(const udt_type_data_t *_this, asize_t disp); \
+decl bool ida_export udt_type_data_t__deduplicate_members(udt_type_data_t *_this); \
+decl bool ida_export udm_t__compare_with(const udm_t *_this, const udm_t &r, int tcflags); \
 decl uchar ida_export enum_type_data_t__get_max_serial(const enum_type_data_t *ei, uint64 value); \
 decl tinfo_code_t ida_export enum_type_data_t__set_value_repr(enum_type_data_t *ei, const value_repr_t &repr); \
 decl tinfo_code_t ida_export enum_type_data_t__get_value_repr(const enum_type_data_t *ei, value_repr_t *repr); \
@@ -3025,6 +3023,7 @@ decl tid_t ida_export get_tinfo_tid(tinfo_t *tif, bool force_tid); \
 decl ssize_t ida_export get_tinfo_by_edm_name(tinfo_t *tif, const til_t *til, const char *mname); \
 decl ssize_t ida_export get_frame_var(tinfo_t *tif, sval_t *actval, const insn_t &insn, const op_t *x, sval_t v); \
 decl bool ida_export tinfo_get_func_frame(tinfo_t *tif, const func_t *pfn); \
+decl bool ida_export tinfo_t__build_anon_type_name(qstring *out, const tinfo_t &tif); \
 
 DECLARE_TINFO_HELPERS(idaman)
 
@@ -3076,7 +3075,7 @@ class tinfo_t // #tinfo_t #tif
     GTA_ARRAY_NELEMS,   ///< array: number of elements
     GTA_PTRARR_SUBTIF,  ///< ptr&array: pointed object or array element
     GTA_PTRARR_SIZE,    ///< ptr&array: get size of subtype
-    GTA_UNPADDED_SIZE,  ///< udt: sizeof baseclass when embedded into a derived class
+    GTA_UNPADDED_SIZE,  ///< udt: sizeof base class when embedded into a derived class
     GTA_UDT_NMEMBERS,   ///< udt: get number of udt members
     GTA_IS_SMALL_UDT,   ///< udt: is small udt (can be passed in regs)
     GTA_ONEMEM_TYPE,    ///< udt&array: object consisting of one member: type of the member
@@ -3157,6 +3156,7 @@ class tinfo_t // #tinfo_t #tif
     STA_FUNCARG_LOC,    ///< func: set argument location
     STA_FUNC_RETLOC,    ///< func: set location of function return value
     STA_TUPLE,          ///< struct: set as tuple
+    STA_IFACE,          ///< struct: set as interface
   };
   enum gta_pdata_t      ///< get info returned by pointer
   {
@@ -3276,7 +3276,7 @@ public:
     return deserialize(til, &tp, pfp, pcp, cmt);
   }
 
-  /// Is the type object correct?.
+  /// Is the type object correct?
   /// It is possible to create incorrect types. For example, we can define a
   /// function that returns an enum and then delete the enum type.
   /// If this function returns false, the type should not be used in
@@ -3341,13 +3341,13 @@ public:
   /// Get declared alignment of the type
   uchar get_declalign() const { return uchar(get_tinfo_property(typid, GTA_DECLALIGN)); }
 
-  /// Is this type a type reference?.
+  /// Is this type a type reference?
   THREAD_SAFE bool is_typeref() const { return (typid & TYPID_ISREF) != 0; }
 
   /// Does this type refer to a nontrivial type?
   THREAD_SAFE bool has_details() const { return typid >= FIRST_NONTRIVIAL_TYPID; }
 
-  /// Does a type refer to a name?.
+  /// Does a type refer to a name?
   /// If yes, fill the provided buffer with the type name and return true.
   /// Names are returned for numbered types too: either a user-defined nice name
   /// or, if a user-provided name does not exist, an ordinal name
@@ -3357,6 +3357,9 @@ public:
   /// Get the beautified type name.
   /// Get the referenced name and apply regular expressions from goodname.cfg to beautify the name
   bool get_nice_type_name(qstring *out) const { return is_typeref() && get_tinfo_pdata(out, typid, GTP_NICE_NAME); }
+
+  /// Generate a name like $hex_numbers based on the field types and names
+  bool build_anon_type_name(qstring *out) const { return tinfo_t__build_anon_type_name(out, *this); }
 
   /// Rename a type
   /// \param name       new type name
@@ -3382,7 +3385,7 @@ public:
   /// instead of the address.
   /// \return tid or BADADDR
   /// \note types that do not come from a type library (that exist only in the
-  ///       memory) can not have a tid.
+  ///       memory) cannot have a tid.
   tid_t get_tid() const { return get_tinfo_tid((tinfo_t *)this, false); }
 
   /// Get the type tid. Create if it does not exist yet.
@@ -3402,12 +3405,12 @@ public:
   /// Get the type library for tinfo_t
   til_t *get_til() const { til_t *til; get_tinfo_pdata(&til, typid, GTP_TIL); return til; }
 
-  /// Was the named type found in some base type library (not the top level type library)?.
+  /// Was the named type found in some base type library (not the top level type library)?
   /// If yes, it usually means that the type comes from some loaded type library,
   /// not the local type library for the database
   bool is_from_subtil() const { return is_typeref() && get_tinfo_property(typid, GTA_FROM_SUBTIL); }
 
-  /// Is this a forward declaration?.
+  /// Is this a forward declaration?
   /// Forward declarations are placeholders: the type definition does not exist
   bool is_forward_decl() const { return bool(get_tinfo_property(typid, GTA_IS_FORWARD)); }
 
@@ -3419,7 +3422,7 @@ public:
   bool is_forward_union() const { return is_type_union(get_forward_type()); }
   bool is_forward_enum() const { return is_type_enum(get_forward_type()); }
 
-  /// Is this a typedef?.
+  /// Is this a typedef?
   /// This function will return true for a reference to a local type that is
   /// declared as a typedef.
   bool is_typedef() const { return get_tinfo_property(typid, GTA_IS_TYPEDEF) != 0; }
@@ -3574,10 +3577,12 @@ public:
   /// See also get_ptrarr_object() and remove_pointer()
   tinfo_t get_pointed_object() const { tinfo_t r; r.typid = get_tinfo_property(typid, GTA_PTR_OBJ); return r; }
 
-  /// Is "void *"?. This function does not check the pointer attributes and type modifiers
+  /// Is "void *"?
+  /// This function does not check the pointer attributes and type modifiers
   bool is_pvoid() const { return get_pointed_object().is_void(); }
 
-  /// Is "_UNKNOWN *"?. This function does not check the pointer attributes and type modifiers
+  /// Is "_UNKNOWN *"?
+  /// This function does not check the pointer attributes and type modifiers
   bool is_punknown() const { return get_pointed_object().is_unknown(); }
 
   /// ::BT_ARRAY: get type of array element. See also get_ptrarr_object()
@@ -3732,6 +3737,9 @@ public:
   /// Is a tuple?
   bool is_tuple() const  { return (get_udt_taudt_bits() & TAUDT_TUPLE) != 0; }
 
+  /// Is an interface?
+  bool is_iface() const  { return (get_udt_taudt_bits() & TAUDT_IFACE) != 0; }
+
   /// Requires full qualifier? (name is not unique)
   /// \param[out] out qualifier. may be nullptr
   /// \param      name   field name
@@ -3741,7 +3749,7 @@ public:
 
   /// Calculate set of covered bytes for the type
   /// \param out pointer to the output buffer. covered bytes will be appended to it.
-  /// \param offset delta in bytes to add to all calculations. used internally during recurion.
+  /// \param offset delta in bytes to add to all calculations. used internally during recursion.
   bool append_covered(rangeset_t *out, uint64 offset=0) const { return append_tinfo_covered(out, typid, offset); }
 
   /// Calculate set of padding bytes for the type
@@ -4289,6 +4297,11 @@ public:
   /// \param on
   tinfo_code_t set_tuple(bool on=true) { return tinfo_code_t(set_tinfo_property4(this, STA_TUPLE, on, 0, 0, 0)); }
 
+  /// Declare struct as an interface.
+  /// This function works only with structures (not unions).
+  /// \param on
+  tinfo_code_t set_iface(bool on=true) { return tinfo_code_t(set_tinfo_property4(this, STA_IFACE, on, 0, 0, 0)); }
+
   /// Create a tinfo_t object for the function frame
   /// \param pfn  function
   bool get_func_frame(const func_t *pfn) { return tinfo_get_func_frame(this, pfn); }
@@ -4582,19 +4595,24 @@ typedef qvector<tinfo_t> tinfovec_t; ///< vector of tinfo objects
 /// SIMD type info
 struct simd_info_t
 {
+  static constexpr uint16 SIMD_VARIADIC = 0xFFFF;
+
   const char *name;  ///< name of SIMD type (nullptr-undefined)
   tinfo_t tif;       ///< SIMD type (empty-undefined)
-  uint16 size;       ///< SIMD type size in bytes (0-undefined)
+  uint16 size;       ///< SIMD type size in bytes (0-undefined, 0xFFFF-variadic)
   type_t memtype;    ///< member type
                      ///<   BTF_INT8/16/32/64/128, BTF_UINT8/16/32/64/128
                      ///<   BTF_INT - integrals of any size/sign
                      ///<   BTF_FLOAT, BTF_DOUBLE
-                     ///<   BTF_TBYTE - floatings of any size
+                     ///<   BTF_TBYTE - floating: float16 for variadic
+                     ///                          any size for non-variadic
                      ///<   BTF_UNION - union of integral and floating types
                      ///<   BTF_UNK - undefined
 
   simd_info_t(const char *nm = nullptr, uint16 sz = 0, type_t memt = BTF_UNK)
     : name(nm), size(sz), memtype(memt) {}
+
+  bool is_variadic() const { return size == SIMD_VARIADIC; }
 
   bool match_pattern(const simd_info_t *pattern)
   {
@@ -4608,12 +4626,23 @@ struct simd_info_t
     }
     if ( pattern->memtype == BTF_UNK || pattern->memtype == memtype )
       return true;
-    return pattern->memtype == BTF_TBYTE && is_type_float(memtype)
-        || pattern->memtype == BTF_INT   && is_type_int(memtype);
+    return pattern->memtype == BTF_INT && is_type_int(memtype)
+        || pattern->memtype == BTF_TBYTE
+        && !is_variadic()
+        && is_type_floating(memtype);
   }
+  bool operator == (const simd_info_t &r) const
+  {
+    return size == r.size
+        && memtype == r.memtype
+        && tif == r.tif
+        && (name == r.name
+         || name != nullptr && r.name != nullptr && streq(name, r.name));
+  }
+  bool operator != (const simd_info_t &r) const { return !(*this == r); }
 };
 DECLARE_TYPE_AS_MOVABLE(simd_info_t);
-typedef qvector<simd_info_t> simd_info_vec_t;
+struct simd_info_vec_t : public qvector<simd_info_t> {};
 
 //------------------------------------------------------------------------
 /// Use func_type_data_t::guess_cc()
@@ -5219,7 +5248,7 @@ struct value_repr_t // #repr
 #define FRB_INVSIGN  0x0100 ///< Invert sign (0x01 is represented as -0xFF)
 #define FRB_INVBITS  0x0200 ///< Invert bits (0x01 is represented as ~0xFE)
 #define FRB_SIGNED   0x0400 ///< Force signed representation
-#define FRB_LZERO    0x0800 ///< Toggle leading zeroes (used for integers)
+#define FRB_LZERO    0x0800 ///< Toggle leading zeros (used for integers)
 #define FRB_TABFORM  0x1000 ///< has additional tabular parameters
   /// Additional info
   union
@@ -5404,15 +5433,9 @@ struct udm_t // #udm
   }
   bool compare_with(const udm_t &r, int tcflags) const
   {
-    return offset == r.offset
-        && size == r.size
-        && name == r.name
-//        && cmt == r.cmt
-        && type.compare_with(r.type, tcflags)
-        && fda == r.fda
-        && tafld_bits == r.tafld_bits
-        && effalign == r.effalign;
+    return udm_t__compare_with(this, r, tcflags);
   }
+
   bool operator != (const udm_t &r) const { return !(*this == r); }
 
   DEFINE_MEMORY_ALLOCATION_FUNCS()
@@ -5457,10 +5480,12 @@ struct udt_type_data_t : public udtmembervec_t // #udt
   bool is_vftable() const { return (taudt_bits & TAUDT_VFTABLE) != 0; }
   bool is_fixed() const { return (taudt_bits & TAUDT_FIXED) != 0; }
   bool is_tuple() const { return (taudt_bits & TAUDT_TUPLE) != 0; }
+  bool is_iface() const { return (taudt_bits & TAUDT_IFACE) != 0; }
 
   void set_vftable(bool on=true)   { setflag(taudt_bits, TAUDT_VFTABLE, on); }
   void set_fixed(bool on=true)     { setflag(taudt_bits, TAUDT_FIXED, on); }
   void set_tuple(bool on=true)     { setflag(taudt_bits, TAUDT_TUPLE, on); }
+  void set_iface(bool on=true)     { setflag(taudt_bits, TAUDT_IFACE, on); }
 
   bool is_last_baseclass(size_t idx) // we assume idx is valid
   {
@@ -5515,6 +5540,13 @@ struct udt_type_data_t : public udtmembervec_t // #udt
   /// \param disp the byte offset
   inline ssize_t get_best_fit_member(udm_t *out, asize_t disp) const;
 
+  /// Rename members with the same names.
+  /// This function finds duplicate member names and renames them by adding
+  /// a numeric suffix like _2, _3, etc. Also, it renames destructors
+  /// by substituting ~ by dtr_.
+  /// \return true if renamed a member
+  bool deduplicate_members() { return udt_type_data_t__deduplicate_members(this); }
+
 };
 DECLARE_TYPE_AS_MOVABLE(udt_type_data_t);
 
@@ -5528,6 +5560,13 @@ DECLARE_TYPE_AS_MOVABLE(udt_type_data_t);
 // Example: CLS_0024_vtbl is used for the vft located at the offset 0x24 of CLS
 
 #define VTBL_SUFFIX "_vtbl"
+
+// Name of type with virtual function table layout is
+// constructed by appending the following suffix to the
+// type name of a virtual function table.
+// Example: CLS_0024_vtbl_layout
+
+#define VTBL_LAYOUT_SUFFIX "_layout"
 
 // The member name of a virtual function table
 // Complex cases are not handled yet.
@@ -6115,14 +6154,14 @@ struct argtinfo_helper_t
         const tinfo_t &tif,
         const char *name) = 0;
 
-  /// Is the current insn a stkarg load?.
+  /// Is the current insn a stkarg load?
   /// if yes:
   ///  - src: index of the source operand in \insn_t{ops}
   ///  - dst: index of the destination operand in \insn_t{ops}
   ///         \insn_t{ops}[dst].addr is expected to have the stack offset
   virtual bool idaapi is_stkarg_load(const insn_t &insn, int *src, int *dst) = 0;
 
-  /// The call instruction with a delay slot?.
+  /// The call instruction with a delay slot?
   virtual bool idaapi has_delay_slot(ea_t /*caller*/) { return false; }
 
   /// This function is to be called by the processor module in response
@@ -6353,7 +6392,7 @@ struct format_data_info_t
 #define PTV_EXPAND 0x0010  ///< print only top level on separate lines;
                            ///< max_length applies to separate lines;
                            ///< margin is ignored
-#define PTV_LZERO  0x0020  ///< print numbers with leading zeroes (only for hex/oct/bin)
+#define PTV_LZERO  0x0020  ///< print numbers with leading zeros (only for hex/oct/bin)
 #define PTV_STPFLT 0x0040  ///< fail on bad floating point numbers
                            ///< (if not set, just print ?flt for them)
 #define PTV_SPACE  0x0080  ///< add spaces after commas and around braces
@@ -6496,10 +6535,11 @@ idaman int ida_export print_cdata(
 //-------------------------------------------------------------------------
 /// \defgroup PDF_ print_decls() flags
 ///@{
-#define PDF_INCL_DEPS  0x1 ///< Include all type dependencies
-#define PDF_DEF_FWD    0x2 ///< Allow forward declarations
-#define PDF_DEF_BASE   0x4 ///< Include base types: __int8, __int16, etc..
-#define PDF_HEADER_CMT 0x8 ///< Prepend output with a descriptive comment
+#define PDF_INCL_DEPS    0x01 ///< Include all type dependencies
+#define PDF_DEF_FWD      0x02 ///< Allow forward declarations
+#define PDF_DEF_BASE     0x04 ///< Include base types: __int8, __int16, etc..
+#define PDF_HEADER_CMT   0x08 ///< Prepend output with a descriptive comment
+#define PDF_NO_ANON_NAME 0x10 ///< Ignore types with anonymous name
 ///@}
 
 typedef qvector<uint32> ordvec_t;
@@ -6596,46 +6636,6 @@ idaman bool ida_export choose_named_type(
         int ntf_flags,
         predicate_t *predicate=nullptr);
 
-
-/// Controls which types are displayed/selected when choosing local types.
-/// \retval 0  skip type
-/// \retval 1  include
-
-typedef int idaapi local_tinfo_predicate_t(uint32 ord, const tinfo_t &type, void *ud);
-
-
-/// Choose a type from the local type library.
-/// \param ti        pointer to til
-/// \param title     title of listbox to display
-/// \param func      predicate to select types to display (maybe nullptr)
-/// \param def_ord   ordinal to position cursor before choose
-/// \param ud        user data
-/// \return == 0 means nothing is chosen, otherwise an ordinal number
-
-idaman uint32 ida_export choose_local_tinfo(
-        const til_t *ti,
-        const char *title,
-        local_tinfo_predicate_t *func = nullptr,
-        uint32 def_ord = 0,
-        void *ud = nullptr);
-
-
-/// Choose a type from the local type library and specify the pointer shift value.
-/// \param delta     pointer shift value
-/// \param ti        pointer to til
-/// \param title     title of listbox to display
-/// \param func      predicate to select types to display (maybe nullptr)
-/// \param def_ord   ordinal to position cursor before choose
-/// \param ud        user data
-/// \return == 0 means nothing is chosen, otherwise an ordinal number
-
-idaman uint32 ida_export choose_local_tinfo_and_delta(
-        int32 *delta,
-        const til_t *ti,
-        const char *title,
-        local_tinfo_predicate_t *func = nullptr,
-        uint32 def_ord = 0,
-        void *ud = nullptr);
 
 
 /// Callback for \ref visit_edms
@@ -6746,5 +6746,11 @@ struct til_type_ref_t
   bool is_udt() const { return kind == BTF_STRUCT || kind == BTF_UNION; }
 };
 
+
+#ifndef NO_OBSOLETE_FUNCS
+idaman DEPRECATED uint32 ida_export choose_local_tinfo(const til_t *, const char *, til_tinfo_predicate_t *, uint32, void *); // Use choose_til_type instead
+idaman DEPRECATED uint32 ida_export choose_local_tinfo_and_delta(int32 *, const til_t *, const char *, til_tinfo_predicate_t *, uint32, void *); // Use choose_til_type_and_delta instead
+idaman DEPRECATED void ida_export build_anon_type_name(qstring *buf, const type_t *type, const p_list *fields);
+#endif
 
 #endif // _TYPEINF_HPP

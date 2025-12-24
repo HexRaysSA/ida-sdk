@@ -476,9 +476,6 @@ MSC_DIAG_OFF(4063)
     case processor_t::ev_newasm:    // new assembler type
       break;
 
-    case processor_t::ev_creating_segm:    // new segment
-      break;
-
     case processor_t::ev_is_basic_block_end:
       {
         const insn_t *insn = va_arg(va, const insn_t *);

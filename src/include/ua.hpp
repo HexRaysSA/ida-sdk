@@ -430,13 +430,13 @@ public:
 ///@{
 #define INSN_MACRO  0x01        ///< macro instruction
 #define INSN_MODMAC 0x02        ///< may modify the database to make room for the macro insn
-#define INSN_64BIT  0x04        ///< belongs to 64bit segment?
+#define INSN_64BIT  0x04        ///< belongs to 64-bit segment?
 ///@}
 
   /// Is a macro instruction?
   bool is_macro(void) const { return (flags & INSN_MACRO) != 0; }
 
-  /// Belongs to a 64bit segment?
+  /// Belongs to a 64-bit segment?
 #ifdef __EA64__
   bool is_64bit(void) const { return (flags & INSN_64BIT) != 0; }
 #else
@@ -499,26 +499,14 @@ public:
   /// Please check with may_create_stkvars() before calling this function.
   /// \param x       operand (used to determine the addressing type)
   /// \param v       a displacement in the operand
-  /// \param flags_  \ref STKVAR_2
+  /// \param stkvar_flags  \ref STKVAR_1
   /// \retval 1  ok, a stack variable exists now
   /// \retval 0  no, couldn't create stack variable
 
-  bool create_stkvar(const op_t &x, adiff_t v, int flags_) const
+  bool create_stkvar(const op_t &x, adiff_t v, int stkvar_flags) const
   {
-    return insn_create_stkvar(*this, x, v, flags_);
+    return insn_create_stkvar(*this, x, v, stkvar_flags);
   }
-
-  /// \defgroup STKVAR_2 Stack variable flags
-  /// Passed as 'flags' parameter to create_stkvar()
-  ///@{
-#define STKVAR_VALID_SIZE       0x0001 ///< x.dtype contains correct variable type
-                                       ///< (for insns like 'lea' this bit must be off).
-                                       ///< in general, dr_O references do not allow
-                                       ///< to determine the variable size
-#define STKVAR_KEEP_EXISTING    0x0002 ///< if a stack variable for this operand already
-                                       ///< exists then we do not create a new variable
-  ///@}
-
 
   /// Add a code cross-reference from the instruction.
   /// \param opoff  offset of the operand from the start of instruction.
@@ -880,8 +868,8 @@ struct outctx_base_t
 #define OOF_SPACES      0x0800      ///< do not suppress leading spaces;
                                     ///< currently works only for floating point numbers
 #define OOF_ANYSERIAL   0x1000      ///< if enum: select first available serial
-#define OOF_LZEROES     0x2000      ///< print leading zeroes
-#define OOF_NO_LZEROES  0x4000      ///< do not print leading zeroes;
+#define OOF_LZEROES     0x2000      ///< print leading zeros
+#define OOF_NO_LZEROES  0x4000      ///< do not print leading zeros;
                                     ///< if none of OOF_LZEROES and OOF_NO_LZEROES
                                     ///< was specified, is_lzero() is used
   ///@}
@@ -1381,6 +1369,118 @@ inline bool is_floating_dtype(op_dtype_t dtype)
 
 
 //--------------------------------------------------------------------------
+/// A class for working with a list of registers.
+/// It is typically used for operands that encode such a list.
+/// For example, 'PUSH {R4-R7,LR}' in ARM or
+/// 'lwm $s0-$s1,$ra, 0x1C+var_s0($sp)' in microMIPS.
+/// It can also be used to return the list of registers that an instruction
+/// changes (spoils).
+/// \note Usually, such a function is called spoils().
+/// This class represents a list of registers as a bitmask.
+/// To use this template, you need to derive your class from it, specifying
+/// the name of your class as the template parameter.
+/// \note This pattern is known as CRTP.
+/// In the new class, you must define two methods:
+/// - 'uint64 encode(int regnum) const'
+///   This method returns a bitmask for the specified register REGNUM.
+///   \note Such a mask may contain more than one bit. For example, in ARM,
+///         the FP-register D0 includes two registers S0 and S1, and its
+///         mask will contain two bits.
+/// - 'int decode(int bitnum) const'
+///   This method returns the register number for the specified bit number.
+/// For an example, refer to the 'reglist_t' class in arm.hpp.
+template <class Derived>
+struct reglist_base_t
+{
+  uint64 regs = 0;
+
+  bool empty() const { return regs == 0; }
+  void clear() { regs = 0; }
+  int count() const { return bitcount(regs); }
+  void add(int regnum) { regs |= _encode(regnum); }
+  template<typename... Args>
+  void add(int regnum, Args... args) { add(regnum); add(args...); }
+  void add(const reglist_base_t &r) { regs |= r.regs; }
+  void add_range(int first, int count)
+  {
+    while ( count-- > 0 )
+      add(first++);
+  }
+  void del(int regnum) { regs &= ~_encode(regnum); }
+  void del(const reglist_base_t &r) { regs &= ~r.regs; }
+  void intersect(const reglist_base_t &r) { regs &= r.regs; }
+  bool has(int regnum) const { return (regs & _encode(regnum)) != 0; }
+  bool has_any(const reglist_base_t &r) const { return (regs & r.regs) != 0; }
+  bool contains(const reglist_base_t &r) const { return (r.regs & ~regs) == 0; }
+  // FUNC can return a non-zero code to immediately exit the loop
+  int for_each(std::function<int(int)> func) const
+  {
+    uint64 bitmask = regs;
+    int bitnum = bitcountr_zero(bitmask);
+    for ( bitmask >>= bitnum; bitmask != 0; bitmask >>= 1 )
+    {
+      if ( (bitmask & 1) != 0 )
+      {
+        int code = func(_decode(bitnum));
+        if ( code != 0 )
+          return code;
+      }
+      ++bitnum;
+    }
+    return 0;
+  }
+  int first_reg() const { return _decode(bitcountr_zero(regs)); }
+  // print the register list taking into account consecutive registers
+  void print(
+        outctx_t *out,
+        std::function<void(outctx_t *,int)> print_reg,
+        const char *delim) const
+  {
+    int last_reg = -1;
+    size_t count = 0;
+    for_each([out, print_reg, delim, &last_reg, &count](int reg)
+      {
+        if ( last_reg >= 0 && reg == last_reg + 1 )
+        { // count consecutive registers
+          ++count;
+          ++last_reg;
+        }
+        else
+        {
+          if ( count > 1 )
+          { // output the register range
+            out->out_line(count == 2 ? delim : "-", COLOR_SYMBOL);
+            print_reg(out, last_reg);
+          }
+          if ( count != 0 )
+            out->out_line(delim, COLOR_SYMBOL);
+          print_reg(out, reg);
+          // start new register range
+          last_reg = reg;
+          count = 1;
+        }
+        return 0;
+      } );
+    if ( count > 1 )
+    {
+      out->out_line(count == 2 ? delim : "-", COLOR_SYMBOL);
+      print_reg(out, last_reg);
+    }
+  }
+
+protected:
+  uint64 _encode(int regnum) const
+  {
+    return static_cast<const Derived *>(this)->encode(regnum);
+  }
+  int _decode(int bitnum) const
+  {
+    return static_cast<const Derived *>(this)->decode(bitnum);
+  }
+};
+
+
+//--------------------------------------------------------------------------
 //      K E R N E L   I N T E R F A C E   T O   I D P   F U N C T I O N S
 //--------------------------------------------------------------------------
 /// Create an instruction at the specified address.
@@ -1508,7 +1608,7 @@ inline bool macro_constructor_t::construct_macro(insn_t *insn, bool enable)
 }
 
 
-/// Does the instruction spoil any register from 'regs'?.
+/// Does the instruction spoil any register from 'regs'?
 /// This function checks the \ref CF_ flags from the instructions array.
 /// Only ::o_reg operand types are consulted.
 /// \param  insn  the instruction

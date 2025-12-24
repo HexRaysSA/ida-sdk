@@ -34,6 +34,10 @@ typedef std::map<qstring, ea_t> name2ea_t;
 #define __WALL 0x40000000
 #endif
 
+#ifndef PTRACE_EVENT_STOP
+#define PTRACE_EVENT_STOP 128
+#endif
+
 //--------------------------------------------------------------------------
 // image information
 struct image_info_t
@@ -220,6 +224,7 @@ public:
   bool threads_collected = false;
 
   bool exited;             // Did the process exit?
+  bool using_seize = false;  // Use PTRACE_SEIZE instead of PTRACE_ATTACH (Android 14+)
 
   easet_t removed_bpts; // removed breakpoints
 

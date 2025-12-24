@@ -55,7 +55,7 @@ static uchar *sync_stub(const char *fname, uint32 crc, size_t *psize)
 
 //--------------------------------------------------------------------------
 dbg_rpc_client_t::dbg_rpc_client_t(idarpc_stream_t *_irs)
-  : dbg_rpc_engine_t(/*is_client=*/ true),
+  : dbg_rpc_engine_t(/*is_client=*/ true, /*recv_timeout=*/ -1),
     client_irs(_irs)
 {
   pending_event.clear_all();

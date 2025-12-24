@@ -78,7 +78,7 @@ dbg_rpc_handler_t::dbg_rpc_handler_t(
         idarpc_stream_t *_irs,
         dbgsrv_dispatcher_t *_dispatcher)
   : network_client_handler_t(_irs, /*_verbose=*/ false),
-    dbg_rpc_engine_t(/*is_client=*/ false),
+    dbg_rpc_engine_t(/*is_client=*/ false, DBGSRV_HELO_TIMEOUT),
     dbg_mod(nullptr),
     dispatcher(_dispatcher)
 {

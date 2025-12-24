@@ -69,6 +69,7 @@ struct PACKED direntry_t
       return isdir;   // any folder is lesser than any inode
     return idx < r.idx;
   }
+  bool operator>=(const direntry_t &r) const { return !(*this < r); }
 };
 #pragma pack(pop)
 DECLARE_TYPE_AS_MOVABLE(direntry_t);
@@ -93,19 +94,20 @@ enum
 /// represents 'file items' of our directory structure.
 struct dirspec_t
 {
-  uint32 flags;
+  uint32 dsf_flags;
   enum
   {
     DSF_INODE_EA  = 0x01,  // inode is EA, will be handled during segment moving
     DSF_PRIVRANGE = 0x02,  // inode is tid_t, structure or enum id, will be handled during segment moving
     DSF_ORDERABLE = 0x04,  // items in a folder are ordered by increasing inode # (unless explicitly reordered)
+    DSF_UNQ_NAMES = 0x08,  // inode names are globally unique; this is implied for DSF_INODE_EA and DSF_PRIVRANGE
   };
   // netnode name to load/save directory tree
   // If not specified the loading/storing operations are not supported
   // and the undo functionality is not supported.
   qstring id;
 
-  dirspec_t(const char *nm=nullptr, uint32 f=0) : flags(f), id(nm) {}
+  dirspec_t(const char *nm=nullptr, uint32 f=0) : dsf_flags(f), id(nm) {}
 
   virtual ~dirspec_t() {}
 
@@ -139,7 +141,9 @@ struct dirspec_t
   /// \param inode
   virtual void unlink_inode(inode_t inode) { qnotused(inode); }
 
-  bool is_orderable() const { return (flags & DSF_ORDERABLE) != 0; }
+  bool is_orderable() const { return (dsf_flags & DSF_ORDERABLE) != 0; }
+  bool unique_names() const { return (dsf_flags & (DSF_INODE_EA|DSF_PRIVRANGE|DSF_UNQ_NAMES)) != 0; }
+  bool has_inode_ea() const { return (dsf_flags & DSF_INODE_EA) != 0; }
 };
 
 //------------------------------------------------------------------------
@@ -152,7 +156,12 @@ struct dirtree_cursor_t
     : parent(_parent), rank(_rank) {}
   bool valid() const { return parent != direntry_t::BADIDX || rank == 0; }
   bool is_root_cursor() const { return parent == direntry_t::BADIDX && rank == 0; }
-  void set_root_cursor(void) { parent = direntry_t::BADIDX; rank = 0; }
+  void set_root_cursor() { parent = direntry_t::BADIDX; rank = 0; }
+  void swap(dirtree_cursor_t &r)
+  {
+    qswap(parent, r.parent);
+    qswap(rank, r.rank);
+  }
 
   static dirtree_cursor_t root_cursor()
   {
@@ -186,7 +195,7 @@ struct dirtree_iterator_t
 
 //------------------------------------------------------------------------
 /// Directory tree: error codes
-enum dterr_t
+enum dterr_t : uint8
 {
   DTE_OK,               ///< ok
   DTE_ALREADY_EXISTS,   ///< item already exists
@@ -197,8 +206,20 @@ enum dterr_t
   DTE_CANT_RENAME,      ///< failed to rename an item
   DTE_OWN_CHILD,        ///< moving inside subdirectory of itself
   DTE_MAX_DIR,          ///< maximum directory count achieved
+  DTE_NOT_ORDERABLE,    ///< directory is not orderable
   DTE_LAST,
 };
+
+struct dirtree_bulk_result_t
+{
+  diridx_t parent;  // parent directory
+  direntry_t entry; // entry inside the directory
+  dterr_t err;      // error code for the item
+  int idx;          // index into the vector of input vector
+                    // (useful if parent/entry are wrong)
+};
+DECLARE_TYPE_AS_MOVABLE(dirtree_bulk_result_t);
+typedef qvector<dirtree_bulk_result_t> dirtree_bulk_results_t;
 
 class dirtree_t;
 class dirtree_impl_t;
@@ -229,17 +250,18 @@ idaman dirtree_impl_t *ida_export create_dirtree(dirtree_t *dt, dirspec_t *ds);
 idaman void ida_export delete_dirtree(dirtree_impl_t *d);
 idaman bool ida_export load_dirtree(dirtree_impl_t *d);
 idaman bool ida_export save_dirtree(dirtree_impl_t *d);
-void reset_dirtree(dirtree_impl_t *d);
+idaman void ida_export reset_dirtree(dirtree_impl_t *d);
 idaman const char *ida_export dirtree_errstr(dterr_t err);
 idaman bool ida_export dirtree_is_orderable(const dirtree_impl_t *d);
 idaman dterr_t ida_export dirtree_chdir(dirtree_impl_t *d, const char *path);
 idaman void ida_export dirtree_getcwd(qstring *out, const dirtree_impl_t *d);
 idaman void ida_export dirtree_resolve_path(direntry_t *de, const dirtree_impl_t *d, const char *path);
 idaman void ida_export dirtree_resolve_cursor(direntry_t *de, const dirtree_impl_t *d, const dirtree_cursor_t &cursor);
+idaman void ida_export dirtree_make_cursor(dirtree_cursor_t *cursor, const dirtree_impl_t *d, const char *path);
 idaman bool ida_export dirtree_get_entry_name(qstring *out, const dirtree_impl_t *d, const direntry_t &de, uint32 name_flags);
 idaman void ida_export dirtree_get_entry_attrs(qstring *out, const dirtree_impl_t *d, const direntry_t &de);
 idaman bool ida_export dirtree_is_dir_ordered(const dirtree_impl_t *d, diridx_t diridx);
-idaman bool ida_export dirtree_set_natural_order(dirtree_impl_t *d, diridx_t diridx, bool enable);
+idaman dterr_t ida_export dirtree_set_natural_order(dirtree_impl_t *d, diridx_t diridx, bool enable);
 idaman ssize_t ida_export dirtree_get_dir_size(dirtree_impl_t *d, diridx_t diridx);
 idaman bool ida_export dirtree_findfirst(dirtree_impl_t *d, dirtree_iterator_t *ff, const char *pattern);
 idaman bool ida_export dirtree_findnext(dirtree_impl_t *d, dirtree_iterator_t *ff);
@@ -250,6 +272,8 @@ idaman dterr_t ida_export dirtree_rmdir(dirtree_impl_t *d, const char *path);
 idaman dterr_t ida_export dirtree_link(dirtree_impl_t *d, const char *path, bool do_link);
 idaman dterr_t ida_export dirtree_link_inode(dirtree_impl_t *d, inode_t inode, bool do_link);
 idaman dterr_t ida_export dirtree_rename(dirtree_impl_t *d, const char *from, const char *to);
+idaman dterr_t ida_export dirtree_bulk_move(dirtree_impl_t *d, const dirtree_cursor_vec_t &items, const char *dstdir, int dst_rank, dirtree_cursor_vec_t *moved_items, dirtree_bulk_results_t *errs);
+idaman dterr_t ida_export dirtree_bulk_remove(dirtree_impl_t *d, const dirtree_cursor_vec_t &items, dirtree_bulk_results_t *errs);
 idaman ssize_t ida_export dirtree_get_rank(const dirtree_impl_t *d, diridx_t diridx, const direntry_t &de);
 idaman dterr_t ida_export dirtree_change_rank(dirtree_impl_t *d, const char *path, ssize_t rank_delta);
 idaman void ida_export dirtree_get_parent_cursor(dirtree_cursor_t *out, const dirtree_impl_t *d, const dirtree_cursor_t &cursor);
@@ -261,9 +285,9 @@ idaman void ida_export dirtree_set_nodename(dirtree_impl_t *d, const char *nm);/
 idaman ssize_t ida_export dirtree_traverse(dirtree_impl_t *d, dirtree_visitor_t &v);
 idaman dterr_t ida_export dirtree_find_entry(dirtree_cursor_t *out, const dirtree_t *_dt, const direntry_t &_de);
 idaman dirtree_t *ida_export dirtree_new_shadow_dirtree(dirtree_impl_t *d);
+idaman void ida_export dirtree_add_event_handler(dirtree_impl_t *d, class event_handler_t *h);
+idaman bool ida_export dirtree_remove_event_handler(dirtree_impl_t *d, class event_handler_t *h);
 #endif // SWIG
-
-
 
 
 /// \endcond
@@ -340,6 +364,18 @@ public:
     return de;
   }
 
+  /// Make cursor from path
+  /// \param path to analyze
+  /// \return directory cursor;
+  ///         if the path is bad, the resolved cursor will be invalid.
+  /// \note see also get_abspath()
+  dirtree_cursor_t make_cursor(const char *path) const
+  {
+    dirtree_cursor_t cursor;
+    dirtree_make_cursor(&cursor, d, path);
+    return cursor;
+  }
+
   /// Resolve path
   /// \param path to analyze
   /// \return directory entry
@@ -393,11 +429,14 @@ public:
   /// \param diridx directory index
   /// \param enable action to do
   ///               TRUE  - enable ordering: re-order existing entries so that
-  ///                       all subdirs are at the to beginning of the list,
+  ///                       all subdirs are at the beginning of the list,
   ///                       file entries are sorted and placed after the subdirs
   ///               FALSE - disable ordering, no changes to existing entries
-  /// \return SUCCESS
-  bool set_natural_order(diridx_t diridx, bool enable) const { return dirtree_set_natural_order(d, diridx, enable); }
+  /// \return \ref dterr_t error code
+  dterr_t set_natural_order(diridx_t diridx, bool enable) const
+  {
+    return dirtree_set_natural_order(d, diridx, enable);
+  }
 
   /// Get dir size
   /// \param diridx directory index
@@ -462,7 +501,7 @@ public:
   /// \return \ref dterr_t error code
   dterr_t unlink(inode_t inode) { return dirtree_link_inode(d, inode, false); }
 
-  /// Rename a directory entry.
+  /// Rename a directory entry
   /// \param from source path
   /// \param to destination path
   /// \return \ref dterr_t error code
@@ -470,6 +509,43 @@ public:
   dterr_t rename(const char *from, const char *to)
   {
     return dirtree_rename(d, from, to);
+  }
+
+  /// Move many items to a directory
+  /// \param items items to move
+  /// \param dstdir destination directory. will be created if does not exist.
+  /// \param dst_rank rank inside the destination directory, where the items
+  ///                 should be moved to. example: 0 means to insert to the
+  ///                 very beginning of the directory.
+  ///                 -1 means to append files to the end of the directory and
+  ///                 insert directories after the first existing directory.
+  ///                 if the rank is different from -1 and the destination
+  ///                 directory has natural ordering and some moved items are
+  ///                 files, then the natural ordering will be disabled.
+  /// \param moved_items buffer for cursors of the successfully moved items
+  /// \param errs buffer for errors. only errors are reported here, in any order
+  /// \return \ref dterr_t error code
+  /// \note the return code refers to the destination directory. for the errors
+  /// related to the source items, see \ref errs
+  dterr_t bulk_move(
+        const dirtree_cursor_vec_t &items,
+        const char *dstdir,
+        ssize_t dst_rank=-1,
+        dirtree_cursor_vec_t *moved_items=nullptr,
+        dirtree_bulk_results_t *errs=nullptr)
+  {
+    return dirtree_bulk_move(d, items, dstdir, dst_rank, moved_items, errs);
+  }
+
+  /// Delete many items
+  /// \param items items to delete
+  /// \param errs buffer for errors. only errors are reported here, in any order
+  /// Directories are deleted recursively, even if they are not empty.
+  dterr_t bulk_remove(
+        const dirtree_cursor_vec_t &items,
+        dirtree_bulk_results_t *errs=nullptr)
+  {
+    return dirtree_bulk_remove(d, items, errs);
   }
 
   /// Get ordering rank of an item.

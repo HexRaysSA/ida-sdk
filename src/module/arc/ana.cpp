@@ -1936,7 +1936,7 @@ static const arcompact_opcode_t arcv2_maj0B[2] =
 };
 
 
-// indexed by major opcode (bits 15..11)
+// indexed by major opcode (bits 15..11 of first halfword or bits 31..27 of the 32-bit word)
 static const arcompact_opcode_t arcv2_major[0x20] =
 {
   { SUBTABLE(16, 16, arcompact_maj0) },             // 0x00
@@ -2393,7 +2393,7 @@ void arc_t::decode_operand(
       x.type = o_displ;
       x.addr = 0;
     }
-    else if ( x.type == o_imm && insn.itype != ARC_lr && insn.itype != ARC_sr )
+    else if ( x.type == o_imm && !is_auxreg_insn(insn) )
     {
       if ( insn.itype == ARC_j || insn.itype == ARC_jl )
         x.type = o_near;
@@ -2650,7 +2650,32 @@ static void simplify(insn_t &insn)
   switch ( insn.itype )
   {
     case ARC_st:
+      // st.aw   rN, [sp,-4] -> push N
+      if ( insn.auxpref == aux_a
+        && insn.Op2.type == o_displ
+        && insn.Op2.reg == SP
+        && insn.Op2.membase == 0
+        && insn.Op2.addr == ea_t(-4) )
+      {
+        insn.itype = ARC_push;
+        insn.auxpref = 0;
+        insn.Op2.type = o_void;
+        break;
+      }
+      [[fallthrough]];
     case ARC_ld:
+      // LD.AB a,[SP,+4] -> pop a
+      if ( insn.itype == ARC_ld
+        && insn.auxpref == aux_ab
+        && insn.Op2.type == o_displ
+        && insn.Op2.reg == SP
+        && insn.Op2.membase == 0
+        && insn.Op2.addr == 4 )
+      {
+        insn.itype = ARC_pop;
+        insn.auxpref = 0;
+        insn.Op2.type = o_void;
+      }
       // ld.as r1, [r2, delta] -> ld r1, [r2, delta*size]
       if ( insn.Op2.type == o_displ
         && insn.Op2.membase == 0

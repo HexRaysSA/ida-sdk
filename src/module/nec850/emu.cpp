@@ -9,7 +9,7 @@
 #include <ida.hpp>
 #include <auto.hpp>
 #include <frame.hpp>
-#include <jumptable.hpp>
+//#include <jumptable.hpp>
 #include <segregs.hpp>
 #include "necv850.hpp"
 
@@ -42,7 +42,18 @@ int nec850_t::nec850_is_sane_insn(const insn_t &insn, int /*no_crefs*/) const
 }
 
 //----------------------------------------------------------------------
-int idaapi nec850_is_sp_based(const insn_t &insn, const op_t &x)
+// movea #imm, sp, reg
+inline bool is_stkvar_offset(const insn_t &insn)
+{
+  return (insn.itype == NEC850_ADDI || insn.itype == NEC850_MOVEA)
+      && insn.Op1.type == o_imm
+      && insn.Op2.is_reg(rSP)
+      && insn.Op3.type != o_void
+      && !insn.Op3.is_reg(rSP);
+}
+
+//----------------------------------------------------------------------
+int nec850_is_sp_based(const insn_t &insn, const op_t &x)
 {
   int res = OP_SP_ADD;
   // we assume that ep-based stackvars are created when EP==SP
@@ -50,45 +61,10 @@ int idaapi nec850_is_sp_based(const insn_t &insn, const op_t &x)
     return res | OP_SP_BASED;
 
   // check for movea   8, sp, r28
-  if ( insn.itype == NEC850_MOVEA && insn.Op2.is_reg(rSP) && x.type == o_imm )
+  if ( is_stkvar_offset(insn) && x.n == 0 )
     return res | OP_SP_BASED;
 
   return res | OP_FP_BASED;
-}
-
-//----------------------------------------------------------------------
-bool idaapi nec850_create_func_frame(func_t *pfn)
-{
-  asize_t frsize = 0;
-  ushort frregs = 0;
-
-  insn_t insn;
-  if ( decode_insn(&insn, pfn->start_ea) != 0
-    && (insn.itype == NEC850_PREPARE_i || insn.itype == NEC850_PREPARE_sp) )
-  {
-    frsize = calc_locals_size(insn.Op2.value);
-    frregs = calc_reglist_size(insn.Op1.value);
-  }
-  return add_frame(pfn, frsize, frregs, 0);
-}
-
-//----------------------------------------------------------------------
-int idaapi nec850_get_frame_retsize(const func_t * /*pfn*/)
-{
-  return 0;
-}
-
-//----------------------------------------------------------------------
-const op_t *nec850_find_vec_reg(const insn_t &insn)
-{
-  for ( int i = 1; i < 3; ++i )
-  {
-    const op_t *op = &insn.ops[i];
-    if ( op->reg >= rVR0 && op->reg <= rVR31 )
-      return op;
-  }
-
-  return nullptr;
 }
 
 //----------------------------------------------------------------------
@@ -112,410 +88,332 @@ ea_t nec850_t::get_fixed_sreg(ea_t ea, const op_t &op) const
   }
   return res;
 };
-//----------------------------------------------------------------------
-bool nec850_t::spoils(const insn_t &insn, uint16 reg) const
-{
-  // 'jarl ..., r2 always spoils r2
-  if ( insn.itype == NEC850_JARL && insn.Op2.is_reg(reg) )
-    return true;
-  if ( is_call_insn(nullptr, insn) )
-  {
-    // Callee-Save registers:
-    // These general-purpose registers must be saved and restored by the
-    // called function. It is thus guaranteed to the caller that the
-    // register contents will be the same before and after the function
-    // call.
-    // r20, r21, r22, r23, r24, r25, r26, r27, r28, r29, r30, r31
-    // General-purpose registers other than the Callee-Save registers above
-    // could be overwritten by the called function.
-    // r3 is a stack pointer.
-    // r4 is a global pointer.
-    uint32 callee_saved = 0xFFF00018;
-    if ( reg == rCTBP )
-      return false;
-    return reg > rR31 || (callee_saved & (1 << reg)) == 0;
-  }
 
-  int n;
-  switch ( insn.itype )
-  {
-    case NEC850_ZXB:
-    case NEC850_SXB:
-    case NEC850_ZXH:
-    case NEC850_SXH:
-    case NEC850_MODADD:
-    case NEC850_VST_DW_FMT6:
-    case NEC850_STV_QW:
-    case NEC850_STVZ_H4:
-      n = 0;
-      break;
-
-    case NEC850_XOR:
-    case NEC850_SUBR:
-    case NEC850_SUB:
-    case NEC850_STSR:
-    case NEC850_SLD_B:
-    case NEC850_SLD_H:
-    case NEC850_SLD_W:
-    case NEC850_SHR:
-    case NEC850_SHL:
-    case NEC850_SATSUBR:
-    case NEC850_SATSUB:
-    case NEC850_SATADD:
-    case NEC850_SAR:
-    case NEC850_OR:
-    case NEC850_NOT:
-    case NEC850_MULH:
-    case NEC850_MOV:
-    case NEC850_LD_B:
-    case NEC850_LD_H:
-    case NEC850_LD_W:
-    case NEC850_AND:
-    case NEC850_ADD:
-    case NEC850_DIVH:
-    case NEC850_BSW:
-    case NEC850_BSH:
-    case NEC850_HSW:
-    case NEC850_SLD_BU:
-    case NEC850_SLD_HU:
-    case NEC850_LD_BU:
-    case NEC850_LD_HU:
-    case NEC850_CLIP_B:
-    case NEC850_CLIP_BU:
-    case NEC850_CLIP_H:
-    case NEC850_CLIP_HU:
-    case NEC850_LDL_BU:
-    case NEC850_LDL_HU:
-    case NEC850_STC_B:
-    case NEC850_STC_H:
-    case NEC850_VNOT:
-    case NEC850_VBSWAP_DW:
-    case NEC850_VBSWAP_H:
-    case NEC850_VBSWAP_W:
-    case NEC850_VLD_DW_FMT5:
-    case NEC850_VABS_H:
-    case NEC850_VABS_W:
-    case NEC850_VNEG_H:
-    case NEC850_VNEG_W:
-    case NEC850_CNVQ15Q30:
-    case NEC850_CNVQ31Q62:
-    case NEC850_CNVQ30Q15:
-    case NEC850_CNVQ62Q31:
-    case NEC850_EXPQ31:
-    case NEC850_MOVV_W4:
-    case NEC850_LDV_QW:
-    case NEC850_STV_DW:
-    case NEC850_STV_W:
-    case NEC850_ABSF_S4:
-    case NEC850_NEGF_S4:
-    case NEC850_RECIPF_S4:
-    case NEC850_RSQRTF_S4:
-    case NEC850_SQRTF_S4:
-    case NEC850_CEILF_SUW4:
-    case NEC850_CEILF_SW4:
-    case NEC850_CVTF_HS4:
-    case NEC850_CVTF_SH4:
-    case NEC850_CVTF_SUW4:
-    case NEC850_CVTF_SW4:
-    case NEC850_CVTF_UWS4:
-    case NEC850_CVTF_WS4:
-    case NEC850_FLOORF_SUW4:
-    case NEC850_FLOORF_SW4:
-    case NEC850_ROUNDF_SUW4:
-    case NEC850_ROUNDF_SW4:
-    case NEC850_TRNCF_SUW4:
-    case NEC850_TRNCF_SW4:
-      n = 1;
-      break;
-
-    case NEC850_XORI:
-    case NEC850_SATSUBI:
-    case NEC850_ORI:
-    case NEC850_MULHI:
-    case NEC850_MOVHI:
-    case NEC850_MOVEA:
-    case NEC850_ANDI:
-    case NEC850_ADDI:
-    case NEC850_SETF:
-    case NEC850_SASF:
-    case NEC850_VAND:
-    case NEC850_VOR:
-    case NEC850_VXOR:
-    case NEC850_VSAR_H:
-    case NEC850_VSAR_W:
-    case NEC850_VSAR_DW:
-    case NEC850_VSHR_H:
-    case NEC850_VSHR_W:
-    case NEC850_VSHR_DW:
-    case NEC850_VSHL_H:
-    case NEC850_VSHL_W:
-    case NEC850_VSHL_DW:
-    case NEC850_DUP_H:
-    case NEC850_DUP_W:
-    case NEC850_VSHUFL_B:
-    case NEC850_MOV_H:
-    case NEC850_MOV_W:
-    case NEC850_VADD_H:
-    case NEC850_VADD_W:
-    case NEC850_VADD_DW:
-    case NEC850_VSUB_H:
-    case NEC850_VSUB_W:
-    case NEC850_VSUB_DW:
-    case NEC850_VADDSAT_H:
-    case NEC850_VADDSAT_W:
-    case NEC850_VSUBSAT_H:
-    case NEC850_VSUBSAT_W:
-    case NEC850_VADDS_H:
-    case NEC850_VADDS_W:
-    case NEC850_VSUBS_H:
-    case NEC850_VSUBS_W:
-    case NEC850_VMUL_H:
-    case NEC850_VMUL_W:
-    case NEC850_VMULT_H:
-    case NEC850_VMULT_W:
-    case NEC850_VMULCX_H:
-    case NEC850_VMULCX_W:
-    case NEC850_VCMPEQ_H:
-    case NEC850_VCMPEQ_W:
-    case NEC850_VCMPLT_H:
-    case NEC850_VCMPLT_W:
-    case NEC850_VCMPLE_H:
-    case NEC850_VCMPLE_W:
-    case NEC850_VCMPNE_H:
-    case NEC850_VCMPNE_W:
-    case NEC850_VMADSAT_H:
-    case NEC850_VMADSAT_W:
-    case NEC850_VMADRN_H:
-    case NEC850_VMADRN_W:
-    case NEC850_VMSUM_H:
-    case NEC850_VMSUM_W:
-    case NEC850_VMSUMAD_H:
-    case NEC850_VMSUMAD_W:
-    case NEC850_VMSUMADRE_H:
-    case NEC850_VMSUMADRE_W:
-    case NEC850_VMSUMADIM_H:
-    case NEC850_VMSUMADIM_W:
-    case NEC850_VMSUMADRN_H:
-    case NEC850_PKI16UI8:
-    case NEC850_PKI32I16:
-    case NEC850_PKQ31Q15:
-    case NEC850_PKQ30Q31:
-    case NEC850_PKI64I32:
-    case NEC850_FLPV_S4:
-    case NEC850_LDV_DW:
-    case NEC850_LDV_W:
-    case NEC850_LDVZ_H4:
-    case NEC850_ADDF_S4:
-    case NEC850_DIVF_S4:
-    case NEC850_MAXF_S4:
-    case NEC850_MINF_S4:
-    case NEC850_MULF_S4:
-    case NEC850_SUBF_S4:
-    case NEC850_FMAF_S4:
-    case NEC850_FMSF_S4:
-    case NEC850_FNMAF_S4:
-    case NEC850_FNMSF_S4:
-    case NEC850_ADDSUBF_S4:
-    case NEC850_ADDSUBNF_S4:
-    case NEC850_SUBADDF_S4:
-    case NEC850_SUBADDNF_S4:
-    case NEC850_ADDXF_S4:
-    case NEC850_MULXF_S4:
-    case NEC850_SUBXF_S4:
-    case NEC850_ADDSUBNXF_S4:
-    case NEC850_ADDSUBXF_S4:
-    case NEC850_SUBADDNXF_S4:
-    case NEC850_SUBADDXF_S4:
-    case NEC850_ADDRF_S4:
-    case NEC850_MAXRF_S4:
-    case NEC850_MINRF_S4:
-    case NEC850_MULRF_S4:
-    case NEC850_SUBRF_S4:
-      n = 2;
-      break;
-
-    case NEC850_CMOV:
-    case NEC850_VCONCAT_B:
-    case NEC850_VCMOV:
-    case NEC850_VCALCH:
-    case NEC850_VCALCW:
-    case NEC850_SHFLV_W4:
-    case NEC850_CMOVF_W4:
-    case NEC850_CMPF_S4:
-      n = 3;
-      break;
-
-    case NEC850_VITLV_H:
-    case NEC850_VITLV_W:
-    case NEC850_VITLVHW_H:
-    case NEC850_VITLVWH_H:
-      return insn.Op1.is_reg(reg) || insn.Op2.is_reg(reg);
-
-    case NEC850_MUL:
-    case NEC850_MULU:
-    case NEC850_DIVH_r3:
-    case NEC850_DIVHU:
-    case NEC850_DIV:
-    case NEC850_DIVU:
-    case NEC850_VBIQ_H:
-    case NEC850_PKUI8I16:
-    case NEC850_PKI16I32:
-    case NEC850_PKQ15Q31:
-      return insn.Op2.is_reg(reg) || insn.Op3.is_reg(reg);
-
-    case NEC850_DISPOSE_r0:
-    case NEC850_DISPOSE_r:
-      return reg == rSP || reg_in_list12(reg, insn.Op2.value);
-
-    case NEC850_PREPARE_sp:
-      return reg == rSP || reg == rEP;
-
-    case NEC850_PREPARE_i:
-      return reg == rSP;
-    case NEC850_MOV_DW:
-      {
-        const op_t *vec_op = nec850_find_vec_reg(insn);
-        return insn.Op2.is_reg(reg)
-            || (reg > 1 && insn.Op2.is_reg(reg - 1))
-            || (vec_op != nullptr && vec_op->is_reg(reg));
-      }
-    case NEC850_LD_DW:
-      return insn.Op2.is_reg(reg)
-          || (reg > 1 && insn.Op2.is_reg(reg - 1));
-    case NEC850_VLD_B:
-    case NEC850_VLD_B_FMT3:
-    case NEC850_VLD_H:
-    case NEC850_VLD_W:
-    case NEC850_VLD_DW:
-    case NEC850_VLD_DW_FMT3:
-      {
-        const op_t *vec_op = nec850_find_vec_reg(insn);
-        return insn.Op1.is_reg(reg) || (vec_op != nullptr && vec_op->is_reg(reg));
-      }
-    case NEC850_VLD_B_FMT4:
-    case NEC850_VLD_W_FMT4:
-    case NEC850_VLD_DW_FMT4:
-      return insn.Op2.is_reg(reg) || insn.Op3.is_reg(reg);
-    case NEC850_VST_B:
-    case NEC850_VST_H:
-    case NEC850_VST_W:
-    case NEC850_VST_DW:
-      return insn.Op1.is_reg(reg) || insn.Op2.is_reg(reg);
-    case NEC850_VST_B_FMT4:
-    case NEC850_VST_H_FMT_4_5:
-    case NEC850_VST_W_FMT_4_5:
-    case NEC850_VST_DW_FMT_4_5:
-      return insn.Op1.is_reg(reg) || insn.Op3.is_reg(reg);
-    case NEC850_VMAXGT_H:
-    case NEC850_VMAXGE_H:
-    case NEC850_VMINLT_H:
-    case NEC850_VMINLE_H:
-    case NEC850_VMAXGT_W:
-    case NEC850_VMAXGE_W:
-    case NEC850_VMINLT_W:
-    case NEC850_VMINLE_W:
-      return insn.Op1.is_reg(reg)
-          || insn.Op3.is_reg(reg)
-          || (reg > 1 && insn.Op3.is_reg(reg - 1));
-    case NEC850_LDSR: // LDSR, RESBANK are inaccurate for now until we implement proper system register support, so we pretend it's always sellID 0
-      return insn.Op2.is_reg(reg);
-    case NEC850_RESBANK:
-      return true;
-    default:
-      return false;
-  }
-  return insn.ops[n].is_reg(reg);
-}
-
-//----------------------------------------------------------------------
-// does the instruction spoil the flags?
-static bool spoils_flags(const insn_t &insn)
+//-------------------------------------------------------------------------
+bool is_branch_insn(const insn_t &insn)
 {
   switch ( insn.itype )
   {
-    case NEC850_ADD:
-    case NEC850_ADDI:
-    case NEC850_ADF:
-    case NEC850_AND:
-    case NEC850_ANDI:
-    case NEC850_BSH:
-    case NEC850_BSW:
-    case NEC850_CAXI:
-    case NEC850_CLR1:
-    case NEC850_CMP:
+    case NEC850_JR:
+    case NEC850_JMP:
+    case NEC850_CALLT:
+    case NEC850_SWITCH:
+    case NEC850_LOOP:
+    case NEC850_RETI:
     case NEC850_CTRET:
-    case NEC850_DIV:
-    case NEC850_DIVH:
-    case NEC850_DIVHU:
-    case NEC850_DIVH_r3:
-    case NEC850_DIVQ:
-    case NEC850_DIVQU:
-    case NEC850_DIVU:
     case NEC850_EIRET:
     case NEC850_FERET:
-    case NEC850_HSH:
-    case NEC850_HSW:
-    case NEC850_NOT:
-    case NEC850_NOT1:
-    case NEC850_OR:
-    case NEC850_ORI:
-    case NEC850_RETI:
-    case NEC850_SAR:
-    case NEC850_SATADD:
-    case NEC850_SATSUB:
-    case NEC850_SATSUBI:
-    case NEC850_SATSUBR:
-    case NEC850_SBF:
-    case NEC850_SCH0L:
-    case NEC850_SCH0R:
-    case NEC850_SCH1L:
-    case NEC850_SCH1R:
-    case NEC850_SET1:
-    case NEC850_SHL:
-    case NEC850_SHR:
-    case NEC850_SUB:
-    case NEC850_SUBR:
-    case NEC850_TST:
-    case NEC850_TST1:
-    case NEC850_XOR:
-    case NEC850_XORI:
-
-    case NEC850_BINS:
-    case NEC850_ROTL:
-    case NEC850_CLIP_B:
-    case NEC850_CLIP_BU:
-    case NEC850_CLIP_H:
-    case NEC850_CLIP_HU:
-    case NEC850_VABS_H:
-    case NEC850_VABS_W:
-    case NEC850_VNEG_H:
-    case NEC850_VNEG_W:
-    case NEC850_VMADSAT_H:
-    case NEC850_VMADSAT_W:
-    case NEC850_VMADRN_H:
-    case NEC850_VMADRN_W:
-    case NEC850_VMSUMAD_H:
-    case NEC850_VMSUMAD_W:
-    case NEC850_VMSUMADRE_H:
-    case NEC850_VMSUMADRE_W:
-    case NEC850_VMSUMADIM_H:
-    case NEC850_VMSUMADIM_W:
-    case NEC850_VMSUMADRN_H:
-    case NEC850_VBIQ_H:
-    case NEC850_PKI32I16:
-    case NEC850_PKQ31Q15:
-    case NEC850_PKQ30Q31:
-    case NEC850_PKI64I32:
-    case NEC850_CNVQ30Q15:
-    case NEC850_CNVQ62Q31:
-    case NEC850_VCALCH:
-    case NEC850_VCALCW:
-    case NEC850_TRFSRV_W4:
+    case NEC850_DBRET:
+    case NEC850_DISPOSE_r:
       return true;
 
+    case NEC850_BV:
+    case NEC850_BL:
+    case NEC850_BZ:
+    case NEC850_BNH:
+    case NEC850_BN:
+    case NEC850_BR:
+    case NEC850_BLT:
+    case NEC850_BLE:
+    case NEC850_BNV:
+    case NEC850_BNC:
+    case NEC850_BNZ:
+    case NEC850_BH:
+    case NEC850_BP:
+    case NEC850_BSA:
+    case NEC850_BGE:
+    case NEC850_BGT:
+      return true;
+
+    case NEC850_DBHVTRAP:
+    case NEC850_DBTRAP:
+    case NEC850_FETRAP:
+    case NEC850_HALT:
+    case NEC850_HVCALL:
+    case NEC850_HVTRAP:
+    case NEC850_RIE:
+    case NEC850_RMTRAP:
+    case NEC850_SYSCALL:
+    case NEC850_TRAP:
+      return true;
+
+    case NEC850_JARL:
+      if ( insn.Op1.type == o_reg )
+        return true;
+      // assert: insn.Op1.type == o_near
+      return to_ea(insn.cs, insn.Op1.addr) != insn.ea + insn.size;
+  }
+  return false;
+}
+
+//-------------------------------------------------------------------------
+bool nec850_t::is_call_insn(const insn_t &insn) const
+{
+  ea_t nextaddr = insn.ea + insn.size;
+  switch ( insn.itype )
+  {
+    case NEC850_JARL:
+      // jarl nextaddr, r2 == jump
+      if ( to_ea(insn.cs, insn.Op1.addr) != nextaddr )
+        return true;
+      break;
+    case NEC850_CALLT:
+      return true;
+    case NEC850_JMP:
+      if ( insn.Op1.type == o_reg && insn.Op1.reg != rLP )
+      {
+        // jmp + lp points to nextaddr == call
+        // use ONLY_LINEAR because this function can be called from
+        // find_rvi()
+        ea_t lp_val;
+        if ( find_reg_definition(&lp_val, nullptr,
+                                 insn.ea, rLP, /*only_linear*/true)
+          && lp_val == nextaddr )
+        {
+          return true;
+        }
+      }
+      break;
+  }
+  return false;
+}
+
+//--------------------------------------------------------------------------
+reglist_t nec850_t::callee_saved_regs() const
+{
+  // Callee-Save registers:
+  // These general-purpose registers must be saved and restored by the
+  // called function. It is thus guaranteed to the caller that the register
+  // contents will be the same before and after the function call.
+  // r20, r21, r22, r23, r24, r25, r26, r27, r28, r29, r30(*), r31(**)
+  // General-purpose registers other than the Callee-Save registers above
+  // could be overwritten by the called function.
+  // r3 is a stack pointer.
+  // It is possible to specify usage of r4, r5, and r30(*) using options:
+  // - r4 is the global pointer,
+  // - r5 is the text pointer,
+  // - r30 (*) is the element pointer (we have no binaries with fixed EP),
+  // (**) I doubt that LP is a callee-saved register.
+  reglist_t regs;
+  regs.add_range(rR20, 10);
+  regs.add(rSP);
+  if ( g_gp_ea != BADADDR )
+    regs.add(rGP); // if it is globally set it should be preserved
+  if ( g_tp_ea != BADADDR )
+    regs.add(rTP); // if it is globally set it should be preserved
+  return regs;
+}
+
+//-------------------------------------------------------------------------
+void nec850_t::spoils(reglist_t *regs, const insn_t &insn) const
+{
+  // we don't create yet another insn code for Format XI insns (with 3
+  // registers), so we should check them explicitly.
+  // for these insns the correct descripion for Format XI should be:
+  // { "shr",    CF_USE1|CF_USE2|CF_CHG3|CF_SHFT }, // Shift Logical Right (Format XI)
+  // { "shl",    CF_USE1|CF_USE2|CF_CHG3|CF_SHFT }, // Shift Logical Left (Format XI)
+  // { "satsub", CF_USE1|CF_USE2|CF_CHG3         }, // Saturated Subtract (Format XI)
+  // { "satadd", CF_USE1|CF_USE2|CF_CHG3         }, // Saturated Add (Format XI)
+  // { "sar",    CF_USE1|CF_USE2|CF_CHG3|CF_SHFT }, // Shift Arithmetic Right (Format XI)
+  // i.e. CF_CHG2 is replaced with CF_CHG3
+  switch ( insn.itype )
+  {
+    case NEC850_SHR:
+    case NEC850_SHL:
+    case NEC850_SATSUB:
+    case NEC850_SATADD:
+    case NEC850_SAR:
+      if ( insn.Op3.type == o_reg )
+      {
+        regs->add(insn.Op3.reg);
+        return;
+      }
+      break;
+    case NEC850_JARL:
+    case NEC850_JR:
+      switch ( v850_is_special_func_call(regs, insn) )
+      {
+        case SPF_SAVE:
+          regs->clear();
+          regs->add(rSP);
+          regs->add(rR10);  // used as a scratch register
+          return;
+        case SPF_RETURN:
+          regs->add(rSP);
+          if ( insn.itype == NEC850_JARL )
+            regs->add(rLP);
+          return;
+        default:
+          break;
+      }
     default:
-      // other insns don't spoil fixed point flags
-      return false;
+      break;
+  }
+
+  uint32 feature = insn.get_canon_feature(ph);
+  for ( size_t i = 0; i < PROC_MAXOP; ++i )
+  {
+    if ( !has_cf_chg(feature, i) )
+      continue;
+    const op_t &x = insn.ops[i];
+    if ( x.type == o_reg )
+    {
+      regs->add(x.reg);
+    }
+    else if ( x.type == o_reglist )
+    {
+      regs->add_reglist(x);
+    }
+    else if ( x.type == o_regrange )
+    {
+      int count = x.regrange_high - x.regrange_low + 1;
+      if ( count > 0 )
+        regs->add_range(x.regrange_low, count);
+    }
+  }
+
+  // the addressing modes that change the base register: [reg]+ or [reg]-
+  // find the memory operand
+  for ( size_t i = 0; i < PROC_MAXOP; ++i )
+  {
+    const op_t &x = insn.ops[i];
+    if ( (x.type == o_displ
+       || x.type == o_phrase
+       || x.type == o_reg && (x.specflag1 & N850F_USEBRACKETS) != 0)
+      && (x.specflag1 & (N850F_POST_INCREMENT|N850F_POST_DECREMENT)) != 0 )
+    {
+      regs->add(x.phrase);
+      break;
+    }
+  }
+
+  if ( is_call_insn(insn) )
+  {
+    reglist_t saved = callee_saved_regs();
+    saved.invert_gprs();
+    regs->add(saved);
+  }
+
+  switch ( insn.itype )
+  {
+    // the insns with 64-bit result
+    case NEC850_MAC:
+    case NEC850_MACU:
+      regs->add(insn.Op4.reg + 1);
+      break;
+    case NEC850_STTC_VR:
+    case NEC850_LD_DW:
+      regs->add(insn.Op2.reg + 1);
+      break;
+    case NEC850_MOV_DW:
+      if ( insn.Op2.type == o_reg && is_gpr(insn.Op2.reg) )
+        regs->add(insn.Op2.reg + 1);
+      break;
+
+    // the insns that implicitly change SP
+    case NEC850_PREPARE_sp:
+      regs->add(rEP);
+      [[fallthrough]];
+    case NEC850_DISPOSE_r0:
+    case NEC850_DISPOSE_r:
+    case NEC850_PREPARE_i:
+    case NEC850_PUSHSP:
+    case NEC850_POPSP:
+      regs->add(rSP);
+      break;
+
+    case NEC850_RESBANK:
+      // this insn may restore R1-R31
+      regs->add_range(rR1, 31);
+      break;
+
+    default:
+      break;
+  }
+}
+
+//-------------------------------------------------------------------------
+void nec850_t::uses(reglist_t *regs, const insn_t &insn) const
+{
+  uint32 feature = insn.get_canon_feature(ph);
+  for ( size_t i = 0; i < PROC_MAXOP; ++i )
+  {
+    if ( !has_cf_use(feature, i) )
+      continue;
+    const op_t &x = insn.ops[i];
+    if ( x.type == o_reg )
+    {
+      regs->add(x.reg);
+    }
+    else if ( x.type == o_reglist )
+    {
+      regs->add_reglist(x);
+    }
+    else if ( x.type == o_regrange )
+    {
+      int count = x.regrange_high - x.regrange_low + 1;
+      if ( count > 0 )
+        regs->add_range(x.regrange_low, count);
+    }
+  }
+
+  // for each the indirect memory operand
+  for ( size_t i = 0; i < PROC_MAXOP; ++i )
+  {
+    const op_t &x = insn.ops[i];
+    if ( x.type == o_displ || x.type == o_phrase )
+    {
+      regs->add(x.phrase);
+      // this addressing mode ([reg]%) uses the next register after the
+      // index one
+      if ( (x.specflag1 & N850F_MODULO_ADRESSING) != 0
+        && i + 1 < PROC_MAXOP
+        && insn.ops[i + 1].type == o_reg ) // the index register
+      {
+        regs->add(insn.ops[i + 1].reg + 1);
+      }
+    }
+  }
+
+  // respect ABI
+  if ( is_call_insn(insn) )
+    regs->add_range(rR6, 4); // input registers
+  if ( insn.itype == NEC850_DISPOSE_r && insn.Op3.is_reg(rLP)
+    || insn.itype == NEC850_JMP && insn.Op1.is_reg(rLP) )
+  {
+    regs->add_range(rR10, 2); // return registers
+  }
+
+
+  switch ( insn.itype )
+  {
+    // the insns that use 64-bit registers
+    case NEC850_MAC:
+    case NEC850_MACU:
+      regs->add(insn.Op3.reg + 1);
+      break;
+    case NEC850_LDTC_VR:
+    case NEC850_MODADD:
+    case NEC850_ST_DW:
+      regs->add(insn.Op1.reg + 1);
+      break;
+    case NEC850_MOV_DW:
+      if ( insn.Op1.type == o_reg && is_gpr(insn.Op1.reg) )
+        regs->add(insn.Op1.reg + 1);
+      break;
+
+    // the insns that implicitly use SP
+    case NEC850_PREPARE_sp:
+    case NEC850_DISPOSE_r0:
+    case NEC850_DISPOSE_r:
+    case NEC850_PREPARE_i:
+    case NEC850_PUSHSP:
+    case NEC850_POPSP:
+      regs->add(rSP);
+      break;
+
+    default:
+      break;
   }
 }
 
@@ -548,19 +446,92 @@ ea_t nec850_t::get_callt_ea(const insn_t &insn) const
   return insn.Op1.addr;
 }
 
+//-------------------------------------------------------------------------
+// we have a possible reference from FROM to TARGET
+// check if we should make it an offset
+// like arm_t::good_target()
+static bool is_good_target(ea_t target)
+{
+  segment_t *seg = getseg(target);
+  if ( seg == nullptr )
+    return false;
+  if ( target < 0x10000 || !is_mapped(target) )
+    return false;
+
+  flags64_t F32 = get_flags32(target);
+  // check if it points to code
+  if ( is_code(F32) )
+  {
+    if ( !is_head(F32) ) // middle of instruction?
+      return false;
+    // references to the possible function start are accepted
+    func_t *pfn = get_func(target);
+    if ( pfn == nullptr )
+      return !is_flow(F32);
+    return target == pfn->start_ea;
+  }
+  // check if it points into a DATA segment
+  qstring segname;
+  get_segm_name(&segname, seg);
+  if ( is_data(F32)
+    || seg->type == SEG_DATA
+    || seg->type == SEG_BSS
+    || segname == "ROM" // e.g. a firmware image
+    || seg->start_ea == target )
+  {
+    // skip pointers to the loader header
+    if ( segname == "HEADER" || segname == "LOAD" )
+      return false;
+    // like kdata_t::good_offset_value()
+    if ( !is_tail(F32) )
+      return true;
+    // references to the beginning of a structure field are accepted
+    ea_t head = get_item_head(target);
+    if ( is_struct(get_flags32(head)) )
+    {
+      tinfo_t tif;
+      tif.get_type_by_tid(get_strid(head));
+      if ( tif.is_udt() )
+      {
+        uint64 offset = (target - head) * 8LL;
+        if ( !tif.get_innermost_member_type(offset, &offset).empty()
+          && offset == 0 )
+        {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 //----------------------------------------------------------------------
 void nec850_t::handle_operand(
         const insn_t &insn,
         const op_t &op,
         bool isRead) const
 {
-  ea_t ea;
   flags64_t F = get_flags(insn.ea);
   atype_t auto_state = get_auto_state();
   switch ( op.type )
   {
     case o_imm:
       set_immd(insn.ea);
+      // AF_IMMOFF is off for our processor
+      // so we do the same thing only for some insn types
+      if ( !inf_op_offset()
+        && op.n == 0
+        && !is_defarg0(F)
+        && (insn.itype == NEC850_MOV
+         || insn.itype == NEC850_CMP
+         || insn.itype == NEC850_MOVEA
+         || insn.itype == NEC850_ADDI && !insn.Op2.is_reg(rSP)
+         || insn.itype == NEC850_ADD && !insn.Op2.is_reg(rSP))
+        && is_good_target(op.value) )
+      {
+        op_plain_offset(insn.ea, op.n, 0);
+        F = get_flags(insn.ea);
+      }
       if ( op_adds_xrefs(F, op.n) )
         insn.add_off_drefs(op, dr_O, 0);
       break;
@@ -577,23 +548,55 @@ void nec850_t::handle_operand(
           if ( pfn != nullptr && insn.create_stkvar(op, op.addr, STKVAR_VALID_SIZE) )
             op_stkvar(insn.ea, op.n);
         }
-        else if ( auto_state == AU_USED
-               && find_regval(&ea, insn.ea, op.phrase) )
+        else if ( auto_state == AU_USED )
         {
-          refinfo_t ri;
-          ri.flags = REF_OFF32|REFINFO_PASTEND|REFINFO_NOBASE|REFINFO_SIGNEDOP;
-          ri.target = BADADDR;
-          ri.base = ea;
-          ri.tdelta = 0;
-          op_offset_ex(insn.ea, op.n, &ri);
-          F = get_flags(insn.ea);
+          bool ok = false;
+          reg_value_info_t rvi;
+          ea_t ea;
+          if ( find_rvi(&rvi, insn.ea, op.phrase) && rvi.get_num(&ea) )
+          {
+            uint32 flags = REF_OFF32
+                         | REFINFO_PASTEND
+                         | REFINFO_NOBASE
+                         | REFINFO_SIGNEDOP;
+            op_offset(insn.ea, op.n, flags, BADADDR, ea);
+            ok = true;
+          }
+          insn_t movhi;
+          if ( !ok
+            && int(op.addr) >= SHRT_MIN
+            && int(op.addr) <= SHRT_MAX
+            && rvi.is_unkinsn()
+            && rvi.get_def_itype() == NEC850_MOVHI
+            && decode_insn(&movhi, rvi.get_def_ea()) > 0 )
+          {
+            // assert: movhi.Op1.type == o_imm
+            ea = int16(op.addr) + (movhi.Op1.value << 16);
+            if ( is_good_target(ea) )
+            {
+              uint32 flags = REF_LOW16 | REFINFO_PASTEND | REFINFO_SIGNEDOP;
+              op_offset(insn.ea, op.n, flags, ea);
+              if ( !is_defarg0(get_flags32(movhi.ea)) )
+              {
+                flags = ref_ha16_id | REFINFO_PASTEND | REFINFO_SIGNEDOP;
+                op_offset(movhi.ea, 0, flags, ea);
+              }
+              ok = true;
+            }
+          }
+          if ( !ok && !inf_op_offset() && is_good_target(op.addr) )
+          {
+            // assume a zero based index
+            op_plain_offset(insn.ea, op.n, 0);
+          }
         }
+        F = get_flags(insn.ea);
       }
 
       if ( op_adds_xrefs(F, op.n) )
       { // create data xrefs
         int outf = get_displ_outf(insn, op, F);
-        ea = insn.add_off_drefs(op, isRead ? dr_R : dr_W, outf);
+        ea_t ea = insn.add_off_drefs(op, isRead ? dr_R : dr_W, outf);
         if ( ea != BADADDR )
           insn.create_op_data(ea, op);
       }
@@ -608,7 +611,7 @@ void nec850_t::handle_operand(
     case o_mem:
       if ( uval2ea(op.addr) != BADADDR )
       {
-        ea = to_ea(insn.cs, op.addr);
+        ea_t ea = to_ea(insn.cs, op.addr);
         insn.create_op_data(ea, op);
         insn.add_dref(op.addr, op.offb, isRead ? dr_R : dr_W);
       }
@@ -616,28 +619,73 @@ void nec850_t::handle_operand(
   }
 }
 
+//-------------------------------------------------------------------------
+// for PREPARE/DISPOSE
+int nec850_t::calc_stack_delta(const insn_t &insn) const
+{
+  reglist_t regs;
+  uval_t locals = 0;
+  bool sub;
+  switch ( insn.itype )
+  {
+    case NEC850_PREPARE_i:
+    case NEC850_PREPARE_sp:
+      regs.add_reglist(insn.Op1);
+      locals = insn.Op2.value;
+      sub = true;
+      break;
+    case NEC850_DISPOSE_r:
+    case NEC850_DISPOSE_r0:
+      regs.add_reglist(insn.Op2);
+      locals = insn.Op1.value;
+      sub = false;
+      break;
+    case NEC850_JARL:
+    case NEC850_JR:
+      switch ( v850_is_special_func_call(&regs, insn) )
+      {
+        case SPF_SAVE:
+          sub = true;
+          break;
+        case SPF_RETURN:
+          sub = false;
+          break;
+        default:
+          return 0;
+      }
+      break;
+    default:
+      return 0;
+  }
+  int res = (regs.count() + locals) * 4;
+  return sub ? -res : res;
+}
+
 //----------------------------------------------------------------------
-static void idaapi trace_sp(func_t *pfn, const insn_t &insn)
+void nec850_t::trace_sp(func_t *pfn, const insn_t &insn) const
 {
   sval_t delta;
   switch ( insn.itype )
   {
     case NEC850_PREPARE_i:
     case NEC850_PREPARE_sp:
-      delta = 0 - calc_stack_delta(insn.Op1.value, insn.Op2.value);
-      break;
     case NEC850_DISPOSE_r:
     case NEC850_DISPOSE_r0:
-      // count registers in LIST12 and use the imm5 for local vars
-      delta = calc_stack_delta(insn.Op2.value, insn.Op1.value);
+    case NEC850_JARL:
+    case NEC850_JR:
+      delta = calc_stack_delta(insn);
       break;
     case NEC850_ADD:
     case NEC850_ADDI:
     case NEC850_MOVEA:
-      if ( insn.Op1.type != o_imm )
-        return;
-      delta = insn.Op1.value;
-      break;
+      if ( insn.Op1.type == o_imm
+        && insn.Op2.is_reg(rSP)
+        && (insn.Op3.type == o_void || insn.Op3.is_reg(rSP)) )
+      {
+        delta = insn.Op1.value;
+        break;
+      }
+      return;
     case NEC850_PUSHSP:
     case NEC850_POPSP:
       // assert: insn.Op1.type == o_regrange
@@ -652,19 +700,21 @@ static void idaapi trace_sp(func_t *pfn, const insn_t &insn)
 }
 
 //-------------------------------------------------------------------------
-bool nec850_t::find_lp_definition(
-        ea_t *_lp_val,
+bool nec850_t::find_reg_definition(
+        ea_t *_val,
         offset_info_t *offinfo,
-        ea_t ea) const
+        ea_t ea,
+        int reg,
+        bool only_linear) const
 {
-  // look for the first defining insn in the linear flow (linear_insn=20)
-  reg_value_info_t lp;
-  if ( !find_rvi(&lp, ea, rLP, 0, 20) )
+  // look for the defining insn
+  reg_value_info_t rvi;
+  if ( !find_rvi(&rvi, ea, reg, 0, only_linear ? 20 : 0) )
     return false;
-  if ( !lp.is_num() || !lp.is_value_unique() )
+  if ( !rvi.is_num() || !rvi.is_value_unique() )
     return false;
-  const reg_value_def_t &lp_val = *lp.vals_begin();
-  switch ( lp_val.def_itype )
+  const reg_value_def_t &val = *rvi.vals_begin();
+  switch ( val.def_itype )
   {
     case NEC850_MOV:
     case NEC850_MOVEA:
@@ -672,38 +722,36 @@ bool nec850_t::find_lp_definition(
       // mov loc, lp
       // movea (loc - 0xXXXX), r29, lp
       // add loc - PC, lp
+      *_val = val.val;
+      if ( offinfo != nullptr )
       {
+        offinfo->ea = BADADDR;
         insn_t insn;
-        if ( decode_insn(&insn, lp_val.def_ea) <= 0 )
-          break;
-        if ( insn.Op1.type != o_imm )
-          break;
-        *_lp_val = lp_val.val;
-        if ( offinfo != nullptr )
+        if ( decode_insn(&insn, val.def_ea) > 0 && insn.Op1.type == o_imm )
         {
-          offinfo->ea = lp_val.def_ea;
+          offinfo->ea = val.def_ea;
           offinfo->n = 0;
           offinfo->flags = REF_OFF32;
           offinfo->base = 0;
-          if ( lp_val.def_itype == NEC850_MOVEA )
+          if ( val.def_itype == NEC850_MOVEA )
             offinfo->flags |= REFINFO_NOBASE;
-          if ( lp_val.def_itype != NEC850_MOV )
+          if ( val.def_itype != NEC850_MOV )
           {
             offinfo->flags |= REFINFO_SIGNEDOP;
-            // ensuring target == lp_val.val
-            offinfo->base = lp_val.val - insn.Op1.value;
+            // ensuring target == val.val
+            offinfo->base = val.val - insn.Op1.value;
           }
         }
-        return true;
       }
+      return true;
     case NEC850_JARL:
-      *_lp_val = lp_val.val;
+    case NEC850_LD_W:
+    case NEC850_SLD_W:
+      *_val = val.val;
       if ( offinfo != nullptr )
         offinfo->ea = BADADDR;
       return true;
   }
-  // msg("@@@jmp [r1] at %a, lp==%s\n",
-  //     ea, lp_val.dstr(reg_value_def_t::UVAL, this).c_str());
   return false;
 }
 
@@ -720,10 +768,12 @@ bool nec850_t::handle_call_or_jump(const insn_t &insn) const
   // jarl  [r1], r2 (o_reg)   call
   // callt imm      (o_imm)   call
   // callt addr     (o_near)  call
-  // jarl nextaddr, r2 == jump (w/o flow)
+  // jarl  nextaddr, r2 == jump (w/o flow)
   // jmp + lp points to nextaddr == call + flow
-  // jmp + lp points somewhere == call + jump
+  // jmp + lp points somewhere   == call + jump
+  // jalr  _return_r31        jump
   // we ignore [r0] targets
+
   ea_t nextaddr = insn.ea + insn.size;
   int reg = -1;
   bool is_call = true;
@@ -738,7 +788,7 @@ bool nec850_t::handle_call_or_jump(const insn_t &insn) const
         {
           ea_t lp_val;
           offset_info_t offinfo;
-          if ( find_lp_definition(&lp_val, &offinfo, insn.ea) )
+          if ( find_reg_definition(&lp_val, &offinfo, insn.ea, rLP) )
           {
             if ( offinfo.ea != BADADDR )
             {
@@ -788,6 +838,7 @@ bool nec850_t::handle_call_or_jump(const insn_t &insn) const
   }
 
   ea_t target;
+  offset_info_t offinfo;
   if ( reg == -1 || reg == rZERO && insn.Op1.type == o_displ )
   {
     // assert: insn.Op1.type == o_near
@@ -795,10 +846,21 @@ bool nec850_t::handle_call_or_jump(const insn_t &insn) const
   }
   else if ( reg != rZERO
          && get_auto_state() == AU_USED
-         && find_regval(&target, insn.ea, reg) )
+         && find_reg_definition(&target, &offinfo, insn.ea, reg) )
   {
     if ( insn.Op1.type == o_displ )
+    {
       target = trunc_ea(target + insn.Op1.addr);
+    }
+    else if ( offinfo.ea != BADADDR )
+    {
+      // assert: insn.Op1.type == o_reg
+      op_offset(offinfo.ea,
+                offinfo.n,
+                offinfo.flags,
+                BADADDR,
+                offinfo.base);
+    }
   }
   else
   {
@@ -817,52 +879,23 @@ bool nec850_t::handle_call_or_jump(const insn_t &insn) const
     if ( decode_insn(&tmp, target) != 0 && is_ret_itype(tmp) )
       flow = false;
   }
+  if ( flow && v850_is_special_func(nullptr, target) == SPF_RETURN )
+    flow = false;
+  if ( is_call )
+    auto_apply_type(insn.ea, target);
   return flow;
-}
-
-//-------------------------------------------------------------------------
-bool nec850_t::is_call_insn(ea_t *next_ea, const insn_t &insn) const
-{
-  ea_t nextaddr = insn.ea + insn.size;
-  switch ( insn.itype )
-  {
-    default:
-      return false;
-    case NEC850_JARL:
-      // jarl nextaddr, r2 == jump (w/o flow)
-      if ( to_ea(insn.cs, insn.Op1.addr) == nextaddr )
-        return false;
-      break;
-    case NEC850_CALLT:
-      {
-        ea_t callt_ea = get_callt_ea(insn);
-        if ( is_mapped(callt_ea) )
-          nextaddr = callt_ea;
-        break;
-      }
-    case NEC850_JMP:
-      if ( insn.Op1.type != o_reg || insn.Op1.reg == rLP )
-        return false;
-      // jmp + lp points to nextaddr == call + flow
-      // jmp + lp points somewhere == call + jump
-      if ( !find_lp_definition(&nextaddr, nullptr, insn.ea) )
-        return false;
-      break;
-  }
-  if ( next_ea )
-    *next_ea = nextaddr;
-  return true;
 }
 
 //-------------------------------------------------------------------------
 int nec850_t::nec850_emu(const insn_t &insn) const
 {
-  int aux = insn.auxpref;
   int Feature = insn.get_canon_feature(ph);
 
   // detect the flow to the next insn
   bool flow = (Feature & CF_STOP) == 0;
-  if ( is_call_or_jump(insn.itype) )
+  if ( nec850_is_switch(insn) )
+    flow = false;
+  else if ( is_call_or_jump(insn.itype) )
     flow = handle_call_or_jump(insn);
   // restore flow as soon as possible
   if ( flow )
@@ -884,37 +917,43 @@ int nec850_t::nec850_emu(const insn_t &insn) const
   if ( Feature & CF_JUMP )
     remember_problem(PR_JUMP, insn.ea);
 
-  flags64_t F = get_flags(insn.ea);
-  if ( insn.itype == NEC850_MOVEA
-    && insn.Op1.type == o_imm
-    && !is_defarg(F, insn.Op1.n) )
+  // addi imm, sp, reg
+  if ( may_create_stkvars()
+    && !is_defarg0(get_flags32(insn.ea))
+    && is_stkvar_offset(insn) )
   {
-    // movea imm16, sp, reg (reg != sp)
+    // 0 means that we don't know the stkvar size
+    if ( insn.create_stkvar(insn.Op1, insn.Op1.value, 0) )
+      op_stkvar(insn.ea, insn.Op1.n);
+  }
+  if ( !is_defarg0(get_flags32(insn.ea))
+    && insn.itype == NEC850_MOVEA
+    && insn.Op1.type == o_imm )
+  {
     // movea imm16, ep, reg (reg != ep && ep == sp)
     if ( may_create_stkvars()
-      && ( ( insn.Op2.is_reg(rSP) && !insn.Op3.is_reg(rSP) )
-        || ( insn.Op2.is_reg(rEP) && !insn.Op3.is_reg(rEP) && is_ep_equal_to_sp(insn.ea) ) ) )
+      && insn.Op2.is_reg(rEP)
+      && !insn.Op3.is_reg(rEP)
+      && is_ep_equal_to_sp(insn.ea) )
     {
       if ( insn.create_stkvar(insn.Op1, insn.Op1.value, 0) )
-        op_stkvar(insn.ea, insn.Op1.n);
+        op_stkvar(insn.ea, 0);
     }
     else if ( ea_t base = get_fixed_sreg(insn.ea, insn.Op2); base != BADADDR )
     {
-      ea_t ea = trunc_ea(base + insn.Op1.value);
-
-      refinfo_t ri;
-      ri.flags = REF_OFF32|REFINFO_PASTEND|REFINFO_SIGNEDOP|REFINFO_NOBASE;
-      ri.target = BADADDR;
-      ri.base = base;
-      ri.tdelta = 0;
-      op_offset_ex(insn.ea, insn.Op1.n, &ri);
-      F = get_flags(insn.ea);
-      if ( op_adds_xrefs(F, insn.Op1.n) )
-        insn.add_dref(ea, insn.Op1.offb, dr_O);
+      uint32 flags = REF_OFF32
+                   | REFINFO_PASTEND
+                   | REFINFO_SIGNEDOP
+                   | REFINFO_NOBASE;
+      if ( op_offset(insn.ea, 0, flags, BADADDR, base) )
+      {
+        ea_t target = trunc_uval(base + insn.Op1.value);
+        insn.add_dref(target, insn.Op1.offb, dr_O);
+      }
     }
   }
 
-  if ( (aux & N850F_SP) && may_trace_sp() )
+  if ( may_trace_sp() )
   {
     func_t *pfn = get_func(insn.ea);
     if ( pfn != nullptr )
@@ -964,472 +1003,6 @@ bool nec850_is_return(const insn_t &insn, bool strict)
   if ( insn.itype == NEC850_DISPOSE_r0 )
     return !strict;
   return false;
-}
-
-//-------------------------------------------------------------------------
-struct nec850_jump_pattern_t : public jump_pattern_t
-{
-protected:
-  enum { rA, rC };
-
-  nec850_t &pm;
-
-  nec850_jump_pattern_t(
-        procmod_t *_pm,
-        switch_info_t *_si, const char (*_depends)[4])
-    : jump_pattern_t(_si, _depends, rC),
-      pm(*(nec850_t *)_pm)
-  {
-    modifying_r32_spoils_r64 = false;
-    non_spoiled_reg = rA;
-  }
-
-public:
-  virtual bool handle_mov(tracked_regs_t &_regs) override;
-  virtual void check_spoiled(tracked_regs_t *_regs) const override;
-
-protected:
-  // movea  -minv, rA', rA  | add -minv, rA
-  bool jpi_sub_lowcase();
-  // cmp followed by the conditional jump
-  // it calls jpi_condjump() and jpi_cmp_ncases() that can be redefined in
-  // the derived class.
-  bool jpi_cmp_ncases_condjump();
-  // switch rA
-  bool jpi_jump();
-
-  // bh default
-  virtual bool jpi_condjump() newapi;
-  // cmp ncases, rA
-  virtual bool jpi_cmp_ncases() newapi;
-};
-
-//-------------------------------------------------------------------------
-bool nec850_jump_pattern_t::handle_mov(tracked_regs_t &_regs)
-{
-  if ( insn.itype != NEC850_MOV
-    && insn.Op1.type != o_reg
-    && insn.Op2.type != o_reg )
-  {
-    return false;
-  }
-  return set_moved(insn.Op2, insn.Op1, _regs);
-}
-
-//-------------------------------------------------------------------------
-#define PROC_MAXCHGOP 3
-void nec850_jump_pattern_t::check_spoiled(tracked_regs_t *__regs) const
-{
-  tracked_regs_t &_regs = *__regs;
-  for ( uint i = 0; i < _regs.size(); ++i )
-  {
-    const op_t &x = _regs[i];
-    if ( x.type == o_reg && pm.spoils(insn, x.reg)
-      || x.type == o_condjump && ::spoils_flags(insn) )
-    {
-      set_spoiled(&_regs, x);
-    }
-  }
-  check_spoiled_not_reg(&_regs, PROC_MAXCHGOP);
-}
-
-//----------------------------------------------------------------------
-// movea  -minv, rA', rA  | add -minv, rA
-bool nec850_jump_pattern_t::jpi_sub_lowcase()
-{
-  if ( insn.itype == NEC850_MOVEA )
-  {
-    if ( insn.Op1.type != o_imm
-      || insn.Op2.type != o_reg
-      || !is_equal(insn.Op3, rA) )
-    {
-      return false;
-    }
-    trackop(insn.Op2, rA);
-  }
-  else if ( insn.itype == NEC850_ADD )
-  {
-    if ( insn.Op1.type != o_imm || !is_equal(insn.Op2, rA) )
-      return false;
-  }
-  else
-  {
-    return false;
-  }
-  si->lowcase = uval_t(0-uint32(insn.Op1.value));
-  return true;
-}
-
-//-------------------------------------------------------------------------
-// cmp followed by the conditional jump
-bool nec850_jump_pattern_t::jpi_cmp_ncases_condjump(void)
-{
-  // var should not be spoiled
-  QASSERT(10317, !is_spoiled(rA));
-
-  if ( jpi_condjump() // continue matching if found
-    || is_spoiled(rC)
-    || !jpi_cmp_ncases() )
-  {
-    return false;
-  }
-
-  op_t &op = regs[rC];
-  // assert: op.type == o_condjump
-  if ( (op.specflag1 & cc_inc_ncases) != 0 )
-    ++si->ncases;
-  si->defjump = op.specval;
-  si->set_expr(insn.Op1.reg, insn.Op1.dtype);
-  return true;
-}
-
-//----------------------------------------------------------------------
-// switch rA
-bool nec850_jump_pattern_t::jpi_jump()
-{
-  if ( insn.itype != NEC850_SWITCH
-    || insn.Op1.type != o_reg
-    || insn.Op1.reg == rZERO )
-  {
-    return false;
-  }
-
-  si->jumps = insn.ea + insn.size;
-  si->set_elbase(si->jumps);
-  si->flags |= SWI_SIGNED;
-  si->set_jtable_element_size(2);
-  si->set_shift(1);
-  si->set_expr(insn.Op1.reg, dt_dword);
-  trackop(insn.Op1, rA);
-  return true;
-}
-
-//----------------------------------------------------------------------
-// bh default
-bool nec850_jump_pattern_t::jpi_condjump()
-{
-  op_t op;
-  op.type = o_condjump;
-  op.specflag1 = 0;
-  switch ( insn.itype )
-  {
-    case NEC850_BH:   // higher
-    case NEC850_BNH:  // not higher
-      op.specflag1 |= cc_inc_ncases;
-      break;
-    case NEC850_BL:   // lower
-    case NEC850_BNC:  // no carry (not lower)
-      break;
-    default:
-      return false;
-  }
-  ea_t jump = to_ea(insn.cs, insn.Op1.addr);
-  switch ( insn.itype )
-  {
-    case NEC850_BH:
-    case NEC850_BNC:
-      op.specval = jump;
-      break;
-    case NEC850_BL:
-    case NEC850_BNH:
-      // we have conditional jump to the switch body
-      // assert: eas[0] != BADADDR
-      if ( jump > eas[0] )
-        return false;
-      op.specval = insn.ea + insn.size;
-
-      // possibly followed by 'jr default'
-      {
-        insn_t deflt;
-        if ( decode_insn(&deflt, op.specval) > 0
-          && deflt.itype == NEC850_JR
-          && deflt.Op1.type == o_near )
-        {
-          op.specval = deflt.Op1.addr;
-        }
-      }
-      break;
-    default:
-      return false;
-  }
-  op.addr = insn.ea;
-  trackop(op, rC);
-  return true;
-}
-
-//----------------------------------------------------------------------
-// cmp ncases, rA
-bool nec850_jump_pattern_t::jpi_cmp_ncases()
-{
-  if ( insn.itype != NEC850_CMP
-    || insn.Op1.type != o_imm && insn.Op1.type != o_reg
-    || !same_value(insn.Op2, rA) )
-  {
-    return false;
-  }
-
-  const op_t &x = insn.Op1;
-  uval_t val;
-  if ( x.type == o_imm )
-    val = x.value;
-  // assert: x.type == o_reg
-  else if ( !pm.find_regval(&val, insn.ea, x.reg) )
-    return false;
-  si->ncases = ushort(val);
-  return true;
-}
-
-//----------------------------------------------------------------------
-// jump pattern #1
-// 2 movea  -minv, rA', rA  | add -minv, rA (optional)
-// 1 cmp    ncases, rA      | cmp rNcases, rA
-//   bh     default           (nearest to "cmp")
-// 0 switch  rA
-// 0 -> 1 -> 2
-
-static const char nec850_depends1[][4] =
-{
-  { 1 },                      // 0
-  { 2 | JPT_OPT | JPT_NEAR }, // 1
-  { 0 },                      // 2 optional, near
-};
-
-//-------------------------------------------------------------------------
-class nec850_jump_pattern1_t : public nec850_jump_pattern_t
-{
-public:
-  nec850_jump_pattern1_t(procmod_t *_pm, switch_info_t *_si)
-    : nec850_jump_pattern_t(_pm, _si, nec850_depends1) {}
-
-  virtual bool jpi2(void) override { return jpi_sub_lowcase(); }
-  virtual bool jpi1(void) override { return jpi_cmp_ncases_condjump(); }
-  virtual bool jpi0(void) override { return jpi_jump(); }
-};
-
-//----------------------------------------------------------------------
-static int is_jump_pattern1(
-        switch_info_t *si,
-        const insn_t &insn,
-        procmod_t *pm)
-{
-  nec850_jump_pattern1_t jp(pm, si);
-  if ( !jp.match(insn) )
-    return JT_NONE;
-  return JT_SWITCH;
-}
-
-//----------------------------------------------------------------------
-// jump pattern #2 (addi instead of cmp)
-// 2 movea  -minv, rA', rA  | add -minv, rA (optional)
-// 1 addi   -ncases, rA, r0
-//   bl     default           (nearest to "cmp")
-// 0 switch  rA
-// 0 -> 1 -> 2
-
-static const char nec850_depends2[][4] =
-{
-  { 1 },                      // 0
-  { 2 | JPT_OPT | JPT_NEAR }, // 1
-  { 0 },                      // 2 optional, near
-};
-
-//-------------------------------------------------------------------------
-class nec850_jump_pattern2_t : public nec850_jump_pattern_t
-{
-public:
-  nec850_jump_pattern2_t(procmod_t *_pm, switch_info_t *_si)
-    : nec850_jump_pattern_t(_pm, _si, nec850_depends2) {}
-
-  bool jpi2(void) override { return jpi_sub_lowcase(); }
-  bool jpi1(void) override { return jpi_cmp_ncases_condjump(); }
-  bool jpi0(void) override { return jpi_jump(); }
-
-protected:
-  // bl default
-  bool jpi_condjump() override;
-  // addi -ncases, rA, r0
-  bool jpi_cmp_ncases() override;
-};
-
-//----------------------------------------------------------------------
-// bl default
-bool nec850_jump_pattern2_t::jpi_condjump()
-{
-  op_t op;
-  op.type = o_condjump;
-  op.specflag1 = 0;
-  switch ( insn.itype )
-  {
-    case NEC850_BH:   // higher
-    case NEC850_BNH:  // not higher
-      op.specflag1 |= cc_inc_ncases;
-      break;
-    case NEC850_BL:   // lower
-    case NEC850_BNC:  // no carry (not lower)
-      break;
-    default:
-      return false;
-  }
-  ea_t jump = to_ea(insn.cs, insn.Op1.addr);
-  switch ( insn.itype )
-  {
-    case NEC850_BL:
-    case NEC850_BNH:
-      op.specval = jump;
-      break;
-    case NEC850_BH:
-    case NEC850_BNC:
-      // we have conditional jump to the switch body
-      // assert: eas[0] != BADADDR
-      if ( jump > eas[0] )
-        return false;
-      op.specval = insn.ea + insn.size;
-
-      // possibly followed by 'jr default'
-      {
-        insn_t deflt;
-        if ( decode_insn(&deflt, op.specval) > 0
-          && deflt.itype == NEC850_JR
-          && deflt.Op1.type == o_near )
-        {
-          op.specval = deflt.Op1.addr;
-        }
-      }
-      break;
-    default:
-      return false;
-  }
-  op.addr = insn.ea;
-  trackop(op, rC);
-  return true;
-}
-
-//----------------------------------------------------------------------
-// addi -ncases, rA, r0
-bool nec850_jump_pattern2_t::jpi_cmp_ncases()
-{
-  if ( insn.itype != NEC850_ADDI
-    || insn.Op1.type != o_imm
-    || !insn.Op3.is_reg(rZERO)
-    || !same_value(insn.Op2, rA) )
-  {
-    return false;
-  }
-
-  si->ncases = ushort(0-uint32(insn.Op1.value));
-  return true;
-}
-
-//----------------------------------------------------------------------
-static int is_jump_pattern2(
-        switch_info_t *si,
-        const insn_t &insn,
-        procmod_t *pm)
-{
-  nec850_jump_pattern2_t jp(pm, si);
-  if ( !jp.match(insn) )
-    return JT_NONE;
-  return JT_SWITCH;
-}
-
-//----------------------------------------------------------------------
-// jump pattern #3 (without 'switch' insn)
-// 3 movea -minv, rA', rA     | add -minv, rA (optional)
-// 2 cmp   ncases, rA         | cmp rNcases, rA
-//   bh    default              (nearest to "cmp")
-// 1 shl   2, rA              | shl 1, rA
-// 0 jmp   jumps[rA]
-//
-// jumps:  jr case0 (4 bytes) | (2 bytes)
-//         jr case1
-//         ...
-//
-// 0 -> 1 -> 2 -> 3
-
-static const char nec850_depends3[][4] =
-{
-  { 1 },                      // 0
-  { 2 },                      // 1
-  { 3 | JPT_OPT | JPT_NEAR }, // 2
-  { 0 },                      // 3 optional, near
-};
-
-//-------------------------------------------------------------------------
-class nec850_jump_pattern3_t : public nec850_jump_pattern_t
-{
-public:
-  nec850_jump_pattern3_t(procmod_t *_pm, switch_info_t *_si)
-    : nec850_jump_pattern_t(_pm, _si, nec850_depends3)
-  {
-    si->flags |= SWI_JMPINSN;
-  }
-
-  virtual bool jpi3(void) override { return jpi_sub_lowcase(); }
-  virtual bool jpi2(void) override { return jpi_cmp_ncases_condjump(); }
-  virtual bool jpi1(void) override; // shl shift, rA
-  virtual bool jpi0(void) override; // jmp jumps[rA]
-};
-
-//----------------------------------------------------------------------
-// shl shift, rA
-bool nec850_jump_pattern3_t::jpi1()
-{
-  if ( insn.itype != NEC850_SHL
-    || insn.Op1.type != o_imm
-    || !same_value(insn.Op2, rA) )
-  {
-    return false;
-  }
-  int elsize;
-  if ( insn.Op1.value == 1 )
-    elsize = 2;
-  else if ( insn.Op1.value == 2 )
-    elsize = 4;
-  else
-    return false;
-  si->set_jtable_element_size(elsize);
-  return true;
-}
-
-//----------------------------------------------------------------------
-// jmp jumps[rA]
-bool nec850_jump_pattern3_t::jpi0()
-{
-  if ( insn.itype != NEC850_JMP || insn.Op1.type != o_displ )
-    return false;
-  si->jumps = insn.Op1.addr;
-  track(insn.Op1.phrase, rA, dt_dword);
-  return true;
-}
-
-//----------------------------------------------------------------------
-static int is_jump_pattern3(
-        switch_info_t *si,
-        const insn_t &insn,
-        procmod_t *pm)
-{
-  nec850_jump_pattern3_t jp(pm, si);
-  if ( !jp.match(insn) )
-    return JT_NONE;
-  op_offset(jp.eas[0], 0, REFINFO_NOBASE | REF_OFF32);
-  // rollback data created in handle_operand()
-  del_items(si->jumps, DELIT_SIMPLE);
-  return JT_SWITCH;
-}
-
-//----------------------------------------------------------------------
-bool idaapi nec850_is_switch(switch_info_t *si, const insn_t &insn)
-{
-  if ( insn.itype != NEC850_SWITCH && insn.itype != NEC850_JMP )
-    return false;
-
-  static is_pattern_t *const patterns[] =
-  {
-    is_jump_pattern1,
-    is_jump_pattern2,
-    is_jump_pattern3,
-  };
-  return check_for_table_jump(si, insn, patterns, qnumber(patterns));
 }
 
 //-------------------------------------------------------------------------
@@ -1599,12 +1172,36 @@ ea_t nec850_t::nec850_calc_step_over(ea_t ip) const
   insn_t insn;
   if ( ip == BADADDR || decode_insn(&insn, ip) <= 0 )
     return BADADDR;
-  if ( insn.itype == NEC850_LOOP )
-    return insn.ea + insn.size;
-  ea_t nextaddr;
-  if ( is_call_insn(&nextaddr, insn) )
-    return nextaddr;
-  return BADADDR;
+  ea_t nextaddr = insn.ea + insn.size;
+  switch ( insn.itype )
+  {
+    default:
+      return BADADDR;
+    case NEC850_LOOP:
+      break;
+    case NEC850_JARL:
+      // jarl nextaddr, r2 == jump (w/o flow)
+      if ( to_ea(insn.cs, insn.Op1.addr) == nextaddr )
+        return BADADDR; // the step over is equal to step into
+      break;
+    case NEC850_CALLT:
+      if ( !is_mapped(get_callt_ea(insn)) )
+        break; // step over the call
+      return BADADDR;
+    case NEC850_JMP:
+      if ( insn.Op1.type == o_reg && insn.Op1.reg != rLP )
+      {
+        // jmp + lp points to nextaddr == call
+        ea_t lp_val;
+        if ( find_reg_definition(&lp_val, nullptr, insn.ea, rLP)
+          && lp_val == nextaddr )
+        {
+          break; // step over the call
+        }
+      }
+      return BADADDR;
+  }
+  return nextaddr;
 }
 
 //-------------------------------------------------------------------------

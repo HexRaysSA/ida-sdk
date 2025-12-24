@@ -31,13 +31,13 @@ class idc_object_t;
 /// IDC script extension
 #define IDC_LANG_EXT             "idc"
 
-/// Convert IDC variable to a long (32/64bit) number.
+/// Convert IDC variable to a long (32/64-bit) number.
 /// \return v = 0 if impossible to convert to long
 
 idaman THREAD_SAFE error_t ida_export idcv_long(idc_value_t *v);
 
 
-/// Convert IDC variable to a 64bit number.
+/// Convert IDC variable to a 64-bit number.
 /// \return v = 0 if impossible to convert to int64
 
 idaman THREAD_SAFE error_t ida_export idcv_int64(idc_value_t *v);
@@ -503,7 +503,7 @@ struct idcfuncs_t
   /// if this pointer is nullptr, '%a' will be used.
   size_t (idaapi *ea2str)(char *buf, size_t bufsize, ea_t ea);
 
-  /// Should a variable name be accepted without declaration?.
+  /// Should a variable name be accepted without declaration?
   /// When the parser encounters an unrecognized variable, this callback is called.
   /// If it returns false, the parser generates the 'undefined variable' error
   /// else the parser generates code to call to a set or get function,
@@ -940,7 +940,7 @@ idaman THREAD_SAFE bool ida_export exec_system_script(
 
 /// Compile and calculate an expression.
 /// \param res          pointer to result. The result will be converted
-///                     to 32/64bit number. Use eval_expr() if you
+///                     to 32/64-bit number. Use eval_expr() if you
 ///                     need the result of another type.
 /// \param where        the current linear address in the addressing space of the
 ///                     program being disassembled. it will be used to resolve

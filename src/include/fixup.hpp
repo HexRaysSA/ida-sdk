@@ -36,10 +36,10 @@ typedef uint16 fixup_type_t;  ///< see \ref fixup_type_t
                                 ///< offset)
 #define FIXUP_OFF32       4     ///< 32-bit offset
 #define FIXUP_PTR32       5     ///< 48-bit pointer (16-bit base:32-bit offset)
-#define FIXUP_HI8         6     ///< high  8 bits of 16bit offset
-#define FIXUP_HI16        7     ///< high 16 bits of 32bit offset
-#define FIXUP_LOW8        8     ///< low   8 bits of 16bit offset
-#define FIXUP_LOW16       9     ///< low  16 bits of 32bit offset
+#define FIXUP_HI8         6     ///< high  8 bits of 16-bit offset
+#define FIXUP_HI16        7     ///< high 16 bits of 32-bit offset
+#define FIXUP_LOW8        8     ///< low   8 bits of 16-bit offset
+#define FIXUP_LOW16       9     ///< low  16 bits of 32-bit offset
 #define V695_FIXUP_VHIGH 10     ///< obsolete
 #define V695_FIXUP_VLOW  11     ///< obsolete
 #define FIXUP_OFF64      12     ///< 64-bit offset
@@ -464,7 +464,7 @@ struct fixup_handler_t
 /// b) size = 4, width = 28, shift = 2
 ///    - the value to patch is masked with 0xFFFFFFF (width=28)
 ///    - then it is shifted right by 2 bits (shift=2)
-///    - then the result is patched in the low 26 bits of the 32bit
+///    - then the result is patched in the low 26 bits of the 32-bit
 ///    e.g.
 ///    0x10000000 an instruction at the fixup address
 ///    0x0000005C the value

@@ -13,7 +13,7 @@ IDA:=$(dir $(lastword $(MAKEFILE_LIST)))
 
 # define the version number we are building
 IDAVER_MAJOR:=9
-IDAVER_MINOR:=2
+IDAVER_MINOR:=3
 IDAVER_PATCH:=0
 # 900
 IDAVERDECIMAL:=$(IDAVER_MAJOR)$(IDAVER_MINOR)$(IDAVER_PATCH)
@@ -147,6 +147,7 @@ ls=$(if $(wildcard $(1)),1,0)
 not = $(if $(1),,1)
 
 include $(IDA)defaults.mk
+
 
 #############################################################################
 ifdef __NT__
@@ -343,6 +344,11 @@ endif
 
 #############################################################################
 # toolchain-specific variables
+# Obviously, use whatever is appropriate here -- e.g. sccache
+
+CCACHE-$(USE_SCCACHE) = sccache
+CCACHE-$(USE_BUILDCACHE) = buildcache
+CCACHE-$(USE_CCACHE) = ccache
 
 ifneq (,$(filter $(COMPILER_NAME),gcc clang))
   # file extensions
@@ -370,8 +376,7 @@ ifneq (,$(filter $(COMPILER_NAME),gcc clang))
   else
     OUTDLL = --shared
   endif
-  # utilities
-  CCACHE-$(USE_CCACHE) = ccache
+
   ifeq ($(COMPILER_NAME),clang)
     _CC  ?= clang
     _CXX ?= clang++
@@ -385,12 +390,13 @@ ifneq (,$(filter $(COMPILER_NAME),gcc clang))
       MOLD = -fuse-ld=mold
     endif
   endif
-  AR  =             $(CROSS_PREFIX)ar$(HOST_EXE) $(AROPT)
-  CC  = $(CCACHE-1) $(CROSS_PREFIX)$(_CC)$(HOST_EXE) $(ARCH_FLAGS)
+  AR_REAL = $(CROSS_PREFIX)ar$(HOST_EXE) $(AROPT)
+  CC_REAL = $(CROSS_PREFIX)$(_CC)$(HOST_EXE) $(ARCH_FLAGS)
   #+CCL =        $(CROSS_PREFIX)$(_CXX)$(HOST_EXE) $(ARCH_FLAGS) $(GOLD)
-  CCL_REAL =        $(CROSS_PREFIX)$(_CXX)$(HOST_EXE) $(ARCH_FLAGS) $(GOLD) $(MOLD)
-  CCL = $(CCL_REAL)
-  CXX = $(CCACHE-1) $(CROSS_PREFIX)$(_CXX)$(HOST_EXE) $(ARCH_FLAGS)
+  CCL_REAL =          $(CROSS_PREFIX)$(_CXX)$(HOST_EXE) $(ARCH_FLAGS) $(GOLD) $(MOLD)
+  CXX = $(TIMEWRAP-1) $(CCACHE-1) $(CROSS_PREFIX)$(_CXX)$(HOST_EXE) $(ARCH_FLAGS)
+  STRIP   ?= $(CROSS_PREFIX)strip
+  OBJCOPY ?= $(CROSS_PREFIX)objcopy
 else ifeq ($(COMPILER_NAME),vc)
   # file extensions
   A     = .lib
@@ -410,11 +416,17 @@ else ifeq ($(COMPILER_NAME),vc)
   NORTTI = /GR-
   OUTDLL = /DLL
   # utilities
-  AR  = $(MSVC_BIN)/lib.exe $(NOLOGO)
-  CC  = $(MSVC_BIN)/cl.exe $(NOLOGO)
-  CCL = $(MSVC_BIN)/link.exe $(NOLOGO)
-  CXX = $(CC)
+  AR_REAL  = $(MSVC_BIN)/lib.exe $(NOLOGO)
+
+  # This is here because qtcommon.mak needs the path to cl.exe
+  # It would otherwise try to get it from $(CC), which fails when caching
+  CC_REAL  = $(MSVC_BIN)/cl.exe $(NOLOGO)
+  CCL_REAL = $(MSVC_BIN)/link.exe $(NOLOGO)
+  CXX      = $(CC)
 endif
+AR         = $(TIMEWRAP-1) $(AR_REAL)
+CCL        = $(TIMEWRAP-1) $(CCL_REAL)
+CC         = $(TIMEWRAP-1) $(CCACHE-1) $(CC_REAL)
 
 ##############################################################################
 # target-specific cflags/ldflags
@@ -509,7 +521,7 @@ ifneq (,$(filter $(COMPILER_NAME),gcc clang))
 
     # get gcc version
     ifndef _GCC_VERSION
-      _GCC_VERSION:=$(wordlist 1,2,$(subst ., ,$(shell $(CC) -dumpversion)))
+      _GCC_VERSION:=$(wordlist 1,2,$(subst ., ,$(shell $(CC_REAL) -dumpversion)))
       export _GCC_VERSION
     endif
     GCC_VERSION=$(firstword $(_GCC_VERSION)).$(lastword $(_GCC_VERSION))
@@ -575,6 +587,9 @@ ifneq (,$(filter $(COMPILER_NAME),gcc clang))
     DLL_W += $(NO_UNDEFS)
   else ifdef __MAC__
     LDFLAGS += -Wl,-dead_strip
+
+    NO_UNDEFS ?=
+    DLL_W += $(NO_UNDEFS)
 
     ifndef __TARGET_MAC_HOST_LINUX__
       DLL_X += -compatibility_version 1.0
@@ -663,7 +678,9 @@ else ifeq ($(COMPILER_NAME),vc)
   PDBFORMAT =
   # by default, use obj directory for common pdb file
   # /Z7 (embed into .obj)
-  CLPDB = /Z7 /Fd$(F)
+  # I added `_HACK` to the name so that makefiles that would otherwise override
+  # CLPDB do not do that anymore.
+  CLPDB_HACK = /Z7 /Fd$(F)
 
   # AddressSanitizer flags
   ifdef __ASAN__
@@ -688,7 +705,9 @@ else ifeq ($(COMPILER_NAME),vc)
   CFLAGS += $(sort $(CC_D))
   CFLAGS += $(sort $(CC_F))
   CFLAGS += $(WARNS)
-  CFLAGS += $(CLPDB)
+  # Use _HACK to prevent overriding CLPDB, e.g. this line from pro\makefile:
+  # `CLPDB = /Zi /FS /Fd$(L)pro.pdb`
+  CFLAGS += $(CLPDB_HACK)
   CXXSTD += /std:c++17
 
   # final linker flags
@@ -787,6 +806,11 @@ DUMB=$(L)dumb$(O)
 HELP=$(L)help$(O)
 HLIB=$(HI)_ida.hlp
 
+# We need an ASAN build of LLVM when building IDA with ASAN, to work around
+# https://github.com/llvm/llvm-project/issues/151430
+# NOTE: _opt is hardcoded because LLVM is always built optimized (no debug LLVM build exists)
+LLVM_BUILD=$(LLVM_SRC)build/$(TARGET_PROCESSOR_NAME)_$(SYSNAME)_$(COMPILER_NAME)_opt$(EXTRASUF3)
+
 # to be used like this:
 # $(L)va$(A): $(call lib, $(VA_OBJS))
 lib=$(1); $(strip $(QARf)$(AR) $(OUTAR)$$@ $$^)
@@ -844,16 +868,24 @@ endif
 
 # build system commands
 ifeq ($(OS),Windows_NT)
-  CP=cp -f --preserve=all
-  MKDIR=-@mkdir
+  CP_REAL=cp -f --preserve=all
+  MKDIR_REAL=mkdir
   AWK=gawk
 else
-  CP=cp -f
-  MKDIR=-@mkdir 2>/dev/null
+  CP_REAL=cp -f
+  MKDIR_REAL=mkdir 2>/dev/null
   AWK=awk
 endif
-RM=rm -f
-MV=mv
+
+ifdef TIMEWRAP-1
+	MKDIR=$(TIMEWRAP-1) $(MKDIR_REAL)
+else
+	MKDIR=-@$(MKDIR_REAL)
+endif
+
+CP=$(TIMEWRAP-1) $(CP_REAL)
+RM=$(TIMEWRAP-1) rm -f
+MV=$(TIMEWRAP-1) mv
 
 # used to silence some makefile commands
 # run 'make Q=' to prevent commands from being silenced

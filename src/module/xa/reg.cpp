@@ -393,7 +393,7 @@ ssize_t idaapi xa_t::on_event(ssize_t msgid, va_list va)
         segment_t *newseg = va_arg(va, segment_t *);
         segment_t *intseg = getseg(INTMEMBASE);
         if ( intseg != nullptr )
-          newseg->defsr[rDS-ph.reg_first_sreg] = intseg->sel;
+          set_default_sreg_value(newseg, rDS, intseg->sel);
       }
       break;
 
@@ -646,6 +646,5 @@ processor_t LPH =
   0,                    // tbyte_size
   {0,0,0,0},            // real_width
   XA_ret,               // icode_return
-  nullptr                  // DEPREECATED: is_align_insn
-
-,};
+  nullptr               // DEPREECATED: is_align_insn
+};

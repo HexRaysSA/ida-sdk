@@ -270,8 +270,8 @@ bool out_tms320c5_t::shouldIndent(void) const
   ea_t ea = prev_not_tail(insn.ea);
   if ( ea == BADADDR )
     return false;
-  flags64_t F32 = get_flags32(ea);
-  if ( !is_code(F32) )
+  flags64_t prev_flags = get_flags32(ea);
+  if ( !is_code(prev_flags) )
     return false;
   if ( isDelayed((ushort)get_wide_byte(ea)) )
     return true;
@@ -283,14 +283,14 @@ bool out_tms320c5_t::shouldIndent(void) const
   {                                             // our instruction short
     if ( (insn.ea-ea) == 2 )                    // prev instruction long
       return false;                             // can't be executed in delayed manner
-    if ( !is_flow(F32) )
+    if ( !is_flow(prev_flags) )
       return false;                             // no prev instr...
     ea = prev_not_tail(ea);
     if ( ea == BADADDR )
       return false;
-    F32 = get_flags32(ea);
+    prev_flags = get_flags32(ea);
   }
-  return is_code(F32) && isDelayed((ushort)get_wide_byte(ea));
+  return is_code(prev_flags) && isDelayed((ushort)get_wide_byte(ea));
 }
 
 

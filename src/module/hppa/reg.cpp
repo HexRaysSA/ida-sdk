@@ -325,7 +325,6 @@ ssize_t idaapi hppa_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_creating_segm:    // new segment
       {
         segment_t *sptr = va_arg(va, segment_t *);
-        sptr->defsr[ rVds-ph.reg_first_sreg] = find_selector(sptr->sel);
         sptr->defsr[DPSEG-ph.reg_first_sreg] = 0;
       }
       break;

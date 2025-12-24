@@ -1291,15 +1291,16 @@ bool arc_jump_pattern_t::jpi_cmp_jump(const op_t **op_var)
 
 //-------------------------------------------------------------------------
 // bhi default | bls body with optional 'b default'
+// jhi [blink]
 bool arc_jump_pattern_t::jpi_condjump()
 {
-  if ( insn.itype != ARC_b
-    || insn.Op1.type != o_near
-    || !has_core_cond(insn) )
+  if ( ((insn.itype == ARC_b && insn.Op1.type == o_near)
+     || (insn.itype == ARC_j && insn.Op1.type == o_displ))
+    && has_core_cond(insn) )
   {
-    return false;
+    return analyze_cond(get_core_cond(insn), to_ea(insn.cs, insn.Op1.addr));
   }
-  return analyze_cond(get_core_cond(insn), to_ea(insn.cs, insn.Op1.addr));
+  return false;
 }
 
 //-------------------------------------------------------------------------
@@ -1610,8 +1611,17 @@ int arc_t::emu(const insn_t &insn)
       if ( !has_cond(insn) ) // branch always
         islast = 1;
       break;
+    case ARC_trap:
+      if ( (idpflags & ARC_TRAP0STOPS) != 0 )
+      {
+        // trap 0 stops execution
+        if ( insn.Op1.is_imm(0) )
+          islast = 1;
+      }
+      break;
     case ARC_bi:
     case ARC_bih:
+    case ARC_rtie:
       islast = 1;
       break;
     case ARC_leave:
@@ -1977,6 +1987,9 @@ bool is_arc_return_insn(const insn_t &insn)
     case ARC_leave:
       // leave [..,pcl,...] is a return
       return insn.Op1.reglist & REGLIST_PCL;
+    case ARC_rtie:
+      // Return from Interrupt/Exception
+      return true;
   }
   return false;
 }
@@ -2528,9 +2541,14 @@ bool arc_t::check_ac_pop_chain(int *regno, ea_t ea)
 }
 
 //----------------------------------------------------------------------
-static int match_ac_push_st(const insn_t &insn)
+static int match_ac_push(const insn_t &insn)
 {
-  // st.a   rN, [sp,-4]
+  if ( insn.itype == ARC_push
+    && insn.Op1.type == o_reg )
+  {
+    return insn.Op1.reg;
+  }
+  // st.aw   rN, [sp,-4]
   if ( insn.itype == ARC_st
     && insn.auxpref == aux_a
     && insn.Op2.type == o_displ
@@ -2612,7 +2630,7 @@ static bool check_ac_push_chain(int *regno, ea_t ea)
   if ( decode_insn(&insn, ea) > 0 )
   {
     if ( insn.itype == ARC_j
-      && insn.auxpref == aux_d
+      && (insn.auxpref & aux_nmask) == aux_d
       && insn.Op1.type == o_displ
       && insn.Op1.reg == BLINK
       && insn.Op1.addr == 0 )
@@ -2620,7 +2638,7 @@ static bool check_ac_push_chain(int *regno, ea_t ea)
       // j.d     [blink]
       // must be followed by st.a    r13, [sp,-4]
       if ( decode_insn(&insn, insn.ea + insn.size) > 0
-        && match_ac_push_st(insn) == 13 )
+        && match_ac_push(insn) == 13 )
       {
         reg = 13;
         ok = true;
@@ -2628,8 +2646,8 @@ static bool check_ac_push_chain(int *regno, ea_t ea)
     }
     else
     {
-      // st.a  rN, [sp,-4]
-      reg = match_ac_push_st(insn);
+      // st.a  rN, [sp,-4] or push rN
+      reg = match_ac_push(insn);
       if ( reg == R13 )
       {
         // j [blink] should follow
@@ -2721,7 +2739,7 @@ bool arc_t::detect_millicode(qstring *mname, ea_t ea)
         ok = true;
       }
     }
-    else if ( insn.itype == ARC_st )
+    else if ( insn.itype == ARC_st || insn.itype == ARC_push )
     {
       int reg;
       if ( check_ac_push_chain(&reg, ea) )

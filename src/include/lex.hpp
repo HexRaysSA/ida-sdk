@@ -224,6 +224,14 @@ idaman lexer_t *ida_export create_lexer(
 idaman void ida_export destroy_lexer(lexer_t *lx);
 
 
+/// janitor for a lexical analyzer
+struct lexer_deleter_t
+{
+  void operator()(lexer_t *lx) { destroy_lexer(lx); }
+};
+using lexer_janitor_t = std::unique_ptr<lexer_t, lexer_deleter_t>;
+
+
 /// Define a macro
 
 idaman error_t ida_export lex_define_macro(

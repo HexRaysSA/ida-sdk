@@ -113,7 +113,7 @@ inline void show_addr(ea_t ea) { show_auto(ea); }
 idaman idastate_t ida_export set_ida_state(idastate_t st);
 
 
-/// Is it allowed to create stack variables automatically?.
+/// Is it allowed to create stack variables automatically?
 /// This function should be used by IDP modules before creating stack vars.
 
 inline bool may_create_stkvars(void)
@@ -122,7 +122,7 @@ inline bool may_create_stkvars(void)
 }
 
 
-/// Is it allowed to trace stack pointer automatically?.
+/// Is it allowed to trace stack pointer automatically?
 /// This function should be used by IDP modules before tracing sp.
 
 inline bool may_trace_sp(void)
@@ -205,7 +205,7 @@ inline bool auto_postpone_analysis(ea_t ea)
 idaman void ida_export reanalyze_callers(ea_t ea, bool noret);
 
 
-/// Delete all analysis info that IDA generated for for the given range
+/// Delete all analysis info that IDA generated for the given range
 
 idaman void ida_export revert_ida_decisions(ea_t ea1, ea_t ea2);
 
@@ -225,7 +225,7 @@ idaman void ida_export auto_apply_tail(ea_t tail_ea, ea_t parent_ea);
 /// Try to create instructions where possible.
 /// Make the final pass over the specified range if specified.
 /// This function doesn't return until the range is analyzed.
-/// \retval 1  ok
+/// \retval 1  OK
 /// \retval 0  Ctrl-Break was pressed
 
 idaman int ida_export plan_and_wait(ea_t ea1, ea_t ea2, bool final_pass=true);

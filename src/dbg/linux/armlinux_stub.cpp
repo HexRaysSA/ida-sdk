@@ -11,6 +11,10 @@ static const char wanted_name[] = "Remote ARM Linux/Android debugger";
                       | DBG_FLAG_LOWCNDS     \
                       | DBG_FLAG_DEBTHREAD   \
                       | DBG_FLAG_PREFER_SWBPTS)
+#ifdef __EA64__
+// AArch64 has hardware single-step support
+#define DEBUGGER_RESMOD (DBG_RESMOD_STEP_INTO)
+#endif
 
 #include <pro.h>
 #include <idp.hpp>
@@ -63,8 +67,11 @@ struct dbg_plugmod_t : public dbg_plugmod_stub_t
       hook_event_listener(HT_DBG, &dbg_listener);
       debugger.flags |= DBG_HAS_OPEN_FILE;
       debugger.flags |= DBG_HAS_APPCALL;
-      // typically arm has no single step mechanism, arm64 macOS11 is an exception.
+      // Clear single-step support at init (safe default for 32-bit ARM).
+      // For 64-bit ARM targets, this will be enabled dynamically in the
+      // dbg_process_start/attach event handler once we know the target arch.
       debugger.flags &= ~DBG_HAS_SET_RESUME_MODE;
+      debugger.resume_modes = 0;
     }
     return ok;
   }

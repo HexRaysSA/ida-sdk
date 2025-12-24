@@ -30,25 +30,24 @@ inline constexpr int32  high(const int64 &x)  { return uint32(x>>32); }
 #define make_uint64(ll,hh)  (ll | (uint64(hh) << 32))
 #endif
 
-idaman THREAD_SAFE int64 ida_export llong_scan(
-        const char *buf,
-        int radix,
-        const char **end);
 #ifndef swap64
    idaman THREAD_SAFE uint64 ida_export swap64(uint64);
 #  ifdef __cplusplus
-     inline int64 swap64(int64 x)
-     {
-       return int64(swap64(uint64(x)));
-     }
+    inline int64 swap64(int64 x)
+    {
+      return int64(swap64(uint64(x)));
+    }
 #  endif
 #endif
 
 //---------------------------------------------------------------------------
 //      128 BIT NUMBERS
 //---------------------------------------------------------------------------
-#ifdef __HAS_INT128__
+#if !defined(__HAS_INT128__) && defined(__SIZEOF_INT128__)
+#  define __HAS_INT128__ 1
+#endif
 
+#ifdef __HAS_INT128__
 typedef unsigned __int128 uint128;
 typedef          __int128 int128;
 
@@ -158,7 +157,6 @@ public:
 
 inline int128  make_int128(uint64 ll, int64 hh) { return int128(ll, hh); }
 inline uint128 make_uint128(uint64 ll, int64 hh) { return uint128(ll, hh); }
-idaman THREAD_SAFE void ida_export swap128(uint128 *x);
 
 //---------------------------------------------------------------------------
 inline uint128 operator+(const uint128 &x, const uint128 &y)
@@ -281,12 +279,16 @@ inline uint128 operator-(const uint128 &x)
   return ~x + 1;
 }
 
-#ifndef NO_OBSOLETE_FUNCS
-typedef uint64 ulonglong;
-typedef int64 longlong;
-#endif
-
 #endif // ifdef __cplusplus
 #endif // ifdef __HAS_INT128__
+
+idaman THREAD_SAFE void ida_export swap128(uint128 *x);
+
+#ifndef NO_OBSOLETE_FUNCS
+idaman DEPRECATED THREAD_SAFE int64 ida_export llong_scan(
+        const char *buf,
+        int radix,
+        const char **end);
+#endif
 
 #endif // define _LLONG_HPP

@@ -98,7 +98,7 @@ struct register_info_t
 /// \defgroup REGISTER_ Register info attribute flags
 /// Used by register_info_t::flags
 ///@{
-#define REGISTER_READONLY 0x0001      ///< the user can't modify the current value of this register
+#define REGISTER_READONLY 0x0001      ///< the user cannot modify the current value of this register
 #define REGISTER_IP       0x0002      ///< instruction pointer
 #define REGISTER_SP       0x0004      ///< stack pointer
 #define REGISTER_FP       0x0008      ///< frame pointer
@@ -241,7 +241,7 @@ struct memory_info_t : public range_t
   qstring sclass;              ///< Memory range class name
   ea_t sbase = 0;              ///< Segment base (meaningful only for segmented architectures, e.g. 16-bit x86)
                                ///< The base is specified in paragraphs (i.e. shifted to the right by 4)
-  uchar bitness = 0;           ///< Number of bits in segment addresses (0-16bit, 1-32bit, 2-64bit)
+  uchar bitness = 0;           ///< Number of bits in segment addresses (0-16-bit, 1-32-bit, 2-64-bit)
   uchar perm = 0;              ///< Memory range permissions (0-no information): see segment.hpp
 
   bool operator ==(const memory_info_t &r) const
@@ -272,7 +272,7 @@ typedef qvector<scattered_segm_t> scattered_image_t; ///< vector of scattered se
 //                         Debug events
 //
 
-/// Used by debugger modules to launching processes with environment variables
+/// Used by debugger modules to launch processes with environment variables
 struct launch_env_t : public qstrvec_t
 {
   bool merge = true;  // merge environment variables with system ones
@@ -330,7 +330,7 @@ struct modinfo_t
   qstring name;         ///< full name of the module
   ea_t base;            ///< module base address. if unknown pass #BADADDR
   asize_t size;         ///< module size. if unknown pass 0
-  ea_t rebase_to;       ///< if not #BADADDR, then rebase the program to the specified address
+  ea_t rebase_to;       ///< if not #BADADDR, rebase the program to that address
 };
 DECLARE_TYPE_AS_MOVABLE(modinfo_t);
 typedef qvector<modinfo_t> modinfovec_t;
@@ -351,7 +351,7 @@ struct bptaddr_t
 struct excinfo_t
 {
   uint32 code;          ///< Exception code
-  bool can_cont;        ///< Execution of the process can continue after this exception?
+  bool can_cont;        ///< Can execution of the process continue after this exception?
   ea_t ea;              ///< Possible address referenced by the exception
   qstring info;         ///< Exception message
 };
@@ -363,7 +363,7 @@ struct debug_event_t
   pid_t pid = NO_PROCESS;  ///< Process where the event occurred
   thid_t tid = NO_THREAD;  ///< Thread where the event occurred
   ea_t ea = BADADDR;       ///< Address where the event occurred
-  bool handled = false;    ///< Is event handled by the debugger?.
+  bool handled = false;    ///< Is event handled by the debugger?
                            ///< (from the system's point of view)
                            ///< Meaningful for ::EXCEPTION events
 private:
@@ -875,11 +875,11 @@ struct lowcnd_t
 {
   ea_t ea;              ///< address of the condition
   qstring cndbody;      ///< new condition. empty means 'remove condition'
-                        ///< the following fields are valid only if condition is not empty:
+                        ///< the following fields are valid only if the condition is not empty:
   bpttype_t type;       ///< existing breakpoint type
   bytevec_t orgbytes;   ///< original bytes (if type==#BPT_SOFT)
   insn_t cmd;           ///< decoded instruction at 'ea'
-                        ///< (used for processors without single step feature, e.g. arm)
+                        ///< (used for processors without single step feature, e.g. ARM)
   bool compiled;        ///< has 'cndbody' already been compiled?
   int size;             ///< breakpoint size (if type!=#BPT_SOFT)
 };
@@ -1042,8 +1042,8 @@ struct debugger_t
   #define DBG_FLAG_ADD_ENVS       0x0000000008000000ULL  ///< The debugger supports launching processes with environment variables
   #define DBG_FLAG_MERGE_ENVS     0x0000000010000000ULL  ///< The debugger supports merge or replace setting for environment variables
                                                          ///< (only makes sense if DBG_FLAG_ADD_ENVS is set)
-  #define DBG_FLAG_DISABLE_ASLR   0x0000000020000000ULL  ///< The debugger support ASLR disabling
-                                                         ///< (Address space layout randomization)
+  #define DBG_FLAG_DISABLE_ASLR   0x0000000020000000ULL  ///< The debugger supports ASLR disabling
+                                                         ///< (address space layout randomization)
   #define DBG_FLAG_TTD            0x0000000040000000ULL  ///< The debugger is a time travel debugger and supports continuing backwards
   #define DBG_FLAG_FULL_INSTR_BPT 0x0000000080000000ULL  ///< Setting a breakpoint in the middle of an instruction will also break
   #define DBG_HAS_GET_PROCESSES   0x0000000100000000ULL  ///< supports ev_get_processes
@@ -1216,7 +1216,7 @@ struct debugger_t
     /// \param dbg_proc_flags    (uint32) \ref DBG_PROC_
     /// \param input_path        (const char *) path to the file that was used to create the idb file
     ///                          It is not always the same as 'path' - e.g. if we are analyzing
-    ///                          a dll and want to launch an executable that loads it.
+    ///                          a DLL and want to launch an executable that loads it.
     /// \param input_file_crc32  (uint32) CRC value for 'input_path'
     /// \param errbuf (::qstring *) may be nullptr
     /// \param envs              (launch_env_t *) environment variables for debugged process
@@ -1235,8 +1235,8 @@ struct debugger_t
     ev_attach_process,
 
     /// Detach from the debugged process.
-    /// May be generated while the process is running or suspended.
-    /// Must detach from the process in any case.
+    /// May be generated while the process is running or is suspended.
+    /// Must detach from the process in all cases.
     /// The kernel will repeatedly call get_debug_event() until ::PROCESS_DETACHED is received.
     /// In this mode, all other events will be automatically handled and process will be resumed.
     /// This event is generated from debthread.
@@ -1317,7 +1317,7 @@ struct debugger_t
     ///
     /// The reason for introducing this event is that when an event like
     /// LOAD_DLL happens, the database does not reflect the memory state yet
-    /// and therefore we can't add information about the dll into the database
+    /// and therefore we cannot add information about the DLL into the database
     /// in the get_debug_event() function.
     /// Only when the kernel has adjusted the database we can do it.
     /// Example: for loaded PE DLLs we can add the exported function
@@ -1378,7 +1378,7 @@ struct debugger_t
     /// Currently used by the IBM PC module to resolve references like fs:0.
     /// This event is generated in debthread.
     /// Available if \ref DBG_HAS_THREAD_GET_SREG_BASE is set
-    /// \param answer      (::ea_t *) pointer to the answer. can't be nullptr.
+    /// \param answer      (::ea_t *) pointer to the answer. cannot be nullptr.
     /// \param tid         (::thid_t) thread id
     /// \param sreg_value  (int) value of the segment register (returned by get_reg_val())
     /// \param errbuf      (::qstring *) may be nullptr
@@ -1697,7 +1697,7 @@ struct debugger_t
   /// \defgroup DBG_PROC_ Debug process flags
   /// Passed as 'dbg_proc_flags' parameter to debugger_t::start_process
   ///@{
-  #define DBG_PROC_IS_DLL 0x01            ///< database contains a dll (not exe)
+  #define DBG_PROC_IS_DLL 0x01            ///< database contains a DLL (not EXE)
   #define DBG_PROC_IS_GUI 0x02            ///< using gui version of ida
   #define DBG_PROC_32BIT  0x04            ///< application is 32-bit
   #define DBG_PROC_64BIT  0x08            ///< application is 64-bit

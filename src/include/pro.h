@@ -32,8 +32,8 @@
    __ARM__     - ARM
 */
 
-/// IDA SDK v9.2
-#define IDA_SDK_VERSION      920
+/// IDA SDK v9.3
+#define IDA_SDK_VERSION      930
 
 //---------------------------------------------------------------------------
 #if !defined(__NT__) && !defined(__LINUX__) && !defined(__MAC__)
@@ -102,6 +102,7 @@
 #  include <set>
 #  include <map>
 #  include <algorithm>
+#  include <initializer_list>
 #endif
 #include <fcntl.h>
 #include <sys/types.h>
@@ -119,7 +120,7 @@
 #if defined(__cplusplus) || defined(SWIG)
 #define EXTERNC         extern "C"
 #define C_INCLUDE       EXTERNC \
-   {
+  {
 
 #define C_INCLUDE_END   }
 #define INLINE          inline
@@ -228,7 +229,7 @@
                               ///<   1: big endian (PowerPC).
 
 //---------------------------------------------------------------------------
-/// Macro to avoid of message 'Parameter x is never used'
+/// Macro to avoid the message 'Parameter x is never used'
 #define qnotused(x)   (void)x
 
 #ifdef __clang__
@@ -970,14 +971,13 @@ INLINE THREAD_SAFE int ida_local qtoupper(char c) { return toupper((uchar)(c)); 
 #define getenv          dont_use_getenv            ///< use qgetenv()
 #define setenv          dont_use_setenv            ///< use qsetenv()
 #define putenv          dont_use_putenv            ///< use qsetenv()
-#define strtok          dont_use_strrok            ///< use qstrtok()
+#define strtok          dont_use_strtok            ///< use qstrtok()
 #undef strlwr
 #undef strupr
 #define strlwr          dont_use_strlwr            ///< use qstrlwr()
 #define strupr          dont_use_strupr            ///< use qstrupr()
 #define waitid          dont_use_waitid            ///< use qwait()
 #define waitpid         dont_use_waitpid           ///< use qwait()
-#define wait            dont_use_wait              ///< use qwait()
 #endif
 
 //---------------------------------------------------------------------------
@@ -991,7 +991,7 @@ INLINE THREAD_SAFE int ida_local qtoupper(char c) { return toupper((uchar)(c)); 
 /// Usual optional fields like the width can be used too: %04a.
 /// The width specifier will be doubled for 64-bit version.
 /// These function return the number of characters _actually written_ to the output string.
-/// excluding the terminating zero. (which is different from the snprintf).
+/// excluding the terminating zero (which is different from the snprintf).
 /// They always terminate the output with a zero byte (if n > 0).
 ///@{
 idaman AS_PRINTF(3, 4) THREAD_SAFE int ida_export qsnprintf(char *buffer, size_t n, const char *format, ...);           ///< A safer snprintf
@@ -1135,7 +1135,7 @@ idaman THREAD_SAFE bool ida_export search_path(
 #if defined(__UNIX__)
 #define DELIMITER       ":"     ///< for Unix - ';' for Windows
 #else
-#define DELIMITER       ";"     ///< for MS DOS, Windows, other systems - ':' for Unix
+#define DELIMITER       ";"     ///< for MS-DOS, Windows, other systems - ':' for Unix
 #endif
 
 
@@ -1204,7 +1204,7 @@ idaman THREAD_SAFE bool ida_export sanitize_file_name(char *name, size_t namesiz
 /// Only * and ? wildcards are supported.
 /// \param name name to match
 /// \param pattern pattern to match against
-/// \return true is matched
+/// \return true if matched
 
 bool wildcard_match(const char *name, const char *pattern);
 
@@ -1214,7 +1214,7 @@ bool wildcard_match(const char *name, const char *pattern);
 /// \param name name to match
 /// \param _pattern pattern to match against
 /// \param flags combination of WPM_... bits
-/// \return true is matched
+/// \return true if matched
 
 bool wildcard_path_match(const char *name, const char *_pattern, int flags=0);
 
@@ -1255,7 +1255,7 @@ idaman int ida_export regex_match(const char *str, const char *pattern, bool sen
 /*--------------------------------------------------*/
 /*   you should use these functions for file i/o    */
 
-/// Works the same as it's counterpart from Clib.
+/// Works the same as its counterpart from C library.
 /// The only difference is that it sets 'qerrno' variable too
 
 idaman THREAD_SAFE int   ida_export qopen(const char *file, int mode);
@@ -1270,13 +1270,13 @@ idaman THREAD_SAFE int   ida_export qopen_shared(const char *file, int mode, int
 
 idaman THREAD_SAFE int   ida_export qcreate(const char *file, int stat);
 
-idaman THREAD_SAFE int   ida_export qread(int h, void *buf, size_t n);                        ///< \copydoc qopen
-idaman THREAD_SAFE int   ida_export qwrite(int h, const void *buf, size_t n);                 ///< \copydoc qopen
-idaman THREAD_SAFE qoff64_t ida_export qtell(int h);                                          ///< \copydoc qopen
-idaman THREAD_SAFE qoff64_t ida_export qseek(int h, int64 offset, int whence);              ///< \copydoc qopen
-idaman THREAD_SAFE int   ida_export qclose(int h);                                            ///< \copydoc qopen
-idaman THREAD_SAFE int   ida_export qdup(int h);                                              ///< \copydoc qopen
-idaman THREAD_SAFE int   ida_export qfsync(int h);                                            ///< \copydoc qopen
+idaman THREAD_SAFE int   ida_export qread(int h, void *buf, size_t n);         ///< \copydoc qopen
+idaman THREAD_SAFE int   ida_export qwrite(int h, const void *buf, size_t n);  ///< \copydoc qopen
+idaman THREAD_SAFE qoff64_t ida_export qtell(int h);                           ///< \copydoc qopen
+idaman THREAD_SAFE qoff64_t ida_export qseek(int h, int64 offset, int whence); ///< \copydoc qopen
+idaman THREAD_SAFE int   ida_export qclose(int h);                             ///< \copydoc qopen
+idaman THREAD_SAFE int   ida_export qdup(int h);                               ///< \copydoc qopen
+idaman THREAD_SAFE int   ida_export qfsync(int h);                             ///< \copydoc qopen
 
 
 /// Get the file size.
@@ -1421,7 +1421,7 @@ idaman int ida_export log2floor(uint64 d64);
 idaman int ida_export bitcount(uint64 x);
 
 /// count the number of consecutive trailing zero bits
-/// (line C++20 std::countr_zero())
+/// (like C++20 std::countr_zero())
 idaman int ida_export bitcountr_zero(uint64 x);
 
 /// round up or down to a power of 2
@@ -1523,7 +1523,7 @@ template <class T> constexpr T make_mask(int count)
   return left_shift<T>(1, count) - 1;
 }
 
-/// Set a 'bit' in 'where' if 'value' if not zero
+/// Set a 'bit' in 'where' if 'value' is not zero
 template<class T, class U> void idaapi setflag(T &where, U bit, bool cnd)
 {
   if ( cnd )
@@ -1595,7 +1595,7 @@ inline THREAD_SAFE constexpr T extend_sign_bits(T v, int nbits)
 #endif // __cplusplus
 
 //-------------------------------------------------------------------------
-/// Sign-, or zero-extend the value 'v' to occupy 64 bits.
+/// Sign or zero-extend the value 'v' to occupy 64 bits.
 /// The value 'v' is considered to be of size 'nbytes'.
 
 idaman uint64 ida_export extend_sign(uint64 v, int nbytes, bool sign_extend);
@@ -1608,10 +1608,10 @@ idaman uint64 ida_export extend_sign(uint64 v, int nbytes, bool sign_extend);
 
 
 //---------------------------------------------------------------------------
-/// Read at most 4 bytes from file.
+/// Read up to 4 bytes (1, 2, or 4) from file.
 /// \param h     file handle
 /// \param res   value read from file
-/// \param size  size of value in bytes (1,2,4)
+/// \param size  size of value in bytes (1, 2, 4)
 /// \param mf    is MSB first?
 /// \return 0 on success, nonzero otherwise
 
@@ -1783,7 +1783,7 @@ THREAD_SAFE inline ea_t unpack_ea(const uchar **ptr, const uchar *end)
 #endif
 }
 
-/// Unpack an ea value (always use 64bit, use delta 1)
+/// Unpack an ea value (always use 64-bit, use delta 1)
 THREAD_SAFE inline ea64_t unpack_ea64(const uchar **ptr, const uchar *end)
 {
   return unpack_dq(ptr, end) - 1;
@@ -2176,13 +2176,15 @@ idaman THREAD_SAFE void *ida_export qvector_reserve(void *vec, void *old, size_t
 
 // Internal declarations to detect movable types
 /// \cond
-// Can we move around objects of type T using simple memcpy/memmove?.
+// Can we move around objects of type T using simple memcpy/memmove?
 // This class can be specialized for any type T to improve qvector's behavior.
 template <class T> struct ida_movable_type
 {
   static constexpr bool value = std::is_pod<T>::value;
 };
 #define DECLARE_TYPE_AS_MOVABLE(T) template <> struct ida_movable_type<T> { static constexpr bool value = true; }
+
+
 template <class T> inline constexpr THREAD_SAFE bool may_move_bytes(void)
 {
   return ida_movable_type<T>::value;
@@ -2257,7 +2259,7 @@ template <class T> class qvector
     size_t _newsize = x.n;
     if ( _newsize > 0 )
     {
-      array = (T*)qalloc_or_throw(_newsize * sizeof(T));
+      array = static_cast<T*>(qalloc_or_throw(_newsize * sizeof(T)));
       alloc = _newsize;
       copy_range(x, 0, _newsize);
     }
@@ -2283,6 +2285,32 @@ template <class T> class qvector
     array = nullptr;
     alloc = 0;
   }
+  /// Reallocates the array to a new capacity (best-effort, may fail silently).
+  void _reallocate_array(size_t new_alloc)
+  {
+    if ( array == nullptr || new_alloc == 0 )
+      return;
+    if ( may_move_bytes<T>() )
+    {
+      T *new_array = (T*)qrealloc(array, new_alloc * sizeof(T));
+      if ( new_array != nullptr )
+      {
+        array = new_array;
+        alloc = new_alloc;
+      }
+    }
+    else
+    {
+      T *new_array = (T*)qalloc(new_alloc * sizeof(T));
+      if ( new_array != nullptr )
+      {
+        shift_down(new_array, array, n);
+        qfree(array);
+        array = new_array;
+        alloc = new_alloc;
+      }
+    }
+  }
   /// Resizes to a smaller size, destroying elements if needed.
   void resize_less(size_t _newsize)
   {
@@ -2293,13 +2321,13 @@ template <class T> class qvector
         array[i].~T();
     }
     n = _newsize;
-#ifdef TESTABLE_BUILD
+#ifdef TESTABLE_BUILD_DEBUG_CONTAINERS
     /// This helps to find use-after-frees in empty containers:
     if ( n == 0 )
       free_memory();
 #endif
   }
-  /// Resizes to a bigger size, and zeroes the new elements (they
+  /// Resizes to a bigger size, and zeros the new elements (they
   /// should be of a std::is_trivially_constructible type).
   void resize_more_trivial(size_t _newsize)
   {
@@ -2335,6 +2363,31 @@ public:
     array = x.array; x.array = nullptr;
     n = x.n; x.n = 0;
     alloc = x.alloc; x.alloc = 0;
+  }
+  /// Initializer list constructor
+  qvector(std::initializer_list<T> l) : array(nullptr), n(0), alloc(0)
+  {
+    const size_t sz = l.size();
+    if ( sz == 0 )
+      return;
+
+    array = static_cast<T*>(qalloc_or_throw(sz * sizeof(T)));
+    alloc = sz;
+
+    if ( std::is_trivially_copyable<T>::value )
+    {
+      memcpy(array, l.begin(), sz * sizeof(T));
+    }
+    else
+    {
+      static_assert(std::is_nothrow_copy_constructible<T>::value,
+        "T must be nothrow-copy-constructible in order avoid potential memory leaks");
+      const T *const data = l.begin();
+      for ( size_t idx = 0; idx < sz; ++idx )
+        new (array + idx) T(data[idx]);
+    }
+
+    n = sz;
   }
 #endif
   /// Destructor
@@ -2550,10 +2603,7 @@ public:
   void truncate(void)
   {
     if ( alloc > n )
-    {
-      array = (T*)qrealloc(array, n*sizeof(T)); // should not fail
-      alloc = n;
-    }
+      _reallocate_array(n);
   }
   /// Replace all attributes of this qvector with that of 'r', and vice versa.
   /// Effectively sets this = r and r = this without copying/allocating any memory.
@@ -2818,7 +2868,9 @@ class pool_allocator_t
   void free_entire_pool()
   {
     for ( T *p : pools )
+    {
       qfree(p);
+    }
     pools.clear();
     free_list = nullptr;
     pool_ptr = nullptr;
@@ -3136,7 +3188,7 @@ public:
     body.resize(s+1, c);
     body[s] = 0; // ensure the terminating zero
   }
-  /// Similar to resize(size_t, qchar) - but any extra space is filled with zeroes
+  /// Similar to resize(size_t, qchar) - but any extra space is filled with zeros
   void resize(size_t s)
   {
     if ( s == 0 )
@@ -3675,6 +3727,7 @@ public:
     append(c);
   }
 
+
   /// Split a string on SEP, appending the parts to OUT
   /// \param out storage
   /// \param sep the separator to split on
@@ -3860,7 +3913,7 @@ public:
   {
     // the opposite operation is 'unpack_str()' which gets the length
     // when it encounters a terminating '\0'. Since we don't store the
-    // string length, we cannot store zeroes that 's' might contain
+    // string length, we cannot store zeros that 's' might contain
     // and thus we cannot rely on its length().
     pack_str(s.c_str());
   }
@@ -4145,6 +4198,12 @@ public:
     init();
     insert(begin(), x.begin(), x.end());
   }
+  /// Constructor - moves the data from `x`
+  qlist(qlist &&x)
+  {
+    init();
+    splice(begin(), x, x.begin(), x.end());
+  }
   /// Destructor
   ~qlist(void)
   {
@@ -4170,8 +4229,18 @@ public:
     }
     return *this;
   }
+  /// Move the contents of a qlist using 'splice'
+  qlist &operator=(qlist &&x)
+  {
+    if ( this != &x )
+    {
+      clear();
+      splice(begin(), x, x.begin(), x.end());
+    }
+    return *this;
+  }
   /// Set this = x and x = this, without copying any memory
-  void swap(qlist<T> &x)
+  void swap(qlist<T> &x) noexcept
   {
     std::swap(node, x.node);
     std::swap(length, x.length);

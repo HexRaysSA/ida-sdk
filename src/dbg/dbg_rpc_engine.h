@@ -12,7 +12,7 @@ public:
   bool has_pending_event;
   bool poll_debug_events;
 
-  dbg_rpc_engine_t(bool _is_client);
+  dbg_rpc_engine_t(bool _is_client, int _recv_timeout);
 
 #define PREQ_GET_EVENT  0x01
   rpc_packet_t *send_request_and_receive_reply(uchar pkt_code, bytevec_t &pkt, int flags);

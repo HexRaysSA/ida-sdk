@@ -213,14 +213,14 @@ public:
   /// Delete all elements from the set. See qvector::clear()
   void clear(void) { bag.clear(); cache = nullptr; }
 
-  /// Does any element of 'aset' overlap with an element in this rangeset?. See range_t::overlaps()
+  /// Does any element of 'aset' overlap with an element in this rangeset? See range_t::overlaps()
   bool has_common(const rangeset_t &aset) const
     { return rangeset_t_has_common2(this, aset); }
 
   /// Does an element of the rangeset contain 'ea'? See range_t::contains(ea_t)
   bool contains(ea_t ea) const { return !empty() && find_range(ea) != nullptr; }
 
-  /// Is every element in 'aset' contained in an element of this rangeset?. See range_t::contains(range_t)
+  /// Is every element in 'aset' contained in an element of this rangeset? See range_t::contains(range_t)
   bool contains(const rangeset_t &aset) const
      { return rangeset_t_contains(this, aset); }
 

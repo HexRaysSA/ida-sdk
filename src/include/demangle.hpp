@@ -137,7 +137,7 @@
 #define MNG_NOPTRTYP16    0x3 ///< inhibit everything (disables vc7-extensions)
 #define MNG_DEFHUGE       0x4 ///< inhibit huge, display everything else
 #define MNG_DEFPTR64      0x5 ///< inhibit __pt64, display everything else
-                              ///< ATT: in 64bit must be + MNG_NOTYPE|MNG_NOCALLC
+                              ///< ATT: in 64-bit must be + MNG_NOTYPE|MNG_NOCALLC
 #define MNG_DEFNONE       0x6 ///< display everything
 #define MNG_NOPTRTYP      0x7 ///< inhibit everything
 //

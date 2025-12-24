@@ -57,7 +57,7 @@
 
   All arrays that are attached to the netnode behave in the same manner.
   Initially:
-    - all members of altvals/charvals array are zeroes
+    - all members of altvals/charvals array are zeros
     - all members of supvals/hashvals array are undefined
 
   If you need to store objects bigger that MAXSPECSIZE, please note that
@@ -269,7 +269,7 @@ public:
 
   ///@}
 
-  /// Does the specified netnode exist?.
+  /// Does the specified netnode exist?
   /// \retval true   there is some information attached to the netnode.
   /// \retval false  unnamed netnode without any information
   friend bool exist(const netnode &n) { return netnode_exist(n); }

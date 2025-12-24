@@ -505,8 +505,11 @@ static void create_exports(
   for ( i=0; i < ah.numexp; i++ )
   {
     ea_t ea = get_segea(ah, segea, explist[i].seg, explist[i].ofs);
-    add_extra_cmt(ea, true, "Exported entry %d", i);
-    set_import_ordinal(modnode, ea, i + 1);
+    if ( ea != BADADDR )
+    {
+      add_extra_cmt(ea, true, "Exported entry %d", i);
+      set_import_ordinal(modnode, ea, i + 1);
+    }
   }
   import_module(modname, nullptr /*windir*/, modnode, nullptr, "geos");
   for ( i=0; i < ah.numexp; i++ )

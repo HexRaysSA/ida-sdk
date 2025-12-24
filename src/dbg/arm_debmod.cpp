@@ -258,10 +258,11 @@ void arm_debmod_t::adjust_swbpt(ea_t *p_ea, int *p_len)
   }
 }
 
-#ifdef ENABLE_LOWCNDS
+#if defined(ENABLE_LOWCNDS) && !defined(__EA64__)
 //--------------------------------------------------------------------------
-// since arm does not have a single step facility, we have to emulate it
-// with a temporary breakpoint.
+// 32-bit ARM does not have a single step facility, we have to emulate it
+// with a temporary breakpoint. AArch64 has hardware single-step support
+// via PTRACE_SINGLESTEP, so it uses the base class implementation.
 drc_t arm_debmod_t::dbg_perform_single_step(debug_event_t *dev, const insn_t &insn)
 {
   // read register values
@@ -365,4 +366,4 @@ drc_t arm_debmod_t::dbg_perform_single_step(debug_event_t *dev, const insn_t &in
     dev->set_eid(STEP);
   return drc;
 }
-#endif // ENABLE_LOWCNDS
+#endif // ENABLE_LOWCNDS && !__EA64__

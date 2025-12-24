@@ -68,7 +68,9 @@ public:
   virtual void adjust_swbpt(ea_t *p_ea, int *p_len) override;
 
 protected:
-#ifdef ENABLE_LOWCNDS
+#if defined(ENABLE_LOWCNDS) && !defined(__EA64__)
+  // AArch64 has hardware single-step support, so we only need software
+  // single-stepping (via temporary breakpoint) for 32-bit ARM
   virtual drc_t dbg_perform_single_step(debug_event_t *dev, const insn_t &insn) override;
 #endif
 };

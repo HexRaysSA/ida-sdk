@@ -83,7 +83,7 @@ idaman ssize_t ida_export get_entry_name(qstring *buf, uval_t ord);
 /// Rename entry point.
 /// \param ord      ordinal number of the entry point
 /// \param name     name of entry point. If the specified location already
-///                 has a name, the old name will be appended to a repeatable
+///                 has a name, the old name will be appended to a non-repeatable
 ///                 comment.
 /// \param flags    See AEF_*
 /// \return success

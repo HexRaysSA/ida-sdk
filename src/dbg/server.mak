@@ -6,6 +6,7 @@ SERVER_LIBS += $(L)network$(A)
 SERVER_LIBS += $(DUMB)
 SERVER_LIBS += $(L)unicode$(A)
 SERVER_LIBS += $(L)pro$(A)
+SERVER_LIBS += $(L)int128$(A)
 SERVER_LIBS += $(L)compress$(A)
 
 server: $(SERVERS)

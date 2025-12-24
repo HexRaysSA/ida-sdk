@@ -10,7 +10,7 @@
 //---------------------------------------------------------------------------
 /// This class manages the offset and size of a value that occupies
 /// a number of contiguous bits within some container - generally a byte array.
-/// A special state - empty range (both offset and size are zeroes) - determines
+/// A special state - empty range (both offset and size are zeros) - determines
 /// the value as all bits of the container.
 class bitrange_t
 {

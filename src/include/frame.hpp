@@ -262,15 +262,19 @@ idaman bool ida_export set_purged(ea_t ea, int nbytes, bool override_old_value);
 /// \param insn   the instruction
 /// \param x      reference to instruction operand
 /// \param v      immediate value in the operand (usually x.addr)
-/// \param flags  \ref STKVAR_1
+/// \param stkvar_flags  \ref STKVAR_1
 /// \return success
 
-idaman bool ida_export add_stkvar(const insn_t &insn, const op_t &x, sval_t v, int flags);
+idaman bool ida_export add_stkvar(
+        const insn_t &insn,
+        const op_t &x,
+        sval_t v,
+        int stkvar_flags);
 
 /// \defgroup STKVAR_1 Add stkvar flags
 /// Passed as 'flags' parameter to add_stkvar()
 ///@{
-#define STKVAR_VALID_SIZE       0x0001 ///< x.dtyp contains correct variable type
+#define STKVAR_VALID_SIZE       0x0001 ///< x.dtype contains correct variable type
                                        ///< (for insns like 'lea' this bit must be off).
                                        ///< In general, dr_O references do not allow
                                        ///< to determine the variable size

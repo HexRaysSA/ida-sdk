@@ -77,7 +77,6 @@
 
 #define TIMEOUT         (1000/25)       // timeout for polling (ms)
 #define TIMEOUT_INFINITY -1
-#define RECV_HELLO_TIMEOUT   1000       // timeout for the first packet (ms)
 #define RECV_TIMEOUT_PERIOD  10000      // timeout for recv (ms)
 
 // bidirectional codes (client <-> server)
@@ -808,8 +807,8 @@ public:
   const rpc_pkt_timeout_t *pkt_timeouts = nullptr;
   size_t n_pkt_timeouts = 0;
 
-  int recv_timeout;
-  bool is_client;
+  int recv_timeout = 0;
+  bool is_client = false;
   bool logged_in = false;
 
 protected:
@@ -821,6 +820,7 @@ protected:
 public:
   rpc_engine_t(
         bool _is_client,
+        int _recv_timeout,
         const rpc_pkt_timeout_t *_pkt_timeouts = nullptr,
         size_t _n_pkt_timeouts = 0);
   virtual ~rpc_engine_t() {}
@@ -899,10 +899,11 @@ public:
         idarpc_stream_t *_irs,
         bool _our_irs,
         bool _is_client,
+        int _recv_timeout,
         const rpc_pkt_timeout_t *_pkt_timeouts = nullptr,
         size_t _n_pkt_timeouts = 0,
         int _protocol_version = 0)
-    : rpc_engine_t(_is_client, _pkt_timeouts, _n_pkt_timeouts),
+    : rpc_engine_t(_is_client, _recv_timeout, _pkt_timeouts, _n_pkt_timeouts),
       rpc_irs(_irs), our_irs(_our_irs), protocol_version(_protocol_version)
   {
     register_packet_type_descs(descs, cnt);
@@ -990,8 +991,15 @@ void format_hex_dump(
 #define REPEAT_BYTES_MARKER '#'
 
 //-------------------------------------------------------------------------
+struct login_credentials_t;
+#define LCRED_HELPER_DEFINITIONS(decl) \
+decl bool ida_export lcred_process_switch(login_credentials_t *lc, const char *args);
+LCRED_HELPER_DEFINITIONS(idaman)
+
+//-------------------------------------------------------------------------
 struct login_credentials_t : public endpoint_credentials_t
 {
+  LCRED_HELPER_DEFINITIONS(friend)
   endpoint_credentials_t proxy;
 #define LCS_NO_TLS 0x1
 #define LCS_SEEN_PROXY_OPTION 0x2
@@ -1001,7 +1009,10 @@ struct login_credentials_t : public endpoint_credentials_t
   login_credentials_t(const qstring &_host, ushort _port)
     : endpoint_credentials_t(_host, _port) {}
   virtual ~login_credentials_t() {}
-  virtual bool process_switch(const char *) newapi;
+  virtual bool process_switch(const char *args) newapi
+  {
+    return lcred_process_switch(this, args);
+  }
   virtual void clear() newapi { this->endpoint_credentials_t::clear(); proxy.clear(); state = 0; }
 
   bool load_password(qstring *out, qstring *errbuf) const
@@ -1029,6 +1040,7 @@ struct login_credentials_t : public endpoint_credentials_t
   bool has_seen_proxy_option() const { return (state & LCS_SEEN_PROXY_OPTION) != 0; }
 
 protected:
+  bool _process_switch(const char *args);
   bool load_pass_from_keychain(qstring * /*out*/, qstring * /*errbuf*/, const char * /*app_name*/) const;
   virtual bool do_load_password(qstring * /*out*/, qstring * /*errbuf*/) const newapi { return false; }
   virtual bool do_load_proxy_password(qstring * /*out*/, qstring * /*errbuf*/) const newapi { return false; }
@@ -1054,8 +1066,33 @@ struct credential_validator_t
 bool license_server_enabled();
 
 //-------------------------------------------------------------------------
+enum ask_user_result_t
+{
+  AUR_CANCELLED = 0, // user rejected the prompt
+  AUR_VALID,         // the validator (if any) succeeded
+  AUR_INVALID,       // the validator (if any) failed
+};
+
+//-------------------------------------------------------------------------
+struct vault_credentials_t;
+#define VCRED_HELPER_DEFINITIONS(decl) \
+decl void ida_export vcred_init(vault_credentials_t *vc);\
+decl bool ida_export vcred_process_switch(vault_credentials_t *vc, const char *arg);\
+decl bool ida_export vcred_do_load_password(const vault_credentials_t *vc, qstring *out, qstring *errbuf);\
+decl bool ida_export vcred_do_load_proxy_password(const vault_credentials_t *vc, qstring *out, qstring *errbuf);\
+decl bool ida_export vcred_write(const vault_credentials_t *vc, qstring *errbuf);\
+decl ask_user_result_t ida_export vcred_ask_user(vault_credentials_t *vc, credential_validator_t *validator, qstring *errbuf, uint32 auf_flags);\
+decl bool ida_export vcred_reg_should_store_info();\
+decl void ida_export vcred_reg_set_store_info(bool store_pass);\
+decl bool ida_export vcred_reg_del_store_info();\
+decl void ida_export vcred_reg_set_site(const vault_credentials_t *vc, const char *site);\
+decl bool ida_export vcred_load_site(vault_credentials_t *vc);
+VCRED_HELPER_DEFINITIONS(idaman)
+
+//-------------------------------------------------------------------------
 struct vault_credentials_t : public login_credentials_t
 {
+  VCRED_HELPER_DEFINITIONS(friend)
   typedef login_credentials_t inherited;
   qstring sitename;
 #define VCS_SEEN_SITE_OPTION (0x1 << LCS_RESERVED_BITS)
@@ -1064,42 +1101,56 @@ struct vault_credentials_t : public login_credentials_t
 
   vault_credentials_t() : login_credentials_t(DEFAULT_VAULT_HOST, DEFAULT_VAULT_PORT) {}
   virtual ~vault_credentials_t() {}
-  void init();
-  virtual bool process_switch(const char *arg) override;
+  void init() { vcred_init(this); }
+  virtual bool process_switch(const char *arg) override { return vcred_process_switch(this, arg); }
   virtual void clear() override
   {
     this->login_credentials_t::clear();
     sitename.clear();
   }
-  virtual bool do_load_password(qstring *out, qstring *errbuf) const override;
-  virtual bool do_load_proxy_password(qstring *out, qstring *errbuf) const override;
-  virtual bool write(qstring *errbuf) const override;
-  enum ask_user_result_t
+  virtual bool do_load_password(qstring *out, qstring *errbuf) const override
   {
-    AUR_CANCELLED = 0, // user rejected the prompt
-    AUR_VALID,         // the validator (if any) succeeded
-    AUR_INVALID,       // the validator (if any) failed
-  };
+    return vcred_do_load_password(this, out, errbuf);
+  }
+
+  virtual bool do_load_proxy_password(qstring *out, qstring *errbuf) const override
+  {
+    return vcred_do_load_proxy_password(this, out, errbuf);
+  }
+  virtual bool write(qstring *errbuf) const override
+  {
+    return vcred_write(this, errbuf);
+  }
 #define AUF_SILENT_UPDATE_FAILURE 0x1 // don't warn user if persisting the credentials failed
   ask_user_result_t ask_user(
         credential_validator_t *validator,
         qstring *errbuf,
-        uint32 auf_flags=0);
+        uint32 auf_flags=0)
+  {
+    return vcred_ask_user(this, validator, errbuf, auf_flags);
+  }
 
   bool update(qstring *errbuf) const;  // set/del reg info depending on 'VCS_UPDATE_REG_INFO'
   bool del(qstring *errbuf) const;
-  void reg_set_site(const char *site) const;
+  void reg_set_site(const char *site) const { vcred_reg_set_site(this, site); }
 
-  bool load_site();
+  bool load_site() { return vcred_load_site(this); }
   void load_proxy_info();
 
   bool has_seen_site_option() const { return (state & VCS_SEEN_SITE_OPTION) != 0; }
 
-  static bool reg_should_store_info();
-  static void reg_set_store_info(bool store_pass);
-  static bool reg_del_store_info();
+  static bool reg_should_store_info() { return vcred_reg_should_store_info(); }
+  static void reg_set_store_info(bool store_pass) { vcred_reg_set_store_info(store_pass); }
+  static bool reg_del_store_info() { return vcred_reg_del_store_info(); }
 
 private:
+  void _init();
+  ask_user_result_t _ask_user(
+        credential_validator_t *validator,
+        qstring *errbuf,
+        uint32 auf_flags);
+  bool _write(qstring *errbuf) const;
+  void _reg_set_site(const char *site) const;
   void get_reg_key(qstring *out) const;
 };
 

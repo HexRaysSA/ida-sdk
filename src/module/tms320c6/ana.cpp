@@ -1554,10 +1554,15 @@ struct tmsinsn_indexed_t
 
   bool xbit_at_12;
 
-  tmsinsn_indexed_t(tmsinsn_t _header, uint32 _index,
-    uint32 _mask, funit_t _unit,
-    bool flip_src1_src2 = false, bool xbit_at_12 = false) :
-    header(std::move(_header)), index(_index), mask(_mask), unit(_unit), xbit_at_12(xbit_at_12)
+  tmsinsn_indexed_t(
+        tmsinsn_t _header,
+        uint32 _index,
+        uint32 _mask,
+        funit_t _unit,
+        bool flip_src1_src2 = false,
+        bool _xbit_at_12 = false) :
+    header(std::move(_header)), index(_index), mask(_mask),
+    unit(_unit), xbit_at_12(_xbit_at_12)
   {
     header.flip_src1_src2 = flip_src1_src2;
   }
@@ -2192,13 +2197,13 @@ static void cmpct_Dstk(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
   // src/dst register
   reg->type = o_reg;
   reg->dtype = dt_dword;
-  reg->reg  = (code >>4) & 7;
-  reg->reg += (code & BIT0) ? rA4 : rB4;
+  reg->reg = (code >> 4) & 7;
+  reg->reg += (code & BIT12) ? rB0 : rA0;
 
   // pointer
   ptr->type = o_displ;
   ptr->dtype = dt_dword;
-  ptr->mode = 0;
+  ptr->mode = -1;
   ptr->reg  = rB15;
   ptr->addr = (((code >> 7) & 7) << 2) | ((code >> 13) & 3);
   ptr->addr <<= 2;
@@ -2640,7 +2645,10 @@ static void cmpct_Smvk8(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 
   insn.itype = TMS6_mvk;
 
-  op_imm(insn.Op1, ((code >> 10) & 1) << 7 | ((code >> 5) & 3) << 5 | ((code >> 11) & 3) << 3 | (code >> 13) & 7);
+  op_imm(insn.Op1, (((code >> 10) & 1) << 7)
+                 | (((code >>  5) & 3) << 5)
+                 | (((code >> 11) & 3) << 3)
+                 | (((code >> 13) & 7) << 0));
   op_reg(insn.Op2, make_reg(insn, (code >> 7) & 7, false));
 }
 
@@ -2693,7 +2701,7 @@ static void cmpct_Ssh5_S2sh(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
   if ( is_S2sh )
     op_reg(insn.Op2, make_reg(insn, (code >> 13) & 7, false));
   else
-    op_imm(insn.Op2, ((code >> 11) & 3) << 3 | (code >> 13) & 7);
+    op_imm(insn.Op2, (((code >> 11) & 3) << 3) | ((code >> 13) & 7));
 }
 
 // Sc5 (0x2 / 41e), S2ext (0x62 / 4de) Instruction Formats
@@ -2736,7 +2744,7 @@ static void cmpct_Sc5_S2ext(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
     static const uint16 Scs5_table[] = { TMS6_extu, TMS6_set, TMS6_clr };
 
     insn.itype = Scs5_table[op];
-    ucst5_val = ((code >> 11) & 3) << 3 | (code >> 13) & 7;
+    ucst5_val = (((code >> 11) & 3) << 3) | ((code >> 13) & 7);
 
     bool is_extu = insn.itype == TMS6_extu;
     op_imm(insn.Op2, is_extu ? 31 : ucst5_val);
@@ -2785,7 +2793,7 @@ static void cmpct_Sx5(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 
   insn.itype = TMS6_addk;
 
-  op_imm(insn.Op1, ((code >> 11) & 3) << 3 | (code >> 13) & 7);
+  op_imm(insn.Op1, (((code >> 11) & 3) << 3) | ((code >> 13) & 7));
   op_reg(insn.Op2, make_reg(insn, (code >> 7) & 7, false));
 }
 

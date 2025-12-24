@@ -7,6 +7,7 @@
  *
  */
 #include "necv850.hpp"
+#include "notify_codes.hpp"
 #include "ins.hpp"
 #include <loader.hpp>
 #include <segregs.hpp>
@@ -183,8 +184,20 @@ static const char *const lnames[] =
   nullptr
 };
 
+//-------------------------------------------------------------------------
+static void nec850_get_abi_info(qstrvec_t *names, qstrvec_t *opts)
+{
+  names->push_back("rh850-8byte_align");
+  names->push_back("ghs");
+  names->push_back("oldgcc-8byte_align");
+  opts->push_back(
+    "8byte_align:"
+    "'double' and 'long long' types to be aligned on 8-byte boundaries"
+    "#8-byte types alignment");
+}
+
 //--------------------------------------------------------------------------
-ssize_t idaapi idb_listener_t::on_event(ssize_t code, va_list)
+ssize_t idaapi pm_idb_listener_t::on_event(ssize_t code, va_list va)
 {
   switch ( code )
   {
@@ -210,6 +223,14 @@ ssize_t idaapi idb_listener_t::on_event(ssize_t code, va_list)
     case idb_event::func_tail_deleted:
     case idb_event::tail_owner_changed:
     case idb_event::frame_deleted:
+      invalidate_regfinder_cache();
+      break;
+
+    case idb_event::compiler_changed:
+      {
+        bool adjust_inf_fields = va_argi(va, bool);
+        pm.nec850_set_abi(adjust_inf_fields);
+      }
       invalidate_regfinder_cache();
       break;
 
@@ -250,6 +271,7 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
       break;
 
     case processor_t::ev_newfile:
+      nec850_set_abi(true);
       save_all_options();
       break;
 
@@ -267,19 +289,8 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
       invalidate_regfinder_cache();
       [[fallthrough]];
     case processor_t::ev_oldfile:
+      nec850_set_abi(false);
       load_from_idb();
-      break;
-
-    case processor_t::ev_creating_segm:
-      {
-        segment_t *s = va_arg(va, segment_t *);
-        // Set default value of DS register for all segments
-        set_default_dataseg(s->sel);
-        s->defsr[srGP-ph.reg_first_sreg] = BADADDR;
-        s->defsr[srTP-ph.reg_first_sreg] = BADADDR;
-        s->defsr[srCTBP-ph.reg_first_sreg] = BADADDR;
-        set_selector(s->sel, 0);
-      }
       break;
 
     case processor_t::ev_is_sane_insn:
@@ -296,6 +307,12 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
         code = nec850_may_be_func(insn);
       }
       break;
+
+    case processor_t::ev_is_call_insn:
+      {
+        const insn_t *insn = va_arg(va, insn_t *);
+        return is_call_insn(*insn) ? 1 : -1;
+      }
 
     case processor_t::ev_is_ret_insn:
       {
@@ -362,12 +379,8 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
         return out_opnd(*ctx, *op) ? 1 : -1;
       }
 
-    case processor_t::ev_is_switch:
-      {
-        switch_info_t *si = va_arg(va, switch_info_t *);
-        const insn_t *insn = va_arg(va, const insn_t *);
-        return nec850_is_switch(si, *insn) ? 1 : -1;
-      }
+    // case processor_t::ev_is_switch:
+    // this proc module recognizes switch only in emu()
 
     case processor_t::ev_is_sp_based:
       {
@@ -381,15 +394,83 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_create_func_frame:
       {
         func_t *pfn = va_arg(va, func_t *);
-        nec850_create_func_frame(pfn);
+        create_func_frame(pfn);
+        return 1;
+      }
+
+    case processor_t::ev_analyze_prolog:
+      {
+        ea_t ea = va_arg(va, ea_t);
+        func_t *pfn = get_func(ea);
+        if ( pfn != nullptr )
+          create_func_frame(pfn, true);
         return 1;
       }
 
     case processor_t::ev_get_frame_retsize:
       {
         int *frsize = va_arg(va, int *);
-        const func_t *pfn = va_arg(va, const func_t *);
-        *frsize = nec850_get_frame_retsize(pfn);
+        // const func_t *pfn = va_arg(va, const func_t *);
+        // NEC850 doesn't use stack for function return addresses
+        *frsize = 0;
+        return 1;
+      }
+
+    case processor_t::ev_lower_func_type:
+      {
+        intvec_t *argnums = va_arg(va, intvec_t *);
+        func_type_data_t *fti = va_arg(va, func_type_data_t *);
+        nec850_lower_func_arg_types(argnums, *fti);
+        return 1;
+      }
+
+    case processor_t::ev_calc_arglocs:
+      {
+        func_type_data_t *fti = va_arg(va, func_type_data_t *);
+        return calc_nec850_arglocs(fti, 0) ? 1 : -1;
+      }
+
+    case processor_t::ev_calc_varglocs:
+      {
+        func_type_data_t *fti = va_arg(va, func_type_data_t *);
+        /*regobjs_t *regargs =*/ va_arg(va, regobjs_t *);
+        /*relobj_t *stkargs =*/ va_arg(va, relobj_t *);
+        int nfixed = va_arg(va, int);
+        return calc_nec850_arglocs(fti, nfixed) ? 1 : -1;
+      }
+
+    case processor_t::ev_calc_retloc:
+      {
+        argloc_t *retloc = va_arg(va, argloc_t *);
+        const tinfo_t *type = va_arg(va, const tinfo_t *);
+        callcnv_t cc        = va_arg(va, callcnv_t);
+        return calc_nec850_retloc(retloc, *type, cc) ? 1 : -1;
+      }
+
+    case processor_t::ev_use_arg_types:
+      {
+        ea_t ea               = va_arg(va, ea_t);
+        func_type_data_t *fti = va_arg(va, func_type_data_t *);
+        funcargvec_t *rargs   = va_arg(va, funcargvec_t *);
+        use_nec850_arg_types(ea, fti, rargs);
+        return 1;
+      }
+
+    case processor_t::ev_use_regarg_type:
+      {
+        int *used                 = va_arg(va, int *);
+        ea_t ea                   = va_arg(va, ea_t);
+        const funcargvec_t *rargs = va_arg(va, const funcargvec_t *);
+        *used = use_nec850_regarg_type(ea, *rargs);
+        return 1;
+      }
+
+    case processor_t::ev_get_cc_regs:
+      {
+        callregs_t *callregs = va_arg(va, callregs_t *);
+        callcnv_t cc = va_arg(va, callcnv_t);
+        if ( !get_nec850_cc_regs(callregs, cc) )
+          break;
         return 1;
       }
 
@@ -408,6 +489,15 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
         return -1;
       }
 
+    case processor_t::ev_get_abi_info:
+      {
+        qstrvec_t *names = va_arg(va, qstrvec_t *);
+        qstrvec_t *opts  = va_arg(va, qstrvec_t *);
+        // comp_t comp = va_argi(va, comp_t);
+        nec850_get_abi_info(names, opts);
+      }
+      return 1;
+
     case processor_t::ev_add_cref:  // A code reference is being created.
       {
         ea_t from = va_arg(va, ea_t);
@@ -425,7 +515,7 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
       }
 
     case processor_t::ev_get_regfinder:
-      return ssize_t(reg_finder);
+      return reinterpret_cast<ssize_t>(reg_finder);
 
     case processor_t::ev_create_merge_handlers:
       {
@@ -494,10 +584,160 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
       }
     // END OF DEBUGGER CALLBACKS
 
+    case nec850_module_t::ev_get_gp_register:
+      {
+        // TODO add a new GP_REGISTER option.
+        // it can be: "fixed", "callee-saved", "free".
+        // when the GP_EA option is set this option should be "fixed".
+        // this option can be set automatically for ELF binaries using
+        // EF_RH850_GP_*FIX bits and '.sda*' sections.
+        return g_gp_ea != BADADDR
+             ? nec850_module_t::FIXED
+             : nec850_module_t::FREE;
+      }
+
+    case nec850_module_t::ev_get_gp_ea:
+      {
+        ea_t *gpval = va_arg(va, ea_t *);
+        ea_t ea = va_arg(va, ea_t);
+        *gpval = get_sreg(ea, srGP);
+        return 1;
+      }
+
+    case nec850_module_t::ev_get_tp_register:
+      {
+        // TODO add a new TP option.
+        // it can be: "fixed", "callee-saved", "free".
+        // when the TP_EA option is set this option should be "fixed".
+        // this option can be set automatically for ELF binaries using
+        // EF_RH850_TP_*FIX bits and '.rosda*' sections.
+        return g_tp_ea != BADADDR
+             ? nec850_module_t::FIXED
+             : nec850_module_t::FREE;
+      }
+
+    case nec850_module_t::ev_get_tp_ea:
+      {
+        ea_t *tpval = va_arg(va, ea_t *);
+        ea_t ea = va_arg(va, ea_t);
+        *tpval = get_sreg(ea, srTP);
+        return 1;
+      }
+
+    case nec850_module_t::ev_get_ep_register:
+      {
+        // TODO add a new EP option.
+        // it can be: "fixed", "callee-saved", "free".
+        // when the EP_EA option is set this option should be "fixed".
+        // this option can be set automatically for ELF binaries using
+        // EF_RH850_EP_*FIX bits and '.tda*' sections.
+        return nec850_module_t::FREE;
+      }
+
+    case nec850_module_t::ev_get_ep_ea:
+      {
+        // TODO add a new EP_EA option and new srEP segment register.
+        ea_t *epval = va_arg(va, ea_t *);
+        // ea_t ea = va_arg(va, ea_t);
+        *epval = BADADDR; // TODO get_sreg(ea, srEP);
+        return 1;
+      }
+
+    case nec850_module_t::ev_restore_pushinfo:
+      {
+        pushinfo_t *pi = va_arg(va, pushinfo_t *);
+        ea_t func_ea = va_arg(va, ea_t);
+        if ( pi->restore_from_idb(*this, func_ea) )
+          return 1;
+      }
+      break;
+
+    case nec850_module_t::ev_save_pushinfo:
+      {
+        ea_t func_ea = va_arg(va, ea_t);
+        const pushinfo_t *pi = va_arg(va, pushinfo_t *);
+        pi->save_to_idb(*this, func_ea);
+        return 1;
+      }
+
+    case nec850_module_t::ev_serialize_pushinfo:
+      {
+        bytevec_t *buf = va_arg(va, bytevec_t *);
+        ea_t func_ea = va_arg(va, ea_t);
+        const pushinfo_t *pi = va_arg(va, pushinfo_t *);
+        // int flags = va_arg(va, int);
+        pi->serialize(buf, func_ea);
+        return 1;
+      }
+
+    case nec850_module_t::ev_deserialize_pushinfo:
+      {
+        pushinfo_t *pi = va_arg(va, pushinfo_t *);
+        memory_deserializer_t *buf = va_arg(va, memory_deserializer_t *);
+        ea_t func_ea = va_arg(va, ea_t);
+        // int flags = va_arg(va, int);
+        if ( pi->deserialize(buf, func_ea) )
+          return 1;
+        break;
+      }
+
+    case nec850_module_t::ev_is_special_func_call:
+      {
+        const insn_t *insn = va_arg(va, const insn_t *);
+        return v850_is_special_func_call(nullptr, *insn);
+      }
+
     default:
       break;
   }
   return code;
+}
+
+//-------------------------------------------------------------------------
+void nec850_t::nec850_set_abi(bool init_inf_bits)
+{
+  qstring qbuf;
+  get_abi_name(&qbuf);
+  qstrvec_t opts;
+  qbuf.split(&opts, "-", SSF_DROP_EMPTY);
+
+  bool good_abi = true;
+  if ( opts.empty() )
+    good_abi = false;
+  else if ( opts[0] == "rh850" || opts[0] == "ghs" )
+    abi = ABI_RH850;
+  else if ( opts[0] == "oldgcc" || opts[0] == "gcc" )
+    abi = ABI_OLDGCC;
+  else
+    good_abi = false;
+  if ( !good_abi )
+  {
+    if ( opts.empty() )
+      msg("No ABI name\n");
+    else
+      msg("ABI name '%s' is unknown, ignored\n", opts[0].c_str());
+    // set default ABI
+    set_abi_name(is_rh850() ? "rh850" : "oldgcc");
+    return;
+  }
+  // GHS compiler aligns to 8-byte
+  // doc: "If the second argument requires 8-byte alignment and its offset
+  // would not otherwise be a multiple of eight bytes, the second argument's
+  // offset is increased by four bytes."
+  abi_align8 = opts[0] == "ghs"
+            || opts.size() > 1 && opts[1] == "8byte_align";
+  if ( init_inf_bits )
+  {
+    inf_set_mem_aligned4(!abi_align8);
+    // to guess a prototype in the decompiler
+    // for such an ABI, only scalar types are aligned.
+    // since the decompiler can only guess scalar types in the prototype,
+    // this condition is automatically satisfied.
+    // Old GCC aligns scalars to 8-byte
+    // doc: "Alignment of parameters within the parameter list is the same
+    // as their basic alignment."
+    inf_set_big_arg_align(abi_align8 || abi == ABI_OLDGCC);
+  }
 }
 
 //-----------------------------------------------------------------------
@@ -651,11 +891,14 @@ processor_t LPH =
 {
   IDP_INTERFACE_VERSION,  // version
   PLFM_NEC_V850X,         // id
-    PR_DEFSEG32           // flag
-  | PR_USE32
-  | PR_SEGS
-  | PRN_HEX
-  | PR_RNAMESOK,
+                          // flag
+    PR_USE32              // supports 32-bit addressing
+  | PR_DEFSEG32           // create 32-bit segments by default
+  | PRN_HEX               // values are hexadecimal by default
+  | PR_SEGS               // has segment registers
+  | PR_TYPEINFO           // support the tinfo_t object (type system)
+  | PR_USE_ARG_TYPES      // use ph.use_arg_types callback
+  | PR_RNAMESOK,          // register names can be reused for location names
                           // flag2
     PR2_IDP_OPTS | PR2_MACRO,         // the module has processor-specific configuration options
   8,                      // 8 bits in a byte for code segments

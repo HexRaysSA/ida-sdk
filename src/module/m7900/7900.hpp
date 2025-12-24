@@ -87,14 +87,14 @@ enum mitsubishi_bit_PUL { bPS, bb, bDT, bDPR0, bY, bX, bB, bA };
 enum mitsubishi_bit_CPU { bIPL, bN, bV, bm, bx, bD, bI, bZ, bC };
 
 
-enum mitsubishi_registers { rA, rB, rE, rX, rY, rPC,
-                            rPS,
-                            rfIPL, rfN, rfV, rfD, rfI, rfZ, rfC,
-                            rDT, rPG, rDPReg, rDPR0, rDPR1, rDPR2, rDPR3,rfM, rfX,
-                            Rcs, Rds };
-
-
-
+enum mitsubishi_registers
+{
+  rA, rB, rE, rX, rY, rPC,
+  rPS,
+  rfIPL, rfN, rfV, rfD, rfI, rfZ, rfC,
+  rDT, rPG, rDPReg, rDPR0, rDPR1, rDPR2, rDPR3,rfM, rfX,
+  Rcs, Rds
+};
 
 /*
                       15____________________0
@@ -161,8 +161,12 @@ enum eMode { IMM_8=0, IMM_16, IMM_32, DIR_32, DIR_16, DIR_8 };
 // TDIR_L_INDIRECT_DIR   - Direct indirect long addressing mode L(DIR)
 // TDIR_L_INDIRECT_DIR_Y - Direct indirect long indexed Y addressing mode L(DIR),Y
 
-enum eTypeDIR { TDIR_DIR=0, TDIR_DIR_X, TDIR_DIR_Y, TDIR_INDIRECT_DIR,
-                TDIR_INDIRECT_DIR_X, TDIR_INDIRECT_DIR_Y, TDIR_L_INDIRECT_DIR, TDIR_L_INDIRECT_DIR_Y };
+enum eTypeDIR
+{
+  TDIR_DIR=0, TDIR_DIR_X, TDIR_DIR_Y, TDIR_INDIRECT_DIR,
+  TDIR_INDIRECT_DIR_X, TDIR_INDIRECT_DIR_Y, TDIR_L_INDIRECT_DIR,
+  TDIR_L_INDIRECT_DIR_Y
+};
 
 
 // TSP_SP         - Stack pointer relative addressing mode(SR)
@@ -180,9 +184,11 @@ enum eTypeSP { TSP_SP=0, TSP_INDEX_SP_Y };
 // TAB_L_INDIRECTED_ABS - Absolute indirect long addressing mode(L(ABS))
 // TAB_INDIRECTED_ABS_X - Absolute indexed X indirect addressing mode((ABS,X))
 
-enum eTypeAB { TAB_ABS=0, TAB_ABS_X, TAB_ABS_Y, TAB_ABL, TAB_ABL_X,
-               TAB_INDIRECTED_ABS, TAB_L_INDIRECTED_ABS, TAB_INDIRECTED_ABS_X };
-
+enum eTypeAB
+{
+  TAB_ABS=0, TAB_ABS_X, TAB_ABS_Y, TAB_ABL, TAB_ABL_X,
+  TAB_INDIRECTED_ABS, TAB_L_INDIRECTED_ABS, TAB_INDIRECTED_ABS_X
+};
 
 //------------------------------------------------------------------------
 struct ioport_bit_t;

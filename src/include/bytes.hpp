@@ -60,37 +60,37 @@ idaman error_t ida_export change_storage_type(ea_t start_ea, ea_t end_ea, storag
 
 
 /// Get next address in the program (i.e. next address which has flags).
-/// \return #BADADDR if no such address exist.
+/// \return #BADADDR if no such address exists.
 
 idaman ea_t ida_export next_addr(ea_t ea);
 
 
 /// Get previous address in the program.
-/// \return #BADADDR if no such address exist.
+/// \return #BADADDR if no such address exists.
 
 idaman ea_t ida_export prev_addr(ea_t ea);
 
 
 /// Get the first address of next contiguous chunk in the program.
-/// \return #BADADDR if next chunk doesn't exist.
+/// \return #BADADDR if next chunk does not exist.
 
 idaman ea_t ida_export next_chunk(ea_t ea);
 
 
 /// Get the last address of previous contiguous chunk in the program.
-/// \return #BADADDR if previous chunk doesn't exist.
+/// \return #BADADDR if previous chunk does not exist.
 
 idaman ea_t ida_export prev_chunk(ea_t ea);
 
 
 /// Get start of the contiguous address block containing 'ea'.
-/// \return #BADADDR if 'ea' doesn't belong to the program.
+/// \return #BADADDR if 'ea' does not belong to the program.
 
 idaman ea_t ida_export chunk_start(ea_t ea);
 
 
 /// Get size of the contiguous address block containing 'ea'.
-/// \return 0 if 'ea' doesn't belong to the program.
+/// \return 0 if 'ea' does not belong to the program.
 
 idaman asize_t ida_export chunk_size(ea_t ea);
 
@@ -110,8 +110,8 @@ typedef bool idaapi testf_t(flags64_t flags, void *ud);
 
 
 /// Find next address with a flag satisfying the function 'testf'.
-/// \note do not pass is_unknown() to this function to find unexplored bytes.
-/// It will fail under the debugger. To find unexplored bytes, use next_unknown().
+/// \note do not pass is_unknown() to this function to find unexplored bytes,
+/// it will fail under the debugger. To find unexplored bytes, use next_unknown().
 /// \param ea     start searching at this address + 1
 /// \param maxea  not included in the search range.
 /// \param testf  test function to find next address
@@ -134,8 +134,8 @@ inline ea_t idaapi next_unknown(ea_t ea, ea_t maxea)
 
 
 /// Find previous address with a flag satisfying the function 'testf'.
-/// \note do not pass is_unknown() to this function to find unexplored bytes
-/// It will fail under the debugger. To find unexplored bytes, use prev_unknown().
+/// \note do not pass is_unknown() to this function to find unexplored bytes,
+/// it will fail under the debugger. To find unexplored bytes, use prev_unknown().
 /// \param ea     start searching from this address - 1.
 /// \param minea  included in the search range.
 /// \param testf  test function to find previous address
@@ -187,7 +187,7 @@ idaman ea_t ida_export next_not_tail(ea_t ea);
 
 /// Adjust the address and get the nearest visible address.
 /// (i.e. an address which will appear in the disassembly)
-/// \return #BADADDR only if no addresses are valid
+/// \return #BADADDR only if no valid address exists
 
 ea_t adjust_visea(ea_t ea);
 
@@ -222,14 +222,14 @@ bool is_visible_finally(ea_t ea); // do we need to show anything
 
 
 /// Get the start address of the item at 'ea'.
-/// If there is no current item, then 'ea' will be returned
+/// If there is no current item, then 'ea' is returned
 /// (see definition at the end of bytes.hpp source)
 
 inline ea_t idaapi get_item_head(ea_t ea);
 
 
 /// Get the end address of the item at 'ea'. The returned address
-/// doesn't belong to the current item. Unexplored bytes are counted as
+/// does not belong to the current item. Unexplored bytes are counted as
 /// 1 byte entities.
 
 idaman ea_t ida_export get_item_end(ea_t ea);
@@ -329,7 +329,7 @@ idaman flags64_t ida_export get_item_flag(ea_t from, int n, ea_t ea, bool appzer
 /// Get refinfo of the item at 'ea'.
 /// This function works for a regular offset operand as well as for a tail byte
 /// of a structure variable (in this case refinfo to corresponding structure
-/// member will be returned)
+/// member is returned)
 /// \param[out] ri  refinfo holder
 /// \param ea       the item address
 /// \param n        operand number which refers to 'ea'
@@ -364,7 +364,7 @@ idaman bool ida_export is_loaded(ea_t ea);
 
 
 /// Get number of bits in a byte at the given address.
-/// \return \ph{dnbits()} if the address doesn't
+/// \return \ph{dnbits()} if the address does not
 ///         belong to a segment, otherwise the result depends on the
 ///         segment type
 
@@ -378,7 +378,7 @@ inline int bytesize(ea_t ea)
 
 
 /// Get one byte (8-bit) of the program at 'ea'.
-/// This function works only for 8bit byte processors.
+/// This function works only for 8-bit byte processors.
 
 idaman uchar ida_export get_byte(ea_t ea);
 
@@ -386,41 +386,41 @@ idaman uchar ida_export get_byte(ea_t ea);
 /// Get one byte (8-bit) of the program at 'ea' from the database.
 /// Works even if the debugger is active.
 /// See also get_dbg_byte() to read the process memory directly.
-/// This function works only for 8bit byte processors.
+/// This function works only for 8-bit byte processors.
 
 idaman uchar ida_export get_db_byte(ea_t ea);
 
 
 /// Get one word (16-bit) of the program at 'ea'.
 /// This function takes into account order of bytes specified in \inf{is_be()}
-/// This function works only for 8bit byte processors.
+/// This function works only for 8-bit byte processors.
 
 idaman ushort ida_export get_word(ea_t ea);
 
 
 /// Get one dword (32-bit) of the program at 'ea'.
 /// This function takes into account order of bytes specified in \inf{is_be()}
-/// This function works only for 8bit byte processors.
+/// This function works only for 8-bit byte processors.
 
 idaman uint32 ida_export get_dword(ea_t ea);
 
 
 /// Get one qword (64-bit) of the program at 'ea'.
 /// This function takes into account order of bytes specified in \inf{is_be()}
-/// This function works only for 8bit byte processors.
+/// This function works only for 8-bit byte processors.
 
 idaman uint64 ida_export get_qword(ea_t ea);
 
 
 /// Get one wide byte of the program at 'ea'.
-/// Some processors may access more than 8bit quantity at an address.
+/// Some processors may access more than 8-bit quantity at an address.
 /// These processors have 32-bit byte organization from the IDA's point of view.
 
 idaman uint64 ida_export get_wide_byte(ea_t ea);
 
 
 /// Get one wide word (2 'byte') of the program at 'ea'.
-/// Some processors may access more than 8bit quantity at an address.
+/// Some processors may access more than 8-bit quantity at an address.
 /// These processors have 32-bit byte organization from the IDA's point of view.
 /// This function takes into account order of bytes specified in \inf{is_be()}
 
@@ -428,7 +428,7 @@ idaman uint64 ida_export get_wide_word(ea_t ea);
 
 
 /// Get two wide words (4 'bytes') of the program at 'ea'.
-/// Some processors may access more than 8bit quantity at an address.
+/// Some processors may access more than 8-bit quantity at an address.
 /// These processors have 32-bit byte organization from the IDA's point of view.
 /// This function takes into account order of bytes specified in \inf{is_be()}
 /// \note this function works incorrectly if \ph{nbits} > 16
@@ -559,7 +559,7 @@ idaman uint64 ida_export get_original_qword(ea_t ea);
 /// Set value of one byte of the program.
 /// This function modifies the database. If the debugger is active
 /// then the debugged process memory is patched too.
-/// \note The original value of the byte is completely lost and can't
+/// \note The original value of the byte is completely lost and cannot
 /// be recovered by the get_original_byte() function.
 /// See also put_dbg_byte() to write to the process memory directly when
 /// the debugger is active.
@@ -574,7 +574,7 @@ idaman bool ida_export put_byte(ea_t ea, uint64 x);
 /// Set value of one word of the program.
 /// This function takes into account order of bytes specified in \inf{is_be()}
 /// This function works for wide byte processors too.
-/// \note The original value of the word is completely lost and can't
+/// \note The original value of the word is completely lost and cannot
 /// be recovered by the get_original_word() function.
 ///      ea - linear address
 ///      x  - word value
@@ -587,7 +587,7 @@ idaman void ida_export put_word(ea_t ea, uint64 x);
 /// This function works for wide byte processors too.
 /// \param ea  linear address
 /// \param x   dword value
-/// \note the original value of the dword is completely lost and can't
+/// \note the original value of the dword is completely lost and cannot
 /// be recovered by the get_original_dword() function.
 
 idaman void ida_export put_dword(ea_t ea, uint64 x);
@@ -825,7 +825,7 @@ typedef bool idaapi may_destroy_cb_t(ea_t);
 /// \param may_destroy optional routine invoked before deleting a head
 ///                    item. If callback returns false then item is not to
 ///                    be deleted and operation fails
-/// \return true on sucessful operation, otherwise false
+/// \return true on successful operation, otherwise false
 
 idaman bool ida_export del_items(
         ea_t ea,
@@ -968,7 +968,7 @@ inline THREAD_SAFE constexpr bool idaapi f_has_user_name(flags64_t F, void *) { 
 //    signed                    |unsigned
 //
 
-/// Should sign of n-th operand inverted during output?.
+/// Should the sign of n-th operand be inverted during output?
 /// allowed values of n: 0-first operand, 1-other operands
 
 idaman bool ida_export is_invsign(ea_t ea, flags64_t F, int n);
@@ -980,7 +980,7 @@ idaman bool ida_export is_invsign(ea_t ea, flags64_t F, int n);
 idaman bool ida_export toggle_sign(ea_t ea, int n);
 
 
-/// Should we negate the operand?.
+/// Should we negate the operand?
 /// \ash{a_bnot} should be defined in the idp module in order to work
 /// with this function
 
@@ -988,10 +988,10 @@ idaman bool ida_export is_bnot(ea_t ea, flags64_t F, int n);
 idaman bool ida_export toggle_bnot(ea_t ea, int n);  ///< Toggle binary negation of operand. also see is_bnot()
 
 
-/// Display leading zeroes?
-/// Display leading zeroes in operands.
-/// The global switch for the leading zeroes is in \inf{s_genflags}
-/// Note: the leading zeroes doesn't work if for the target assembler
+/// Display leading zeros?
+/// Display leading zeros in operands.
+/// The global switch for the leading zeros is in \inf{s_genflags}
+/// Note: the leading zeros does not work if for the target assembler
 /// octal numbers start with 0.
 /// \param ea the item (insn/data) address
 /// \param n  the operand number (0-first operand, 1-other operands)
@@ -1000,8 +1000,8 @@ idaman bool ida_export toggle_bnot(ea_t ea, int n);  ///< Toggle binary negation
 idaman bool ida_export is_lzero(ea_t ea, int n);
 
 /// Set toggle lzero bit.
-/// This function changes the display of leading zeroes for the specified operand.
-/// If the default is not to display leading zeroes, this function will display
+/// This function changes the display of leading zeros for the specified operand.
+/// If the default is not to display leading zeros, this function will display
 /// them and vice versa.
 /// \param ea the item (insn/data) address
 /// \param n  the operand number (0-first operand, 1-other operands)
@@ -1010,9 +1010,9 @@ idaman bool ida_export is_lzero(ea_t ea, int n);
 idaman bool ida_export set_lzero(ea_t ea, int n);
 
 /// Clear toggle lzero bit.
-/// This function reset the display of leading zeroes for the specified operand
-/// to the default. If the default is not to display leading zeroes, leading
-/// zeroes will not be displayed, as vice versa.
+/// This function reset the display of leading zeros for the specified operand
+/// to the default. If the default is not to display leading zeros, leading
+/// zeros will not be displayed, as vice versa.
 /// \param ea the item (insn/data) address
 /// \param n  the operand number (0-first operand, 1-other operands)
 /// \return success
@@ -1033,7 +1033,7 @@ inline bool idaapi toggle_lzero(ea_t ea, int n)
 ///@} FF_statespecf
 
 
-/// Check if leading zeroes are important
+/// Check if leading zeros are important
 
 idaman bool ida_export leading_zero_important(ea_t ea, int n);
 
@@ -1247,7 +1247,7 @@ idaman bool ida_export is_suspop(ea_t ea, flags64_t F, int n); ///< is suspiciou
 ///@}
 
 
-/// Should processor module create xrefs from the operand?.
+/// Should processor module create xrefs from the operand?
 /// Currently 'offset', 'structure offset', 'stack' and 'enum' operands create xrefs
 
 idaman bool ida_export op_adds_xrefs(flags64_t F, int n);
@@ -1265,7 +1265,7 @@ idaman bool ida_export set_op_type(ea_t ea, flags64_t type, int n);
 
 
 /// Set operand representation to be 'segment'.
-/// If applied to unexplored bytes, converts them to 16/32bit word data
+/// If applied to unexplored bytes, converts them to 16-/32-bit word data
 /// \param ea  linear address
 /// \param n   0..#UA_MAXOP-1 operand number, OPND_ALL all operands
 /// \return success
@@ -1274,7 +1274,7 @@ idaman bool ida_export op_seg(ea_t ea, int n);
 
 
 /// Set operand representation to be enum type
-/// If applied to unexplored bytes, converts them to 16/32bit word data
+/// If applied to unexplored bytes, converts them to 16-/32-bit word data
 /// \param ea      linear address
 /// \param n       0..#UA_MAXOP-1 operand number, OPND_ALL all operands
 /// \param id      id of enum
@@ -1369,12 +1369,12 @@ idaman bool ida_export set_forced_operand(ea_t ea, int n, const char *op);
 /// \param buf      output buffer, may be nullptr
 /// \param ea       linear address
 /// \param n        0..#UA_MAXOP-1 operand number
-/// \return size of forced operand or -1
+/// \return size of the forced operand or -1
 
 idaman ssize_t ida_export get_forced_operand(qstring *buf, ea_t ea, int n);
 
 
-/// Is operand manually defined?.
+/// Is operand manually defined?
 /// \param ea  linear address
 /// \param n   0..#UA_MAXOP-1 operand number
 
@@ -1546,7 +1546,7 @@ inline THREAD_SAFE constexpr bool idaapi is_same_data_type(flags64_t F1, flags64
 
 /// Get flags from size (in bytes).
 /// Supported sizes: 1, 2, 4, 8, 16, 32.
-/// For other sizes returns 0
+/// For other sizes, returns 0
 
 idaman flags64_t ida_export get_flags_by_size(size_t size);
 ///@} FF_datafuncs1
@@ -1725,7 +1725,7 @@ idaman bool ida_export create_32bit_data(ea_t ea, asize_t length);
 /// \param ea       starting address
 /// \param strtype  string type. one of \ref STRTYPE_
 /// \param options  combination of \ref ALOPT_
-/// \return length of the string in octets (octet==8bit)
+/// \return length of the string in octets (octet == 8 bits)
 
 idaman size_t ida_export get_max_strlit_length(
         ea_t ea,
@@ -1761,7 +1761,7 @@ idaman size_t ida_export get_max_strlit_length(
 ///
 /// \param[out]    utf8        output buffer
 /// \param[in]     ea          linear address of the string
-/// \param[in]     len         length of the string, in octets (octet=8bit)
+/// \param[in]     len         length of the string, in octets (octet == 8 bits)
 /// \param[in]     type        type of the string. one of \ref STRTYPE_
 /// \param[in, out] maxcps      maximum length of codepoints, after possible
 ///                            escaping, in output buffer (not counting terminating zero)
@@ -1869,7 +1869,7 @@ idaman bool ida_export set_opinfo(
 ///   - word : 2
 ///   - etc...
 ///
-/// If flags doesn't specify a data, then return 1
+/// If flags does not specify a data, then return 1
 
 idaman asize_t ida_export get_data_elsize(ea_t ea, flags64_t F, const opinfo_t *ti=nullptr);
 
@@ -1884,7 +1884,7 @@ inline asize_t get_full_data_elsize(ea_t ea, flags64_t F, const opinfo_t *ti=nul
 }
 
 
-/// Is the item at 'ea' variable size?.
+/// Is the item at 'ea' variable size?
 /// \param ea        linear address of the item
 /// \param F         flags
 /// \param ti        additional information about the data type. For example,
@@ -2573,14 +2573,14 @@ idaman int ida_export get_hidden_range_num(ea_t ea);
 
 /// Get pointer to previous hidden range.
 /// \param ea  any address in the program
-/// \return ptr to hidden range or nullptr if previous hidden range doesn't exist
+/// \return ptr to hidden range or nullptr if previous hidden range does not exist
 
 idaman hidden_range_t *ida_export get_prev_hidden_range(ea_t ea);
 
 
 /// Get pointer to next hidden range.
 /// \param ea  any address in the program
-/// \return ptr to hidden range or nullptr if next hidden range doesn't exist
+/// \return ptr to hidden range or nullptr if next hidden range does not exist
 
 idaman hidden_range_t *ida_export get_next_hidden_range(ea_t ea);
 
@@ -2650,7 +2650,7 @@ idaman size_t ida_export get_mappings_qty(void);
 /// \param  to   start of the mapping range
 /// \param  size size of the range
 /// \param  n    number of mapping range (0..get_mappings_qty()-1)
-/// \return false if the specified range doesn't exist,
+/// \return false if the specified range does not exist,
 ///         otherwise returns `from`, `to`, `size`
 idaman bool ida_export get_mapping(
         ea_t *from,

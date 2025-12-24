@@ -1,8 +1,17 @@
+ifdef __NT__
+  HOST_EXE = .exe
+endif
+
 #############################################################################
 # versions and paths for various external libraries and utils
 
 ifdef __NT__
   PROGRAMFILES_X86 ?= ${ProgramFiles(x86)}
+
+  # Python might make it uppercase
+  ifeq ($(PROGRAMFILES_X86),)
+    PROGRAMFILES_X86 = ${PROGRAMFILES(X86)}
+  endif
 
   #force use of cygwin tar
   TAR = $(shell cygpath -m /bin/tar)
@@ -122,41 +131,31 @@ else ifdef __LINUX__
 endif
 
 # Z3
-Z3_BIN-$(__LINUX__) = $(THIRD_PARTY)z3/z3-z3-4.11.2/build/linux_$(TRGT_ARCH)/
-Z3_BIN-$(__NT__)    = $(THIRD_PARTY)z3/z3-z3-4.11.2/build/win32_$(TRGT_ARCH)/
-Z3_BIN-$(__MAC__) = $(THIRD_PARTY)z3/z3-z3-4.11.2/build/mac_$(TRGT_ARCH)/
+Z3_VERSION?=4.15.3
+Z3_BIN-$(__LINUX__) = $(THIRD_PARTY)z3/z3-z3-$(Z3_VERSION)/build/linux_$(TRGT_ARCH)/
+Z3_BIN-$(__NT__)    = $(THIRD_PARTY)z3/z3-z3-$(Z3_VERSION)/build/win32_$(TRGT_ARCH)/
+Z3_BIN-$(__MAC__) = $(THIRD_PARTY)z3/z3-z3-$(Z3_VERSION)/build/mac_$(TRGT_ARCH)/
 Z3_BIN ?= $(Z3_BIN-1)
 
-Z3_INCLUDE ?= $(THIRD_PARTY)z3/z3-z3-4.11.2/src/api/
+Z3_INCLUDE ?= $(THIRD_PARTY)z3/z3-z3-$(Z3_VERSION)/src/api/
 
-# SWiG
-#SWIG_VERSION?=4.2.0
-#SWIG_VERSION?=240215
-SWIG_VERSION?=4.3.0
-ifdef __NT__
-  SWIG_DIR_SUFFIX?=-cygwin
-endif
-ifdef __NT__
-  ifeq ($(PYTHON_VERSION_MAJOR),3)
-    SWIG_DISTRIBUTION_HAS_UNIX_LAYOUT:=1
-  endif
-else
-  SWIG_DISTRIBUTION_HAS_UNIX_LAYOUT:=1
-endif
+SWIG ?= $(shell which swig$(HOST_EXE) 2>/dev/null)
+SWIG_LIB ?= $(shell $(SWIG) -swiglib)
+SWIG_INCLUDES ?= -I$(SWIG_LIB)/python -I$(SWIG_LIB)
+SWIG_CCACHE ?= $(shell which ccache-swig$(HOST_EXE) 2>/dev/null)
 
-ifeq ($(SWIG_DISTRIBUTION_HAS_UNIX_LAYOUT),1)
-  ifdef USE_CCACHE
-    # we set CCACHE_DIR so as to not interfere with the system's ccache
-    # and we set CCACHE_CPP2 to prevent SWiG from printing a bunch of
-    # warnings due to re-using of the preprocessed source.
-    SWIG?=CCACHE_DIR='$${HOME}/.ccache-swig' CCACHE_CPP2=1 $(SWIG_HOME)/bin/ccache-swig $(SWIG_HOME)/bin/swig
-  else
-    SWIG?=$(SWIG_HOME)/bin/swig
+ifdef SWIG_CCACHE
+  # we set CCACHE_DIR so as to not interfere with the system's ccache
+  # and we set CCACHE_CPP2 to prevent SWiG from printing a bunch of
+  # warnings due to re-using of the preprocessed source.
+  ifndef __NT__
+    SWIG_CCACHE_DIR ?= '${HOME}/.ccache-swig'
+  else ifdef USERPROFILE
+    SWIG_CCACHE_DIR ?= '${USERPROFILE}/.ccache-swig'
   endif
-  SWIG_INCLUDES?=-I$(SWIG_HOME)/share/swig/$(SWIG_VERSION)/python -I$(SWIG_HOME)/share/swig/$(SWIG_VERSION)
+  SWIG_CMD = CCACHE_DIR=$(SWIG_CCACHE_DIR) CCACHE_CPP2=1 $(TIMEWRAP-1) $(SWIG_CCACHE) $(SWIG)
 else
-  SWIG?=$(SWIG_HOME)/swig.exe
-  SWIG_INCLUDES?=-I$(SWIG_HOME)/Lib/python -I$(SWIG_HOME)/Lib
+  SWIG_CMD = $(TIMEWRAP-1) $(SWIG)
 endif
 
 #############################################################################

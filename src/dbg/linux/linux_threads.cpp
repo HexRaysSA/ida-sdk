@@ -1285,8 +1285,22 @@ bool linux_debmod_t::activate_multithreading()
 //--------------------------------------------------------------------------
 bool linux_debmod_t::attach_to_thread(int tid, ea_t ea)
 {
-  // attach to the thread and make it ready for debugging
-  if ( qptrace(PTRACE_ATTACH, tid, 0, 0) != 0 )
+  // Attach to the thread and make it ready for debugging.
+  // Use PTRACE_SEIZE + PTRACE_INTERRUPT when using_seize is set (Android 14+ compatibility).
+  // PTRACE_SEIZE doesn't stop the tracee, so we use PTRACE_INTERRUPT to stop it.
+  int res;
+  if ( using_seize )
+  {
+    res = qptrace(PTRACE_SEIZE, tid, 0, 0);
+    if ( res == 0 )
+      res = qptrace(PTRACE_INTERRUPT, tid, 0, 0);
+  }
+  else
+  {
+    res = qptrace(PTRACE_ATTACH, tid, 0, 0);
+  }
+
+  if ( res != 0 )
   {
     dmsg("Attaching to %d thread: %s\n", tid, winerr(errno));
     if ( errno == EPERM || errno == ESRCH )
@@ -1339,7 +1353,12 @@ bool linux_debmod_t::finish_attaching(int tid, ea_t ea, bool use_ip)
       dmsg("Finish attaching to %d thread: %s\n", tid, winerr(errno));
       return false; // looks alike a "zombie"
     }
-    if ( tid2 != tid || !WIFSTOPPED(status) || WSTOPSIG(status) != SIGSTOP )
+    // Check for attach stop: PTRACE_ATTACH sends SIGSTOP, PTRACE_SEIZE + INTERRUPT causes PTRACE_EVENT_STOP
+    bool expected_stop = (tid2 == tid)
+                      && WIFSTOPPED(status)
+                      && (using_seize ? (status >> 16) == PTRACE_EVENT_STOP
+                                      : WSTOPSIG(status) == SIGSTOP);
+    if ( !expected_stop )
     {
       get_thread(tid)->waiting_sigstop = true;
       if ( tid2 > 0 )

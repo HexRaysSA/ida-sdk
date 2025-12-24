@@ -327,9 +327,6 @@ ssize_t idaapi h8_t::on_event(ssize_t msgid, va_list va)
       set_cpu(va_arg(va, int));
       break;
 
-    case processor_t::ev_creating_segm:    // new segment
-      break;
-
     case processor_t::ev_is_jump_func:
       {
         const func_t *pfn = va_arg(va, const func_t *);

@@ -113,7 +113,7 @@ public:
   void remove_anonymous_namespaces(qstring &storage);
 
   bool get_symbol_type(tpinfo_t *out, pdb_sym_t &sym, uint32 *p_ord=nullptr);
-  bool retrieve_type(tpinfo_t *out, pdb_sym_t &sym, pdb_sym_t *parent, uint32 *p_ord=nullptr);
+  bool retrieve_type(tpinfo_t *out, const char *symbol_name, pdb_sym_t &sym, pdb_sym_t *parent, uint32 *p_ord=nullptr);
   callcnv_t retrieve_arguments(
         pdb_sym_t &sym,
         func_type_data_t &fi,
@@ -154,9 +154,10 @@ public:
   cvt_code_t convert_udt(tinfo_t *out, pdb_sym_t &sym, DWORD64 size);
   cvt_code_t create_udt(tinfo_t *out, pdb_udt_type_data_t *udt, int udtKind, const char *udt_name) const;
   cvt_code_t create_udt_ref(tinfo_t *out, pdb_udt_type_data_t *udt, int udt_kind) const;
-  cvt_code_t really_convert_type(tpinfo_t *out, pdb_sym_t &sym, pdb_sym_t *parent, DWORD tag);
+  cvt_code_t really_convert_type(tpinfo_t *out, const char *symbol_name, pdb_sym_t &sym, pdb_sym_t *parent, DWORD tag);
   cvt_code_t convert_type(
         tpinfo_t *out,
+        const char *symbol_name,
         pdb_sym_t &sym,
         pdb_sym_t *parent,
         DWORD type,
@@ -177,7 +178,7 @@ public:
   // returns the type is creating
   bool get_vft_name(qstring *vft_name, uint32 *ord, const char *udt_name, uint32_t offset=0);
   void fix_thisarg_type(const qstring &udt_name);
-  bool fix_ctor_to_return_ptr(func_type_data_t *fti, pdb_sym_t *parent);
+  bool fix_ctor_to_return_ptr(func_type_data_t *fti, const char *funcname, pdb_sym_t &sym);
 
   virtual HRESULT before_iterating(pdb_sym_t &global_sym);
   virtual HRESULT after_iterating(pdb_sym_t &global_sym);

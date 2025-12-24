@@ -46,6 +46,7 @@ struct simd_info_t;
 struct reg_accesses_t;
 struct call_stack_t;
 struct stkarg_area_info_t;
+struct simd_info_vec_t;
 struct reg_finder_t;
 class merge_data_t;
 class idasgn_t;
@@ -92,6 +93,7 @@ struct bytes_t
 #define CF_CHG8 0x040000  ///< The instruction modifies the eighth operand
 #define CF_USE7 0x080000  ///< The instruction uses value of the seventh operand
 #define CF_USE8 0x100000  ///< The instruction uses value of the eighth operand
+/// High 8 bits are reserved for processor-specific features
 ///@}
 
 //-----------------------------------------------------------------------
@@ -472,15 +474,15 @@ struct event_listener_t
 #define PLFM_ST20       30        ///< SGS-Thomson ST20
 #define PLFM_IA64       31        ///< Intel Itanium IA64
 #define PLFM_I960       32        ///< Intel 960
-#define PLFM_F2MC       33        ///< Fujistu F2MC-16
+#define PLFM_F2MC       33        ///< Fujitsu F2MC-16
 #define PLFM_TMS320C54  34        ///< Texas Instruments TMS320C54xx
 #define PLFM_TMS320C55  35        ///< Texas Instruments TMS320C55xx
 #define PLFM_TRIMEDIA   36        ///< Trimedia
-#define PLFM_M32R       37        ///< Mitsubishi 32bit RISC
+#define PLFM_M32R       37        ///< Mitsubishi 32-bit RISC
 #define PLFM_NEC_78K0   38        ///< NEC 78K0
 #define PLFM_NEC_78K0S  39        ///< NEC 78K0S
 #define PLFM_M740       40        ///< Mitsubishi 8bit
-#define PLFM_M7700      41        ///< Mitsubishi 16bit
+#define PLFM_M7700      41        ///< Mitsubishi 16-bit
 #define PLFM_ST9        42        ///< ST9+
 #define PLFM_FR         43        ///< Fujitsu FR Family
 #define PLFM_MC6816     44        ///< Motorola 68HC16
@@ -904,7 +906,7 @@ struct processor_t
                                 ///< \retval  1  yes
                                 ///< \retval -1  no
 
-    ev_is_sane_insn,            ///< Is the instruction sane for the current file type?.
+    ev_is_sane_insn,            ///< Is the instruction sane for the current file type?
                                 ///< \param insn      (const ::insn_t*) the instruction
                                 ///< \param no_crefs  (int)
                                 ///<   1: the instruction has no code refs to it.
@@ -948,7 +950,7 @@ struct processor_t
                                 ///<   51..99 a function (IDA needs another proof),
                                 ///<   100    a function (no other proofs needed)
 
-    ev_is_basic_block_end,      ///< Is the current instruction end of a basic block?.
+    ev_is_basic_block_end,      ///< Is the current instruction end of a basic block?
                                 ///< This function should be defined for processors
                                 ///< with delayed jump slots.
                                 ///< \param insn                   (const ::insn_t*) the instruction
@@ -996,7 +998,7 @@ struct processor_t
                                 ///< \param ea (ea_t) - instruction address
                                 ///< \retval number of bytes in the instruction
 
-    ev_is_alloca_probe,         ///< Does the function at 'ea' behave as __alloca_probe?
+    ev_is_alloca_probe,         ///< Does the function at 'ea' behave like __alloca_probe?
                                 ///< \param ea  (::ea_t)
                                 ///< \retval 1  yes
                                 ///< \retval 0  no
@@ -1011,7 +1013,7 @@ struct processor_t
                                 ///< \param bexec (bool *)   execute slot if jumping,
                                 ///<                         initially set to 'true'
                                 ///< \param fexec (bool *)   execute slot if not jumping,
-                                ///<                         initally set to 'true'
+                                ///<                         initially set to 'true'
                                 ///< \retval 1   positive answer
                                 ///< \retval <=0 ordinary insn
                                 ///< \note Input EA may point to the instruction with a delay slot or
@@ -1097,7 +1099,7 @@ struct processor_t
                                 ///< \retval 0  not implemented
                                 ///< \retval 1  color set
 
-    ev_is_jump_func,            ///< Is the function a trivial "jump" function?.
+    ev_is_jump_func,            ///< Is the function a trivial "jump" function?
                                 ///< \param pfn           (::func_t *)
                                 ///< \param jump_target   (::ea_t *)
                                 ///< \param func_pointer  (::ea_t *)
@@ -1141,7 +1143,7 @@ struct processor_t
                                 ///< \retval  0  not implemented
 
     ev_get_stkvar_scale_factor, ///< Should stack variable references be multiplied by
-                                ///< a coefficient before being used in the stack frame?.
+                                ///< a coefficient before being used in the stack frame?
                                 ///< Currently used by TMS320C55 because the references into
                                 ///< the stack should be multiplied by 2
                                 ///< \return scaling factor
@@ -1206,7 +1208,7 @@ struct processor_t
 
     ev_loader_elf_machine,      ///< ELF loader machine type checkpoint.
                                 ///< A plugin check of the 'machine_type'. If it is the desired one,
-                                ///< the the plugin fills 'p_procname' with the processor name
+                                ///< the plugin fills 'p_procname' with the processor name
                                 ///< (one of the names present in \ph{psnames}).
                                 ///< 'p_pd' is used to handle relocations, otherwise can be left untouched.
                                 ///< This event occurs for each newly loaded ELF file
@@ -1248,12 +1250,12 @@ struct processor_t
                                 ///< \retval <=0 not modified. use default algorithm.
 
     ev_assemble,                ///< Assemble an instruction.
-                                ///< (display a warning if an error is found).
+                                ///< (display a warning if an error occurs).
                                 ///< \param bin    (::uchar *) pointer to output opcode buffer
                                 ///< \param ea     (::ea_t) linear address of instruction
                                 ///< \param cs     (::ea_t) cs of instruction
                                 ///< \param ip     (::ea_t) ip of instruction
-                                ///< \param use32  (bool) is 32bit segment?
+                                ///< \param use32  (bool) is 32-bit segment?
                                 ///< \param line   (const char *) line to assemble
                                 ///< \return size of the instruction in bytes
 
@@ -1342,7 +1344,7 @@ struct processor_t
                                 ///< \retval 0 not implemented, -1 decoding failed, or no value found
 
     ev_replaying_undo,          ///< Replaying an undo/redo buffer
-                                ///< \param action_name (const char *) action that we perform undo/redo for. may be nullptr for intermediary buffers.
+                                ///< \param action_name (const char *) action that we perform undo/redo for. may be nullptr for intermediate buffers.
                                 ///< \param vec     (const undo_records_t *)
                                 ///< \param is_undo (bool) true if performing undo, false if performing redo
                                 ///< This event may be generated multiple times per undo/redo
@@ -1605,14 +1607,17 @@ struct processor_t
                                 ///< \param cc    (::callcnv_t)
                                 ///< \retval 1
                                 ///< \retval 0 not implemented
+
     ev_get_simd_types,          ///< Get SIMD-related types according to given attributes ant/or argument location
                                 ///< \param out (::simd_info_vec_t *)
                                 ///< \param simd_attrs (const ::simd_info_t *), may be nullptr
                                 ///< \param argloc (const ::argloc_t *), may be nullptr
                                 ///< \param create_tifs (bool) return valid tinfo_t objects, create if neccessary
+                                ///< \param insn (::const insn_t *)
+                                ///< \param op (::const op_t *)
                                 ///< \retval number of found types
                                 ///< \retval -1 error
-                                ///< If name==nullptr, initialize all SIMD types
+                                ///< If insn and op are specified, return only the types that match them
 
     ev_calc_cdecl_purged_bytes,
                                 ///< Calculate number of purged bytes after call.
@@ -1888,7 +1893,7 @@ struct processor_t
   inline static ssize_t use_arg_types(ea_t ea, func_type_data_t *fti, /*funcargvec_t * */void *rargs);
   inline static ssize_t calc_purged_bytes(int *p_purged_bytes, const func_type_data_t &fti);
   inline static ssize_t get_cc_regs(callregs_t *regs, callcnv_t cc);
-  inline static ssize_t get_simd_types(/*simd_info_vec_t * */void *out, const simd_info_t *simd_attrs, const argloc_t *argloc, bool create_tifs);
+  inline static ssize_t get_simd_types(simd_info_vec_t *out, const simd_info_t *simd_attrs, const argloc_t *argloc, bool create_tifs, const insn_t *insn=nullptr, const op_t *op=nullptr);
   inline static ssize_t arg_addrs_ready(ea_t caller, int n, const tinfo_t &tif, ea_t *addrs);
   inline static ssize_t adjust_argloc(argloc_t *argloc, const tinfo_t *type, int size);
   inline static ssize_t lower_func_type(intvec_t *argnums, func_type_data_t *fti);
@@ -1904,16 +1909,16 @@ struct processor_t
   /// Useful for processors who refer to the stack with implicit scaling factor.
   /// TMS320C55 for example: SP(#1) really refers to (SP+2)
   int get_stkvar_scale(void)
-    {
-      if ( (flag & PR_SCALE_STKVARS) == 0 )
-        return 1;
-      int scale = notify(ev_get_stkvar_scale_factor);
-      if ( scale == 0 )
-        error("Request ph.get_stkvar_scale_factor should be implemented");
-      else if ( scale <= 0 )
-        error("Invalid return code from ph.get_stkvar_scale_factor request");
-      return scale;
-    }
+  {
+    if ( (flag & PR_SCALE_STKVARS) == 0 )
+      return 1;
+    int scale = notify(ev_get_stkvar_scale_factor);
+    if ( scale == 0 )
+      error("Request ph.get_stkvar_scale_factor should be implemented");
+    else if ( scale <= 0 )
+      error("Invalid return code from ph.get_stkvar_scale_factor request");
+    return scale;
+  }
 
   //  Processor register information:
   const char *const *reg_names;         ///< array of register names
@@ -1962,7 +1967,7 @@ struct processor_t
   int32 instruc_start;                  ///< icode of the first instruction
   int32 instruc_end;                    ///< icode of the last instruction + 1
 
-  /// Does the given value specify a valid instruction for this instruction set?.
+  /// Does the given value specify a valid instruction for this instruction set?
   /// See #instruc_start and #instruc_end
   bool is_canon_insn(uint16 itype) const { return itype >= instruc_start && itype < instruc_end; }
 
@@ -2612,9 +2617,9 @@ inline ssize_t processor_t::get_cc_regs(callregs_t *regs, callcnv_t cc)
 {
   return notify(ev_get_cc_regs, regs, cc);
 }
-inline ssize_t processor_t::get_simd_types(/*simd_info_vec_t * */void *out, const simd_info_t *simd_attrs, const argloc_t *argloc, bool create_tifs)
+inline ssize_t processor_t::get_simd_types(simd_info_vec_t *out, const simd_info_t *simd_attrs, const argloc_t *argloc, bool create_tifs, const insn_t *insn, const op_t *op)
 {
-  return notify(ev_get_simd_types, out, simd_attrs, argloc, create_tifs);
+  return notify(ev_get_simd_types, out, simd_attrs, argloc, create_tifs, insn, op);
 }
 inline ssize_t processor_t::arg_addrs_ready(ea_t caller, int n, const tinfo_t &tif, ea_t *addrs)
 {
@@ -2654,7 +2659,7 @@ inline ssize_t processor_t::cvt64_hashval(nodeidx_t node, uchar tag, const char 
 }
 inline reg_finder_t *processor_t::get_regfinder()
 {
-  return (reg_finder_t *)notify(ev_get_regfinder);
+  return reinterpret_cast<reg_finder_t *>(notify(ev_get_regfinder));
 }
 
 idaman int ida_export str2reg(const char *p);     ///< Get any register number (-1 on error)
@@ -2680,7 +2685,7 @@ idaman ssize_t ida_export get_reg_name(qstring *buf, int reg, size_t width, int 
 
 
 /// Get register information - useful for registers like al, ah, dil, etc.
-/// Example: this function for "al" returns "eax" in 32bit mode
+/// Example: this function for "al" returns "eax" in 32-bit mode
 /// \return main register name (nullptr no such register)
 
 inline const char *processor_t::get_reg_info(const char *regname, bitrange_t *bitrange)
@@ -3127,13 +3132,13 @@ namespace idb_event
     item_color_changed,     ///< An item color has been changed.
                             ///< \param ea        (::ea_t)
                             ///< \param color     (::bgcolor_t)
-                            ///< if color==DEFCOLOR, the the color is deleted.
+                            ///< if color==DEFCOLOR, the color is deleted.
 
     callee_addr_changed,    ///< Callee address has been updated by the user.
                             ///< \param ea        (::ea_t)
                             ///< \param callee    (::ea_t)
 
-    bookmark_changed,       ///< Boomarked position changed.
+    bookmark_changed,       ///< Bookmarked position changed.
                             ///< \param index     (::uint32)
                             ///< \param pos       (::const lochist_entry_t *)
                             ///< \param desc      (::const char *)
@@ -3273,6 +3278,19 @@ namespace idb_event
                             ///< \param oldname (const char *) nullptr means name is unknown
                             ///< \param newname (const char *) nullptr means name is unknown
 
+    dirtree_ordering_changed,
+                            ///< Dirtree: a directory's "natural" ordering changed
+                            ///< \param dt      (::dirtree_t *)
+                            ///< \param diridx  (::diridx_t)
+                            ///< \param natural (::bool)
+
+    dirtree_bulk_move,      ///< Dirtree: many items have been moved.
+                            ///< \param dt          (::dirtree_t *)
+                            ///< \param sources     (::dirtree_bulk_results_t *)
+                            ///< \param moved_items (::dirtree_cursor_vec_t *)
+                            ///< \param dstdir      (::const char *)
+                            ///< \param dstrank     (::ssize_t)
+                            ///< SOURCES and MOVED_ITEMS correspond to each other
   };
 }
 

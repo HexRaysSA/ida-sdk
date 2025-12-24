@@ -372,6 +372,7 @@ DECLARE_TYPE_AS_MOVABLE(navstack_t);
 #ifndef SWIG
 idaman uint32 ida_export bookmarks_t_mark(const lochist_entry_t &, uint32, const char *, const char *, void *);
 idaman bool ida_export bookmarks_t_get(lochist_entry_t *, qstring *, uint32 *, void *);
+idaman uint32 ida_export bookmarks_t_get_by_inode(lochist_entry_t *, qstring *, inode_t, void *);
 idaman bool ida_export bookmarks_t_get_desc(qstring *, const lochist_entry_t &, uint32, void *);
 idaman bool ida_export bookmarks_t_set_desc(qstring, const lochist_entry_t &, uint32, void *);
 idaman uint32 ida_export bookmarks_t_find_index(const lochist_entry_t &, void *);
@@ -419,6 +420,16 @@ public:
         uint32 *index, // index==BOOKMARKS_CHOOSE_INDEX? let the user choose
         void *ud)
   { return bookmarks_t_get(out_entry, out_desc, index, ud); }
+
+  // 'out_entry' MUST:
+  //  - contain a valid place_t*; data will be deserialized into it
+  //  - have a valid, corresponding tcc_place_type_t
+  static uint32 get_by_inode(
+        lochist_entry_t *out_entry,
+        qstring *out_desc,
+        inode_t inode, // index==BOOKMARKS_CHOOSE_INDEX? let the user choose
+        void *ud)
+  { return bookmarks_t_get_by_inode(out_entry, out_desc, inode, ud); }
 
   static bool get_desc(
         qstring *out,

@@ -344,15 +344,15 @@ static void op_RLi2(const map_t *, int offset, op_t &op, insn_t &)
 }
 
 #define op_at(OP,DEFAULT_BANK,DTYP) \
-   static void op_##DTYP##_at_##OP(const map_t *map, int offset, op_t &op, insn_t &insn) \
-   {                                                                     \
-     op_##OP(map,offset,op,insn);                                        \
-     insn.default_bank = DEFAULT_BANK;                                   \
-     insn.op_bank = op.n;                                                \
-     op.type = o_phrase;                                                 \
-     op.at_qty++;                                                        \
-     op.dtype = dt_##DTYP;                                               \
-   }
+  static void op_##DTYP##_at_##OP(const map_t *map, int offset, op_t &op, insn_t &insn) \
+  {                                   \
+    op_##OP(map,offset,op,insn);      \
+    insn.default_bank = DEFAULT_BANK; \
+    insn.op_bank = op.n;              \
+    op.type = o_phrase;               \
+    op.at_qty++;                      \
+    op.dtype = dt_##DTYP;             \
+  }
 op_at(A,DTB,byte)   // op_byte_at_A
 op_at(A,DTB,word)   // op_word_at_A
 op_at(A,DTB,code)   // op_code_at_A

@@ -373,7 +373,7 @@ static const cfgopt_t *find_option(const char *name)
 }
 
 //--------------------------------------------------------------------------
-int idaapi optionscb(int field_id, form_actions_t &fa)
+int idaapi optionscb(int /*field_id*/, form_actions_t & /*fa*/)
 {
   return 1;
 }

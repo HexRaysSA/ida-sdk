@@ -112,10 +112,11 @@ inline bool issp(const op_t &x) { return isreg(x, SP); }
 #define     aux_a         0x08  // pre-increment (.a or .aw)
 #define     aux_ab        0x10  // post-increment (.ab)
 #define     aux_as        0x18  // scaled access (.as)
-#define aux_zmask       0x0006  // size mask
+#define aux_zmask       0x0006  // size mask for loads and stores
 #define     aux_l          0x0  // long size (no suffix)
-#define     aux_w          0x4  // word size (.w suffix)
-#define     aux_b          0x2  // byte size (.b suffix)
+#define     aux_w          0x4  // word size (w/h suffix)
+#define     aux_b          0x2  // byte size (b suffix)
+#define     aux_dw         0x6  // douleword size (d suffix)
 #define aux_x           0x0001  // Sign extend field (.x suffix)
 
 #define aux_pcload      0x0200  // converted pc-relative to memory load (used when ARC_INLINECONST is set)
@@ -179,6 +180,10 @@ inline bool has_cond(const insn_t &insn)
   if ( insn.itype <= ARC_store_instructions )
     return false;
   return (insn.auxpref & aux_cmask) != cAL;
+}
+inline bool is_auxreg_insn(const insn_t &insn)
+{
+  return insn.itype == ARC_lr || insn.itype == ARC_sr || insn.itype == ARC_aex;
 }
 inline cond_t get_core_cond(const insn_t &insn)
 {
@@ -391,9 +396,10 @@ struct arc_t : public procmod_t
   int ref_arcsoh_id = 0;
   int ref_arcsol_id = 0;
 
-#define ARC_SIMPLIFY    0x01
-#define ARC_INLINECONST 0x02
-#define ARC_TRACKREGS   0x04
+#define ARC_SIMPLIFY    (1u<<0)
+#define ARC_INLINECONST (1u<<1)
+#define ARC_TRACKREGS   (1u<<2)
+#define ARC_TRAP0STOPS  (1u<<3)
   ushort idpflags = ARC_SIMPLIFY | ARC_INLINECONST | ARC_TRACKREGS;
 
   int g_limm = 0;

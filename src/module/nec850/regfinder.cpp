@@ -147,7 +147,7 @@ bool nec850_reg_finder_t::emulate_insn(
   auto &_pm = (const nec850_t &)pm;
   // Note! there may be a recursive call of find()
   // spoils() calls is_call_insn()
-  // it may call find_lp_definition()
+  // it may call find_reg_definition()
   // it calls find_rvi()
   if ( !_pm.spoils(insn, reg) )
     return false;
@@ -220,56 +220,45 @@ bool nec850_reg_finder_t::emulate_insn(
           return true;
         }
       }
-      break;
+      [[fallthrough]];
+    case NEC850_JR:
+      goto SP_DELTA; // try special funcs
     case NEC850_PREPARE_sp:
     case NEC850_PREPARE_i:
+      if ( reg == rEP )
       {
-        if ( reg == rEP )
+        if ( insn.Op3.is_reg(rSP) )
         {
-          if ( insn.Op3.is_reg(rSP) )
-          {
-            sval_t sp_value;
-            if ( !_pm.find_sp_value(&sp_value, insn.ea + insn.size) )
-              break;
-            value->set_num(sp_value, insn);
-            return true;
-          }
-          else if ( insn.Op3.type == o_imm )
-          {
-            value->set_num(insn.Op3.value, insn);
-            return true;
-          }
-          else
-          {
+          sval_t sp_value;
+          if ( !_pm.find_sp_value(&sp_value, insn.ea + insn.size) )
             break;
-          }
+          value->set_num(sp_value, insn);
+          return true;
+        }
+        else if ( insn.Op3.type == o_imm )
+        {
+          value->set_num(insn.Op3.value, insn);
+          return true;
+        }
+        else
+        {
+          break;
         }
       }
-    //fall through
+      [[fallthrough]];
     case NEC850_DISPOSE_r0:
     case NEC850_DISPOSE_r:
+SP_DELTA:
+      if ( reg == rSP )
       {
-        if ( reg == rSP )
+        int delta = _pm.calc_stack_delta(insn);
+        if ( delta != 0 )
         {
-          uval_t list12;
-          uval_t imm5;
-          rvi_t::arith_op_t aop;
-          if ( insn.itype == NEC850_PREPARE_sp || insn.itype == NEC850_PREPARE_i )
-          {
-            aop = rvi_t::SUB;
-            list12 = insn.Op1.value;
-            imm5 = insn.Op2.value;
-          }
-          else
-          {
-            aop = rvi_t::ADD;
-            list12 = insn.Op2.value;
-            imm5 = insn.Op1.value;
-          }
-          op_t sp, delta;
-          pm.make_op_reg(&sp, rSP);
-          pm.make_op_imm(&delta, calc_stack_delta(list12, imm5));
-          emulate_binary_op(value, aop, sp, delta, insn, flow);
+          op_t spop;
+          pm.make_op_reg(&spop, rSP);
+          op_t deltaop;
+          pm.make_op_imm(&deltaop, delta);
+          emulate_binary_op(value, rvi_t::ADD, spop, deltaop, insn, flow);
           return true;
         }
       }

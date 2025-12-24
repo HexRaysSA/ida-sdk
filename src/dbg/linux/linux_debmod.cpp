@@ -1813,6 +1813,7 @@ void linux_debmod_t::cleanup(void)
 
   complained_shlib_bpt = false;
   bpts.clear();
+  using_seize = false;
 
   tdb_delete();
   erase_internal_bp(birth_bpt);
@@ -2121,8 +2122,40 @@ drc_t idaapi linux_debmod_t::dbg_start_process(
 drc_t idaapi linux_debmod_t::dbg_attach_process(pid_t _pid, int /*event_id*/, int flags, qstring * /*errbuf*/)
 {
   is_dll = (flags & DBG_PROC_IS_DLL) != 0;
-  if ( qptrace(PTRACE_ATTACH, _pid, nullptr, nullptr) == 0
-    && handle_process_start(_pid, AMT_ATTACH_NORMAL) )
+
+  // Try PTRACE_SEIZE first (required for ART runtime on Android 14+).
+  // PTRACE_ATTACH sends SIGSTOP to the tracee, but other signals may race in first.
+  // ART uses SIGSEGV internally for null-pointer checks in JIT code; intercepting
+  // such a signal during attach disrupts ART's signal handling and causes crashes.
+  // PTRACE_SEIZE + PTRACE_INTERRUPT avoids this by stopping cleanly without signals.
+  // Set IDA_FORCE_PTRACE_ATTACH=1 to revert to the traditional PTRACE_ATTACH method.
+  bool attached = false;
+  if ( !qgetenv("IDA_FORCE_PTRACE_ATTACH", nullptr)
+    && qptrace(PTRACE_SEIZE, _pid, nullptr, nullptr) == 0 )
+  {
+    if ( qptrace(PTRACE_INTERRUPT, _pid, nullptr, nullptr) == 0 )
+    {
+      using_seize = true;
+      attached = true;
+      ldeb("dbg_attach_process: using PTRACE_SEIZE for pid %d\n", _pid);
+    }
+    else
+    {
+      // PTRACE_INTERRUPT failed, detach and fall back to PTRACE_ATTACH
+      qptrace(PTRACE_DETACH, _pid, nullptr, nullptr);
+    }
+  }
+
+  // Fall back to PTRACE_ATTACH (traditional method)
+  if ( !attached )
+  {
+    using_seize = false;
+    if ( qptrace(PTRACE_ATTACH, _pid, nullptr, nullptr) != 0 )
+      return DRC_FAILED;
+    ldeb("dbg_attach_process: using PTRACE_ATTACH for pid %d\n", _pid);
+  }
+
+  if ( handle_process_start(_pid, AMT_ATTACH_NORMAL) )
   {
     gen_library_events(_pid); // detect all loaded libraries
     return DRC_OK;
@@ -2141,6 +2174,13 @@ void linux_debmod_t::cleanup_signals(void)
     {
       thread_info_t &ti = p->second;
       ldeb("cleanup_signals:\n");
+      // With PTRACE_SEIZE + PTRACE_INTERRUPT, there's no pending signal to drain -
+      // the stop is a ptrace-stop (PTRACE_EVENT_STOP), not a signal-delivery-stop.
+      if ( using_seize )
+      {
+        ti.waiting_sigstop = false;
+        continue;
+      }
       log(ti.tid, "must be STOPPED\n");
       QASSERT(30181, ti.state == STOPPED);
       qptrace(PTRACE_CONT, ti.tid, 0, 0);

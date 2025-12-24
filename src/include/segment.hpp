@@ -68,88 +68,88 @@
 class segment_t : public range_t
 {
 public:
-/*  8 */  uval_t name;          ///< use get/set_segm_name() functions
-/* 12 */  uval_t sclass;        ///< use get/set_segm_class() functions
-/* 16 */  uval_t orgbase;       ///< this field is IDP dependent.
-                                ///< you may keep your information about
-                                ///< the segment here
+  uval_t name = 0;      ///< use get/set_segm_name() functions
+  uval_t sclass = 0;    ///< use get/set_segm_class() functions
+  uval_t orgbase = 0;   ///< this field is IDP dependent.
+                        ///< you may keep your information about
+                        ///< the segment here
 
-/* 20 */  uchar align;          ///< \ref sa_
+  uchar align = 0;      ///< \ref sa_
 /// \defgroup sa_ Segment alignment codes
 /// \ingroup seg_t
 /// Used by segment_t::align
 ///@{
-#define saAbs           0       ///< Absolute segment.
-#define saRelByte       1       ///< Relocatable, byte aligned.
-#define saRelWord       2       ///< Relocatable, word (2-byte) aligned.
-#define saRelPara       3       ///< Relocatable, paragraph (16-byte) aligned.
-#define saRelPage       4       ///< Relocatable, aligned on 256-byte boundary
-#define saRelDble       5       ///< Relocatable, aligned on a double word (4-byte)
-                                ///< boundary.
-#define saRel4K         6       ///< This value is used by the PharLap OMF for page (4K)
-                                ///< alignment. It is not supported by LINK.
-#define saGroup         7       ///< Segment group
-#define saRel32Bytes    8       ///< 32 bytes
-#define saRel64Bytes    9       ///< 64 bytes
-#define saRelQword     10       ///< 8 bytes
-#define saRel128Bytes  11       ///< 128 bytes
-#define saRel512Bytes  12       ///< 512 bytes
-#define saRel1024Bytes 13       ///< 1024 bytes
-#define saRel2048Bytes 14       ///< 2048 bytes
+#define saAbs           0 ///< Absolute segment.
+#define saRelByte       1 ///< Relocatable, byte aligned.
+#define saRelWord       2 ///< Relocatable, word (2-byte) aligned.
+#define saRelPara       3 ///< Relocatable, paragraph (16-byte) aligned.
+#define saRelPage       4 ///< Relocatable, aligned on 256-byte boundary
+#define saRelDble       5 ///< Relocatable, aligned on a double word (4-byte)
+                          ///< boundary.
+#define saRel4K         6 ///< This value is used by the PharLap OMF for page (4K)
+                          ///< alignment. It is not supported by LINK.
+#define saGroup         7 ///< Segment group
+#define saRel32Bytes    8 ///< 32 bytes
+#define saRel64Bytes    9 ///< 64 bytes
+#define saRelQword     10 ///< 8 bytes
+#define saRel128Bytes  11 ///< 128 bytes
+#define saRel512Bytes  12 ///< 512 bytes
+#define saRel1024Bytes 13 ///< 1024 bytes
+#define saRel2048Bytes 14 ///< 2048 bytes
 #define saRel_MAX_ALIGN_CODE saRel2048Bytes
 ///@}
 
-/* 21 */  uchar comb;           ///< \ref sc_
+  uchar comb = 0;       ///< \ref sc_
 /// \defgroup sc_ Segment combination codes
 /// \ingroup seg_t
 /// Used by segment_t::comb
 ///@{
-#define scPriv     0            ///< Private. Do not combine with any other program
-                                ///< segment.
-#define scGroup    1            ///< Segment group
-#define scPub      2            ///< Public. Combine by appending at an offset that meets
-                                ///< the alignment requirement.
-#define scPub2     4            ///< As defined by Microsoft, same as C=2 (public).
-#define scStack    5            ///< Stack. Combine as for C=2. This combine type forces
-                                ///< byte alignment.
-#define scCommon   6            ///< Common. Combine by overlay using maximum size.
-#define scPub3     7            ///< As defined by Microsoft, same as C=2 (public).
+#define scPriv     0    ///< Private. Do not combine with any other program
+                        ///< segment.
+#define scGroup    1    ///< Segment group
+#define scPub      2    ///< Public. Combine by appending at an offset that meets
+                        ///< the alignment requirement.
+#define scPub2     4    ///< As defined by Microsoft, same as C=2 (public).
+#define scStack    5    ///< Stack. Combine as for C=2. This combine type forces
+                        ///< byte alignment.
+#define scCommon   6    ///< Common. Combine by overlay using maximum size.
+#define scPub3     7    ///< As defined by Microsoft, same as C=2 (public).
 #define sc_MAX_COMB_CODE    scPub3
 ///@}
 
-/* 22 */  uchar perm;           ///< \ref SEGPERM_ (0 means no information)
+  uchar perm = 0;       ///< \ref SEGPERM_ (0 means no information)
 /// \defgroup SEGPERM_ Segment permissions
 /// \ingroup seg_t
 /// Used by segment_t::perm
 ///@{
-#define SEGPERM_EXEC  1         ///< Execute
-#define SEGPERM_WRITE 2         ///< Write
-#define SEGPERM_READ  4         ///< Read
+#define SEGPERM_EXEC  1 ///< Execute
+#define SEGPERM_WRITE 2 ///< Write
+#define SEGPERM_READ  4 ///< Read
 #define SEGPERM_MAXVAL (SEGPERM_EXEC + SEGPERM_WRITE + SEGPERM_READ) ///< Execute + Write + Read
 ///@}
 
-/* 23 */  uchar bitness;        ///< Number of bits in the segment addressing
-                                ///<   - 0: 16 bits
-                                ///<   - 1: 32 bits
-                                ///<   - 2: 64 bits
+  uchar bitness = 0;    ///< Number of bits in the segment addressing
+                        ///<   - 0: 16 bits
+                        ///<   - 1: 32 bits
+                        ///<   - 2: 64 bits
 #define SEG_MAX_BITNESS_CODE 2 ///< Maximum segment bitness value
 
-          /// Is a 16-bit segment?
-          bool is_16bit(void) const { return bitness == 0; }
-          /// Is a 32-bit segment?
-          bool is_32bit(void) const { return bitness == 1; }
-          /// Is a 64-bit segment?
-          bool is_64bit(void) const { return bitness == 2; }
-          /// Get number of address bits
-          int  abits(void) const { return 1<<(bitness+4); }
-          /// Get number of address bytes
-          int  abytes(void) const { return abits() / 8; }
+  /// Is a 16-bit segment?
+  bool is_16bit() const { return bitness == 0; }
+  /// Is a 32-bit segment?
+  bool is_32bit() const { return bitness == 1; }
+  /// Is a 64-bit segment?
+  bool is_64bit() const { return bitness == 2; }
+  /// Get number of address bits
+  int  abits() const { return 1<<(bitness+4); }
+  /// Get number of address bytes
+  int  abytes() const { return abits() / 8; }
 
 /// \defgroup SFL_ Segment flags
 /// \ingroup seg_t
 /// Used by segment_t::flags
 
-/* 24 */  ushort flags;         ///< \ref SFL_
+  ushort flags = 0;     ///< \ref SFL_
 
 /// IDP dependent field (IBM PC: if set, ORG directive is not commented out)
 /// \ingroup SFL_
@@ -158,9 +158,9 @@ public:
   /// \name Segment flag: ORG directive
   /// See #SFL_COMORG
   ///@{
-  bool comorg(void) const { return (flags & SFL_COMORG) != 0; }
-  void set_comorg(void) { flags |= SFL_COMORG; }
-  void clr_comorg(void) { flags &= ~SFL_COMORG; }
+  bool comorg() const { return (flags & SFL_COMORG) != 0; }
+  void set_comorg() { flags |= SFL_COMORG; }
+  void clr_comorg() { flags &= ~SFL_COMORG; }
   ///@}
 
 /// Orgbase is present? (IDP dependent field)
@@ -170,9 +170,9 @@ public:
   /// \name Segment flag: orgbase
   /// See #SFL_OBOK
   ///@{
-  bool ob_ok(void) const { return (flags & SFL_OBOK) != 0; }
-  void set_ob_ok(void) { flags |= SFL_OBOK; }
-  void clr_ob_ok(void) { flags &= ~SFL_OBOK; }
+  bool ob_ok() const { return (flags & SFL_OBOK) != 0; }
+  void set_ob_ok() { flags |= SFL_OBOK; }
+  void clr_ob_ok() { flags &= ~SFL_OBOK; }
   ///@}
 
 /// Is the segment hidden?
@@ -182,11 +182,11 @@ public:
   /// \name Segment flag: hidden
   /// See #SFL_HIDDEN
   ///@{
-  bool is_visible_segm(void) const { return (flags & SFL_HIDDEN) == 0; }
+  bool is_visible_segm() const { return (flags & SFL_HIDDEN) == 0; }
   void set_visible_segm(bool visible) { setflag(flags, SFL_HIDDEN, !visible); }
   ///@}
 
-/// Is the segment created for the debugger?.
+/// Is the segment created for the debugger?
 /// Such segments are temporary and do not have permanent flags.
 /// \ingroup SFL_
 #define SFL_DEBUG       0x08
@@ -194,7 +194,7 @@ public:
   /// \name Segment flag: debugger segment
   /// See #SFL_DEBUG
   ///@{
-  bool is_debugger_segm(void) const { return (flags & SFL_DEBUG) != 0; }
+  bool is_debugger_segm() const { return (flags & SFL_DEBUG) != 0; }
   // use ::change_segment_status() to change the segment state during debugging
   void set_debugger_segm(bool debseg) { setflag(flags, SFL_DEBUG, debseg); }
   ///@}
@@ -206,7 +206,7 @@ public:
   /// \name Segment flag: loader segment
   /// See #SFL_LOADER
   ///@{
-  bool is_loader_segm(void) const { return (flags & SFL_LOADER) != 0; }
+  bool is_loader_segm() const { return (flags & SFL_LOADER) != 0; }
   void set_loader_segm(bool ldrseg) { setflag(flags, SFL_LOADER, ldrseg); }
   ///@}
 
@@ -217,7 +217,7 @@ public:
   /// \name Segment flag: hide segment type
   /// See #SFL_HIDETYPE
   ///@{
-  bool is_hidden_segtype(void) const { return (flags & SFL_HIDETYPE) != 0; }
+  bool is_hidden_segtype() const { return (flags & SFL_HIDETYPE) != 0; }
   void set_hidden_segtype(bool hide) { setflag(flags, SFL_HIDETYPE, hide); }
   ///@}
 
@@ -228,7 +228,7 @@ public:
   /// \name Segment flag: header segment
   /// See #SFL_HEADER
   ///@{
-  bool is_header_segm(void) const { return (flags & SFL_HEADER) != 0; }
+  bool is_header_segm() const { return (flags & SFL_HEADER) != 0; }
   void set_header_segm(bool on) { setflag(flags, SFL_HEADER, on); }
   ///@}
 
@@ -236,80 +236,67 @@ public:
   /// (no flirt, no functions unless required, etc).
   /// Most likely these segments will be destroyed at the end of the
   /// debugging session unless the user changes their status.
-  bool is_ephemeral_segm(void) const
+  bool is_ephemeral_segm() const
     { return (flags & (SFL_DEBUG|SFL_LOADER)) == SFL_DEBUG; }
 
-/* 28 */  sel_t sel;            ///< segment selector - should be unique. You can't
-                                ///< change this field after creating the segment.
-                                ///< Exception: 16bit OMF files may have several
-                                ///< segments with the same selector, but this is not
-                                ///< good (no way to denote a segment exactly)
-                                ///< so it should be fixed in the future.
+  sel_t sel = 0;        ///< segment selector - should be unique. You can't
+                        ///< change this field after creating the segment.
+                        ///< Exception: 16-bit OMF files may have several
+                        ///< segments with the same selector, but this is not
+                        ///< good (no way to denote a segment exactly)
+                        ///< so it should be fixed in the future.
 
-/* 32 */  sel_t defsr[SREG_NUM];///< default segment register values.
-                                ///< first element of this array keeps information
-                                ///< about value of \ph{reg_first_sreg}
-
-/* 96 */  uchar type;           ///< segment type (see \ref SEG_).
-                                ///< The kernel treats different segment types differently.
-                                ///< Segments marked with '*' contain no instructions
-                                ///< or data and are not declared as 'segments' in
-                                ///< the disassembly.
+  sel_t defsr[SREG_NUM];///< default segment register values.
+                        ///< first element of this array keeps information
+                        ///< about value of \ph{reg_first_sreg}
 
 /// \defgroup SEG_ Segment types
 /// \ingroup seg_t
 /// Used by segment_t::type
 ///@{
-#define SEG_NORM        0       ///< unknown type, no assumptions
-#define SEG_XTRN        1       ///< * segment with 'extern' definitions.
-                                ///<   no instructions are allowed
-#define SEG_CODE        2       ///< code segment
-#define SEG_DATA        3       ///< data segment
-#define SEG_IMP         4       ///< java: implementation segment
-#define SEG_GRP         6       ///< * group of segments
-#define SEG_NULL        7       ///< zero-length segment
-#define SEG_UNDF        8       ///< undefined segment type (not used)
-#define SEG_BSS         9       ///< uninitialized segment
-#define SEG_ABSSYM     10       ///< * segment with definitions of absolute symbols
-#define SEG_COMM       11       ///< * segment with communal definitions
-#define SEG_IMEM       12       ///< internal processor memory & sfr (8051)
+#define SEG_NORM    0   ///< unknown type, no assumptions
+#define SEG_XTRN    1   ///< * segment with 'extern' definitions.
+                        ///<   no instructions are allowed
+#define SEG_CODE    2   ///< code segment
+#define SEG_DATA    3   ///< data segment
+#define SEG_IMP     4   ///< java: implementation segment
+#define SEG_GRP     6   ///< * group of segments
+#define SEG_NULL    7   ///< zero-length segment
+#define SEG_UNDF    8   ///< undefined segment type (not used)
+#define SEG_BSS     9   ///< uninitialized segment
+#define SEG_ABSSYM 10   ///< * segment with definitions of absolute symbols
+#define SEG_COMM   11   ///< * segment with communal definitions
+#define SEG_IMEM   12   ///< internal processor memory & sfr (8051)
 #define SEG_MAX_SEGTYPE_CODE SEG_IMEM ///< maximum value segment type can take
 ///@}
 
-/* 100 */ bgcolor_t color;      ///< the segment color
+  uchar type = SEG_NORM;///< segment type (see \ref SEG_).
+                        ///< The kernel treats different segment types differently.
+                        ///< Segments marked with '*' contain no instructions
+                        ///< or data and are not declared as 'segments' in
+                        ///< the disassembly.
+
+ bgcolor_t color = DEFCOLOR; ///< the segment color
 
   /// Update segment information. You must call this function after modification
   /// of segment characteristics. Note that not all fields of segment structure
   /// may be modified directly, there are special functions to modify some fields.
   /// \return success
-  inline bool update(void);
+  inline bool update();
 
   /// Constructor
-  segment_t(void)
-    : name(0),
-      sclass(0),
-      orgbase(0),
-      align(0),
-      comb(0),
-      perm(0),
-      bitness(0),
-      flags(0),
-      sel(0),
-      type(SEG_NORM),
-      color(DEFCOLOR)
+  segment_t()
   {
-    memset(defsr, 0, sizeof(defsr));
+    memset(defsr, -1, sizeof(defsr)); // BADSEL
   }
 
 #ifndef SWIG
   DECLARE_COMPARISONS(segment_t);
 #endif
-}; // total 104/192 bytes
+}; // total 192 bytes
 
 #ifdef __EA64__
 CASSERT(sizeof(segment_t) == 192);
-#else
-CASSERT(sizeof(segment_t) == 104);
 #endif
 
 /// See #SFL_HIDDEN
@@ -323,13 +310,13 @@ inline bool is_finally_visible_segm(segment_t *s)
 idaman void ida_export set_visible_segm(segment_t *s, bool visible);
 
 
-/// Has segment a special type?.
+/// Has segment a special type?
 /// (#SEG_XTRN, #SEG_GRP, #SEG_ABSSYM, #SEG_COMM)
 
 idaman bool ida_export is_spec_segm(uchar seg_type);
 
 
-/// Does the address belong to a segment with a special type?.
+/// Does the address belong to a segment with a special type?
 /// (#SEG_XTRN, #SEG_GRP, #SEG_ABSSYM, #SEG_COMM)
 /// \param ea  linear address
 
@@ -351,7 +338,7 @@ public:
   {
     lock_segm(segm, true);
   }
-  ~lock_segment(void)
+  ~lock_segment()
   {
     lock_segm(segm, false);
   }
@@ -370,11 +357,11 @@ idaman bool ida_export is_segm_locked(const segment_t *segm);
 /// The kernel maintains a table to translate selector values to
 /// segment base paragraphs. A Paragraph is a 16byte quantity.
 /// This table and translation is necessary because IBM PC uses
-/// 16bit selectors in instructions but segments may reside anywhere
+/// 16-bit selectors in instructions but segments may reside anywhere
 /// in the linear addressing space. For example, if a segment with
 /// selector 5 resides at 0x400000, we need to have selector translation
 ///         5 -> 0x400000.
-/// For 16bit programs the selector translation table is usually empty,
+/// For 16-bit programs the selector translation table is usually empty,
 /// selector values are equal to segment base paragraphs.
 ///@{
 //-------------------------------------------------------------------------
@@ -386,7 +373,7 @@ idaman bool ida_export getn_selector(sel_t *sel, ea_t *base, int n);
 
 /// Get number of defined selectors
 
-idaman size_t ida_export get_selector_qty(void);
+idaman size_t ida_export get_selector_qty();
 
 
 /// Allocate a selector for a segment if necessary.
@@ -417,7 +404,7 @@ idaman sel_t ida_export allocate_selector(ea_t segbase);
 /// Find first unused selector.
 /// \return a number >= 1
 
-idaman sel_t ida_export find_free_selector(void);
+idaman sel_t ida_export find_free_selector();
 
 
 /// Set mapping of selector to a paragraph.
@@ -542,6 +529,11 @@ idaman segment_t *ida_export get_segm_by_sel(sel_t selector);
 /// \param flags   \ref ADDSEG_
 /// \retval 1  ok
 /// \retval 0  failed, a warning message is displayed
+/// The specified default segment register values may be modified by processor
+/// modules (see ev_creating_segm). Also, if the default data segment value is
+/// BADSEL, it will be changed to the selector of the newly created segment.
+/// This ensures that the data segment is always correctly set, which is a good
+/// default for most processors.
 
 idaman bool ida_export add_segm_ex(
         segment_t *NONNULL s,
@@ -578,14 +570,14 @@ idaman bool ida_export add_segm_ex(
 /// Add a new segment, second form.
 /// Segment alignment is set to #saRelByte.
 /// Segment combination is "public" or "stack" (if segment class is "STACK").
-/// Addressing mode of segment is taken as default (16bit or 32bit).
+/// Addressing mode of segment is taken as default (16-bit or 32-bit).
 /// Default segment registers are set to #BADSEL.
 /// If a segment already exists at the specified range of addresses,
 /// this segment will be truncated. Instructions and data in the old
 /// segment will be deleted if the new segment has another addressing
 /// mode or another segment base address.
 /// \param para    segment base paragraph.
-///                if paragraph can't fit in 16bit, then a new selector is
+///                if paragraph can't fit in 16-bit, then a new selector is
 ///                allocated and mapped to the paragraph.
 /// \param start   start address of the segment.
 ///                if start==#BADADDR then start <- to_ea(para,0).
@@ -647,7 +639,7 @@ idaman bool ida_export del_segm(ea_t ea, int flags);
 
 /// Get number of segments
 
-idaman int ida_export get_segm_qty(void);
+idaman int ida_export get_segm_qty();
 
 
 /// Get pointer to segment by linear address.
@@ -679,9 +671,9 @@ idaman segment_t *ida_export get_next_seg(ea_t ea);
 idaman segment_t *ida_export get_prev_seg(ea_t ea);
 
 /// Get pointer to the first segment
-idaman segment_t *ida_export get_first_seg(void);
+idaman segment_t *ida_export get_first_seg();
 /// Get pointer to the last segment
-idaman segment_t *ida_export get_last_seg(void);
+idaman segment_t *ida_export get_last_seg();
 
 
 /// Get pointer to segment by its name.
@@ -847,11 +839,11 @@ idaman int ida_export change_segment_status(segment_t *s, bool is_deb_segm);
 
 idaman bool ida_export take_memory_snapshot(int type);
 
-/// Is the database a miniidb created by the debugger?.
+/// Is the database a miniidb created by the debugger?
 /// \return true if the database contains no segments
 /// or only debugger segments
 
-idaman bool ida_export is_miniidb(void);
+idaman bool ida_export is_miniidb();
 
 
 /// Internal function
@@ -1180,9 +1172,9 @@ idaman ea_t ida_export get_segm_base(const segment_t *s);
 /// This function will delete all instructions, comments and names in the segment
 /// \param s        pointer to segment
 /// \param bitness  new addressing mode of segment
-///                   - 2: 64bit segment
-///                   - 1: 32bit segment
-///                   - 0: 16bit segment
+///                   - 2: 64-bit segment
+///                   - 1: 32-bit segment
+///                   - 0: 16-bit segment
 /// \return success
 
 idaman bool ida_export set_segm_addressing(segment_t *s, size_t bitness);
@@ -1213,7 +1205,7 @@ idaman ea_t ida_export correct_address(ea_t ea, ea_t from, ea_t to, ea_t size, b
 //-------------------------------------------------------------------------
 idaman bool ida_export update_segm(segment_t *s);
 
-inline bool segment_t::update(void)
+inline bool segment_t::update()
 {
   return update_segm(this);
 }

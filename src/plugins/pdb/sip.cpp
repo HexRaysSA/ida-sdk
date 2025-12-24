@@ -608,8 +608,10 @@ public:
 
   bool idaapi get_expr_tinfo(tinfo_t *tif) const override
   {
+    qstring name;
+    get_name(&name);
     til_builder_t::tpinfo_t tpi;
-    bool res = pdb_module->type_cache->retrieve_type(&tpi, *sym, nullptr);
+    bool res = pdb_module->type_cache->retrieve_type(&tpi, name.c_str(), *sym, nullptr);
 
     *tif = tpi.type;
 
@@ -619,9 +621,8 @@ public:
       tpi.type.print(&type_str);
       DWORD sym_id = 0;
       sym->get_symIndexId(&sym_id);
-      qstring name;
       deb(IDA_DEBUG_SRCDBG, "Retrieved type for %s (symbol #%u): %s\n",
-          get_name(&name) ? name.c_str() : "<unnamed>",
+          name.empty() ? "<unnamed>" : name.c_str(),
           sym_id,
           type_str.c_str());
     }

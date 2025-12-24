@@ -10,11 +10,12 @@
 
 /// \defgroup SRCLANG_ Source language IDs
 ///@{
-#define SRCLANG_C     0x01 ///< C
-#define SRCLANG_CPP   0x02 ///< C++
-#define SRCLANG_OBJC  0x04 ///< Objective-C
-#define SRCLANG_SWIFT 0x08 ///< Swift  (not supported yet)
-#define SRCLANG_GO    0x10 ///< Golang (not supported yet)
+#define SRCLANG_C       0x01 ///< C
+#define SRCLANG_CPP     0x02 ///< C++
+#define SRCLANG_OBJC    0x04 ///< Objective-C
+#define SRCLANG_SWIFT   0x08 ///< Swift  (not supported yet)
+#define SRCLANG_GO      0x10 ///< Golang (not supported yet)
+#define SRCLANG_OBJCPP  0x20 ///< Objective-C++
 ///@}
 
 /// Bitmask that describes all source languages supported by a compiler. Combination of \ref SRCLANG_ values

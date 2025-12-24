@@ -699,30 +699,30 @@ int xa_t::emu(const insn_t &_insn)
       }
       break;
 
-   case XA_add:
-   case XA_sub:
-   case XA_adds:
-     if ( !may_trace_sp() )
-       break;
-     if ( insn.Op1.type == o_reg && insn.Op1.reg == rR7 )
-     {
-       if ( insn.Op2.type == o_imm )
-       {
-         func_t *pfn = get_func(insn.ea);
+    case XA_add:
+    case XA_sub:
+    case XA_adds:
+      if ( !may_trace_sp() )
+        break;
+      if ( insn.Op1.type == o_reg && insn.Op1.reg == rR7 )
+      {
+        if ( insn.Op2.type == o_imm )
+        {
+          func_t *pfn = get_func(insn.ea);
 
-         sval_t offset = (insn.Op2.value < 0x8000 || insn.Op2.value > 0x80000000)
-                       ? insn.Op2.value
-                       : insn.Op2.value - 0x10000;
+          sval_t offset = (insn.Op2.value < 0x8000 || insn.Op2.value > 0x80000000)
+                        ? insn.Op2.value
+                        : insn.Op2.value - 0x10000;
 
-         if ( may_trace_sp() && pfn && !get_sp_delta(pfn, insn.ea) )
-           add_stkpnt(insn, insn.itype == XA_sub ? -offset : offset);
-       }
-       else
-       {
-         warning("emu: add/adds/sub with R7 and non-imm operand at %a", insn.ea);
-       }
-     }
-     break;
+          if ( may_trace_sp() && pfn && !get_sp_delta(pfn, insn.ea) )
+            add_stkpnt(insn, insn.itype == XA_sub ? -offset : offset);
+        }
+        else
+        {
+          warning("emu: add/adds/sub with R7 and non-imm operand at %a", insn.ea);
+        }
+      }
+      break;
     case XA_lea:
       if ( !may_trace_sp() )
         break;

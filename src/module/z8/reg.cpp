@@ -240,13 +240,6 @@ ssize_t idaapi z8_t::on_event(ssize_t msgid, va_list va)
       setup_data_segment_pointers();
       break;
 
-    case processor_t::ev_creating_segm:
-      {                 // default DS is equal to CS
-        segment_t *sptr = va_arg(va, segment_t *);
-        sptr->defsr[rVds-ph.reg_first_sreg] = sptr->sel;
-      }
-      break;
-
     case processor_t::ev_out_header:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
