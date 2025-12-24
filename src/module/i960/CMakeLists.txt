@@ -11,3 +11,4 @@ ida_add_procmod(i960
         i960.hpp
         ins.hpp
 )
+copy_cfg(i960 ${CMAKE_CURRENT_SOURCE_DIR}/i960.cfg)

@@ -64,13 +64,7 @@ set_target_properties(linux_user PROPERTIES
 )
 
 # Copy exceptions.cfg only if source is newer
-add_custom_command(TARGET linux_user POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${IDABIN}/cfg
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/../exceptions.cfg
-        ${IDABIN}/cfg/exceptions.cfg
-    COMMENT "Copying exceptions.cfg if newer"
-)
+copy_cfg(linux_user ${CMAKE_CURRENT_SOURCE_DIR}/../exceptions.cfg)
 endif() # IDA_PLATFORM_NAME STREQUAL "linux"
 
 # ============================================================================

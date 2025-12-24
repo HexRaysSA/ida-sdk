@@ -12,3 +12,4 @@ ida_add_procmod(avr
         ins.hpp
         notify_codes.hpp
 )
+copy_cfg(avr ${CMAKE_CURRENT_SOURCE_DIR}/avr.cfg)

@@ -11,3 +11,4 @@ ida_add_procmod(st20
         ins.hpp
         st20.hpp
 )
+copy_cfg(st20 ${CMAKE_CURRENT_SOURCE_DIR}/st20.cfg)

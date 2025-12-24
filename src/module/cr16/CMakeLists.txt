@@ -11,3 +11,4 @@ ida_add_procmod(cr16
         cr16.hpp
         ins.hpp
 )
+copy_cfg(cr16 ${CMAKE_CURRENT_SOURCE_DIR}/cr16.cfg)

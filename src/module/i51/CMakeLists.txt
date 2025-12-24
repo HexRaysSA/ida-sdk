@@ -11,3 +11,4 @@ ida_add_procmod(i51
         i51.hpp
         ins.hpp
 )
+copy_cfg(i51 ${CMAKE_CURRENT_SOURCE_DIR}/i51.cfg)

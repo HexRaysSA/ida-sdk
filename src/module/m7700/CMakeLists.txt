@@ -11,3 +11,4 @@ ida_add_procmod(m7700
         ins.hpp
         m7700.hpp
 )
+copy_cfg(m7700 ${CMAKE_CURRENT_SOURCE_DIR}/m7700.cfg)

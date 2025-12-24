@@ -11,3 +11,4 @@ ida_add_procmod(m740
         ins.hpp
         m740.hpp
 )
+copy_cfg(m740 ${CMAKE_CURRENT_SOURCE_DIR}/m740.cfg)

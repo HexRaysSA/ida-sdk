@@ -4,7 +4,7 @@ on:
   push:
     branches: [ cmake ]
   pull_request:
-    branches: [ cmake ]
+    branches: [ main, cmake ]
 
 jobs:
   build-windows:

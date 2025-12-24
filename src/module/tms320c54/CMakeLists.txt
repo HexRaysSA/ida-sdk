@@ -12,3 +12,4 @@ ida_add_procmod(tms32054
         notify_codes.hpp
         tms320c54.hpp
 )
+copy_cfg(tms32054 ${CMAKE_CURRENT_SOURCE_DIR}/tms320c54.cfg)

@@ -11,3 +11,4 @@ ida_add_procmod(z8
         ins.hpp
         z8.hpp
 )
+copy_cfg(z8 ${CMAKE_CURRENT_SOURCE_DIR}/z8.cfg)
