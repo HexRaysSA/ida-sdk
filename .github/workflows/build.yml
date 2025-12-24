@@ -1,0 +1,289 @@
+name: IDA SDK Build Test
+
+on:
+  push:
+    branches: [ cmake ]
+  pull_request:
+    branches: [ main, cmake ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    env:
+      IDASDK: ${{ github.workspace }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Visual Studio Developer Environment
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Cache vcpkg packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          src/build/vcpkg_installed
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('src/vcpkg.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-
+
+    - name: Cache Qt6 build
+      uses: actions/cache@v4
+      with:
+        path: |
+          src/build/qt-install
+          src/build/qt-src
+        key: ${{ runner.os }}-qt6-6.8.2-qtnamespace-v3
+        restore-keys: |
+          ${{ runner.os }}-qt6-
+
+    - name: Configure CMake
+      working-directory: src
+      run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+    - name: Check if Qt6 is cached
+      id: check-qt
+      working-directory: src
+      shell: bash
+      run: |
+        if [ -f "build/qt-install/lib/cmake/Qt6/Qt6Config.cmake" ]; then
+          echo "Qt6 found in cache"
+          echo "qt_cached=true" >> $GITHUB_OUTPUT
+        else
+          echo "Qt6 not found, will build"
+          echo "qt_cached=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build Qt6 (if not cached)
+      if: steps.check-qt.outputs.qt_cached != 'true'
+      working-directory: src
+      run: cmake --build build --target build_qt --config Release
+      continue-on-error: true
+
+    - name: Build SDK (all components)
+      working-directory: src
+      run: cmake --build build --config Release --parallel
+
+    - name: Build Statistics
+      working-directory: src
+      shell: bash
+      run: |
+        echo "=== Build Results ==="
+        echo "Plugins built: $(ls -1 bin/plugins/*.dll 2>/dev/null | wc -l)"
+        echo "Loaders built: $(ls -1 bin/loaders/*.dll 2>/dev/null | wc -l)"
+        echo "Processors built: $(ls -1 bin/procs/*.dll 2>/dev/null | wc -l)"
+        echo ""
+        echo "=== Qt Plugin Status ==="
+        if [ -f "bin/plugins/qproject.dll" ]; then
+          echo "✅ qproject.dll built successfully"
+        else
+          echo "❌ qproject.dll failed to build (Qt may not be available)"
+        fi
+        if [ -f "bin/plugins/qwindow.dll" ]; then
+          echo "✅ qwindow.dll built successfully"
+        else
+          echo "❌ qwindow.dll failed to build (Qt may not be available)"
+        fi
+        echo ""
+        echo "=== Known Failures (Expected) ==="
+        echo "These components are expected to fail due to platform limitations:"
+        echo "  - Debugger components: Runtime library mismatch"
+        echo "  - PDB plugin: DIA SDK dependency not available in CI"
+        echo ""
+        echo "Note: Qt plugins require Qt6 built via 'build_qt' target (cached between runs)"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ida-sdk-build-windows
+        path: |
+          src/bin/plugins/*.dll
+          src/bin/loaders/*.dll
+          src/bin/procs/*.dll
+        retention-days: 7
+
+  build-linux:
+    runs-on: ubuntu-latest
+    env:
+      IDASDK: ${{ github.workspace }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build \
+          libgl1-mesa-dev libxcb-xinerama0-dev libxkbcommon-dev \
+          libxcb-cursor-dev libxcb-icccm4-dev libxcb-image0-dev \
+          libxcb-keysyms1-dev libxcb-randr0-dev libxcb-render-util0-dev \
+          libxcb-shape0-dev libxcb-sync-dev libxcb-xfixes0-dev
+
+    - name: Cache Qt6 build
+      uses: actions/cache@v4
+      with:
+        path: |
+          src/build/qt-install
+          src/build/qt-src
+        key: ${{ runner.os }}-qt6-6.8.2-qtnamespace-v3
+        restore-keys: |
+          ${{ runner.os }}-qt6-
+
+    - name: Configure CMake
+      working-directory: src
+      run: cmake -B build -G Ninja
+
+    - name: Check if Qt6 is cached
+      id: check-qt
+      working-directory: src
+      run: |
+        if [ -f "build/qt-install/lib/cmake/Qt6/Qt6Config.cmake" ]; then
+          echo "Qt6 found in cache"
+          echo "qt_cached=true" >> $GITHUB_OUTPUT
+        else
+          echo "Qt6 not found, will build"
+          echo "qt_cached=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build Qt6 (if not cached)
+      if: steps.check-qt.outputs.qt_cached != 'true'
+      working-directory: src
+      run: cmake --build build --target build_qt
+      continue-on-error: true
+
+    - name: Build SDK (all components)
+      working-directory: src
+      run: cmake --build build --parallel
+
+    - name: Build Statistics
+      working-directory: src
+      run: |
+        echo "=== Build Results ==="
+        echo "Plugins built: $(ls -1 bin/plugins/*.so 2>/dev/null | wc -l)"
+        echo "Loaders built: $(ls -1 bin/loaders/*.so 2>/dev/null | wc -l)"
+        echo "Processors built: $(ls -1 bin/procs/*.so 2>/dev/null | wc -l)"
+        echo ""
+        echo "=== Qt Plugin Status ==="
+        if [ -f "bin/plugins/qproject.so" ]; then
+          echo "✅ qproject.so built successfully"
+        else
+          echo "❌ qproject.so failed to build (Qt may not be available)"
+        fi
+        if [ -f "bin/plugins/qwindow.so" ]; then
+          echo "✅ qwindow.so built successfully"
+        else
+          echo "❌ qwindow.so failed to build (Qt may not be available)"
+        fi
+        echo ""
+        echo "=== Known Failures (Expected) ==="
+        echo "These components are expected to fail on Linux:"
+        echo "  - Debugger components: Some Linux debugger variants may fail"
+        echo "  - PDB plugin: Windows-only component"
+        echo ""
+        echo "Note: Qt plugins require Qt6 built via 'build_qt' target (cached between runs)"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ida-sdk-build-linux
+        path: |
+          src/bin/plugins/*.so
+          src/bin/loaders/*.so
+          src/bin/procs/*.so
+        retention-days: 7
+
+  build-macos:
+    runs-on: macos-latest
+    env:
+      IDASDK: ${{ github.workspace }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install build dependencies
+      run: |
+        brew install cmake ninja
+
+    - name: Cache Qt6 build
+      uses: actions/cache@v4
+      with:
+        path: |
+          src/build/qt-install
+          src/build/qt-src
+        key: ${{ runner.os }}-qt6-6.8.2-qtnamespace-v3
+        restore-keys: |
+          ${{ runner.os }}-qt6-
+
+    - name: Configure CMake
+      working-directory: src
+      run: cmake -B build -G Ninja
+
+    - name: Check if Qt6 is cached
+      id: check-qt
+      working-directory: src
+      run: |
+        if [ -f "build/qt-install/lib/cmake/Qt6/Qt6Config.cmake" ]; then
+          echo "Qt6 found in cache"
+          echo "qt_cached=true" >> $GITHUB_OUTPUT
+        else
+          echo "Qt6 not found, will build"
+          echo "qt_cached=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build Qt6 (if not cached)
+      if: steps.check-qt.outputs.qt_cached != 'true'
+      working-directory: src
+      run: cmake --build build --target build_qt
+      continue-on-error: true
+
+    - name: Build SDK (all components)
+      working-directory: src
+      run: cmake --build build --parallel
+
+    - name: Build Statistics
+      working-directory: src
+      run: |
+        echo "=== Build Results ==="
+        echo "Plugins built: $(ls -1 bin/plugins/*.dylib 2>/dev/null | wc -l)"
+        echo "Loaders built: $(ls -1 bin/loaders/*.dylib 2>/dev/null | wc -l)"
+        echo "Processors built: $(ls -1 bin/procs/*.dylib 2>/dev/null | wc -l)"
+        echo ""
+        echo "=== Qt Plugin Status ==="
+        if [ -f "bin/plugins/qproject.dylib" ]; then
+          echo "✅ qproject.dylib built successfully"
+        else
+          echo "❌ qproject.dylib failed to build (Qt may not be available)"
+        fi
+        if [ -f "bin/plugins/qwindow.dylib" ]; then
+          echo "✅ qwindow.dylib built successfully"
+        else
+          echo "❌ qwindow.dylib failed to build (Qt may not be available)"
+        fi
+        echo ""
+        echo "=== Known Failures (Expected) ==="
+        echo "These components are expected to fail on macOS:"
+        echo "  - Debugger servers: Not provided for macOS in SDK"
+        echo "  - PDB plugin: Windows-only component"
+        echo ""
+        echo "Note: Qt plugins require Qt6 built via 'build_qt' target (cached between runs)"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ida-sdk-build-macos
+        path: |
+          src/bin/plugins/*.dylib
+          src/bin/loaders/*.dylib
+          src/bin/procs/*.dylib
+        retention-days: 7
