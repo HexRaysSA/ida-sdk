@@ -229,11 +229,11 @@
  *
  */
 
-#ifdef __NT__
+#ifdef defined(_MSC_VER) && !defined(__clang__)
 #pragma warning(push)
 #pragma warning(disable:4062) // enumerator 'x' in switch of enum 'y' is not handled
 #pragma warning(disable:4265) // virtual functions without virtual destructor
-#endif
+#endif // defined(_MSC_VER) && !defined(__clang__)
 
 #define hexapi                ///< Public functions are marked with this keyword
 
@@ -13234,7 +13234,7 @@ inline int select_udt_by_offset(const qvector<tinfo_t> *udts, const ui_stroff_op
   return (int)(size_t)HEXDSP(hx_select_udt_by_offset, udts, &ops, &applicator);
 }
 
-#ifdef __NT__
+#ifdef defined(_MSC_VER) && !defined(__clang__)
 #pragma warning(pop)
-#endif
+#endif // defined(_MSC_VER) && !defined(__clang__)
 #endif

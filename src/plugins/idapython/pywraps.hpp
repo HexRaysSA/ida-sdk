@@ -412,7 +412,7 @@ struct ref_vec_t : public qvector<ref_t>
   }
 };
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 // warning C4190: 'PyW_TryImportModule' has C-linkage specified, but returns UDT 'ref_t' which is incompatible with C
 #pragma warning(disable : 4190)
 #elif defined(__MAC__)
