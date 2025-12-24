@@ -40,11 +40,11 @@
 ****************************************************************************/
 
 //lint -e4206 'nodiscard' attribute cannot be applied to types
-#ifdef __NT__
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma warning(push)
 #pragma warning(disable:5219) // implicit conversion from 'int' to 'float', possible loss of data
 #pragma warning(disable:5240) // 'nodiscard': attribute is ignored in this syntactic position
-#endif // __NT__
+#endif // defined(_MSC_VER) && !defined(__clang__)
 
 #include "graphwidget.h"
 #include "edge.h"
@@ -55,9 +55,9 @@
 #include <QWheelEvent>
 #include <QTime>
 
-#ifdef __NT__
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma warning(pop)
-#endif // __NT__
+#endif // defined(_MSC_VER) && !defined(__clang__)
 
 #include <math.h>
 

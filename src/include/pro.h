@@ -658,7 +658,7 @@ struct qstatbuf
 };
 
 // non standard functions are missing:
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #if _MSC_VER <= 1200
 #  define for if(0); else for    ///< MSVC <= 1200 is not compliant to the ANSI standard
 #else

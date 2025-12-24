@@ -124,7 +124,7 @@ with open(args.input) as f:
                 status = STAT_COLLECTING
                 if args.verbose:
                     print("Starting to collect at line: '%s'" % line)
-                outlines.append("#ifdef __NT__\n")
+                outlines.append("#if defined(_MSC_VER) && !defined(__clang__)\n")
                 outlines.append("#pragma warning(disable: 4883)\n")
                 outlines.append("#endif // __NT__\n")
             outlines.append(line)

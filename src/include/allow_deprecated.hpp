@@ -4,9 +4,19 @@
 // another deprecated function without raising a warning.
 
 // deprecated functions may call each other
-#ifdef _MSC_VER
+
+// MSVC
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma warning(disable:4996)
 #endif
-#ifdef __GNUC__
+
+// GCC
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
+
+// Clang, Clang-cl
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+

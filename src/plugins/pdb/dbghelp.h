@@ -3475,14 +3475,10 @@ SymGetSymPrevW(
 
 #include <pshpack4.h>
 
-#if defined(_MSC_VER)
-#if _MSC_VER >= 800
-#if _MSC_VER >= 1200
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma warning(push)
-#endif
 #pragma warning(disable:4200)    /* Zero length array */
 #pragma warning(disable:4201)    /* Nameless struct/union */
-#endif
 #endif
 
 #define MINIDUMP_SIGNATURE ('PMDM')
@@ -4437,15 +4433,10 @@ MiniDumpReadDumpStream(
     OUT ULONG * StreamSize OPTIONAL
     );
 
-#if defined(_MSC_VER)
-#if _MSC_VER >= 800
-#if _MSC_VER >= 1200
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma warning(pop)
-#else
 #pragma warning(default:4200)    /* Zero length array */
 #pragma warning(default:4201)    /* Nameless struct/union */
-#endif
-#endif
 #endif
 
 #include <poppack.h>

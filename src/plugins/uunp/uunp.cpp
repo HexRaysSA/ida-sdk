@@ -27,7 +27,7 @@
 
 #include <windows.h>
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #  pragma warning(disable: 4996) // GetVersion was declared deprecated
 #endif
 
