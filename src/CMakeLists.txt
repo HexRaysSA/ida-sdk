@@ -46,6 +46,7 @@ endfunction()
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/bootstrap.cmake)
 find_package(idasdk REQUIRED)
+set(IDA_IDC_DIR "${IDABIN}/idc")
 
 add_subdirectory(ldr)
 add_subdirectory(module)
