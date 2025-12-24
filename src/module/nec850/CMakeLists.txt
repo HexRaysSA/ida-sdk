@@ -11,5 +11,11 @@ ida_add_procmod(nec850
         regfinder.cpp
         ../idaidp.hpp
         ins.hpp
+        tinfo.cpp
+        emu_frame.cpp
+        switch.cpp
+        ../spcfuncs.hpp
+        spcfuncs.cpp
+        notify_codes.hpp
         necv850.hpp
 )
