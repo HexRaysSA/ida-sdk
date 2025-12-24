@@ -151,6 +151,7 @@ if(WIN32)
         ${IDA_STATIC_LIB_DIR}/unicode${IDA_STATIC_EXT}
         ${IDA_STATIC_LIB_DIR}/pro${IDA_STATIC_EXT}
         ${IDA_STATIC_LIB_DIR}/compress${IDA_STATIC_EXT}
+        ${IDA_STATIC_LIB_DIR}/int128${IDA_STATIC_EXT}
     )
 
     # Windows system libraries

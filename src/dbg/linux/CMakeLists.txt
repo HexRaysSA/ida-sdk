@@ -121,6 +121,7 @@ target_link_libraries(linux_server PRIVATE
     ${IDA_LIB_DIR}/unicode${IDA_STATIC_EXT}
     ${IDA_LIB_DIR}/pro${IDA_STATIC_EXT}
     ${IDA_LIB_DIR}/compress${IDA_STATIC_EXT}
+    ${IDA_LIB_DIR}/int128${IDA_STATIC_EXT}
     -Wl,--end-group
 )
 
