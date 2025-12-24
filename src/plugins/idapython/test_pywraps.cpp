@@ -2,8 +2,15 @@
 #include <pro.h>
 #include <expr.hpp>
 
+
 #include "extapi.hpp"
 #include "extapi.cpp"
+
+ext_api_t extapi;
+ext_api_t *get_extapi() { return &extapi; }
+hexdsp_t *get_hexdsp() { return nullptr; }
+
+#define MAINMOD
 #include "pywraps.hpp"
 #include "pywraps.cpp"
 
@@ -17,7 +24,6 @@ void ida_export cleanup_argloc(argloc_t *) { INTERR(30755); }
 void ida_export clear_tinfo_t(tinfo_t *) { INTERR(30756); }
 fpvalue_error_t ida_export ieee_realcvt(void *, fpvalue_t *, uint16) { return REAL_ERROR_FORMAT; }
 
-ext_api_t extapi;
 //-------------------------------------------------------------------------
 static qvector<void*> prevent_warnings()
 {
@@ -164,9 +170,10 @@ int main(int argc, char *argv[])
   if ( fp == nullptr )
     fatal("%s: %s", inifile, qerrstr(-1));
 
-  Py_InitializeEx(0 /* Don't catch SIGPIPE, SIGXFZ, SIGXFSZ & SIGINT signals */);
   qstring errbuf;
   QASSERT(30761, extapi.load(&errbuf));
+
+  Py_InitializeEx(0 /* Don't catch SIGPIPE, SIGXFZ, SIGXFSZ & SIGINT signals */);
 
   PyObject *module = PyImport_AddModule("__main__");
   PyObject *globals = PyModule_GetDict(module);

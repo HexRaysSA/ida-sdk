@@ -78,7 +78,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 </tr>
 <tr>
   <td>Advanced</td>
-  <td><ul><li><a href='#askusingform'>Advanced usage of the form API</a></li><li><a href='#auto_instantiate_widget_plugin'>Restore custom widgets across sessions</a></li><li><a href='#chooser_with_folders'>Showing tabular data in a flat, or tree-like fashion</a></li><li><a href='#colorize_disassembly_on_the_fly'>Colorize lines interactively</a></li><li><a href='#custom_cli'>Add a custom command-line interpreter</a></li><li><a href='#custom_graph_with_actions'>Draw custom graphs</a></li><li><a href='#dump_selection'>Retrieve & dump current selection</a></li><li><a href='#inject_command'>Inject commands in the "Output" window</a></li><li><a href='#lazy_loaded_chooser'>A lazy-loaded, tree-like data view</a></li><li><a href='#paint_over_graph'>Paint text on graph view edges</a></li><li><a href='#wrap_idaview'>Programmatically manipulate disassembly and graph widgets</a></li></ul></td>
+  <td><ul><li><a href='#askusingform'>Advanced usage of the form API</a></li><li><a href='#auto_instantiate_widget_plugin'>Restore custom widgets across sessions</a></li><li><a href='#colorize_disassembly_on_the_fly'>Colorize lines interactively</a></li><li><a href='#custom_cli'>Add a custom command-line interpreter</a></li><li><a href='#custom_graph_with_actions'>Draw custom graphs</a></li><li><a href='#dump_selection'>Retrieve & dump current selection</a></li><li><a href='#inject_command'>Inject commands in the "Output" window</a></li><li><a href='#paint_over_graph'>Paint text on graph view edges</a></li><li><a href='#wrap_idaview'>Programmatically manipulate disassembly and graph widgets</a></li></ul></td>
 </tr>
 
 </tbody>
@@ -126,7 +126,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 
 <tr>
   <td>Beginner</td>
-  <td><ul><li><a href='#produce_c_file'>Produce C listing for the entire file</a></li><li><a href='#vds1'>Decompile & print current function</a></li><li><a href='#vds13'>Generate microcode for the selected range of instructions</a></li><li><a href='#vds7'>Dump statement blocks</a></li><li><a href='#vds_create_hint'>Provide custom decompiler hints</a></li></ul></td>
+  <td><ul><li><a href='#produce_c_file'>Produce C listing for the entire file</a></li><li><a href='#serialize'>Serialize and deserialize the decompilation output</a></li><li><a href='#vds1'>Decompile & print current function</a></li><li><a href='#vds13'>Generate microcode for the selected range of instructions</a></li><li><a href='#vds7'>Dump statement blocks</a></li><li><a href='#vds_create_hint'>Provide custom decompiler hints</a></li></ul></td>
 </tr>
 <tr>
   <td>Intermediate</td>
@@ -824,45 +824,6 @@ There are 2 ways to use this example:
 ***
 
 
-### Showing tabular data in a flat, or tree-like fashion {#chooser_with_folders}
-By adding the necessary bits to a ida_kernwin.Choose subclass,
-IDA can show the otherwise tabular data, in a tree-like fashion.
-
-The important bits to enable this are:
-
-  * ida_dirtree.dirspec_t (and my_dirspec_t)
-  * ida_kernwin.CH_HAS_DIRTREE
-  * ida_kernwin.Choose.OnGetDirTree
-  * ida_kernwin.Choose.OnIndexToInode
-
-| Source code                   | Keywords   | Level                              |
-|-------------------------------|------------|------------------------------------|
-| [chooser_with_folders.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/tabular_views/custom/chooser_with_folders.py) | actions chooser folders | Advanced |
-
-**APIs Used:**
-* `ida_dirtree.DTE_OK`
-* `ida_dirtree.direntry_t`
-* `ida_dirtree.direntry_t.BADIDX`
-* `ida_dirtree.dirspec_t`
-* `ida_dirtree.dirtree_t`
-* `ida_dirtree.dirtree_t.isdir`
-* `ida_kernwin.CH_CAN_DEL`
-* `ida_kernwin.CH_CAN_EDIT`
-* `ida_kernwin.CH_CAN_INS`
-* `ida_kernwin.CH_HAS_DIRTREE`
-* `ida_kernwin.CH_MULTI`
-* `ida_kernwin.Choose`
-* `ida_kernwin.Choose.ALL_CHANGED`
-* `ida_kernwin.Choose.CHCOL_DRAGHINT`
-* `ida_kernwin.Choose.CHCOL_INODENAME`
-* `ida_kernwin.Choose.CHCOL_PLAIN`
-* `ida_kernwin.ask_str`
-* `ida_netnode.BADNODE`
-* `ida_netnode.netnode`
-
-***
-
-
 ### Colorize lines interactively {#colorize_disassembly_on_the_fly}
 This builds upon the `ida_kernwin.UI_Hooks.get_lines_rendering_info`
 feature, to provide a quick & easy way to colorize disassembly
@@ -1016,21 +977,6 @@ A few notes:
 * `ida_kernwin.disabled_script_timeout_t`
 * `ida_kernwin.find_widget`
 * `ida_kernwin.process_ui_action`
-
-***
-
-
-### A lazy-loaded, tree-like data view {#lazy_loaded_chooser}
-Brings lazy-loading of folders to the tree-like tabular views.
-
-The important bit to enable this are:
-
-  * ida_kernwin.Choose.OnLazyLoadDir
-
-| Source code                   | Keywords   | Level                              |
-|-------------------------------|------------|------------------------------------|
-| [lazy_loaded_chooser.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/tabular_views/custom/lazy_loaded_chooser.py) | actions chooser folders | Advanced |
-
 
 ***
 
@@ -1793,6 +1739,28 @@ where:
 * `ida_loader.PATH_TYPE_IDB`
 * `ida_loader.get_path`
 * `ida_pro.qexit`
+
+***
+
+
+### Serialize and deserialize the decompilation output {#serialize}
+Decompiles the current function and serializes it into two byte vectors:
+one for mba and one for cfunc_t. Then deserializes these bytes and creates
+new mba and cfunc_t objects.
+
+This sample shows how the decompilation output can be converted into
+a pair of strings that can later be stored somewhere.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [serialize.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/serialize.py) |  | Beginner |
+
+**APIs Used:**
+* `ida_hexrays.cfunc_t.deserialize`
+* `ida_hexrays.decompile`
+* `ida_hexrays.hexrays_failure_t`
+* `ida_hexrays.mba_t.deserialize`
+* `ida_kernwin.get_screen_ea`
 
 ***
 

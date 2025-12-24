@@ -101,6 +101,18 @@ static bool py_unregister_timer(PyObject *timer_obj)
   return true;
 }
 
+//-------------------------------------------------------------------------
+static void py_request_refresh(builtin_widgets_mask_t mask)
+{
+  request_refresh(low(mask));
+}
+
+//-------------------------------------------------------------------------
+static bool py_is_refresh_requested(builtin_widgets_mask_t mask)
+{
+  return is_refresh_requested(low(mask));
+}
+
 //------------------------------------------------------------------------
 static PyObject *py_choose_idasgn()
 {

@@ -8,7 +8,7 @@ description:
 
 keywords: chooser, actions
 
-see_also: choose_multi, chooser_with_folders
+see_also: choose_multi
 
 level: intermediate
 """

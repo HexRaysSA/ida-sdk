@@ -62,6 +62,7 @@
 %ignore lowdiskgo;
 %ignore ida_argv;
 %ignore exename;
+%ignore get_install_root;
 
 %ignore create_bytearray_linput;
 %rename (create_bytearray_linput) py_create_bytearray_linput;

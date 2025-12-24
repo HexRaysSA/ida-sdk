@@ -77,15 +77,15 @@ hooks = {
             recipe_viewhooks
         ),
     ],
-    "ida_hexrays" : [
+    "ida_hexrays_ctree" : [
         hooks_info_t(
             "Hexrays_Hooks",
-            "hexrays_8hpp.xml",
+            "hexrays__ctree_8hpp.xml",
             "hexrays_event_t",
             None,
             None,
             ["hxe_", "lxe_"],
             recipe_hexrays
         )
-    ],
+    ]
 }

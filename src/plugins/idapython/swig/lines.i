@@ -13,6 +13,18 @@
 %ignore encoder_t;
 %ignore file_producer_t;
 
+%feature("pythonappend") user_defined_prefix_t::user_defined_prefix_t %{
+self.thisown = False
+%}
+%feature("pythonappend") install_user_defined_prefix %{
+if val:
+    pfx, instance, *rest = args
+    if pfx == 0:
+        instance.thisown = True
+    else:
+        instance.thisown = False
+%}
+
 %typemap(default) const void *owner {
   $1 = nullptr;
 }

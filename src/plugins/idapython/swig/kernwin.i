@@ -21,11 +21,21 @@ struct dirspec_t;
   $result = PyLong_FromUnsignedLongLong((unsigned long long) $1);
 }
 
+%typemap(in,numinputs=0) uint128 *out (uint128 temp)
+{
+  // %typemap(in,numinputs=0) uint128 *out (uint128 temp)
+  $1 = &temp;
+}
+
 %ignore callui_t;
 %ignore sync_source_t::sync_source_t();
 %ignore l_compare;
 
 // Ignore the va_list functions
+%ignore request_refresh;
+%rename (request_refresh) py_request_refresh;
+%ignore is_refresh_requested;
+%rename (is_refresh_requested) py_is_refresh_requested;
 %ignore vask_form;
 %ignore ask_form;
 %ignore open_form;

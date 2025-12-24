@@ -138,6 +138,12 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
     def dirtree_segm_moved(self, dt):
         return self._log()
 
+    def dirtree_ordering_changed(self, dt, diridx, natural):
+        return self._log()
+
+    def dirtree_bulk_move(self, dt, sources, moved_items, dstdir, dstrank):
+        return self._log()
+
     def extlang_changed(self, kind, el, idx):
         return self._log()
 

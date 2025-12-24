@@ -18,7 +18,23 @@ include ../../allmake.mak
 #----------------------------------------------------------------------
 # default goals
 .PHONY: configs modules pyfiles deployed_modules idapython_modules api_check api_contents qt_bindings bins public_tree test_idc docs docs_md tbd examples examples_index test_pywraps
-all: configs modules pyfiles deployed_modules idapython_modules api_check api_contents qt_bindings bins examples examples_index test_pywraps # public_tree test_idc docs docs_md
+GOALS = check-env configs modules deployed_modules qt_bindings bins examples examples_index test_pywraps # public_tree test_idc docs docs_md
+ifndef __CODE_CHECKER__
+	GOALS += pyfiles idapython_modules api_check api_contents
+endif
+all: $(GOALS)
+
+check-env:
+ifndef SWIG
+	$(error You must define the SWIG variable that points swig executable to build IDAPython)
+endif
+
+# Commands
+PYTHONCMD = $(TIMEWRAP-1) $(PYTHON)
+CATCMD = $(TIMEWRAP-1) cat
+DIFFCMD = $(TIMEWRAP-1) diff
+MKDIRCMD = $(MKDIR) -p
+TOUCHMD = $(TIMEWRAP-1) touch
 
 ifeq ($(OUT_OF_TREE_BUILD),)
   IDAPYSWITCH:=$(R)idapyswitch$(B)
@@ -63,13 +79,12 @@ endif
 BINS += $(IDAPYSWITCH_DEP)
 bins: $(BINS)
 
-#----------------------------------------------------------------------
-# Build system hacks
+# it became part of the plugins in the SDK, so it is relative by default
+SDK_DIR ?= ../..
+ST_SDK = $(SDK_DIR)/include
+ST_SDK_EXTRA = $(F)idasdk
+II = ../../include/
 
-# HACK HIJACK the $(I) variable to point to our staging SDK
-#      (but don't let mkdep know about it)
-IDA_INCLUDE = ../../include
-ST_SDK = $(F)idasdk
 ifndef __MKDEP__
   I = $(ST_SDK)/
 endif
@@ -82,6 +97,8 @@ endif
 # HACK for mkdep to add dependencies for $(F)idapython$(O)
 ifdef __MKDEP__
   OBJS += $(F)idapython$(O)
+  OBJS += $(F)test_pywraps$(O)
+  OBJS += $(F)idapyswitch$(O)
 endif
 
 # allmake.mak defines 'CP' as 'qcp.sh' which is an internal tool providing
@@ -92,7 +109,7 @@ endif
 # lead to code-signing crashes
 # see: https://developer.apple.com/documentation/security/updating-mac-software?language=objc
 ifdef __MAC__
-  CP = ditto
+  CP = $(TIMEWRAP-1) ditto
 endif
 
 #----------------------------------------------------------------------
@@ -110,9 +127,11 @@ MODULE = $(call module_dll,$(MODULE_NAME_STEM))
 MODULES += $(MODULE)
 
 #----------------------------------------------------------------------
+# we don't link to libpython anymore so allow to have undefined symbols
 ifdef __LINUX__
-  # we don't link to libpython anymore so allow to have undefined symbols
   NO_UNDEFS=
+else ifdef __MAC__
+  NO_UNDEFS=-Wl,-undefined,dynamic_lookup
 endif
 
 #----------------------------------------------------------------------
@@ -144,14 +163,16 @@ ifdef __LINUX__
   LDFLAGS_EXE = -l$(PYTHON_VERNAME) -Wl,--no-undefined
 endif
 
-PATCH_CONST=$(Q)$(PYTHON) tools/patch_constants.py -i $(1) -o $(2)
+PATCH_CONST=$(Q)$(PYTHONCMD) tools/patch_constants.py -i $(1) -o $(2)
 
 #----------------------------------------------------------------------
 # TODO move this below, but it might be necessary before the defines-*
 ifdef DO_IDAMAKE_SIMPLIFY
+# No need to pollute linter
+ifndef __CODE_CHECKER__
   QCHKAPI = @echo $(call qcolor,chkapi) && #
   QDUMPAPI = @echo $(call qcolor,dumpapi) && #
-  QDEPLOY = @echo $(call qcolor,deploy) $$< && #
+  QDEPLOY = @echo $(call qcolor,deploy) $$@ && #
   QGENDOXYCFG = @echo $(call qcolor,gendoxycfg) $@ && #
   QGENHOOKS = @echo $(call qcolor,genhooks) $< && #
   QGENIDAAPI = @echo $(call qcolor,genidaapi) $< && #
@@ -163,8 +184,8 @@ ifdef DO_IDAMAKE_SIMPLIFY
   QPATCH_PYSIDE6_INIT = @echo $(call qcolor,patch_pyside6_init) $$< && #
   QSWIG = @echo $(call qcolor,swig) $$< && #
   QUPDATE_SDK = @echo $(call qcolor,update_sdk) $< && #
-  QSPLIT_HEXRAYS_TEMPLATES = @echo $(call qcolor,split_hexrays_templates) $< && #
   QGEN_EXAMPLES_INDEX = @echo $(call qcolor,gen_examples_index) $@ && #
+endif
 endif
 
 #----------------------------------------------------------------------
@@ -184,9 +205,7 @@ DEPLOY_IDC_PY=$(DEPLOY_PYDIR)/idc.py
 DEPLOY_IDAUTILS_PY=$(DEPLOY_PYDIR)/idautils.py
 DEPLOY_IDAAPI_PY=$(DEPLOY_PYDIR)/idaapi.py
 DEPLOY_IDADEX_PY=$(DEPLOY_PYDIR)/idadex.py
-ifdef TESTABLE_BUILD
-  DEPLOY_LUMINA_MODEL_PY=$(DEPLOY_PYDIR)/lumina_model.py
-endif
+DEPLOY_LUMINA_MODEL_PY=$(DEPLOY_PYDIR)/lumina_model.py
 ifeq ($(OUT_OF_TREE_BUILD),)
   TEST_IDC=test_idc
   IDAT_PATH?=$(R)/idat
@@ -208,28 +227,17 @@ ifdef LOG_FILE
   IDAT_CMD := $(IDAT_CMD) -L$(LOG_FILE)
 endif
 
-# envvar HAS_HEXRAYS must have been set by build.py if needed
-ifeq ($(OUT_OF_TREE_BUILD),)
-  HAS_HEXRAYS=1 # force hexrays bindings
-endif
-
 # determine SDK_SOURCES
-ifeq ($(OUT_OF_TREE_BUILD),)
-  include ../../sdk/sdk_files.mak
-  SDK_SOURCES=$(sort $(foreach v,$(SDK_FILES),$(if $(findstring include/,$(v)),$(addprefix $(IDA_INCLUDE)/,$(notdir $(v))))))
-  ifneq ($(HAS_HEXRAYS),)
-    SDK_SOURCES+=$(IDA_INCLUDE)/hexrays.hpp
-  endif
-  SDK_SOURCES+=$(IDA_INCLUDE)/lumina.hpp
-  SDK_SOURCES+=$(IDA_INCLUDE)/indexer.hpp
-else
-  SDK_SOURCES=$(wildcard $(IDA_INCLUDE)/*.h) $(wildcard $(IDA_INCLUDE)/*.hpp)
-endif
-ST_SDK_TARGETS = $(SDK_SOURCES:$(IDA_INCLUDE)/%=$(ST_SDK)/%)
+SDK_SOURCES=$(wildcard $(ST_SDK)/*.h) $(wildcard $(ST_SDK)/*.hpp)
 
 _SWIGPY3FLAG := -DPY3=1
+ST_INCLUDES = -I$(ST_SDK)
 CC_DEFS += PY3=1
 CC_DEFS += Py_LIMITED_API=0x03040000 # we should make sure we use the same version as SWiG
+
+# We want the idapython shared object to runtime link against all python symbols.
+$(F)idapython$(O): CC_DEFS += INDIRECT_PYTHON_API
+
 
 DEPLOY_LIBDIR=$(DEPLOY_PYDIR)/lib-dynload
 
@@ -239,20 +247,12 @@ else
   PYDLL_EXT = .so
 endif
 
-ifneq ($(HAS_HEXRAYS),)
-  WITH_HEXRAYS_DEF = WITH_HEXRAYS
-  WITH_HEXRAYS_CHKAPI=--with-hexrays
-  HEXRAYS_MODNAME=hexrays
-  # Warning: adding an empty HEXRAYS_MODNAME will lead to idaapy trying to load
-  # a module called ida_.
-  MODULES_NAMES += $(HEXRAYS_MODNAME)
-endif
-
-ifeq ($(HAS_HEXRAYS),)
-  NO_CMP_API := 1
-endif
-
 #----------------------------------------------------------------------
+# Do not change the order if doesn't wan to update api_contents
+MODULES_NAMES += hexrays
+MODULES_NAMES += hexrays_defs
+MODULES_NAMES += hexrays_micro
+MODULES_NAMES += hexrays_ctree
 MODULES_NAMES += allins
 MODULES_NAMES += auto
 MODULES_NAMES += bitrange
@@ -278,9 +278,15 @@ MODULES_NAMES += kernwin
 MODULES_NAMES += libfuncs
 MODULES_NAMES += lines
 MODULES_NAMES += loader
+MODULES_NAMES += lumina
 ifdef TESTABLE_BUILD
-  MODULES_NAMES += lumina
   MODULES_NAMES += indexer
+  SDK_SOURCES+= $(ST_SDK_EXTRA)/indexer.hpp
+  CC_INCP += $(ST_SDK_EXTRA)
+  ST_INCLUDES += -I$(ST_SDK_EXTRA)
+
+$(ST_SDK_EXTRA)/indexer.hpp: $(II)/indexer.hpp
+	$(Q)$(CP) $? $@
 endif
 MODULES_NAMES += moves
 MODULES_NAMES += nalt
@@ -326,7 +332,7 @@ endif
 
 ifdef __NT__                   # os and compiler specific flags
   _SWIGFLAGS = -D__NT__ -DWIN32 -D_USRDLL -I"$(PYTHON_ROOT)/include"
-  CFLAGS += /bigobj $(_SWIGFLAGS) -I$(ST_SDK) /Zc:strictStrings-
+  CFLAGS += /bigobj $(_SWIGFLAGS) $(ST_INCLUDES) /Zc:strictStrings-
 else # unix/mac
   ifdef __LINUX__
     PYTHON_LDFLAGS_RPATH_MODULE=-Wl,-rpath='$$ORIGIN/../../..'
@@ -360,107 +366,7 @@ ifeq ($(OUT_OF_TREE_BUILD),)
   endif
   DEST_PYQT_DIR:=$(R)python/PyQt5
   $(DEST_PYQT_DIR):
-	-$(Q)if [ ! -d "$(DEST_PYQT_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_PYQT_DIR) ; fi
-
-  # PyQt5
-  DEST_PYQT_QTCORE:=$(DEST_PYQT_DIR)/QtCore$(PYDLL_EXT)
-  $(DEST_PYQT_QTCORE): $(SRC_PYQT_BUNDLE) | $(DEST_PYQT_DIR)
-	$(Q)$(TAR) -xf $(SRC_PYQT_BUNDLE) -C $(dir $(DEST_PYQT_DIR)) --strip 1
-	$(Q)touch $@
-  DEST_PYQT += $(DEST_PYQT_QTCORE)
-
-  SIP_PYDLL_FNAME:=sip$(PYDLL_EXT)
-  SIP_PYI_FNAME:=sip.pyi
-
-  # sip for Python < 3.8
-  DEST_SIP34_DIR:=$(DEST_PYQT_DIR)/python_3.4
-  $(DEST_SIP34_DIR):
-	-$(Q)if [ ! -d "$(DEST_SIP34_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP34_DIR) ; fi
-  DEST_SIP34_PYDLL:=$(DEST_SIP34_DIR)/$(SIP_PYDLL_FNAME)
-  DEST_SIP34_PYI:=$(DEST_SIP34_DIR)/$(SIP_PYI_FNAME)
-  $(DEST_SIP34_PYDLL): $(wildcard $(SIP34_TREE)/lib/python*/PyQt5/$(SIP_PYDLL_FNAME)) | $(DEST_SIP34_DIR)
-	$(Q)$(CP) $? $@
-  $(DEST_SIP34_PYI): $(wildcard $(SIP34_TREE)/lib/python*/PyQt5/$(SIP_PYI_FNAME)) | $(DEST_SIP34_DIR)
-	$(Q)$(CP) $? $@
-  DEST_SIP += $(DEST_SIP34_PYDLL) $(DEST_SIP34_PYI)
-
-  # sip for Python [3.8, 3.9)
-  DEST_SIP38_DIR:=$(DEST_PYQT_DIR)/python_3.8
-  $(DEST_SIP38_DIR):
-	-$(Q)if [ ! -d "$(DEST_SIP38_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP38_DIR) ; fi
-  DEST_SIP38_PYDLL:=$(DEST_SIP38_DIR)/$(SIP_PYDLL_FNAME)
-  DEST_SIP38_PYI:=$(DEST_SIP38_DIR)/$(SIP_PYI_FNAME)
-  $(DEST_SIP38_PYDLL): $(wildcard $(SIP38_TREE)/lib/python*/PyQt5/$(SIP_PYDLL_FNAME)) | $(DEST_SIP38_DIR)
-	$(Q)$(CP) $? $@
-  $(DEST_SIP38_PYI): $(wildcard $(SIP38_TREE)/lib/python*/PyQt5/$(SIP_PYI_FNAME)) | $(DEST_SIP38_DIR)
-	$(Q)$(CP) $? $@
-  DEST_SIP += $(DEST_SIP38_PYDLL) $(DEST_SIP38_PYI)
-
-  # sip for Python 3.9
-  DEST_SIP39_DIR:=$(DEST_PYQT_DIR)/python_3.9
-  $(DEST_SIP39_DIR):
-	-$(Q)if [ ! -d "$(DEST_SIP39_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP39_DIR) ; fi
-  DEST_SIP39_PYDLL:=$(DEST_SIP39_DIR)/$(SIP_PYDLL_FNAME)
-  DEST_SIP39_PYI:=$(DEST_SIP39_DIR)/$(SIP_PYI_FNAME)
-  $(DEST_SIP39_PYDLL): $(wildcard $(SIP39_TREE)/lib/python*/PyQt5/$(SIP_PYDLL_FNAME)) | $(DEST_SIP39_DIR)
-	$(Q)$(CP) $? $@
-  $(DEST_SIP39_PYI): $(wildcard $(SIP39_TREE)/lib/python*/PyQt5/$(SIP_PYI_FNAME)) | $(DEST_SIP39_DIR)
-	$(Q)$(CP) $? $@
-  DEST_SIP += $(DEST_SIP39_PYDLL) $(DEST_SIP39_PYI)
-
-  # sip for Python 3.10
-  DEST_SIP310_DIR:=$(DEST_PYQT_DIR)/python_3.10
-  $(DEST_SIP310_DIR):
-	-$(Q)if [ ! -d "$(DEST_SIP310_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP310_DIR) ; fi
-  DEST_SIP310_PYDLL:=$(DEST_SIP310_DIR)/$(SIP_PYDLL_FNAME)
-  DEST_SIP310_PYI:=$(DEST_SIP310_DIR)/$(SIP_PYI_FNAME)
-  $(DEST_SIP310_PYDLL): $(wildcard $(SIP310_TREE)/lib/python*/PyQt5/$(SIP_PYDLL_FNAME)) | $(DEST_SIP310_DIR)
-	$(Q)$(CP) $? $@
-  $(DEST_SIP310_PYI): $(wildcard $(SIP310_TREE)/lib/python*/PyQt5/$(SIP_PYI_FNAME)) | $(DEST_SIP310_DIR)
-	$(Q)$(CP) $? $@
-  DEST_SIP += $(DEST_SIP310_PYDLL) $(DEST_SIP310_PYI)
-
-  # sip for Python 3.11
-  DEST_SIP311_DIR:=$(DEST_PYQT_DIR)/python_3.11
-  $(DEST_SIP311_DIR):
-	-$(Q)if [ ! -d "$(DEST_SIP311_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP311_DIR) ; fi
-  DEST_SIP311_PYDLL:=$(DEST_SIP311_DIR)/$(SIP_PYDLL_FNAME)
-  DEST_SIP311_PYI:=$(DEST_SIP311_DIR)/$(SIP_PYI_FNAME)
-  $(DEST_SIP311_PYDLL): $(wildcard $(SIP311_TREE)/lib/python*/PyQt5/$(SIP_PYDLL_FNAME)) | $(DEST_SIP311_DIR)
-	$(Q)$(CP) $? $@
-  $(DEST_SIP311_PYI): $(wildcard $(SIP311_TREE)/lib/python*/PyQt5/$(SIP_PYI_FNAME)) | $(DEST_SIP311_DIR)
-	$(Q)$(CP) $? $@
-  DEST_SIP += $(DEST_SIP311_PYDLL) $(DEST_SIP311_PYI)
-
-  # sip for Python 3.12
-  DEST_SIP312_DIR:=$(DEST_PYQT_DIR)/python_3.12
-  $(DEST_SIP312_DIR):
-	-$(Q)if [ ! -d "$(DEST_SIP312_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP312_DIR) ; fi
-  DEST_SIP312_PYDLL:=$(DEST_SIP312_DIR)/$(SIP_PYDLL_FNAME)
-  DEST_SIP312_PYI:=$(DEST_SIP312_DIR)/$(SIP_PYI_FNAME)
-  $(DEST_SIP312_PYDLL): $(wildcard $(SIP312_TREE)/lib/python*/PyQt5/$(SIP_PYDLL_FNAME)) | $(DEST_SIP312_DIR)
-	$(Q)$(CP) $? $@
-  $(DEST_SIP312_PYI): $(wildcard $(SIP312_TREE)/lib/python*/PyQt5/$(SIP_PYI_FNAME)) | $(DEST_SIP312_DIR)
-	$(Q)$(CP) $? $@
-  DEST_SIP += $(DEST_SIP312_PYDLL) $(DEST_SIP312_PYI)
-
-  # sip for Python 3.13
-  DEST_SIP313_DIR:=$(DEST_PYQT_DIR)/python_3.13
-  $(DEST_SIP313_DIR):
-	-$(Q)if [ ! -d "$(DEST_SIP313_DIR)" ] ; then mkdir -p 2>/dev/null $(DEST_SIP313_DIR) ; fi
-  DEST_SIP313_PYDLL:=$(DEST_SIP313_DIR)/$(SIP_PYDLL_FNAME)
-  DEST_SIP313_PYI:=$(DEST_SIP313_DIR)/$(SIP_PYI_FNAME)
-  $(DEST_SIP313_PYDLL): $(wildcard $(SIP313_TREE)/lib/python*/PyQt5/$(SIP_PYDLL_FNAME)) | $(DEST_SIP313_DIR)
-	$(Q)$(CP) $? $@
-  $(DEST_SIP313_PYI): $(wildcard $(SIP313_TREE)/lib/python*/PyQt5/$(SIP_PYI_FNAME)) | $(DEST_SIP313_DIR)
-	$(Q)$(CP) $? $@
-  DEST_SIP += $(DEST_SIP313_PYDLL) $(DEST_SIP313_PYI)
-
-  ifdef __LINUX__
-    ifdef __APPLE_SILICON__
-      DEST_SIP = $(DEST_SIP313_PYDLL) $(DEST_SIP313_PYI)
-    endif
-  endif
+	-$(Q)$(MKDIRCMD) $(DEST_PYQT_DIR)
 
   DEST_PYQT5_SHIMS += $(DEST_PYQT_DIR)/__init__.py
   DEST_PYQT5_SHIMS += $(DEST_PYQT_DIR)/sip.py
@@ -543,15 +449,15 @@ ifeq ($(OUT_OF_TREE_BUILD),)
   DEST_PYSIDE6_PYTHON3$(1)_DIRS += $(2)/PySide6
 
   $(2)/shiboken6:
-	-$(Q)if [ ! -d "$$@" ] ; then mkdir -p 2>/dev/null $$@ ; fi
+	-$(Q)$(MKDIRCMD) $$@
   $(2)/PySide6:
-	-$(Q)if [ ! -d "$$@" ] ; then mkdir -p 2>/dev/null $$@ ; fi
+	-$(Q)$(MKDIRCMD) $$@
 
     ifndef __NT__
     $(2)/PySide6/libpyside6.abi3.$(PYSIDE6_DLL_VERSUFFIX): $(3)/libpyside6.abi3.$(PYSIDE6_DLL_VERSUFFIX) | $$(DEST_PYSIDE6_PYTHON3$(1)_DIRS)
 	$(Q)$(CP) $$? $$@
       ifdef __LINUX__
-	patchelf --set-rpath '$$$$ORIGIN:$$$$ORIGIN/../..' $$@
+	$(TIMEWRAP-1) patchelf --set-rpath '$$$$ORIGIN:$$$$ORIGIN/../..' $$@
       endif
     $(2)/shiboken6/libshiboken6.abi3.$(PYSIDE6_DLL_VERSUFFIX): $(3)/libshiboken6.abi3.$(PYSIDE6_DLL_VERSUFFIX) | $$(DEST_PYSIDE6_PYTHON3$(1)_DIRS)
 	$(Q)$(CP) $$? $$@
@@ -560,7 +466,7 @@ ifeq ($(OUT_OF_TREE_BUILD),)
     $(2)/PySide6/%: $(3)/python3.$(1)/site-packages/PySide6/% | $$(DEST_PYSIDE6_PYTHON3$(1)_DIRS)
 	$(Q)$(CP) $$? $$@
     $(2)/PySide6/__init__.py: $(3)/python3.$(1)/site-packages/PySide6/__init__.py tools/patch_pyside6_init.py | $(2)/PySide6
-	$(QPATCH_PYSIDE6_INIT)$(PYTHON) tools/patch_pyside6_init.py \
+	$(QPATCH_PYSIDE6_INIT)$(PYTHONCMD) tools/patch_pyside6_init.py \
                 --input $$< \
                 --output $$@
     else
@@ -569,7 +475,7 @@ ifeq ($(OUT_OF_TREE_BUILD),)
     $(2)/PySide6/%: $(3)/PySide6/% | $(2)/PySide6
 	$(Q)$(CP) $$? $$@
     $(2)/PySide6/__init__.py: $(3)/PySide6/__init__.py tools/patch_pyside6_init.py | $(2)/PySide6
-	$(QPATCH_PYSIDE6_INIT)$(PYTHON) tools/patch_pyside6_init.py \
+	$(QPATCH_PYSIDE6_INIT)$(PYTHONCMD) tools/patch_pyside6_init.py \
                 --input $$< \
                 --output $$@
     endif
@@ -598,7 +504,7 @@ qt_bindings: $(QT_BINDINGS_DEPS)
 GENHOOKS=tools/genhooks/
 
 $(DEPLOY_INIT_PY): python/init.py tools/genidaapi.py $(IDAPYTHON_MODULES)
-	$(QGENIDAAPI)$(PYTHON) tools/genidaapi.py -i $< -o $@ -m $(subst $(space),$(comma),$(MODULES_NAMES))
+	$(QGENIDAAPI)$(PYTHONCMD) tools/genidaapi.py -i $< -o $@ -m $(subst $(space),$(comma),$(MODULES_NAMES))
 
 $(DEPLOY_IDC_PY): python/idc.py
 	$(CP) $? $@
@@ -607,7 +513,7 @@ $(DEPLOY_IDAUTILS_PY): python/idautils.py
 	$(CP) $? $@
 
 $(DEPLOY_IDAAPI_PY): python/idaapi.py tools/genidaapi.py $(IDAPYTHON_MODULES)
-	$(QGENIDAAPI)$(PYTHON) tools/genidaapi.py -i $< -o $@ -m $(subst $(space),$(comma),$(MODULES_NAMES))
+	$(QGENIDAAPI)$(PYTHONCMD) tools/genidaapi.py -i $< -o $@ -m $(subst $(space),$(comma),$(MODULES_NAMES))
 
 $(DEPLOY_IDADEX_PY): python/idadex.py
 	$(CP) $? $@
@@ -622,17 +528,17 @@ $(DEPLOY_PYDIR)/lib/%: precompiled/lib/%
 #----------------------------------------------------------------------
 # Hooks generation
 # http://stackoverflow.com/questions/11032280/specify-doxygen-parameters-through-command-line
-$(ST_PARSED_HEADERS_CONFIG): $(GENHOOKS)doxy_gen_notifs.cfg.in $(ST_SDK_TARGETS) $(GENHOOKS)gendoxycfg.py
-	$(QGENDOXYCFG)$(PYTHON) $(GENHOOKS)gendoxycfg.py -i $< -o $@ --includes $(subst $(space),$(comma),$(ST_SDK_TARGETS))
+$(ST_PARSED_HEADERS_CONFIG): $(GENHOOKS)doxy_gen_notifs.cfg.in $(SDK_SOURCES) $(GENHOOKS)gendoxycfg.py
+	$(QGENDOXYCFG)$(PYTHONCMD) $(GENHOOKS)gendoxycfg.py -i $< -o $@ --includes $(subst $(space),$(comma),$(SDK_SOURCES))
 
 PARSED_HEADERS_MARKER=$(ST_PARSED_HEADERS)/headers_generated.marker
-$(PARSED_HEADERS_MARKER): $(ST_SDK_TARGETS) $(ST_PARSED_HEADERS_CONFIG) $(ST_SDK_TARGETS)
+$(PARSED_HEADERS_MARKER): $(SDK_SOURCES) $(ST_PARSED_HEADERS_CONFIG) $(SDK_SOURCES)
 ifeq ($(OUT_OF_TREE_BUILD),)
-	$(Q)( cat $(ST_PARSED_HEADERS_CONFIG); echo "OUTPUT_DIRECTORY=$(ST_PARSED_HEADERS_NOXML)" ) | $(DOXYGEN_BIN) - >/dev/null
+	$(Q) ( $(CATCMD) $(ST_PARSED_HEADERS_CONFIG); echo "OUTPUT_DIRECTORY=$(ST_PARSED_HEADERS_NOXML)" ) | $(DOXYGEN_BIN) - >/dev/null
 else
 	(cd $(F) && unzip ../../out_of_tree/parsed_notifications.zip)
 endif
-	$(Q)touch $@
+	$(Q)$(TOUCHMD) $@
 
 #----------------------------------------------------------------------
 # Create directories in the first phase of makefile parsing.
@@ -641,43 +547,10 @@ DIRLIST += $(DEPLOY_PYDIR)
 DIRLIST += $(ST_PARSED_HEADERS)
 DIRLIST += $(ST_PYW)
 DIRLIST += $(ST_SDK)
+DIRLIST += $(ST_SDK_EXTRA)
 DIRLIST += $(ST_SWIG)
 DIRLIST += $(ST_WRAP)
 $(foreach d,$(sort $(DIRLIST)),$(if $(wildcard $(d)),,$(shell mkdir -p $(d))))
-
-#----------------------------------------------------------------------
-# obj/.../idasdk/*.h[pp]
-# NOTE: Because we have the following sequence in hexrays.hpp:
-#  - definition of template "template <class T> struct ivl_tpl"
-#  - instantiation of template into "typedef ivl_tpl<uval_t> uval_ivl_t;"
-#  - subclassing of "uval_ivl_t": "struct ivl_t : public uval_ivl_t",
-# we are in trouble in our hexrays.i file, because by the time SWiG
-# processes "struct ivl_t", it won't have properly instantiated the
-# template, leading to the IDAPython proxy class "ivl_t" not subclassing
-# "uval_ivl_t". Therefore, we have to split the hexrays.hpp header file
-# into two: one that defines the template, and one that instantiates it.
-# This way, we can '%import "hexrays_templates.hpp"', then do the SWiG
-# template incantation, and finally '%include "hexrays_notemplates.hpp"'
-# to actually generate wrappers.
-ifeq ($(OUT_OF_TREE_BUILD),)
-$(ST_SDK)/%.h: $(IDA_INCLUDE)/%.h ../../sdk/filter_src.pl tools/preprocess_sdk_header.py
-	$(QUPDATE_SDK) perl ../../sdk/filter_src.pl $< - | $(PYTHON) tools/preprocess_sdk_header.py --input - --output $@ --metadata $@.metadata
-$(ST_SDK)/%.hpp: $(IDA_INCLUDE)/%.hpp ../../sdk/filter_src.pl tools/preprocess_sdk_header.py
-	$(QUPDATE_SDK) perl ../../sdk/filter_src.pl $< - | $(PYTHON) tools/preprocess_sdk_header.py --input - --output $@ --metadata $@.metadata
-else
-$(ST_SDK)/%.h: $(IDA_INCLUDE)/%.h tools/preprocess_sdk_header.py
-	$(QUPDATE_SDK) $(PYTHON) tools/preprocess_sdk_header.py --input $< --output $@ --metadata $@.metadata
-$(ST_SDK)/%.hpp: $(IDA_INCLUDE)/%.hpp tools/preprocess_sdk_header.py
-	$(QUPDATE_SDK) $(PYTHON) tools/preprocess_sdk_header.py --input $< --output $@ --metadata $@.metadata
-endif
-HEXRAYS_HPP_SPLIT_DIR:=$(ST_SDK)
-
-$(HEXRAYS_HPP_SPLIT_DIR)/hexrays_notemplates.hpp: $(ST_SDK)/hexrays.hpp tools/split_hexrays_templates.py
-	$(QSPLIT_HEXRAYS_TEMPLATES)$(PYTHON) tools/split_hexrays_templates.py \
-	--input $< \
-	--out-templates $(HEXRAYS_HPP_SPLIT_DIR)/hexrays_templates.hpp \
-	--out-body=$(HEXRAYS_HPP_SPLIT_DIR)/hexrays_notemplates.hpp
-SWIGFLAGS += -I$(HEXRAYS_HPP_SPLIT_DIR)
 
 #----------------------------------------------------------------------
 # obj/.../pywraps/*
@@ -694,7 +567,7 @@ $(ST_PYW)/py_idp.hpp: pywraps/py_idp.hpp \
         $(GENHOOKS)genhooks.py \
         $(GENHOOKS)recipe_idphooks.py \
         $(PARSED_HEADERS_MARKER) $(MAKEFILE_DEP) | $(SDK_SOURCES)
-	$(QGENHOOKS)$(PYTHON) $(GENHOOKS)genhooks.py -i $< -o $@ \
+	$(QGENHOOKS)$(PYTHONCMD) $(GENHOOKS)genhooks.py -i $< -o $@ \
                 -c IDP_Hooks \
                 -x $(ST_PARSED_HEADERS) \
                 -m hookgenIDP \
@@ -703,7 +576,7 @@ $(ST_PYW)/py_idp_idbhooks.hpp: pywraps/py_idp_idbhooks.hpp \
         $(I)idp.hpp \
         $(GENHOOKS)recipe_idbhooks.py \
         $(GENHOOKS)genhooks.py $(PARSED_HEADERS_MARKER) $(MAKEFILE_DEP) | $(SDK_SOURCES)
-	$(QGENHOOKS)$(PYTHON) $(GENHOOKS)genhooks.py -i $< -o $@ \
+	$(QGENHOOKS)$(PYTHONCMD) $(GENHOOKS)genhooks.py -i $< -o $@ \
                 -c IDB_Hooks \
                 -x $(ST_PARSED_HEADERS) \
                 -m hookgenIDB \
@@ -712,7 +585,7 @@ $(ST_PYW)/py_dbg.hpp: pywraps/py_dbg.hpp \
         $(I)dbg.hpp \
         $(GENHOOKS)recipe_dbghooks.py \
         $(GENHOOKS)genhooks.py $(PARSED_HEADERS_MARKER) $(MAKEFILE_DEP) | $(SDK_SOURCES)
-	$(QGENHOOKS)$(PYTHON) $(GENHOOKS)genhooks.py -i $< -o $@ \
+	$(QGENHOOKS)$(PYTHONCMD) $(GENHOOKS)genhooks.py -i $< -o $@ \
                 -c DBG_Hooks \
                 -x $(ST_PARSED_HEADERS) \
                 -m hookgenDBG \
@@ -721,7 +594,7 @@ $(ST_PYW)/py_kernwin.hpp: pywraps/py_kernwin.hpp \
         $(I)kernwin.hpp \
         $(GENHOOKS)recipe_uihooks.py \
         $(GENHOOKS)genhooks.py $(PARSED_HEADERS_MARKER) $(MAKEFILE_DEP) | $(SDK_SOURCES)
-	$(QGENHOOKS)$(PYTHON) $(GENHOOKS)genhooks.py -i $< -o $@ \
+	$(QGENHOOKS)$(PYTHONCMD) $(GENHOOKS)genhooks.py -i $< -o $@ \
                 -c UI_Hooks \
                 -x $(ST_PARSED_HEADERS) \
                 -q "ui_notification_t::" \
@@ -730,16 +603,16 @@ $(ST_PYW)/py_kernwin_viewhooks.hpp: pywraps/py_kernwin_viewhooks.hpp \
         $(I)kernwin.hpp \
         $(GENHOOKS)recipe_viewhooks.py \
         $(GENHOOKS)genhooks.py $(PARSED_HEADERS_MARKER) $(MAKEFILE_DEP) | $(SDK_SOURCES)
-	$(QGENHOOKS)$(PYTHON) $(GENHOOKS)genhooks.py -i $< -o $@ \
+	$(QGENHOOKS)$(PYTHONCMD) $(GENHOOKS)genhooks.py -i $< -o $@ \
                 -c View_Hooks \
                 -x $(ST_PARSED_HEADERS) \
                 -q "view_notification_t::" \
                 -m hookgenVIEW
-$(ST_PYW)/py_hexrays_hooks.hpp: pywraps/py_hexrays_hooks.hpp \
-        $(HEXRAYS_HPP_SPLIT_DIR)/hexrays_notemplates.hpp \
+$(ST_PYW)/py_hexrays_ctree_hooks.hpp: pywraps/py_hexrays_ctree_hooks.hpp \
+        $(I)/hexrays_ctree.hpp \
         $(GENHOOKS)recipe_hexrays.py \
         $(GENHOOKS)genhooks.py $(PARSED_HEADERS_MARKER) $(MAKEFILE_DEP) | $(SDK_SOURCES)
-	$(QGENHOOKS)$(PYTHON) $(GENHOOKS)genhooks.py -i $< -o $@ \
+	$(QGENHOOKS)$(PYTHONCMD) $(GENHOOKS)genhooks.py -i $< -o $@ \
                 -c Hexrays_Hooks \
                 -x $(ST_PARSED_HEADERS) \
                 -q "hexrays_event_t::" \
@@ -750,7 +623,6 @@ $(ST_PYW)/py_hexrays_hooks.hpp: pywraps/py_hexrays_hooks.hpp \
 CFLAGS += $(PYTHON_CFLAGS)
 CC_DEFS += MISSED_BC695
 CC_DEFS += $(DEF_TYPE_TABLE)
-CC_DEFS += $(WITH_HEXRAYS_DEF)
 CC_DEFS += USE_STANDARD_FILE_FUNCTIONS
 CC_DEFS += IDAVER_MAJOR=$(IDAVER_MAJOR)
 CC_DEFS += IDAVER_MINOR=$(IDAVER_MINOR)
@@ -790,8 +662,8 @@ ifdef TESTABLE_BUILD
 endif
 
 ST_SWIG_HEADER = $(ST_SWIG)/header.i
-$(ST_SWIG)/header.i: tools/deploy/header.i.in tools/genswigheader.py $(ST_SDK_TARGETS)
-	$(QGENSWIGHEADER)$(PYTHON) tools/genswigheader.py -i $< -o $@ -m $(subst $(space),$(comma),$(MODULES_NAMES)) -s $(ST_SDK)
+$(ST_SWIG)/header.i: tools/deploy/header.i.in tools/genswigheader.py $(SDK_SOURCES)
+	$(QGENSWIGHEADER)$(PYTHONCMD) tools/genswigheader.py -i $< -o $@ -s $(ST_SDK)
 
 ifdef __NT__
   PATCH_DIRECTORS_SCRIPT = tools/patch_directors_cc.py
@@ -809,7 +681,10 @@ SWIG_IFACE_frame=range
 SWIG_IFACE_funcs=range
 SWIG_IFACE_gdl=range
 SWIG_IFACE_graph=gdl
-SWIG_IFACE_hexrays=pro typeinf xref gdl
+SWIG_IFACE_hexrays=hexrays_micro hexrays_defs hexrays_ctree
+SWIG_IFACE_hexrays_defs=pro typeinf xref gdl
+SWIG_IFACE_hexrays_micro=pro typeinf xref gdl hexrays_defs
+SWIG_IFACE_hexrays_ctree=pro typeinf xref gdl hexrays_defs hexrays_micro
 SWIG_IFACE_idd=range
 SWIG_IFACE_idp=bitrange
 SWIG_IFACE_segment=range
@@ -818,7 +693,7 @@ SWIG_IFACE_typeinf=idp
 SWIG_IFACE_tryblks=range
 
 MODULE_LIFECYCLE_bytes=--lifecycle-aware
-MODULE_LIFECYCLE_hexrays=--lifecycle-aware
+MODULE_LIFECYCLE_hexrays_ctree=--lifecycle-aware
 MODULE_LIFECYCLE_idaapi=--lifecycle-aware
 MODULE_LIFECYCLE_kernwin=--lifecycle-aware
 MODULE_LIFECYCLE_typeinf=--lifecycle-aware
@@ -842,7 +717,7 @@ define make-module-rules
 
     # obj/x86_linux_gcc/wrappers/ida_X.py.final (note: dep. on .cpp. See note above.)
     $(ST_WRAP)/ida_$(1).py.final: $(ST_WRAP)/$(1).cpp $(wildcard tools/pypasses/*.py) $(wildcard tools/pypasses/*/*.py) $(wildcard apidoc/ida_$(1).py) $(PARSED_HEADERS_MARKER) $(call find-patch-codegen-deps,$(1))
-	$(QINJECT_PYDOC)$(PYTHON) tools/pypasses.py \
+	$(QINJECT_PYDOC)$(PYTHONCMD) tools/pypasses.py \
                 --input $(ST_WRAP)/ida_$(1).py \
                 --idapython-module-name ida_$(1) \
                 --doxygen-xml $(ST_PARSED_HEADERS) \
@@ -854,7 +729,7 @@ define make-module-rules
 
     # obj/x86_linux_gcc/swig/X.i
     $(ST_SWIG)/$(1).i: $(addprefix $(F),$(call find-pywraps-deps,$(1))) swig/$(1).i $(ST_SWIG_HEADER) $(SWIG_IFACE_$(1):%=$(ST_SWIG)/%.i) $(ST_SWIG_HEADER) tools/deploy.py $(PARSED_HEADERS_MARKER)
-	$(QDEPLOY)$(PYTHON) tools/deploy.py \
+	$(Q)$(QDEPLOY)$(PYTHONCMD) tools/deploy.py \
                 --pywraps $(ST_PYW) \
                 --template $$(subst $(F),,$$@) \
                 --output $$@ \
@@ -871,33 +746,33 @@ define make-module-rules
     # 5. patch_python_codegen.py patches ida_x.py in place using helpers in tools/patch_codegen
     # 6. on windows, patch_directors_cc.py patches x.h in place again
     $(ST_WRAP)/$(1).cpp: $(ST_SWIG)/$(1).i tools/patch_codegen.py tools/patch_python_codegen.py $(PATCH_DIRECTORS_SCRIPT) $(PARSED_HEADERS_MARKER) tools/chkapi.py tools/wrapper_utils.py
-	$(QSWIG)$(SWIG) $(addprefix -D,$(WITH_HEXRAYS_DEF)) -python $(_SWIGPY3FLAG) -threads -c++ -shadow \
+	$(QSWIG)$(SWIG_CMD) -python $(_SWIGPY3FLAG) -threads -c++ -shadow \
           -D__GNUC__ -DSWIG_PYTHON_LEGACY_BOOL=1 $(SWIGFLAGS) $(addprefix -D,$(EASIZE_DEF)) -I$(ST_SWIG) \
-          -outdir $(ST_WRAP) -o $$@.in1 -oh $(ST_WRAP)/$(1).h -I$(ST_SDK) -DIDAPYTHON_MODULE_$(1)=1 $$<
+          -outdir $(ST_WRAP) -o $$@.in1 -oh $(ST_WRAP)/$(1).h $(ST_INCLUDES) -DIDAPYTHON_MODULE_$(1)=1 $$<
 	$(call PATCH_CONST,$(ST_WRAP)/$(1).cpp.in1,$(ST_WRAP)/$(1).cpp.in2)
-	$(QPATCH_CODEGEN)$(PYTHON) tools/patch_codegen.py \
+	$(QPATCH_CODEGEN)$(PYTHONCMD) tools/patch_codegen.py \
                 --input $(ST_WRAP)/$(1).cpp.in2 \
 	        --output $(ST_WRAP)/$(1).cpp \
                 --module $(1) \
                 --xml-doc-directory $(ST_PARSED_HEADERS) \
                 --patches tools/patch_codegen/$(1).py \
 		--batch-patches tools/patch_codegen/$(1)_batch.py
-	$(QPATCH_H_CODEGEN)$(PYTHON) tools/patch_h_codegen.py \
+	$(QPATCH_H_CODEGEN)$(PYTHONCMD) tools/patch_h_codegen.py \
                 --file $(ST_WRAP)/$(1).h \
                 --module $(1) \
                 --patches tools/patch_codegen/$(1)_h.py
-	$(QPATCH_PYTHON_CODEGEN)$(PYTHON) tools/patch_python_codegen.py \
+	$(QPATCH_PYTHON_CODEGEN)$(PYTHONCMD) tools/patch_python_codegen.py \
                 --file $(ST_WRAP)/ida_$(1).py \
                 --module $(1) \
                 --patches tools/patch_codegen/ida_$(1).py
     ifdef __NT__
-	$(PYTHON) $(PATCH_DIRECTORS_SCRIPT) --file $(ST_WRAP)/$(1).h
+	$(PYTHONCMD) $(PATCH_DIRECTORS_SCRIPT) --file $(ST_WRAP)/$(1).h
     endif
     # The copying of the .py will preserve attributes (including timestamps).
     # And, since we have patched $(1).cpp, it'll be more recent than ida_$(1).py,
     # and make would keep copying the .py file at each invocation.
     # To prevent that, let's make the source .py file more recent than .cpp.
-	$(Q)touch $(ST_WRAP)/ida_$(1).py
+	$(Q)$(TOUCHMD) $(ST_WRAP)/ida_$(1).py
 endef
 $(foreach mod,$(MODULES_NAMES),$(eval $(call make-module-rules,$(mod))))
 
@@ -928,7 +803,7 @@ $(X_O): CC_DEFS += PLUGIN_SUBMODULE
 $(X_O): CC_DEFS += SWIG_DIRECTOR_NORTTI
 ifdef __CODE_CHECKER__
 $(X_O):
-	$(Q)touch $@
+	$(Q)$(TOUCHMD) $@
 endif
 
 # obj/x86_linux_gcc/_ida_X.so
@@ -947,7 +822,7 @@ endif
 $(_IDA_X_SO): STDLIBS += $(LINKIDAPYTHON)
 $(_IDA_X_SO): LDFLAGS += $(PYTHON_LDFLAGS) $(PYTHON_LDFLAGS_RPATH_MODULE) $(OUTMAP)$(F)$(@F).map
 $(F)_ida_%$(PYDLL_EXT): $(F)%$(O) $(MODULE) $(IDAPYTHON_IMPLIB_DEF) $(IDAPYSWITCH_MODULE_DEP)
-	$(call link_dll, $<, $(LINKIDA))
+	$(call link_dll, $<, $(L)int128$(A) $(LINKIDA))
 ifdef __NT__
 	$(Q)$(RM) $(@:$(PYDLL_EXT)=.exp) $(@:$(PYDLL_EXT)=.lib)
 endif
@@ -985,18 +860,18 @@ define make-api-contents-rule
   $(1): $(3)
   ifeq ($(or $(__CODE_CHECKER__),$(NO_CMP_API),$(__ASAN__),$(IDAHOME),$(IDACLASS),$(IDAFREE)),)
   $(3): $(ALL_ST_WRAP_PY_FINAL) tools/py_scanner.py
-	$(QDUMPAPI)$(PYTHON) tools/py_scanner.py $(4) --paths $(subst $(space),$(comma),$(ALL_ST_WRAP_PY_FINAL)) > $(2)
+	$(QDUMPAPI)$(PYTHONCMD) tools/py_scanner.py $(4) --paths $(subst $(space),$(comma),$(ALL_ST_WRAP_PY_FINAL)) > $(2)
     ifeq ($(OUT_OF_TREE_BUILD),)
-	$(Q)((diff -w $(1) $(2)) > /dev/null && touch $$@) || \
+	$(Q)(($(DIFFCMD) -w $(1) $(2)) > /dev/null && $(TOUCHMD) $$@) || \
           (echo "API CONTENTS CHANGED! update $(1) or fix the API" && \
            echo "(New API: $(2)) ***" && \
-           (diff -U 1 -w $(1) $(2); true))
+           ($(DIFFCMD) -U 1 -w $(1) $(2); true))
     else
-	$(Q)touch $$@
+	$(Q)$(TOUCHMD) $$@
     endif
   else
   $(3): $(ALL_ST_WRAP_PY_FINAL) tools/py_scanner.py
-	$(Q)touch $$@
+	$(Q)$(TOUCHMD) $$@
   endif
 endef
 
@@ -1008,9 +883,9 @@ ST_API_CHECK_SUCCESS := $(F)api_check.success
 api_check: $(ST_API_CHECK_SUCCESS)
 $(ST_API_CHECK_SUCCESS): $(ALL_ST_WRAP_CPP)
 ifeq ($(or $(__CODE_CHECKER__),$(NO_CMP_API),$(__ASAN__),$(IDAHOME),$(IDACLASS),$(IDAFREE)),)
-	$(QCHKAPI)$(PYTHON) tools/chkapi.py $(WITH_HEXRAYS_CHKAPI) -i $(subst $(space),$(comma),$(ALL_ST_WRAP_CPP)) -p $(subst $(space),$(comma),$(ALL_ST_WRAP_PY))
+	$(QCHKAPI)$(PYTHONCMD) tools/chkapi.py -i $(subst $(space),$(comma),$(ALL_ST_WRAP_CPP)) -p $(subst $(space),$(comma),$(ALL_ST_WRAP_PY))
 endif
-	$(Q)touch $@
+	$(Q)$(TOUCHMD) $@
 
 ifdef __EA64__
   DUMPDOC_IS_64:=True
@@ -1076,7 +951,7 @@ endif
 PUBTREE_DIR=$(F)public_tree
 public_tree: all
 ifeq ($(OUT_OF_TREE_BUILD),)
-	-$(Q)if [ ! -d "$(PUBTREE_DIR)/out_of_tree" ] ; then mkdir -p 2>/dev/null $(PUBTREE_DIR)/out_of_tree ; fi
+	-$(Q)$(MKDIRCMD) $(PUBTREE_DIR)/out_of_tree
 	rsync -a --exclude=obj/ \
                 --exclude=precompiled/ \
                 --exclude=repl.py \
@@ -1084,6 +959,7 @@ ifeq ($(OUT_OF_TREE_BUILD),)
                 --exclude=RELEASE.md \
                 --exclude=docs/hr-html/ \
                 --exclude=**/*~ \
+                --exclude=examples-internal \
                 . $(PUBTREE_DIR)
 	(cd $(F) && zip -r ../../$(PUBTREE_DIR)/out_of_tree/parsed_notifications.zip parsed_notifications)
 endif
@@ -1100,7 +976,7 @@ ifdef __NT__
     endif
   endif
 endif
-$(R)idapyswitch$(B): $(QT_BINDINGS_DEPS) $(call dumb_target, pro compress, $(IDAPYSWITCH_OBJS))
+$(R)idapyswitch$(B): $(QT_BINDINGS_DEPS) $(call dumb_target, pro int128 compress, $(IDAPYSWITCH_OBJS))
 
 #----------------------------------------------------------------------
 TEST_PYWRAPS_OBJS += $(F)test_pywraps$(O)
@@ -1114,18 +990,19 @@ ifdef __NT__
 endif
 
 ifdef __MAC__
-LDFLAGS_EXE += -Wl,-rpath,@executable_path
+  LDFLAGS_EXE += -Wl,-rpath,@executable_path
+  LDFLAGS_EXE += -Wl,-weak-l$(PYTHON_VERNAME) -flat_namespace
 endif
-$(R)test_pywraps$(B): $(call dumb_target, json idc unicode pro, $(TEST_PYWRAPS_OBJS)) $(PYTHON_LDFLAGS) $(LDFLAGS_EXE)
+$(R)test_pywraps$(B): $(call dumb_target, json idc unicode pro compress, $(TEST_PYWRAPS_OBJS)) $(PYTHON_LDFLAGS) $(LDFLAGS_EXE)
 
 $(F)$(TEST_PYWRAPS_RESULT_FNAME).marker: $(R)test_pywraps$(B)
-	$(Q)$(TEST_PYWRAPS_ENV) $(R)test_pywraps$(B) > $(F)$(TEST_PYWRAPS_RESULT_FNAME)
+	$(Q)$(TEST_PYWRAPS_ENV) $(TIMEWRAP-1) $(R)test_pywraps$(B) > $(F)$(TEST_PYWRAPS_RESULT_FNAME)
   ifeq ($(OUT_OF_TREE_BUILD),)
-	$(Q)((diff -w $(TEST_PYWRAPS_RESULT_FNAME) $(F)$(TEST_PYWRAPS_RESULT_FNAME)) > /dev/null && touch $@) || \
+	$(Q)(($(DIFFCMD) -w $(TEST_PYWRAPS_RESULT_FNAME) $(F)$(TEST_PYWRAPS_RESULT_FNAME)) > /dev/null && $(TOUCHMD) $@) || \
           (echo "$(TEST_PYWRAPS_RESULT_FNAME) changed" && \
-           (diff -U 1 -w $(TEST_PYWRAPS_RESULT_FNAME) $(F)$(TEST_PYWRAPS_RESULT_FNAME); true))
+           ($(DIFFCMD) -U 1 -w $(TEST_PYWRAPS_RESULT_FNAME) $(F)$(TEST_PYWRAPS_RESULT_FNAME); true))
   else
-	$(Q)touch $@
+	$(Q)$(TOUCHMD) $@
   endif
 
 ifdef __CODE_CHECKER__
@@ -1162,7 +1039,7 @@ else
 
   define make-examples-index-rules
 
-    $(eval EXAMPLES_INDEX_CMD := $(PYTHON) $(GEN_EXAMPLES_TOOL) write \
+    $(eval EXAMPLES_INDEX_CMD := $(PYTHONCMD) $(GEN_EXAMPLES_TOOL) write \
 	-t $(4) \
 	-e examples \
 	-o $(2) \
@@ -1170,13 +1047,13 @@ else
 
     $(1): $(3)
     $(3): $(GEN_EXAMPLES_TOOL) $(GEN_EXAMPLES_CFG) $(4) $(EXAMPLES)
-	-$(Q)if [ ! -d "$(F)examples" ] ; then mkdir -p 2>/dev/null $(F)examples ; fi
+	-$(Q)$(MKDIRCMD) $(F)examples
 	$(QGEN_EXAMPLES_INDEX)$(EXAMPLES_INDEX_CMD) \
 	  || echo FAILED: $(EXAMPLES_INDEX_CMD)
-	$(Q)diff -w $(1) $(2) > /dev/null && touch $$@ \
+	$(Q)$(DIFFCMD) -w $(1) $(2) > /dev/null && $(TOUCHMD) $$@ \
 	  || (echo "EXAMPLES INDEX CHANGED! update $(1)" \
 	   && echo "(New examples: $(2)) ***" \
-	   && diff -U 1 -w $(1) $(2); true)
+	   && $(DIFFCMD) -U 1 -w $(1) $(2); true)
   endef
 
   $(eval $(call make-examples-index-rules,$(EXAMPLES_INDEX_MD),$(ST_EXAMPLES_INDEX_MD),$(ST_EXAMPLES_INDEX_MD_SUCCESS),tools/examples_index_template.md,md))
@@ -1186,7 +1063,7 @@ else
   EXAMPLE_FILES := $(addprefix $(R)python/,$(EXAMPLES) $(EXAMPLES_INDEX_MD) $(EXAMPLES_README))
   examples: $(EXAMPLE_FILES)
   $(EXAMPLE_FILES): $(R)python/examples/%: examples/%
-	$(Q)if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
+	$(Q)$(MKDIRCMD) $(dir $@)
 	$(Q)$(CP) $< $@
 
 endif
@@ -1198,14 +1075,13 @@ $(F)idapyswitch$(O): $(I)auto.hpp $(I)bitrange.hpp $(I)bytes.hpp            \
                   $(I)config.hpp $(I)diskio.hpp $(I)entry.hpp $(I)err.h     \
                   $(I)exehdr.h $(I)fixup.hpp $(I)fpro.h $(I)funcs.hpp       \
                   $(I)ida.hpp $(I)idp.hpp $(I)ieee.h $(I)kernwin.hpp        \
-                  $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp $(I)lzfse.h    \
-                  $(I)lzvn_decode_base.h $(I)md5.h $(I)nalt.hpp             \
-                  $(I)name.hpp $(I)netnode.hpp $(I)network.hpp              \
-                  $(I)offset.hpp $(I)pro.h $(I)prodir.h $(I)range.hpp       \
-                  $(I)registry.hpp $(I)segment.hpp $(I)segregs.hpp          \
-                  $(I)ua.hpp $(I)xref.hpp ../../ldr/ar/aixar.hpp            \
-                  ../../ldr/ar/ar.hpp ../../ldr/ar/arcmn.cpp                \
-                  ../../ldr/mach-o/../ar/ar.hpp                             \
+                  $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp $(I)md5.h      \
+                  $(I)nalt.hpp $(I)name.hpp $(I)netnode.hpp                 \
+                  $(I)network.hpp $(I)offset.hpp $(I)pro.h $(I)prodir.h     \
+                  $(I)range.hpp $(I)registry.hpp $(I)segment.hpp            \
+                  $(I)segregs.hpp $(I)ua.hpp $(I)xref.hpp                   \
+                  ../../ldr/ar/aixar.hpp ../../ldr/ar/ar.hpp                \
+                  ../../ldr/ar/arcmn.cpp ../../ldr/mach-o/../ar/ar.hpp      \
                   ../../ldr/mach-o/../idaldr.h                              \
                   ../../ldr/mach-o/apple_common.h                           \
                   ../../ldr/mach-o/base.cpp ../../ldr/mach-o/common.cpp     \
@@ -1218,20 +1094,28 @@ $(F)idapyswitch$(O): $(I)auto.hpp $(I)bitrange.hpp $(I)bytes.hpp            \
                   idapyswitch_win.cpp
 $(F)idapython$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp            \
                   $(I)diskio.hpp $(I)err.h $(I)expr.hpp $(I)fpro.h          \
-                  $(I)funcs.hpp $(I)gdl.hpp $(I)graph.hpp $(I)ida.hpp       \
+                  $(I)funcs.hpp $(I)gdl.hpp $(I)graph.hpp $(I)hexrays.hpp   \
+                  $(I)hexrays_ctree.hpp $(I)hexrays_defs.hpp                \
+                  $(I)hexrays_micro.hpp $(I)ida.hpp                         \
                   $(I)ida_highlighter.hpp $(I)idd.hpp $(I)idp.hpp           \
                   $(I)ieee.h $(I)kernwin.hpp $(I)lex.hpp $(I)lines.hpp      \
                   $(I)llong.hpp $(I)loader.hpp $(I)make_script_ns.hpp       \
                   $(I)nalt.hpp $(I)name.hpp $(I)netnode.hpp                 \
                   $(I)parsejson.hpp $(I)pro.h $(I)range.hpp                 \
-                  $(I)segment.hpp $(I)typeinf.hpp $(I)ua.hpp $(I)xref.hpp   \
-                  extapi.cpp extapi.hpp idapython.cpp pywraps.cpp pywraps.hpp
+                  $(I)registry.hpp $(I)segment.hpp $(I)typeinf.hpp          \
+                  $(I)ua.hpp $(I)xref.hpp extapi.cpp extapi.hpp             \
+                  idapython.cpp py-include/Python_dynload.h                 \
+                  py-include/Python_types.h pywraps.cpp pywraps.hpp
 $(F)test_pywraps$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp         \
                   $(I)err.h $(I)expr.hpp $(I)fpro.h $(I)funcs.hpp           \
-                  $(I)gdl.hpp $(I)graph.hpp $(I)ida.hpp $(I)idd.hpp         \
+                  $(I)gdl.hpp $(I)graph.hpp $(I)hexrays.hpp                 \
+                  $(I)hexrays_ctree.hpp $(I)hexrays_defs.hpp                \
+                  $(I)hexrays_micro.hpp $(I)ida.hpp $(I)idd.hpp             \
                   $(I)idp.hpp $(I)ieee.h $(I)kernwin.hpp $(I)lex.hpp        \
                   $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp $(I)nalt.hpp   \
                   $(I)name.hpp $(I)netnode.hpp $(I)parsejson.hpp $(I)pro.h  \
-                  $(I)range.hpp $(I)segment.hpp $(I)typeinf.hpp $(I)ua.hpp  \
-                  $(I)xref.hpp extapi.cpp extapi.hpp pywraps.cpp            \
-                  pywraps.hpp test_pywraps.cpp
+                  $(I)range.hpp $(I)registry.hpp $(I)segment.hpp            \
+                  $(I)typeinf.hpp $(I)ua.hpp $(I)xref.hpp extapi.cpp        \
+                  extapi.hpp py-include/Python_dynload.h                    \
+                  py-include/Python_types.h pywraps.cpp pywraps.hpp         \
+                  test_pywraps.cpp

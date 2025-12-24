@@ -7,7 +7,7 @@ description:
 
 keywords: chooser, functions
 
-see_also: choose, choose_multi, chooser_with_folders
+see_also: choose, choose_multi
 
 level: intermediate
 """

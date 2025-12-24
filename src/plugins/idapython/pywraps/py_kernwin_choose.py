@@ -66,12 +66,11 @@ class Choose(object):
     """triggering a 'edit/rename' (i.e., F2 shortcut) on a cell,
        should call the edit() callback for the corresponding row."""
 
-    CH_BUILTIN_SHIFT = _ida_kernwin.CH_BUILTIN_SHIFT
-    CH_BUILTIN_MASK = _ida_kernwin.CH_BUILTIN_MASK
+    CH_BUILTIN_SHIFT = _ida_kernwin.OBSOLETE_CH_BUILTIN_SHIFT
+    CH_BUILTIN_MASK = _ida_kernwin.OBSOLETE_CH_BUILTIN_MASK
 
-    """The chooser can provide a dirtree_t, meaning a tree-like structure
-       can be provided to the user (instead of a flat table)"""
-    CH_HAS_DIRTREE = _ida_kernwin.CH_HAS_DIRTREE
+    """Deprecated"""
+    CH_HAS_DIRTREE = _ida_kernwin.OBSOLETE_CH_HAS_DIRTREE
 
     """The chooser can be used in a diffing/merging workflow"""
     CH_HAS_DIFF = _ida_kernwin.CH_HAS_DIFF
@@ -86,7 +85,8 @@ class Choose(object):
     CHCOL_FORMAT    = _ida_kernwin.CHCOL_FORMAT
     CHCOL_DEFHIDDEN = _ida_kernwin.CHCOL_DEFHIDDEN
     CHCOL_DRAGHINT  = _ida_kernwin.CHCOL_DRAGHINT
-    CHCOL_INODENAME = _ida_kernwin.CHCOL_INODENAME
+    OBSOLETE_CHCOL_INODENAME = _ida_kernwin.OBSOLETE_CHCOL_INODENAME
+    CHCOL_INODENAME = OBSOLETE_CHCOL_INODENAME
 
     # special values of the chooser index
     NO_SELECTION   = -1
@@ -405,26 +405,6 @@ class Choose(object):
         """
         pass
 
-    def OnGetDirTree(self):
-        """
-        Get the dirtree_t that will be used to present a tree-like
-        structure to the user (see CH_HAS_DIRTREE)
-
-        :returns: the dirtree_t, or None
-        """
-        pass
-
-    def OnIndexToInode(self, n):
-        """
-        Map an element index to a dirtree_t inode
-
-        This callback is mandatory if CH_HAS_DIRTREE is specified
-
-        :param n: index of the element
-        :returns: the inode number
-        """
-        pass
-
     def OnIndexToDiffpos(self, n):
         """
         Map an element index to a diffpos_t
@@ -436,16 +416,29 @@ class Choose(object):
         """
         pass
 
-    def OnLazyLoadDir(self, path):
-        """
-        Callback for lazy-loaded, dirtree-based choosers;
-        the function will be called when a folder is expanded and it has
-        not been loaded before. The implementation should use the
-        given dirtree's link() or mkdir() methods to add the folder contents.
-
-        :param path: an absolute dirtree path to the directory that is being expanded
-        :returns: success
-        """
+    def OnGetDirTree(self):
+        """Deprecated"""
         pass
+
+    def OnIndexToInode(self, n):
+        """Deprecated"""
+        pass
+
+    def OnLazyLoadDir(self, path):
+        """Deprecated"""
+        pass
+
+# Bw-compat
+
+CH_HAS_DIRTREE = OBSOLETE_CH_HAS_DIRTREE
+CH_TM_NO_TREE = OBSOLETE_CH_TM_NO_TREE
+CH_TM_FOLDERS_ONLY = OBSOLETE_CH_TM_FOLDERS_ONLY
+CH_TM_FULL_TREE = OBSOLETE_CH_TM_FULL_TREE
+CH_TM_SHIFT = OBSOLETE_CH_TM_SHIFT
+CH_TM_MASK = OBSOLETE_CH_TM_MASK
+CH_NON_PERSISTED_TREE = OBSOLETE_CH_NON_PERSISTED_TREE
+CH2_LAZY_LOADED = OBSOLETE_CH2_LAZY_LOADED
+CH2_HAS_INODE2INDEX = OBSOLETE_CH2_HAS_INODE2INDEX
+CHCOL_INODENAME = OBSOLETE_CHCOL_INODENAME
 
 #</pycode(py_kernwin_choose)>

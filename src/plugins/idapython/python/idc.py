@@ -3714,9 +3714,9 @@ def get_member_offset(sid, member_name):
            member 1 -> offset 0x1, etc...
     """
     if member_name == " r":
-        member_name = ida_typeinf.FRAME_UDM_NAME_R
+        member_name = ida_frame.FRAME_UDM_NAME_R
     if member_name == " s":
-        member_name = ida_typeinf.FRAME_UDM_NAME_S
+        member_name = ida_frame.FRAME_UDM_NAME_S
 
     tif = ida_typeinf.tinfo_t()
     if tif.get_type_by_tid(sid) and tif.is_udt():

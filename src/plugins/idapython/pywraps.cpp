@@ -3,7 +3,7 @@
 #include <ieee.h>
 #include <parsejson.hpp>
 
-#include <Python.h>
+#include "py-include/Python_dynload.h"
 
 #include "pywraps.hpp"
 #include "extapi.hpp"
@@ -97,7 +97,7 @@ ref_t ida_export PyW_UvalVecToPyList(const uvalvec_t &vec)
   PYW_GIL_CHECK_LOCKED_SCOPE();
   newref_t py_list(PyList_New(n));
   for ( size_t i = 0; i < n; ++i )
-    PyList_SetItem(py_list.o, i, Py_BuildValue(PY_BV_UVAL, bvuval_t(vec[i])));
+    PyList_SetItem(py_list.o, i, get_extapi()->Py_BuildValue_ptr(PY_BV_UVAL, bvuval_t(vec[i])));
   return ref_t(py_list);
 }
 
@@ -313,7 +313,7 @@ PyObject *ida_export PyW_from_jvalue_t(const jvalue_t &v)
     qstring clob;
     if ( !serialize_json(&clob, v) )
       break;
-    ref_t dict = newref_t(PyObject_CallFunction(json_loads.o, "s", clob.c_str()));
+    ref_t dict = newref_t(get_extapi()->PyObject_CallFunction_ptr(json_loads.o, "s", clob.c_str()));
     if ( !dict )
       break;
     dict.incref();
@@ -337,7 +337,7 @@ bool ida_export PyW_to_jvalue_t(jvalue_t *out, PyObject *py)
     borref_t json_dumps(PyDict_GetItemString(json_globals.o, "dumps"));
     if ( !json_dumps )
       break;
-    newref_t str(PyObject_CallFunction(json_dumps.o, "O", py));
+    newref_t str(get_extapi()->PyObject_CallFunction_ptr(json_dumps.o, "O", py));
     qstring buf;
     if ( !PyUnicode_as_qstring(&buf, str.o) )
       break;
@@ -384,7 +384,7 @@ PyObject *ida_export meminfo_vec_t_to_py(meminfo_vec_t &ranges)
     const memory_info_t &mi = *it;
     // start_ea end_ea name sclass sbase bitness perm
     PyList_SetItem(py_list, i,
-      Py_BuildValue("(" PY_BV_EA PY_BV_EA "ss" PY_BV_EA "II)",
+      get_extapi()->Py_BuildValue_ptr("(" PY_BV_EA PY_BV_EA "ss" PY_BV_EA "II)",
         bvea_t(mi.start_ea),
         bvea_t(mi.end_ea),
         mi.name.c_str(),
@@ -429,7 +429,7 @@ static void free_compiled_form_instances(void)
       title = "<unknown title>";
     msg("WARNING: Form \"%s\" was not Free()d. Force-freeing.\n", title.c_str());
     // Will call 'py_unregister_compiled_form()', and thus trim the vector down.
-    newref_t result(PyObject_CallMethod(ref.o, (char *)"Free", "()"));
+    newref_t result(get_extapi()->PyObject_CallMethod_ptr(ref.o, (char *)"Free", "()"));
     if ( !result && PyErr_Occurred() != nullptr )
     {
       msg("WARNING: Couldn't free form object at %p:\n", ref.o);
@@ -879,7 +879,7 @@ int ida_export idcvar_to_pyvar(
           ref_t py_cls(get_idaapi_attr_by_id(PY_CLSID_CVT_INT64));
           if ( py_cls == nullptr )
             return CIP_FAILED;
-          *py_var = newref_t(PyObject_CallFunctionObjArgs(py_cls.o, PyLong_FromLongLong(idc_var.i64), nullptr));
+          *py_var = newref_t(get_extapi()->PyObject_CallFunctionObjArgs_ptr(py_cls.o, PyLong_FromLongLong(idc_var.i64), nullptr));
           if ( PyW_GetError() || !*py_var )
             return CIP_FAILED;
         }
@@ -933,7 +933,7 @@ int ida_export idcvar_to_pyvar(
             return CIP_FAILED;
 
           // Create a byref object with None value. We populate it later
-          *py_var = newref_t(PyObject_CallFunctionObjArgs(py_cls.o, Py_None, nullptr));
+          *py_var = newref_t(get_extapi()->PyObject_CallFunctionObjArgs_ptr(py_cls.o, Py_None, nullptr));
           if ( PyW_GetError() || !*py_var )
             return CIP_FAILED;
         }
@@ -995,7 +995,7 @@ int ida_export idcvar_to_pyvar(
             return CIP_FAILED;
 
           // Call constructor
-          obj = newref_t(PyObject_CallFunctionObjArgs(py_cls.o, nullptr));
+          obj = newref_t(get_extapi()->PyObject_CallFunctionObjArgs_ptr(py_cls.o, nullptr));
           if ( PyW_GetError() || !obj )
             return CIP_FAILED;
         }
@@ -1168,7 +1168,7 @@ static error_t idaapi idc_py_invoke0(
 {
   PYW_GIL_GET;
   PyObject *pyfunc = (PyObject *) argv[0].pvoid;
-  newref_t py_result(PyObject_CallFunctionObjArgs(pyfunc, nullptr));
+  newref_t py_result(get_extapi()->PyObject_CallFunctionObjArgs_ptr(pyfunc, nullptr));
 
   // Report Python error as IDC exception
   qstring err;
@@ -1256,7 +1256,7 @@ ref_t ida_export create_linked_class_instance(
     if ( ref_t py_class = ref_t(PyW_TryGetAttrString(py_module.o, clsname)) )
     {
       newref_t py_lnk(PyCapsule_New(lnk, VALID_CAPSULE_NAME, nullptr));
-      ref_t py_obj = newref_t(PyObject_CallFunctionObjArgs(py_class.o, py_lnk.o, nullptr));
+      ref_t py_obj = newref_t(get_extapi()->PyObject_CallFunctionObjArgs_ptr(py_class.o, py_lnk.o, nullptr));
       if ( !PyW_GetError() && py_obj )
         result = py_obj;
     }
@@ -1390,7 +1390,7 @@ bool ida_export PyW_GetNumber(PyObject *py_var, uint64 *num, bool *is_64)
   if ( PyErr_Occurred() == PyExc_TypeError )
   {
     PyErr_Clear();
-    newref_t py_mask(Py_BuildValue("K", 0xFFFFFFFFFFFFFFFFull));
+    newref_t py_mask(get_extapi()->Py_BuildValue_ptr("K", 0xFFFFFFFFFFFFFFFFull));
     newref_t py_num(PyNumber_And(py_var, py_mask.o));
     if ( py_num && py_mask )
     {
@@ -1468,7 +1468,7 @@ bool ida_export PyW_GetError(qstring *out, bool clear_err)
     ref_t py_fmtexc(get_idaapi_attr(S_IDAAPI_FORMATEXC));
     if ( py_fmtexc != nullptr )
     {
-      py_ret = newref_t(PyObject_CallFunctionObjArgs(
+      py_ret = newref_t(get_extapi()->PyObject_CallFunctionObjArgs_ptr(
                                 py_fmtexc.o,
                                 err_type,
                                 err_value,
@@ -1722,7 +1722,7 @@ bool ida_export py_customidamemo_t_bind(py_customidamemo_t *_this, PyObject *sel
 
   _this->self = borref_t(self);
   _this->view = view;
-  newref_t result(PyObject_CallMethod(self, (char *)"_OnBind", "O", Py_True));
+  newref_t result(get_extapi()->PyObject_CallMethod_ptr(self, (char *)"_OnBind", "O", Py_True));
 
   if ( !result && PyErr_Occurred() != nullptr )
   {
@@ -1739,7 +1739,7 @@ void ida_export py_customidamemo_t_unbind(py_customidamemo_t *_this)
     return;
   PYGLOG("%p: py_customidamemo_t::unbind(); self.o=%p, view=%p\n", _this, _this->self.o, _this->view);
   PYW_GIL_CHECK_LOCKED_SCOPE();
-  newref_t result(PyObject_CallMethod(_this->self.o, (char *)"_OnBind", "O", Py_False));
+  newref_t result(get_extapi()->PyObject_CallMethod_ptr(_this->self.o, (char *)"_OnBind", "O", Py_False));
   if ( !result && PyErr_Occurred() != nullptr )
   {
     msg("WARNING: Couldn't unbind form object at %p:\n", _this->self.o);
@@ -1837,15 +1837,15 @@ static void til_clear_python_tinfo_t_instances(void)
 #undef BATCH_CLEAR
 }
 
-#define DEF_REG_UNREG_REFCOUNTED(Type)                                  \
-  void ida_export til_register_python_##Type##_instance(Type *inst)     \
+#define DEF_REG_UNREG_REFCOUNTED(Type, Register, Deregister)            \
+  void ida_export Register(Type *inst)                                  \
   {                                                                     \
     /* Let's add_unique() it, because in the case of tinfo_t, every reference*/ \
     /* to an object's tinfo_t property will end up trying to register it. */ \
     py_##Type##_vec.add_unique(inst);                                   \
   }                                                                     \
                                                                         \
-  void ida_export til_deregister_python_##Type##_instance(Type *inst)   \
+  void ida_export Deregister(Type *inst)                                \
   {                                                                     \
     qvector<Type*>::iterator found = py_##Type##_vec.find(inst);        \
     if ( found != py_##Type##_vec.end() )                               \
@@ -1856,11 +1856,26 @@ static void til_clear_python_tinfo_t_instances(void)
     }                                                                   \
   }
 
-DEF_REG_UNREG_REFCOUNTED(tinfo_t);
-DEF_REG_UNREG_REFCOUNTED(ptr_type_data_t);
-DEF_REG_UNREG_REFCOUNTED(array_type_data_t);
-DEF_REG_UNREG_REFCOUNTED(func_type_data_t);
-DEF_REG_UNREG_REFCOUNTED(udt_type_data_t);
+DEF_REG_UNREG_REFCOUNTED(
+        tinfo_t,
+        til_python_tinfo_t_instance_register,
+        til_python_tinfo_t_instance_deregister);
+DEF_REG_UNREG_REFCOUNTED(
+        ptr_type_data_t,
+        til_python_ptr_type_data_t_instance_register,
+        til_python_ptr_type_data_t_instance_deregister);
+DEF_REG_UNREG_REFCOUNTED(
+        array_type_data_t,
+        til_python_array_type_data_t_instance_register,
+        til_python_array_type_data_t_instance_deregister);
+DEF_REG_UNREG_REFCOUNTED(
+        func_type_data_t,
+        til_python_func_type_data_t_instance_register,
+        til_python_func_type_data_t_instance_deregister);
+DEF_REG_UNREG_REFCOUNTED(
+        udt_type_data_t,
+        til_python_udt_type_data_t_instance_register,
+        til_python_udt_type_data_t_instance_deregister);
 
 
 //-------------------------------------------------------------------------
@@ -1906,7 +1921,7 @@ ref_t ida_export try_create_swig_wrapper(ref_t mod, const char *clsname, void *c
   if ( py_cls_wrapper_inst != nullptr )
   {
     uninterruptible_op_t op;
-    res = newref_t(PyObject_CallFunction(py_cls_wrapper_inst.o, "(K)", uint64(cobj)));
+    res = newref_t(get_extapi()->PyObject_CallFunction_ptr(py_cls_wrapper_inst.o, "(K)", uint64(cobj)));
   }
   return res;
 }
@@ -1920,7 +1935,7 @@ ssize_t ida_export get_callable_arg_count(ref_t callable)
   {
     if ( ref_t py_fun = ref_t(PyW_TryGetAttrString(py_module.o, "getfullargspec")) )
     {
-      newref_t py_tuple(PyObject_CallFunctionObjArgs(py_fun.o, callable.o, nullptr));
+      newref_t py_tuple(get_extapi()->PyObject_CallFunctionObjArgs_ptr(py_fun.o, callable.o, nullptr));
       if ( py_tuple && PyTuple_Check(py_tuple.o) )
       {
         borref_t py_args(PyTuple_GetItem(py_tuple.o, 0));
@@ -2076,13 +2091,314 @@ int ida_export pylong_to_byte_array(
 {
   if ( !PyLong_Check(in) )
     return -1;
-  return get_plugin_instance()->extapi._PyLong_AsByteArray_ptr(
-          in,
+  int with_exceptions = 0; // This internal function got an extra argument
+                           // in python3.13. Since we cannot force exceptions
+                           // in earlier versions, lets just keep them
+                           // disabled for now.
+  return get_extapi()->_PyLong_AsByteArray_ptr(
+          (PyLongObject *)in,
           out_allocated_buffer->begin(),
           out_allocated_buffer->size(),
+          little_endian,
+          is_signed,
+          with_exceptions);
+}
+
+//-------------------------------------------------------------------------
+PyObject *ida_export pylong_from_byte_array(
+        const bytevec_t &bytes,
+        bool little_endian,
+        bool is_signed)
+{
+  return get_extapi()->_PyLong_FromByteArray_ptr(
+          bytes.begin(),
+          bytes.size(),
           little_endian,
           is_signed);
 }
 
 
 #undef DEF_REG_UNREG_REFCOUNTED
+
+//-------------------------------------------------------------------------
+//                        For Hexrays.hpp
+//-------------------------------------------------------------------------
+bool idapython_do_not_check_ctree = false;
+bool idapython_hexrays_exiting = false;
+
+static int _debug_hexrays_ctree = -1;
+
+//-------------------------------------------------------------------------
+static int is_debug_hexrays_ctree(int level)
+{
+  if ( _debug_hexrays_ctree < 0 )
+  {
+    qstring tmp;
+    if ( qgetenv("IDAPYTHON_DEBUG_HEXRAYS_CTREE", &tmp) )
+      _debug_hexrays_ctree = atol(tmp.c_str());
+  }
+  return _debug_hexrays_ctree >= level;
+}
+
+//-------------------------------------------------------------------------
+void debug_hexrays_ctree(int level, const char *format, ...)
+{
+  if ( is_debug_hexrays_ctree(level) && format != nullptr )
+  {
+    va_list va;
+    va_start(va, format);
+    msg("HEXRAYS CTREE: ");
+    vmsg(format, va);
+    va_end(va);
+  }
+}
+//-------------------------------------------------------------------------
+// The hexrays+IDAPython term sequence goes as follows:
+//   - hexrays is unloaded before IDAPython
+//   - we receive the notification about hexrays going away and:
+//        + call hexrays_unloading__clear_python_clearable_references();
+//        + set 'idapython_do_not_check_ctree = true'
+//   - we receive 'ui_database_closed', and
+//        + use 'idapython_dummy_hexdsp'
+//        + set 'idapython_do_not_check_ctree = false'
+//   - IDAPython is unloaded, and during cleanup of the runtime data,
+//     reachable citem_t's will get destroyed.
+// => this means we will receive 'hx_c*t_cleanup' and 'hx_remitem'
+//    notifications most likely in the idapython_dummy_hexdsp()
+void *idaapi idapython_dummy_hexdsp(int code, ...)
+{
+  if ( idapython_do_not_check_ctree )
+    return nullptr;
+  switch ( code )
+  {
+    case hx_remitem:
+    case hx_cexpr_t_cleanup:
+    case hx_cinsn_t_cleanup:
+    case hx_mop_t_erase:
+    case hx_mba_t_term:
+    case hx_valrng_t_clear:
+    case hx_udc_filter_t_cleanup:
+      {
+#ifdef TESTABLE_BUILD
+        va_list va;
+        va_start(va, code);
+        void *item = va_arg(va, void *);
+        // catch leaks
+        if ( code == hx_remitem )
+          QASSERT(30529, ((cinsn_t *)item)->op == cot_empty || ((cinsn_t *)item)->op == cit_empty);
+        else if ( code == hx_cexpr_t_cleanup )
+          QASSERT(30497, ((cexpr_t *)item)->op == cot_empty && ((cexpr_t *)item)->n == nullptr);
+        else if ( code == hx_cinsn_t_cleanup )
+          QASSERT(30498, ((cinsn_t *)item)->op == cit_empty && ((cinsn_t *)item)->cblock == nullptr);
+        else if ( code == hx_mop_t_erase )
+          QASSERT(30595, ((mop_t *)item)->t == mop_z && ((mop_t *)item)->nnn == nullptr);
+        else if ( code == hx_mba_t_term )
+          QASSERT(30596, ((mba_t *)item)->blocks == nullptr);
+        else if ( code == hx_valrng_t_clear )
+          QASSERT(30601, ((valrng_t *)item)->empty());
+        else if ( code == hx_udc_filter_t_cleanup )
+          QASSERT(30633, ((udc_filter_t *)item)->empty()
+                  && !install_microcode_filter((udc_filter_t *)item, false));
+        else
+          INTERR(30597);
+        va_end(va);
+#endif
+      }
+      break;
+    case hx_remove_optinsn_handler:
+      {
+#ifdef TESTABLE_BUILD
+        static bool in_removal = false;
+        if ( !in_removal )
+        {
+          in_removal = true;
+          va_list va;
+          va_start(va, code);
+          optinsn_t *oi = va_arg(va, optinsn_t *);
+          QASSERT(30598, !remove_optinsn_handler(oi)); // must have been removed already
+          in_removal = false;
+        }
+#endif
+      }
+      break;
+    case hx_remove_optblock_handler:
+      {
+#ifdef TESTABLE_BUILD
+        static bool in_removal = false;
+        if ( !in_removal )
+        {
+          in_removal = true;
+          va_list va;
+          va_start(va, code);
+          optblock_t *ob = va_arg(va, optblock_t *);
+          QASSERT(30599, !remove_optblock_handler(ob)); // must have been removed already
+          in_removal = false;
+        }
+#endif
+      }
+      break;
+    case hx_install_microcode_filter:
+      {
+        va_list va;
+        va_start(va, code);
+        microcode_filter_t *mf = va_arg(va, microcode_filter_t *);
+        bool install = va_argi(va, bool);
+        if ( install )
+          goto BAD_CODE;
+#ifdef TESTABLE_BUILD
+        static bool in_removal = false;
+        if ( !in_removal )
+        {
+          in_removal = true;
+          QASSERT(30620, !install_microcode_filter(mf, false)); // must have been removed already
+          in_removal = false;
+        }
+#else
+        qnotused(mf);
+#endif
+      }
+      break;
+    case hx_hexrays_free:
+#ifdef TESTABLE_BUILD
+      if ( !idapython_hexrays_exiting )
+        goto BAD_CODE;
+#endif
+      break;
+    default:
+BAD_CODE:
+#ifdef _DEBUG
+      if ( under_debugger )
+        BPT;
+#endif
+      warning("Hex-Rays Decompiler got called from Python without being loaded");
+      break;
+  }
+  return nullptr;
+}
+
+
+idaman hexdsp_t *ida_export get_idapython_hexdsp()
+{
+  auto hrdsp = get_hexdsp();
+  return hrdsp == nullptr ? idapython_dummy_hexdsp : hrdsp;
+}
+
+struct hx_clearable_t
+{
+  void *ptr;
+  hx_clearable_type_t type;
+};
+DECLARE_TYPE_AS_MOVABLE(hx_clearable_t);
+
+typedef qvector<hx_clearable_t> hx_clearables_t;
+hx_clearables_t hx_python_clearables;
+
+
+//-------------------------------------------------------------------------
+static void debug_hexrays_dump_clearable_instances(int level=DCLVL_FULL)
+{
+  if ( is_debug_hexrays_ctree(level) )
+  {
+    for ( size_t i = 0, n = hx_python_clearables.size(); i < n; ++i )
+    {
+      const hx_clearable_t &hxc = hx_python_clearables[i];
+      debug_hexrays_ctree(level, "\t#%3d: %p (%d)\n", int(i), hxc.ptr, int(hxc.type));
+    }
+  }
+}
+
+void hexrays_register_python_clearable_instance(
+        void *ptr,
+        hx_clearable_type_t type)
+{
+  if ( ptr == nullptr )
+    return;
+  for ( size_t i = 0, n = hx_python_clearables.size(); i < n; ++i )
+    if ( hx_python_clearables[i].ptr == ptr )
+      return;
+  hx_clearable_t &hxc = hx_python_clearables.push_back();
+  hxc.ptr = ptr;
+  hxc.type = type;
+  debug_hexrays_ctree(DCLVL_SIMPLE, "registered %p\n", hxc.ptr);
+  debug_hexrays_dump_clearable_instances(DCLVL_FULL);
+}
+
+//-------------------------------------------------------------------------
+void hexrays_deregister_python_clearable_instance(void *ptr)
+{
+  debug_hexrays_ctree(DCLVL_SIMPLE, "maybe de-registering %p\n", ptr);
+  for ( size_t i = 0, n = hx_python_clearables.size(); i < n; ++i )
+  {
+    const hx_clearable_t &hxc = hx_python_clearables[i];
+    if ( hxc.ptr == ptr )
+    {
+      debug_hexrays_ctree(DCLVL_SIMPLE, "de-registered %p\n", hxc.ptr);
+      hx_python_clearables.erase(hx_python_clearables.begin() + i);
+      break;
+    }
+  }
+  debug_hexrays_dump_clearable_instances(DCLVL_FULL);
+}
+
+//-------------------------------------------------------------------------
+hx_clearable_type_t hexrays_is_registered_python_clearable_instance(
+        const void *ptr)
+{
+  for ( size_t i = 0, n = hx_python_clearables.size(); i < n; ++i )
+    if ( hx_python_clearables[i].ptr == ptr )
+      return hx_python_clearables[i].type;
+  return hxclr_unknown;
+}
+
+
+//-------------------------------------------------------------------------
+void hexrays_deregister_all_python_clearable_references(void)
+{
+  debug_hexrays_ctree(DCLVL_SIMPLE, "hexrays_deregister_all_python_clearable_references()\n");
+  for ( size_t i = 0, n = hx_python_clearables.size(); i < n; ++i )
+  {
+    const hx_clearable_t &hxc = hx_python_clearables[i];
+    debug_hexrays_ctree(DCLVL_SIMPLE, "cleaning up %p (%d)\n", hxc.ptr, int(hxc.type));
+    switch ( hxc.type )
+    {
+      case hxclr_cfuncptr:
+        ((cfuncptr_t*) hxc.ptr)->reset();
+        break;
+      case hxclr_cinsn_t:
+        ((cinsn_t *) hxc.ptr)->cleanup();
+        break;
+      case hxclr_cexpr_t:
+        ((cexpr_t *) hxc.ptr)->cleanup();
+        break;
+      case hxclr_cblock_t:
+        ((cblock_t *) hxc.ptr)->clear();
+        break;
+      case hxclr_mba_t:
+        ((mba_t *) hxc.ptr)->term();
+        break;
+      case hxclr_mop_t:
+        ((mop_t *) hxc.ptr)->erase();
+        break;
+      case hxclr_minsn_t:
+        ((minsn_t *) hxc.ptr)->_make_nop();
+        break;
+      case hxclr_optinsn_t:
+        remove_optinsn_handler((optinsn_t *) hxc.ptr);
+        break;
+      case hxclr_optblock_t:
+        remove_optblock_handler((optblock_t *) hxc.ptr);
+        break;
+      case hxclr_valrng_t:
+        ((valrng_t *) hxc.ptr)->set_none();
+        break;
+      case hxclr_udc_filter_t:
+        {
+          udc_filter_t *uf = (udc_filter_t *) hxc.ptr;
+          install_microcode_filter(uf, false);
+          uf->cleanup();
+        }
+        break;
+      default: INTERR(30499);
+    }
+  }
+}

@@ -21,6 +21,7 @@ def process(tree, opts, logger):
             # where the key is the "path" to the item (e.g.,
             # `ida_typeinf.tinfo_t.get_udm`.
             self.doc_items = {}
+            self.module_doc = None
 
         def _register_doc(self, node):
             ds = self._get_docstring(node)
@@ -31,6 +32,15 @@ def process(tree, opts, logger):
 
         def _get_docstring(self, node):
             return ast.get_docstring(node, clean=True)
+
+        def visit_Constant(self, node):
+            if not self.doc_items: # we didn't encounter any documentation yet
+                if len(self.current_path) == 1: # and we're at the toplevel of a module
+                    if isinstance(node.value, str): # and the constant is a string literal
+                        logger.debug(f"Found module replacement documentation: \"{node.value}\"");
+                        logger.debug(f"NODE is: {node}")
+                        self.module_doc = node.value
+            return super(overrides_visitor_t, self).visit_Constant(node)
 
         def visit_ClassDef(self, node):
             self._register_doc(node)
@@ -73,6 +83,10 @@ def process(tree, opts, logger):
             return node
 
     transformer = source_transformer_t(opts.idapython_module_name, overrides.doc_items)
+
+    if overrides.module_doc is not None:
+        pypasses.set_docstring(tree, overrides.module_doc);
+
     transformer.visit(tree)
 
     return tree

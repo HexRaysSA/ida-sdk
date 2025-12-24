@@ -1,7 +1,7 @@
 #ifndef __PYWRAPS_HPP__
 #define __PYWRAPS_HPP__
 
-#include <Python.h>
+#include "py-include/Python_dynload.h"
 
 #include "extapi.hpp"
 
@@ -785,15 +785,16 @@ inline void *view_extract_this(PyObject *self)
 //
 //-------------------------------------------------------------------------
 #include <typeinf.hpp>
-#define DECL_REG_UNREG_REFCOUNTED(Type)                                 \
-  idaman void ida_export til_register_python_##Type##_instance(Type *inst); \
-  idaman void ida_export til_deregister_python_##Type##_instance(Type *inst);
-DECL_REG_UNREG_REFCOUNTED(tinfo_t);
-DECL_REG_UNREG_REFCOUNTED(ptr_type_data_t);
-DECL_REG_UNREG_REFCOUNTED(array_type_data_t);
-DECL_REG_UNREG_REFCOUNTED(func_type_data_t);
-DECL_REG_UNREG_REFCOUNTED(udt_type_data_t);
-#undef DECL_REG_UNREG_REFCOUNTED
+idaman void ida_export til_python_tinfo_t_instance_register(tinfo_t *inst);
+idaman void ida_export til_python_tinfo_t_instance_deregister(tinfo_t *inst);
+idaman void ida_export til_python_ptr_type_data_t_instance_register(ptr_type_data_t *inst);
+idaman void ida_export til_python_ptr_type_data_t_instance_deregister(ptr_type_data_t *inst);
+idaman void ida_export til_python_array_type_data_t_instance_register(array_type_data_t *inst);
+idaman void ida_export til_python_array_type_data_t_instance_deregister(array_type_data_t *inst);
+idaman void ida_export til_python_func_type_data_t_instance_register(func_type_data_t *inst);
+idaman void ida_export til_python_func_type_data_t_instance_deregister(func_type_data_t *inst);
+idaman void ida_export til_python_udt_type_data_t_instance_register(udt_type_data_t *inst);
+idaman void ida_export til_python_udt_type_data_t_instance_deregister(udt_type_data_t *inst);
 
 //-------------------------------------------------------------------------
 // Context structure used by register/unregister timer
@@ -1349,7 +1350,7 @@ protected:
             ebuf.append(", ", 2);
           ebuf.append(missing_reimpls[i]);
         }
-        PyErr_Format(PyExc_NotImplementedError,
+        get_plugin_instance()->extapi.PyErr_Format_ptr(PyExc_NotImplementedError,
                      "%s(this=%p) \"%s\" {type=%d, cb=%p, flags=%x} is "
                      "missing reimplementations for: \"%s\"",
                      class_name, this, identifier.c_str(), int(type), listener.cb,
@@ -1394,6 +1395,12 @@ idaman int ida_export pylong_to_byte_array(
         bool is_signed=true);
 
 //-------------------------------------------------------------------------
+idaman PyObject *ida_export pylong_from_byte_array(
+        const bytevec_t &bytes,
+        bool little_endian=true,
+        bool is_signed=true);
+
+//-------------------------------------------------------------------------
 struct module_callbacks_t
 {
   module_callbacks_t() { memset(this, 0, sizeof(*this)); }
@@ -1406,5 +1413,71 @@ idaman void register_module_lifecycle_callbacks(
         const module_callbacks_t &cbs);
 
 idaman void ida_export prepare_programmatic_plugin_load(const char *path);
+
+//-------------------------------------------------------------------------
+//                        For Hexrays.hpp
+//-------------------------------------------------------------------------
+idaman hexdsp_t *ida_export get_idapython_hexdsp();
+#undef HEXDSP
+#define HEXDSP get_idapython_hexdsp()
+#include <hexrays.hpp>
+
+#if defined(__NT__)
+#ifdef MAINMOD
+// we export this var from idapython3.dll
+#define DLLVAR __declspec(dllexport)
+#else
+// we import this var from idapython3.dll
+#define DLLVAR __declspec(dllimport)
+#endif
+#else // __NT__
+#define DLLVAR
+#endif
+
+idaman bool DLLVAR idapython_do_not_check_ctree;
+idaman bool DLLVAR idapython_hexrays_exiting;
+
+#define DCLVL_SIMPLE 1
+#define DCLVL_FULL 2
+#define MODULE_NAME   "Hex-Rays Decompiler" // Copied from vd/hexrays.cpp
+idaman void ida_export debug_hexrays_ctree(int level, const char *format, ...);
+void *idaapi idapython_dummy_hexdsp(int code, ...);
+
+//-------------------------------------------------------------------------
+//                        Clearable objects
+//-------------------------------------------------------------------------
+// A set of objects that were created from IDAPython. This is necessary in
+// order to delete those objects before the hexrays plugin is unloaded.
+// Otherwise, IDAPython will still delete them, but the plugin's
+// dispatcher function will point to idapython_dummy_hexdsp
+enum hx_clearable_type_t
+{
+  hxclr_unknown = 0,
+  hxclr_cfuncptr,
+  hxclr_cinsn_t,
+  hxclr_cexpr_t,
+  hxclr_cblock_t,
+  hxclr_mba_t,
+  hxclr_mop_t,
+  hxclr_minsn_t,
+  hxclr_optinsn_t,
+  hxclr_optblock_t,
+  hxclr_valrng_t,
+  hxclr_udc_filter_t,
+};
+
+//-------------------------------------------------------------------------
+idaman void ida_export hexrays_register_python_clearable_instance(void *ptr, hx_clearable_type_t type);
+
+//-------------------------------------------------------------------------
+// Note: drop ownership, but don't cleanup! The cleanup will be done by
+// the SWiG destructor wrapper if this object's still owned by the Python
+// runtime, or it will be done by the C tree itself later.
+idaman void ida_export hexrays_deregister_python_clearable_instance(void *ptr);
+
+//-------------------------------------------------------------------------
+idaman hx_clearable_type_t ida_export hexrays_is_registered_python_clearable_instance(const void *ptr);
+
+idaman void ida_export hexrays_deregister_all_python_clearable_references(void);
 
 #endif // __PYWRAPS_HPP__

@@ -6,7 +6,7 @@ description:
 
 keywords: chooser, actions
 
-see_also: choose, chooser_with_folders
+see_also: choose
 
 level: intermediate
 """

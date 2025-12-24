@@ -6,9 +6,20 @@
 #include <fixup.hpp>
 #include <tryblks.hpp>
 #include <idacfg.hpp>
+#include <dirtree.hpp>
 
 struct undo_records_t;
+typedef uval_t diridx_t;
 %}
+
+// Eventually move this to `header.i.in`
+%typemap(directorin) diridx_t
+{
+  // %typemap(directorin) diridx_t
+  $input = PyLong_FromUnsignedLongLong($1);
+}
+
+%apply ea_t { diridx_t }
 
 %import "bitrange.hpp"
 

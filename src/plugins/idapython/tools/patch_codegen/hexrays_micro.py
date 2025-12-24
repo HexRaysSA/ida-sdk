@@ -1,8 +1,4 @@
 {
-    "SwigDirector_Hexrays_Hooks::SwigDirector_Hexrays_Hooks" : [
-        ("maybe_collect_director_fixed_method_set", None),
-    ],
-
     "SwigDirector_microcode_filter_t::match" : [
         ("spontaneous_callback_call", None)
     ],
@@ -27,20 +23,5 @@
     ],
     "SwigDirector_optblock_t::func" : [
         ("spontaneous_callback_call", None)
-    ],
-    "new_mba_ranges_t" : [
-        ("repl_text", (
-            "PyObject *argv[2];",
-            "PyObject *argv[2] = {0, 0};")),
-    ],
-    "get_temp_regs" : [
-        ("repl_text", (
-            "PyObject *argv[2];",
-            "PyObject *argv[2] = {0, 0}; qnotused(argv);")),
-    ],
-    "new_valrng_t" : [
-        ("repl_text", (
-            "PyObject *argv[2];",
-            "PyObject *argv[2] = {0, 0};")),
     ],
 }

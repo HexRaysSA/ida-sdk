@@ -1,21 +1,17 @@
-IDAPython
-=========
 
 ### Contributing to IDAPython
 
+**Note: As of today, we are temporarily not accepting pull requests. We will update this notice once the situation changes. We appreciate your understanding and encourage you to check back later.**
+
 Anyone with a valid license is welcome to contribute to IDAPython, and pull
 requests will be honored provided their nature matches the criteria below.
-
-If you prefer using patches over git/github+pull requests, please send
-those to <support@hex-rays.com>.
-
 
 ### What can I contribute?
 
 We at Hex-Rays are currently maintaining the official IDAPython repository.
 
 Because we are not an infinite-sized company and thus have limited resources
-([interested?](https://www.hex-rays.com/jobs.shtml)), we have to keep the
+([interested?](https://hex-rays.com/careers)), we have to keep the
 scope of IDAPython itself to a manageable size.
 
 Most of IDAPython consists of rather low-level, arguably non-pythonic APIs.
@@ -40,7 +36,6 @@ correctly documented, and tested.
 That is the approach we took in order to make sane & well-working
 higher-level APIs possible at all.
 
-
 ### Should I write a test?
 
 If your changes touch the APIs from a functional perspective (e.g., fix
@@ -58,44 +53,8 @@ See also [the best practices for tests & examples](examples/README.md)
 
 ### How to write tests?
 
-Pull requests that actually modify IDAPython code, and that come
-together with a test script, have a better chance of being accepted,
-because we do not happily push code to IDAPython without making sure
-we have non-regression mechanisms into place.
+**Note: This section is will be updated after setting up the CI**
 
-While we won't share our non-regression tools, it is enough to say
-that many IDAPython APIs can be tested by mimicking the user entering
-commands directly into IDA, and looking at the output.
+### Best practices
 
-E.g., here is a part of an actual, real test currently running in
-our non-regression environment, testing the `refwidth` property of a
-`cexpr_t` instance:
-
-```
-Python>x = cexpr_t()
-Python>x.refwidth
-0
-Python>x.refwidth = 18
-Python>x.refwidth
-18
-Python>x.refwidth = var_ref_t()
-Traceback (most recent call last):
-  <snipped file>, <snipped line>, in <module>
-  <snipped file>, <snipped line>, in <lambda>
-    refwidth = property(                                                                lambda self: self._get_refwidth() if True else 0,                    lambda self, v: True                                                         and self._ensure_no_obj(self._get_refwidth(),"refwidth", False)                  and self._acquire_ownership(v, False)                                  and self._set_refwidth(v))
-  <snipped file>, <snipped line>, in _set_refwidth
-    return _ida_hexrays.cexpr_t__set_refwidth(self, *args)
-TypeError: in method 'cexpr_t__set_refwidth', argument 2 of type 'int'
-```
-
-The key points are:
-
-- this represents a "dialog" with IDAPython: input is prepended with
-  "Python>", and output is inline
-- this describes what should happen when those operations are performed
-
-Sending us similar testing 'scripts' alongside a pull request, will speed
-up its integration significantly, since we'll be able to add the test to
-our non-regression environment very quickly.
-
-Please also see [the best practices for developing on IDAPython](HOWTO.md)
+Please also see [the best practices for developing on IDAPython](docs/howto/swig.md)

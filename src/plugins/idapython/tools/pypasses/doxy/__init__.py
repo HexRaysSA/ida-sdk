@@ -721,6 +721,8 @@ def parse(_opts, _logger):
     # Start from the toplevel doxygen-parsed XML document
     for suffix in ["_8hpp", "_8h"]:
         module_name = opts.idapython_module_name.replace("ida_", "")
+        # doxygen replaces underscore with double underscore
+        module_name = module_name.replace("_", "__")
         path = os.path.join(opts.doxygen_xml, f"{module_name}{suffix}.xml")
         if os.path.isfile(path):
             logger.debug(f"Found module entrypoint: {path}")
@@ -741,7 +743,7 @@ def parse(_opts, _logger):
         with open(path, "r") as f:
             tree = ET.fromstring(f.read())
         enum_tree = tree.find(f".//memberdef[@kind='enum'][name='{hbuilder.hooks_info.enum_name}']")
-        assert enum_tree
+        assert enum_tree is not None
 
         hbuilder.load_hooks_class(module, enum_tree)
 

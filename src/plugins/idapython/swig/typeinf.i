@@ -5,7 +5,6 @@
 %constant bmask64_t DEFMASK64 = bmask64_t(-1);
 
 // Most of these could be wrapped if needed
-%ignore get_cc;
 %ignore helper_get_cc;
 %ignore helper_set_cc;
 %ignore get_effective_cc;
@@ -148,7 +147,8 @@
 %ignore extend_sign;
 
 // Kernel-only symbols
-%ignore build_anon_type_name;
+%ignore ::build_anon_type_name;
+%ignore ::tinfo_t__build_anon_type_name;
 %ignore bitfield_type_data_t::serialize;
 %ignore func_type_data_t::serialize;
 %ignore func_type_data_t::deserialize;
@@ -176,6 +176,7 @@ idaman bool ida_export deserialize_tinfo(tinfo_t *tif, const til_t *til, const t
 %ignore enum_type_data_t__get_value_repr;
 %ignore enum_type_data_t__set_value_repr;
 %ignore enum_type_data_t__get_max_serial;
+%ignore udm_t__compare_with;
 %ignore enum_type_data_t::get_constant_group(size_t *, size_t *, size_t);
 %ignore get_tinfo_tid;
 
@@ -313,35 +314,47 @@ idaman bool ida_export deserialize_tinfo(tinfo_t *tif, const til_t *til, const t
 %apply uint64 *OUTPUT {uint64 *out_bitoffset};
 
 //---------------------------------------------------------------------
-%define %tinfo_t_or_simple_tinfo_t_container_lifecycle(Type)
+%define %tinfo_t_or_simple_tinfo_t_container_lifecycle(Type, Register, Deregister)
 // Instead of re-defining all constructors, add the registering
 // to a specialized 'ret' typemap
 %typemap(ret) Type* Type::Type
 {
   // %typemap(ret) Type* Type::Type
-  til_register_python_##Type##_instance($1);
+  Register($1);
 }
 %extend Type {
   ~Type(void)
   {
-    til_deregister_python_##Type##_instance($self);
+    Deregister($self);
     delete $self;
   }
 }
 %enddef
 
-%tinfo_t_or_simple_tinfo_t_container_lifecycle(ptr_type_data_t);
-%tinfo_t_or_simple_tinfo_t_container_lifecycle(array_type_data_t);
-%tinfo_t_or_simple_tinfo_t_container_lifecycle(func_type_data_t);
-%tinfo_t_or_simple_tinfo_t_container_lifecycle(udt_type_data_t);
+%tinfo_t_or_simple_tinfo_t_container_lifecycle(
+        ptr_type_data_t,
+        til_python_ptr_type_data_t_instance_register,
+        til_python_ptr_type_data_t_instance_deregister);
+%tinfo_t_or_simple_tinfo_t_container_lifecycle(
+        array_type_data_t,
+        til_python_array_type_data_t_instance_register,
+        til_python_array_type_data_t_instance_deregister);
+%tinfo_t_or_simple_tinfo_t_container_lifecycle(
+        func_type_data_t,
+        til_python_func_type_data_t_instance_register,
+        til_python_func_type_data_t_instance_deregister);
+%tinfo_t_or_simple_tinfo_t_container_lifecycle(
+        udt_type_data_t,
+        til_python_udt_type_data_t_instance_register,
+        til_python_udt_type_data_t_instance_deregister);
 
 // We can not use tinfo_t_or_simple_tinfo_t_container_lifecycle() for tinfo_t,
-// as it would call til_register_python_tinfo_t_instance() a second time
+// as it would call til_python_tinfo_t_instance_register() a second time
 // after '%typemap(out) tinfo_t *' already did it.
 %extend tinfo_t {
   ~tinfo_t()
   {
-    til_deregister_python_tinfo_t_instance($self);
+    til_python_tinfo_t_instance_deregister($self);
     delete $self;
   }
 }
@@ -555,6 +568,9 @@ def __init__(self, *args, ordinal=None, name=None, tid=None, til=None):
 
 %ignore remove_tinfo_pointer;
 %rename (remove_tinfo_pointer) py_remove_tinfo_pointer;
+
+%template(qvector_simd_info_vec_t) qvector<simd_info_t>;
+%immutable simd_info_t::SIMD_VARIADIC;
 
 %cstring_output_buf_and_size_returning_charptr(
         2,

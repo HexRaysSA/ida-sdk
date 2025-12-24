@@ -1,3 +1,6 @@
+# """
+# Possible module replacement text
+# """
 
 def get_fchunk_referer(ea: int, idx):
     pass

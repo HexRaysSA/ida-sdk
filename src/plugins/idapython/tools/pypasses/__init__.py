@@ -53,7 +53,7 @@ class base_transformer_t(ast.NodeTransformer):
 
 
 def set_docstring(node, text):
-    ds_node = ast.Expr(value=ast.Str(text))
+    ds_node = ast.Expr(value=ast.Constant(text))
     existing_ds = ast.get_docstring(node)
     if existing_ds:
         node.body[0] = ds_node

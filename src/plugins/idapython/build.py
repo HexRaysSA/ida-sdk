@@ -1,92 +1,119 @@
 #!/usr/bin/env python
-#---------------------------------------------------------------------
-# IDAPython - Python plugin for Interactive Disassembler
-#
-# (c) The IDAPython Team <idapython@googlegroups.com>
-#
-# All rights reserved.
-#
-# For detailed copyright information see the file COPYING in
-# the root of the distribution archive.
-#---------------------------------------------------------------------
-# build.py - Makefile wrapper script
-#---------------------------------------------------------------------
-from __future__ import print_function
-import os, sys, argparse
+""" IDAPython - Python plugin for Interactive Disassembler
 
-parser = argparse.ArgumentParser(epilog="""
+ (c) The IDAPython Team https://github.com/HexRaysSA/ida-sdk/issues
+
+ All rights reserved.
+
+ For detailed copyright information see the file COPYING in
+ the root of the distribution archive.
+---------------------------------------------------------------------
+ build.py - Makefile wrapper script
+---------------------------------------------------------------------
+"""
+from __future__ import print_function
+
+import argparse
+import os
+import shutil
+import subprocess
+
+from pathlib import Path
+
+parser = argparse.ArgumentParser(
+    formatter_class=argparse.RawTextHelpFormatter,
+    epilog=r"""
 A very specific version of SWiG is expected in order to produce reliable
 bindings. If your platform doesn't provide that version by default and you
 had to build/install it yourself, you will have to specify '--swig-home'.
 
 What follows, are example build commands
 
-### Windows (assume SWiG is installed in C:\swigwin-4.0.1, and IDA is in C:\Program Files\IDA8)
+# Windows
+Assume SWiG is installed with `winget swig` in the default place and added to PATH
+and IDA is in C:/Program Files/IDA Professional 9.2
 
-  python3 build.py \\
-      --with-hexrays \\
-      --swig-home C:/swigwin-4.0.1 \\
-      --ida-install "c:/Program\ Files/IDA_8.0"
+  python3 build.py --ida-install "C:/Program Files/IDA Professional 9.2"
 
+If swig is not in the PATH
+For simplicity next parts replaced with "<path_to_swig>":
+- cmd/bat: %LOCALAPPDATA%/Microsoft/WinGet/Packages/
+    SWIG.SWIG_Microsoft.Winget.Source_<hash>/swigwin-4.3.1/
+- powershell: $env:LOCALAPPDATA/Microsoft/WinGet/Packages/
+    SWIG.SWIG_Microsoft.Winget.Source_<hash>/swigwin-4.3.1/
 
-### Linux/OSX (assume SWiG is installed in /opt/swiglinux-4.0.1, and IDA is in /opt/my-ida-install)
+  python3 build.py \
+      --swig "<path_to_swig>/swig.exe" \
+      --ida-install "C:/Program Files/IDA Professional 9.2"
 
-  python3 build.py \\
-      --with-hexrays \\
-      --swig-home /opt/swiglinux-4.0.1 \\
-      --ida-install /opt/my-ida-install
-""",
-                        formatter_class=argparse.RawTextHelpFormatter)
-parser.add_argument("--swig-home", type=str, help="Path to the SWIG installation", default=None)
-parser.add_argument("--with-hexrays", help="Build Hex-Rays decompiler bindings (requires the 'hexrays.hpp' header to be present in the SDK's include/ directory)", default=False, action="store_true")
-parser.add_argument("--debug", help="Build debug version of the plugin", default=False, action="store_true")
-parser.add_argument("-j", "--parallel", action="store_true", help="Build in parallel", default=False)
-parser.add_argument("-v", "--verbose", help="Verbose mode", default=False, action="store_true")
-parser.add_argument("-I", "--ida-install", required=True, help="IDA's installation directory", type=str)
-args = parser.parse_args()
+# Linux/OSX
+Assume SWiG is installed with package manager and the executable is /bin/swig,
+and IDA is in /opt/my-ida-install
 
-sdk_relpath = os.path.join("..", "..")
-_probe = os.path.join(sdk_relpath, "include", "pro.h")
-assert os.path.exists(_probe), "Could not find IDA SDK include path (looked for: \"%s\")" % _probe
+  python3 build.py --ida-install /opt/my-ida-install
+
+If want use swig build from the sources
+  python3 build.py --swig "<path_to_swig_executable>" \
+    --ida-install /opt/my-ida-install
+""")
+parser.add_argument(
+    "--swig", type=Path, default=None, help="Path to the SWIG executalbe")
+parser.add_argument(
+    "--debug", default=False, action="store_true",
+    help="Build debug version of the plugin",
+)
+parser.add_argument(
+    "-j", "--jobs", type=int,
+    help="Allow N jobs at once; infinite jobs with no arg.", default=0,
+)
+parser.add_argument(
+    "-v", "--verbose", help="Verbose mode", default=False, action="store_true")
+parser.add_argument(
+    "-I", "--ida-install", required=True, type=Path,
+    help="IDA's installation directory",
+)
+parser_args = parser.parse_args()
 
 
 def run(proc_argv, env=None):
-    import subprocess
-    print("Running: \"%s\", with additional environment: \"%s\"" % (" ".join(proc_argv), str(env)))
+    """Runs subprocess"""
+    cmd = " ".join(proc_argv)
+    print(f"Running: \"{cmd}\", with additional environment: \"{env}\"")
     full_env = os.environ.copy()
     full_env.update(env)
     subprocess.check_call(proc_argv, env=full_env)
     return 0
 
-# -----------------------------------------------------------------------
-def main():
 
-    argv = ["make"]
-    if args.parallel:
-        argv.append("-j")
+def get_swig_or_raise():
+    """Get path to swig trying to find it"""
+    swig = parser_args.swig or os.environ.get("SWIG") or shutil.which("swig")
+
+    if not swig:
+        raise EnvironmentError(
+            "SWIG executable not found. Please install SWIG or provide "
+            "its path to this script with --swig or set SWIG environment "
+            "variable"
+        )
+    return str(Path(swig))
+
+
+def main():
+    """Execute IDAPython build"""
     env = {
-        "OUT_OF_TREE_BUILD" : "1"
+        "OUT_OF_TREE_BUILD" : "1",
+        "IDA_INSTALL": str(parser_args.ida_install),
+        "SWIG": get_swig_or_raise(),
     }
-    if args.swig_home:
-        env["SWIG_HOME"] = args.swig_home.replace('\\', '/')
-    if args.with_hexrays:
-        env["HAS_HEXRAYS"] = "1"
-    if args.debug:
-        env["__NT__"] = "1" # to enable PDB flags
-    else:
+    argv = ["make"]
+    if parser_args.jobs > 0:
+        argv.append(f"-j{parser_args.jobs}")
+    if not parser_args.debug:
         env["NDEBUG"] = "1"
-    if args.verbose:
+    if parser_args.verbose:
         argv.append("-d")
-    env["IDA_INSTALL"] = args.ida_install.replace('\\', '/')
-    env["SDK_BIN_PATH"] = os.path.abspath(os.path.join(sdk_relpath, "bin")).replace('\\', '/')
-    for ea64 in [True, False]:
-        if ea64:
-            env["__EA64__"] = "1"
-        else:
-            if "__EA64__" in env:
-                del env["__EA64__"]
-        print("\n### Building EAsize=%d(bit) version of the plugin" % (64 if ea64 else 32))
-        run(argv, env=env)
+    print("### Building IDAPython plugin")
+    run(argv, env=env)
 
 # -----------------------------------------------------------------------
 if __name__ == "__main__":

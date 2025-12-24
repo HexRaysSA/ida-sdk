@@ -31,7 +31,7 @@ private:
     nodetext_cache_t() {}
   };
 
-  class nodetext_cache_map_t: public std::map<int, nodetext_cache_t>
+  class nodetext_cache_map_t: public qmap<int, nodetext_cache_t>
   {
   public:
     nodetext_cache_t *get(int node_id)

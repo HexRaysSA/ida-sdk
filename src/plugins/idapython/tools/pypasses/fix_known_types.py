@@ -9,6 +9,7 @@ REPLS = {
     ast.Constant("int32") : ast.Name("int"),
     ast.Constant("uint32") : ast.Name("int"),
     ast.Constant("int") : ast.Name("int"),
+    ast.Constant("size_t") : ast.Name("int"),
     ast.Constant("bool") : ast.Name("bool"),
     ast.Constant("void") : ast.Name("None"),
     ast.Constant("ea_t") : ast.Name("ida_idaapi.ea_t"),

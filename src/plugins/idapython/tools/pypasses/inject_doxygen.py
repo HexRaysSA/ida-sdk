@@ -41,7 +41,7 @@ def process(tree, opts, logger):
                     text = []
                     self._append_descriptions(dx_var, text)
                     if text:
-                        ds_node = ast.Expr(value=ast.Str("\n".join(text)))
+                        ds_node = ast.Expr(value=ast.Constant("\n".join(text)))
             return [node, ds_node] if ds_node else node
 
         def visit_AnnAssign(self, node: ast.AnnAssign):
@@ -71,7 +71,7 @@ def process(tree, opts, logger):
                 text = []
                 self._append_descriptions(dx_module, text)
                 if text:
-                    ds_node = ast.Expr(value=ast.Str("\n".join(text)))
+                    ds_node = ast.Expr(value=ast.Constant("\n".join(text)))
                     node.body.insert(0, ds_node)
             self.generic_visit(node)
             return node
