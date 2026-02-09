@@ -820,11 +820,12 @@ public:
     return !(a == b);
   }
 
-  // Relational operators mirror std::set/map semantics: lexicographical compare of values
+  // Relational operators mirror std::set/map semantics: lexicographical compare
+  // of value_type using its natural operator<. For sets, this compares keys.
+  // For maps, this compares std::pair which compares both key AND mapped value.
   friend bool operator<(qtree const &a, qtree const &b)
   {
-    return std::lexicographical_compare(
-      a.begin(), a.end(), b.begin(), b.end(), value_compare {} );
+    return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
   }
 
   friend bool operator>(qtree const &a, qtree const &b)
@@ -1143,7 +1144,7 @@ private:
   }
   static node_type *minimum_impl(node_type *node)
   {
-    QASSERT(0, !is_nil(node));
+    QASSERT(3437, !is_nil(node));
     while ( !is_nil(left(node)) )
     {
       // Keep walking left until we hit the sentinel; that node owns the
@@ -1167,7 +1168,7 @@ private:
   }
   static node_type *maximum_impl(node_type *node)
   {
-    QASSERT(0, !is_nil(node));
+    QASSERT(3438, !is_nil(node));
     while ( !is_nil(right(node)) )
     {
       // Mirror minimum(): keep walking right to find the largest key.
@@ -1392,7 +1393,7 @@ private:
   void clone_from(qtree const &other)
   {
     // Make sure nobody changes the code to do this in the future
-    QASSERT(0, !other.empty());
+    QASSERT(3439, !other.empty());
 
     try
     {
@@ -1477,7 +1478,7 @@ private:
   void rotate_left(node_type *node) noexcept
   {
     node_type *right_node = right(node);
-    QASSERT(0, !is_nil(right_node));
+    QASSERT(3440, !is_nil(right_node));
 
     // B subtree moves across
     set_right(node, left(right_node));
@@ -1530,7 +1531,7 @@ private:
   void rotate_right(node_type *node) noexcept
   {
     node_type *left_node = left(node);
-    QASSERT(0, !is_nil(left_node));
+    QASSERT(3441, !is_nil(left_node));
 
     // B subtree moves across
     set_left(node, right(left_node));

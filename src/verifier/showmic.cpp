@@ -1,6 +1,6 @@
 /*
  *      Decompiler project
- *      Copyright (c) 2005-2025 Hex-Rays SA <support@hex-rays.com>
+ *      Copyright (c) 2005-2026 Hex-Rays SA <support@hex-rays.com>
  *      ALL RIGHTS RESERVED.
  *
  *      Display microcode objects in text form (for debugging)
@@ -630,7 +630,7 @@ void showmic_vars_t::emulate_and_check(
   {
     emu_blknum = 0;
     qstring envvar;
-    if ( !under_debugger )
+    if ( !under_debugger && !mba->hv.force_dump )
       return;
     if ( !qgetenv("VD_EMULATE", &envvar) )
       return;
@@ -690,7 +690,9 @@ void showmic_vars_t::get_dump_file_name(char *buf, size_t bufsize, int serial)
 void mblock_t::vdump_block(const char *title, va_list va) const
 {
   showmic_vars_t &sv = *hv.showmic_vars;
-  if ( !under_debugger || empty() || sv.dumpdir.empty() )
+  if ( !under_debugger && !hv.force_dump )
+    return;
+  if ( empty() || sv.dumpdir.empty() )
     return;
 
   qstring header;
@@ -816,7 +818,7 @@ void mba_t::vdump_mba(bool do_verify, const char *title, va_list va) const
   qstring header;
   header.vsprnt(title, va);
   showmic_vars_t &sv = *hv.showmic_vars;
-  if ( under_debugger && !sv.dumpdir.empty() )
+  if ( (under_debugger || hv.force_dump) && !sv.dumpdir.empty() )
   {
     char path[QMAXPATH];
     sv.get_dump_file_name(path, sizeof(path), -1);
@@ -844,10 +846,9 @@ void mba_t::vdump_mba(bool do_verify, const char *title, va_list va) const
 //-------------------------------------------------------------------------
 void mba_t::init_dump() const
 {
-  if ( !under_debugger )
-    return;
-
   showmic_vars_t &sv = *hv.showmic_vars;
+  if ( !under_debugger && !hv.force_dump )
+    return;
   sv.dumpnum = 0;
   sv.prev_emu = mblock_emulator_t();
   if ( qgetenv("IDA_DUMPDIR", &sv.dumpdir) && !sv.dumpdir.empty() )

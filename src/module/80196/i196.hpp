@@ -22,6 +22,15 @@
 //------------------------------------------------------------------------
 
 enum i196_registers { rVcs, rVds, WSR, WSR1 };
+enum i196_proctype_t
+{
+  PT_NONE,
+  PT_80196,
+  PT_80196NP,      // instructions for extended addressing
+  PT_8096,     // 8[037]9[567] - subset of 80196
+  PT_8061,
+  PT_8065
+};
 
 typedef struct
 {
@@ -31,6 +40,7 @@ typedef struct
 } predefined_t;
 
 //------------------------------------------------------------------------
+void idaapi out_insn(outctx_t &ctx, bool use_alternative_mnem);
 void idaapi i196_header(outctx_t &ctx);
 void idaapi i196_footer(outctx_t &ctx);
 
@@ -39,13 +49,30 @@ void idaapi i196_segend(outctx_t &ctx, segment_t *seg);
 //------------------------------------------------------------------------
 struct i196_t : public procmod_t
 {
-  int extended = 0;
   int flow = false;
+  i196_proctype_t proctype = PT_NONE;
+  i196_proctype_t proctypes[6] =
+  {
+    PT_80196,
+    PT_80196NP,
+    PT_8096,
+    PT_8061,
+    PT_8065,
+    PT_NONE,
+  };
+  int last_valid_procidx = qnumber(proctypes) - 1;
 
   inline uint32 truncate(ea_t x)
   {
-    return x & (extended ? 0xFFFFF : 0xFFFF);
+    return x & (is_80196NP() ? 0xFFFFF : 0xFFFF);
   }
+
+  inline bool is_8061() const { return proctype == PT_8061; }
+  inline bool is_8065() const { return proctype == PT_8065; }
+  inline bool is_8x6x() const { return proctype == PT_8061 || proctype == PT_8065; }
+  inline bool is_8096() const { return proctype == PT_8096; }
+  inline bool is_80196() const { return proctype == PT_80196 || proctype == PT_80196NP; }
+  inline bool is_80196NP() const { return proctype == PT_80196NP; }
 
   virtual ssize_t idaapi on_event(ssize_t msgid, va_list va) override;
 

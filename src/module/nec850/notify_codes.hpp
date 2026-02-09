@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -33,16 +33,32 @@ namespace nec850_module_t
     ev_get_gp_ea,           // Get GP at the given address
                             // \param[out] ea_t the GP value
                             // \param[in]  ea_t the address
+    ev_set_gp_register,     // Set usage of the GP register
+                            // \param[in]  reg_usage_t the usage
+                            // \param[in]  ea_t        the fixed GP value
+                            //                         (only for FIXED)
     ev_get_tp_register,     // Get usage of the TP register
                             // \return  reg_usage_t
     ev_get_tp_ea,           // Get TP at the given address
                             // \param[out] ea_t the TP value
                             // \param[in]  ea_t the address
+    ev_set_tp_register,     // Set usage of the TP register
+                            // \param[in]  reg_usage_t the usage
+                            // \param[in]  ea_t        the fixed TP value
+                            //                         (only for FIXED)
     ev_get_ep_register,     // Get usage of the EP register
                             // \return  reg_usage_t
     ev_get_ep_ea,           // Get EP at the given address
                             // \param[out] ea_t the EP value
                             // \param[in]  ea_t the address
+    ev_set_ep_register,     // Set usage of the EP register
+                            // \param[in]  reg_usage_t the usage
+                            // \param[in]  ea_t        the fixed EP value
+                            //                         (only for FIXED)
+    ev_get_r2_register,     // Get usage of the R2 register
+                            // \return  reg_usage_t (not FIXED)
+    ev_set_r2_register,     // Set usage of the R2 register
+                            // \param[in]  reg_usage_t the usage
 
     ev_restore_pushinfo,   // Restore function prolog info from the database
                            // in: pushinfo_t *pi
@@ -80,49 +96,84 @@ namespace nec850_module_t
   // get usage of the GP register
   inline reg_usage_t get_gp_register()
   {
-    QASSERT(0, PH.id == PLFM_NEC_V850X);
+    QASSERT(10523, PH.id == PLFM_NEC_V850X);
     return reg_usage_t(processor_t::notify(idp_ev(ev_get_gp_register)));
   }
 
   // get GP at the given address
   inline ea_t get_gp_ea(ea_t ea)
   {
-    QASSERT(0, PH.id == PLFM_NEC_V850X);
+    QASSERT(10524, PH.id == PLFM_NEC_V850X);
     ea_t gpval = BADADDR;  // just in case
     processor_t::notify(idp_ev(ev_get_gp_ea), &gpval, ea);
     return gpval;
   }
 
+  // set usage of the GP register
+  inline void set_gp_register(reg_usage_t usage, ea_t fixed_value = BADADDR)
+  {
+    QASSERT(10530, PH.id == PLFM_NEC_V850X);
+    processor_t::notify(idp_ev(ev_set_gp_register), usage, fixed_value);
+  }
+
   // get usage of the TP register
   inline reg_usage_t get_tp_register()
   {
-    QASSERT(0, PH.id == PLFM_NEC_V850X);
+    QASSERT(10525, PH.id == PLFM_NEC_V850X);
     return reg_usage_t(processor_t::notify(idp_ev(ev_get_tp_register)));
   }
 
   // get TP at the given address
   inline ea_t get_tp_ea(ea_t ea)
   {
-    QASSERT(0, PH.id == PLFM_NEC_V850X);
+    QASSERT(10526, PH.id == PLFM_NEC_V850X);
     ea_t tpval = BADADDR;  // just in case
     processor_t::notify(idp_ev(ev_get_tp_ea), &tpval, ea);
     return tpval;
   }
 
+  // set usage of the TP register
+  inline void set_tp_register(reg_usage_t usage, ea_t fixed_value = BADADDR)
+  {
+    QASSERT(10531, PH.id == PLFM_NEC_V850X);
+    processor_t::notify(idp_ev(ev_set_tp_register), usage, fixed_value);
+  }
+
   // get usage of the EP register
   inline reg_usage_t get_ep_register()
   {
-    QASSERT(0, PH.id == PLFM_NEC_V850X);
+    QASSERT(10527, PH.id == PLFM_NEC_V850X);
     return reg_usage_t(processor_t::notify(idp_ev(ev_get_ep_register)));
   }
 
   // get EP at the given address
   inline ea_t get_ep_ea(ea_t ea)
   {
-    QASSERT(0, PH.id == PLFM_NEC_V850X);
+    QASSERT(10528, PH.id == PLFM_NEC_V850X);
     ea_t epval = BADADDR;  // just in case
     processor_t::notify(idp_ev(ev_get_ep_ea), &epval, ea);
     return epval;
+  }
+
+  // set usage of the EP register
+  inline void set_ep_register(reg_usage_t usage, ea_t fixed_value = BADADDR)
+  {
+    QASSERT(10532, PH.id == PLFM_NEC_V850X);
+    processor_t::notify(idp_ev(ev_set_ep_register), usage, fixed_value);
+  }
+
+  // get usage of the R2 register
+  inline reg_usage_t get_r2_register()
+  {
+    QASSERT(0, PH.id == PLFM_NEC_V850X);
+    return reg_usage_t(processor_t::notify(idp_ev(ev_get_r2_register)));
+  }
+
+  // set usage of the R2 register
+  inline void set_r2_register(reg_usage_t usage)
+  {
+    QASSERT(0, PH.id == PLFM_NEC_V850X);
+    processor_t::notify(idp_ev(ev_set_r2_register), usage);
   }
 
   inline bool restore_pushinfo(pushinfo_t *pi, ea_t func_start)

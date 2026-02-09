@@ -1894,6 +1894,8 @@ bool reader_t::read_eh_frame(cie_frame_vec_t *cie_vec, fde_frame_vec_t *fde_vec)
           uint32 aug_data_length;
           if ( !unpack_uleb128(&aug_data_length, &ptr, end) )
             return false; // corrupted data
+          if ( aug_data_length > end - ptr )
+            aug_data_length = end - ptr;
           fde_frame.augment_data.qclear();
           fde_frame.augment_data.append(ptr, aug_data_length);
           ptr += aug_data_length;

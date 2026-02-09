@@ -80,7 +80,7 @@ enum NEC850_regnum_t
   rECR,   rPSW,    rSR6,   rSR7,
   rSR8,   rSR9,    rSR10,  rSR11,
   rSR12,  rSR13,   rSR14,  rSR15,
-  rSR16,  rSR17,   rSR18,  rSR19,
+  rCTPC,  rCTPSW,  rSR18,  rSR19,
   rCTBP,  rSR21,   rSR22,  rSR23,
   rSR24,  rSR25,   rSR26,  rSR27,
   rSR28,  rSR29,   rSR30,  rSR31,
@@ -111,6 +111,7 @@ enum NEC850_regnum_t
   srGP,
   srTP,
   srCTBP,
+  srEP,
 
   rLastRegister
 };
@@ -161,11 +162,10 @@ int  fetch_instruction(uint32 *w);
 
 // prototypes -- emu.cpp
 int  nec850_is_sp_based(const insn_t &insn, const op_t &x);
-int  nec850_may_be_func(const insn_t &insn);
-bool nec850_is_return(const insn_t &insn, bool strict);
 int get_imm_outf(const insn_t &insn, const op_t &x);
 int get_displ_outf(const insn_t &insn, const op_t &x, flags64_t F);
 bool is_branch_insn(const insn_t &insn);
+size_t v850_is_align_insn(ea_t ea);
 
 // prototypes -- switch.cpp
 bool nec850_is_switch(const insn_t &insn);
@@ -189,6 +189,8 @@ inline bool is_ret_itype(const insn_t &insn)
 {
   return insn.itype == NEC850_RETI
       || insn.itype == NEC850_DBRET
+      || insn.itype == NEC850_EIRET
+      || insn.itype == NEC850_FERET
       || insn.itype == NEC850_CTRET
       || insn.itype == NEC850_DISPOSE_r && insn.Op3.is_reg(rLP)
       || insn.itype == NEC850_JMP && insn.Op1.is_reg(rLP);
@@ -199,10 +201,12 @@ inline bool is_ret_itype(const insn_t &insn)
 struct reglist_t : public reglist_base_t<reglist_t>
 {
   constexpr reglist_t() {}
+  template<typename... Args>
+  constexpr reglist_t(Args... args) { add(args...); }
   reglist_t(const op_t &x) { add_reglist(x); }
   void add_reglist(const op_t &x)
   {
-    QASSERT(0, (x.value & ~0xFFFFFFFF) == 0);
+    QASSERT(10522, x.type == o_reglist && (x.value & ~0xFFFFFFFF) == 0);
     regs |= x.value;
   }
   static reglist_t make_list12(uint32 opcode);
@@ -226,12 +230,12 @@ protected:
 // for PREPARE/DISPOSE
 int calc_stack_delta(const insn_t &insn);
 
-//----------------------------------------------------------------------
-// is the function at EA a save/return function?
-// \param[out] regs  the list of saved/restored registers,
-//                   REGS may be nullptr
-// \param[in]  ea    the address to check
-special_func_t v850_is_special_func(reglist_t *regs, ea_t ea);
+//-------------------------------------------------------------------------
+constexpr uint16 IDP_MACRO_HIDDEN_R1 = 0x0001; // allow modification of rR1 in macros
+constexpr uint16 IDP_GP_CALLEE_SAVED = 0x0002; // the GP register is callee-saved
+constexpr uint16 IDP_TP_CALLEE_SAVED = 0x0004; // the TP register is callee-saved
+constexpr uint16 IDP_EP_CALLEE_SAVED = 0x0008; // the EP register is callee-saved
+constexpr uint16 IDP_R2_CALLEE_SAVED = 0x0010; // the R2 register is callee-saved
 
 //-------------------------------------------------------------------------
 enum nec850_abi_t ENUM_SIZE(uint32)
@@ -287,19 +291,46 @@ void free_reg_finder(nec850_reg_finder_t *rf);
 struct nec850_t : public procmod_t
 {
   netnode helper;
-  static constexpr nodeidx_t GP_EA_IDX   = 1;
   static constexpr nodeidx_t CTBP_EA_IDX = 2;
+  static constexpr nodeidx_t GP_EA_IDX   = 1;
   static constexpr nodeidx_t TP_EA_IDX   = 3;
-  static constexpr uchar PUSHINFO_TAG    = 's';
-  // altval(GP_EA_IDX)      : the global pointer
-  // altval(CTBP_EA_IDX)    : the CALLT base pointer
-  // altval(TP_EA_IDX)      : the text pointer
+  static constexpr nodeidx_t EP_EA_IDX   = 4;
+  static constexpr uchar PUSHINFO_TAG = 's';
+  static constexpr size_t V850_MODULE_VERSION = 1;
+  // eaget_idx(CTBP_EA_IDX) : the CALLT base pointer
+  // eaget_idx(GP_EA_IDX)   : the global pointer
+  // eaget_idx(TP_EA_IDX)   : the text pointer
+  // eaget_idx(EP_EA_IDX)   : the element pointer
   // blob(ea, PUSHINFO_TAG) : packed pushinf_t
+  // altval(-1)             : idpflags
+  // altval(-2)             : the module version
 
   pm_idb_listener_t idb_listener = pm_idb_listener_t(*this);
-  ea_t g_gp_ea = BADADDR;   // global pointer
-  ea_t g_ctbp_ea = BADADDR; // CALLT base pointer
-  ea_t g_tp_ea = BADADDR;   // text pointer
+  ea_t g_ctbp_ea = BADADDR; // the CALLT base pointer
+  ea_t g_gp_ea = BADADDR;   // the global pointer
+  ea_t g_tp_ea = BADADDR;   // the text pointer
+  ea_t g_ep_ea = BADADDR;   // the element pointer
+  uint16 idpflags = IDP_MACRO_HIDDEN_R1;
+  bool macro_hidden_r1() const
+  {
+    return (idpflags & IDP_MACRO_HIDDEN_R1) != 0;
+  }
+  bool is_gp_callee_saved() const
+  {
+    return g_gp_ea != BADADDR || (idpflags & IDP_GP_CALLEE_SAVED) != 0;
+  }
+  bool is_tp_callee_saved() const
+  {
+    return g_tp_ea != BADADDR || (idpflags & IDP_TP_CALLEE_SAVED) != 0;
+  }
+  bool is_ep_callee_saved() const
+  {
+    return g_ep_ea != BADADDR || (idpflags & IDP_EP_CALLEE_SAVED) != 0;
+  }
+  bool is_r2_callee_saved() const
+  {
+    return (idpflags & IDP_R2_CALLEE_SAVED) != 0;
+  }
 
   int ptype = 0;
 
@@ -331,6 +362,21 @@ struct nec850_t : public procmod_t
         int value_type,
         const void * value,
         bool idb_loaded);
+  // to implement nec850_module_t::ev_get_*p_register
+  ssize_t get_global_register(
+        ea_t reg_value,
+        uint32 callee_saved_flag) const;
+  // to implement nec850_module_t::ev_set_*p_register
+  void set_global_register(
+        ea_t *reg_value,
+        uint32 callee_saved_flag,
+        int srnum,
+        va_list va);
+  void update_global_register(
+        ea_t *reg_value,
+        ea_t new_value,
+        uint32 callee_saved_flag,
+        int srnum);
 
   bool decode_instruction(const uint32 w, insn_t *ins);
   bool decode_ext_simd(const uint32 lower_w, insn_t *ins);
@@ -367,18 +413,20 @@ struct nec850_t : public procmod_t
         bool only_linear = false) const;
 
   ea_t get_fixed_sreg(ea_t ea, const op_t &op) const;
-  void set_canonical_sreg(ea_t new_segreg_value, ea_t &old_segreg_value, int srnum) const;
   ea_t get_callt_ea(const insn_t &insn) const;
   bool handle_call_or_jump(const insn_t &insn) const;
   void handle_operand(const insn_t &insn, const op_t &op, bool isRead) const;
   int nec850_emu(const insn_t &insn) const;
-  int nec850_is_sane_insn(const insn_t &insn, int no_crefs) const;
+  bool is_sane_insn(const insn_t &insn, int no_crefs) const;
   sval_t regval(
         const op_t &op,
         getreg_t *getreg,
         const regval_t *rv) const;
   void trace_sp(func_t *pfn, const insn_t &insn) const;
   int calc_stack_delta(const insn_t &insn) const;
+
+  int  may_be_func(const insn_t &insn) const;
+  bool is_return_insn(const insn_t &insn, bool strict) const;
 
   // emu_frame.cpp
   bool create_func_frame(func_t *pfn, bool reanalyze=false);
@@ -424,12 +472,25 @@ struct nec850_t : public procmod_t
 
   // spcfuncs.cpp
   // is INSN is a call of a save/return function?
-  // \param[out] regs  the list of saved/restored registers,
-  //                   REGS may be nullptr
-  // \param[in]  insn  the instruction to check
-  special_func_t v850_is_special_func_call(
+  // \param[out] regs    the list of saved/restored registers,
+  //                     REGS may be nullptr
+  // \param[out] locals  the size of local variables (in bytes),
+  //                     LOCALS may be nullptr
+  // \param[in]  insn    the instruction to check
+  // \return     SPF_NONE or the special function kind
+  special_func_t is_special_func_call(
         reglist_t *regs,
+        uval_t *locals,
         const insn_t &insn) const;
+  // what registers does a call of a save/return function spoil?
+  // \param[out] regs    the list of spoiled registers
+  // \return     is INSN a special_func_t function call?
+  bool special_func_spoils(reglist_t *regs, const insn_t &insn) const;
+  bool is_special_save_func(const insn_t &insn) const;
+  bool is_special_save_alloc_func(const insn_t &insn) const;
+  bool is_special_return_func(const insn_t &insn) const;
+  // create the call table at EA
+  void check_call_table(ea_t ea) const;
 
   // debugger functions
   ea_t nec850_next_exec_insn(

@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -94,6 +94,7 @@ class linput_t;
 class snapshot_t;
 class tinfo_t;
 struct til_t;
+struct jvalue_t;
 
 /// TWidget renderer type
 enum tcc_renderer_type_t
@@ -1056,8 +1057,7 @@ enum ui_notification_t
 
   ui_obsolete_get_last_widget,
 
-  ui_prompt_function_prototype,
-                          ///< ui: open Function Prototype Editor and return new type for function
+  ui_obsolete_prompt_function_prototype,
 
   ui_parse_tagged_line_sections,
                           ///< ui: see parse_tagged_line_sections()
@@ -1065,6 +1065,16 @@ enum ui_notification_t
   ui_get_last_widget,     ///< ui: see get_last_widget()
 
   ui_action_ctx_base_ctl, ///< ui: misc. operations on a action_ctx_base_t
+
+  ui_prompt_function_prototype_ex,
+                          ///< ui: open Function Prototype Editor and return new type and new name for function
+                          ///< \param[out] errbuf - (::qstring *) the output string for errors
+                          ///< \param[out] out_tif - (tinfo_t *) tif for created type
+                          ///< \param[out] out_name - (::qstring *) new name of type
+                          ///< \param      pfn - (func_t *) editing function
+                          ///< \param      tif - (tinfo_t *) current function type
+                          ///< \param      name - (const char *) function name
+                          ///< \return     true if new type created successfully
 
   ui_last,              ///< the last notification code
 
@@ -2638,28 +2648,40 @@ struct listing_location_t
   const tagged_line_sections_t *tagged_sections = nullptr;
 };
 
+typedef uint128 builtin_widgets_mask_t;
+inline builtin_widgets_mask_t builtin_widget_mask_from_id(int bwn) { TB_QASSERT(3446, bwn >= 0); return uint128(1) << bwn; }
+
 /// Request a refresh of a builtin widgets.
+///
 /// \param mask  \ref IWID_
 /// \param dirty mark for refresh if true or clear flag otherwise
 
-typedef uint128 builtin_widgets_mask_t;
-
-inline builtin_widgets_mask_t builtin_widget_mask_from_id(int bwn) { TB_QASSERT(0, bwn >= 0); return uint128(1) << bwn; }
-
 idaman void ida_export mark_builtin_widgets(builtin_widgets_mask_t mask, bool dirty=true);
+
+/// Request a refresh of a single built widgets, by its ID.
+///
+/// \param bwn the widget ID (\ref BWN_ )
+/// \param dirty mark for refresh if true or clear flag otherwise
+
 inline void mark_builtin_widget_by_id(int bwn, bool dirty=true)
 {
-  TB_QASSERT(0, bwn <= 62); // attempt detecting ID-vs-mask confusion
   mark_builtin_widgets(builtin_widget_mask_from_id(bwn), dirty);
 }
 
-/// Get the builtin widgets "dirty" state.
+/// Get the "dirty" state for all builtin widgets.
+///
 /// \param out a mask holding an OR'ed combination of \ref IWID_
 
 idaman void ida_export get_builtin_widgets_state(builtin_widgets_mask_t *out);
+
+/// Get the "dirty" state for a single builtin widget.
+///
+/// \param bwn the widget ID (\ref BWN_ )
+/// \return true if the widget is marked for refresh, false otherwise
+
 inline bool is_builtin_widget_dirty(int bwn)
 {
-  TB_QASSERT(0, bwn <= 62); // attempt detecting ID-vs-mask confusion
+  TB_QASSERT(3448, bwn <= 62); // attempt detecting ID-vs-mask confusion
   builtin_widgets_mask_t mask;
   get_builtin_widgets_state(&mask);
   return (mask & builtin_widget_mask_from_id(bwn)) != 0;
@@ -3283,13 +3305,13 @@ public:
 
         if ( old_builtin_id != BWN_UNKNOWN )
         {
-          QASSERT(0, builtin_id == BWN_UNKNOWN);
+          QASSERT(3449, builtin_id == BWN_UNKNOWN);
           builtin_id = old_builtin_id;
 
           flags &= ~OBSOLETE_CH_BUILTIN_MASK;
         }
 
-        QASSERT(0, static_cast<int32_t>(static_cast<int8_t>(widget_type_)) == widget_type_);
+        QASSERT(3450, static_cast<int32_t>(static_cast<int8_t>(widget_type_)) == widget_type_);
       }
   virtual ~chooser_base_t() {}
   DEFINE_MEMORY_ALLOCATION_FUNCS()
@@ -3372,11 +3394,8 @@ public:
     auto old_id = ((flags & OBSOLETE_CH_BUILTIN_MASK) >> OBSOLETE_CH_BUILTIN_SHIFT) - 1;
     if ( version < 4 )
       return old_id;
-    else
-    {
-      QASSERT(0, old_id == -1);
-      return builtin_id;
-    }
+    QASSERT(3451, old_id == -1);
+    return (signed char) builtin_id;
   }
   /// enable or disable generation of ui_get_chooser_item_attrs events
   void set_ask_item_attrs(bool enable)
@@ -5991,18 +6010,19 @@ inline TWidget *get_last_widget(builtin_widgets_mask_t mask=IWID_ALL)
 /// Open function prototype editor to edit function type and create new type.
 /// Allows to change the function prototype either in the "old" one-liner mode
 /// or in the new multi-line editor, which supports shortcuts, etc.
-/// Note: changes will not apply! It is the caller's job to apply the resulting out_tif.
+/// Note: changes will not apply! It is the caller's job to apply the resulting out_tif and out_name.
 /// Parameters:
 /// \param[out] errbuf - (::qstring *) the output string for errors
 /// \param[out] out_tif - (tinfo_t *) tif for created type
+/// \param[out] out_name - (::qstring *) new name of type
 /// \param      pfn - (func_t *) editing function
 /// \param      tif - (tinfo_t *) current function type
 /// \param      name - (const char *) function name
 /// \return     true if new type created successfully
 
-inline bool prompt_function_prototype(qstring *errbuf, tinfo_t *out_tif, func_t *pfn, tinfo_t *tif, const char *name)
+inline bool prompt_function_prototype_ex(qstring *errbuf, tinfo_t *out_tif, qstring *out_name, func_t *pfn, tinfo_t *tif, const char *name)
 {
-  return callui(ui_prompt_function_prototype, errbuf, out_tif, pfn, tif, name).cnd;
+  return callui(ui_prompt_function_prototype_ex, errbuf, out_tif, out_name, pfn, tif, name).cnd;
 }
 
 /// Collect tagged sections in a color-tagged line
@@ -8094,7 +8114,7 @@ struct addon_info_t
   const char *producer;     //< e.g. "Hex-Rays SA"
   const char *version;      //< version string, e.g. 1.5.110408
   const char *url;          //< URL of the product http://www.hex-rays.com/decompiler.shtml
-  const char *freeform;     //< any string, e.g. "Copyright (c) 2007-2025 Hex-Rays"
+  const char *freeform;     //< any string, e.g. "Copyright (c) 2007-2026 Hex-Rays"
   const void *custom_data;  //< custom data (license ID etc). Can be nullptr. Not displayed in UI.
   size_t custom_size;
 
@@ -8638,6 +8658,10 @@ DEPRECATED inline bool del_idc_hotkey(const char *hotkey)
 DEPRECATED inline TWidget *open_calls_window(ea_t ea)
 {
   return (TWidget *) callui(ui_open_builtin, BWN_RESERVED_1, ea).vptr;
+}
+DEPRECATED inline bool prompt_function_prototype(qstring *errbuf, tinfo_t *out_tif, func_t *pfn, tinfo_t *tif, const char *name)
+{
+  return callui(ui_obsolete_prompt_function_prototype, errbuf, out_tif, pfn, tif, name).cnd;
 }
 idaman DEPRECATED void ida_export ida_checkmem(const char *file, int line);
 

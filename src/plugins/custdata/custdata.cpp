@@ -1,5 +1,5 @@
 /* Custom data type sample plugin.
- * Copyright (c) 2010-2025 Hex-Rays, support@hex-rays.com
+ * Copyright (c) 2010-2026 Hex-Rays, support@hex-rays.com
  * Feel free to do whatever you want with this code.
  *
  * This sample plugin demonstates how to install a custom data type

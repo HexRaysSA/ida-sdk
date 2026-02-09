@@ -7,17 +7,105 @@
 #include "i196.hpp"
 
 //----------------------------------------------------------------------
+
+// Mnemonics translations for 8x6x processtor types
+static const std::unordered_map<uint16, const char *const> mnemonics_8x6x =
+{
+  { I196_skip,  "skp"  },
+  { I196_clr,   "clrw" },
+  { I196_not,   "cplw" },
+  { I196_neg,   "negw" },
+  { I196_dec,   "decw" },
+  { I196_ext,   "sexw" },
+  { I196_inc,   "incw" },
+  { I196_shr,   "shrw" },
+  { I196_shl,   "shlw" },
+  { I196_shra,  "asrw" },
+  { I196_shrl,  "shrdw" },
+  { I196_shll,  "shldw" },
+  { I196_shral, "asrdw" },
+  { I196_norml, "norm" },
+  { I196_notb,  "cplb" },
+  { I196_extb,  "sexb" },
+  { I196_shrab, "asrb" },
+  { I196_jbc,   "jnb"  },
+  { I196_jbs,   "jb"   },
+  { I196_and3,   "an3w" },
+  { I196_add3,   "ad3w" },
+  { I196_sub3,   "sb3w" },
+  { I196_mul3,  "sml3w" },
+  { I196_mulu3,  "ml3w" },
+  { I196_andb3,  "an3b" },
+  { I196_addb3,  "ad3b" },
+  { I196_subb3,  "sb3b" },
+  { I196_mulb3, "sml3b" },
+  { I196_mulub3, "ml3b" },
+  { I196_and2,  "an2w" },
+  { I196_add2,  "ad2w" },
+  { I196_sub2,  "sb2w" },
+  { I196_mul2, "sml2w" },
+  { I196_mulu2, "ml2w" },
+  { I196_andb2, "an2b" },
+  { I196_addb2, "ad2b" },
+  { I196_subb2, "sb2b" },
+  { I196_mulb2, "sml2b" },
+  { I196_mulub2, "ml2b" },
+  { I196_or,    "orrw" },
+  { I196_xor,   "xrw"  },
+  { I196_cmp,   "cmpw" },
+  { I196_divu,  "divw" },
+  { I196_div,  "sdivw" },
+  { I196_orb,   "orrb" },
+  { I196_xorb,  "xrb"  },
+  { I196_divub, "divb" },
+  { I196_divb, "sdivb" },
+  { I196_ld,    "ldw" },
+  { I196_addc,   "adcw"  },
+  { I196_subc,   "sbbw" },
+  { I196_ldbze,  "ldzbw" },
+  { I196_addcb,    "adcb" },
+  { I196_subcb,   "sbbb"  },
+  { I196_ldbse,   "ldsbw" },
+  { I196_st,  "stw" },
+  { I196_push,   "pushw" },
+  { I196_pop,  "popw" },
+  { I196_jnh,   "jleu" },
+  { I196_jh,  "jgtu" },
+  { I196_ljmp,  "jump" },
+  { I196_lcall,  "call" },
+  { I196_pushf,   "pushp" },
+  { I196_popf,  "popp" },
+  { I196_setc,  "stc" }
+};
+
+
+//----------------------------------------------------------------------
 class out_i196_t : public outctx_t
 {
   out_i196_t(void) = delete; // not used
 public:
 
   bool out_operand(const op_t &x);
-  void out_insn(void);
+  void out_insn(bool use_alternative_mnem);
+
+private:
+  void out_mnem_alternative(uint16 inst, bool use_alternative_mnem);
 };
 CASSERT(sizeof(out_i196_t) == sizeof(outctx_t));
 
-DECLARE_OUT_FUNCS_WITHOUT_OUTMNEM(out_i196_t)
+//--------------------------------------------------------------------------
+void idaapi out_insn(outctx_t &ctx, bool use_alternative_mnem)
+{
+  out_i196_t *p = (out_i196_t *)&ctx;
+  p->out_insn(use_alternative_mnem);
+}
+
+//--------------------------------------------------------------------------
+bool idaapi out_opnd(outctx_t &ctx, const op_t &x)
+{
+  out_i196_t *p = (out_i196_t *)&ctx;
+  return p->out_operand(x);
+}
 
 //--------------------------------------------------------------------------
 void idaapi i196_header(outctx_t &ctx)
@@ -59,9 +147,26 @@ void idaapi i196_segend(outctx_t &ctx, segment_t *seg)
 }
 
 //----------------------------------------------------------------------
-void out_i196_t::out_insn(void)
+void out_i196_t::out_mnem_alternative(uint16 inst, bool use_alternative_mnem)
 {
+  if ( use_alternative_mnem )
+  {
+    // 8x6x processors use different mnemonics for some instructions
+    auto it = mnemonics_8x6x.find(inst);
+    if ( it != mnemonics_8x6x.end() )
+    {
+      out_custom_mnem(it->second);
+      return;
+    }
+  }
+
   out_mnemonic();
+}
+
+//----------------------------------------------------------------------
+void out_i196_t::out_insn(bool use_alternative_mnem)
+{
+  out_mnem_alternative(insn.itype, use_alternative_mnem);
 
   out_one_operand(0);
 

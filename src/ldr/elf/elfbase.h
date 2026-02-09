@@ -1031,5 +1031,7 @@ DECLARE_TYPE_AS_MOVABLE(Elf_Vernaux);
 #define ATTR_VENDOR_GNU  "gnu"
 #define ATTR_VENDOR_ARM  "ARM"
 
+#define ATTR_VENDOR_RISCV "riscv"
+
 #pragma pack(pop)
 #endif // __ELFBASE_H__

@@ -1,6 +1,6 @@
 /*
  *      Decompiler project
- *      Copyright (c) 2005-2025 Hex-Rays SA <support@hex-rays.com>
+ *      Copyright (c) 2005-2026 Hex-Rays SA <support@hex-rays.com>
  *      ALL RIGHTS RESERVED.
  *
  *      Verify ctree consistency
@@ -595,7 +595,8 @@ MEM:
           && !e->type.get_ptrarr_object().equals_to(udm.type.get_array_element()) )
         {
           tinfo_t tmp = remove_pointer(e->type);
-          if ( !tmp.is_func() )
+          // allow if expression ultimately points to a function
+          if ( !tmp.is_func() && !tmp.get_ptrarr_object().is_func() )
             CFAIL_QASSERT(50720, e); // ctree: the expression type must be equal to the member type
         }
 #endif

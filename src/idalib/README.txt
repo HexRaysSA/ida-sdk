@@ -19,7 +19,7 @@ To use the ida library Python module, you need to install and configure `idapro`
 
 * Install ida library Python Module
    - Navigate to the `idalib/python` folder within the IDA Pro installation directory
-   - Run the command: `pip install .`
+   - Run the command: `pip install idapro*.whl`
 
 Setting Up the ida library Python Module
 ----------------------------------------

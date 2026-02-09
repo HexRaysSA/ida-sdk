@@ -178,6 +178,16 @@ enum nameNum ENUM_SIZE(uint16)
   I196_est,         // Extended store word
   I196_estb,        // Extended store byte
 
+// 8x6x specific instructions
+
+  I196_reti,
+  I196_retei,
+  I196_rombank,
+  I196_bank0,
+  I196_bank1,
+  I196_bank2,
+  I196_bank3,
+
   I196_last
 };
 

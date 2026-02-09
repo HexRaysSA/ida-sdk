@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 2016-2025 Hex-Rays
+ *      Copyright (c) 2016-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *  Module independent exception description

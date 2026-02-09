@@ -1135,6 +1135,12 @@ struct reglist_t : public reglist_base_t<reglist_t>
   }
   void add_fpreglist(const op_t &x);
 
+  DECLARE_COMPARISONS(reglist_t)
+  {
+    COMPARE_FIELDS(a64);
+    return reglist_base_t<reglist_t>::compare(r);
+  }
+
 protected:
   friend reglist_base_t<reglist_t>;
   // Arm32                          AArch64

@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 2012-2025 Hex-Rays
+ *      Copyright (c) 2012-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      ARC (Argonaut RISC Core) processor module

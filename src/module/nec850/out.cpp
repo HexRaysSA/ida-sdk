@@ -15,7 +15,7 @@ static const char *const reg_and_sel_ids_to_symbolic_names[32][8] =
 /* sr1  */ { "eipsw",  "mcfg1",    nullptr,    nullptr, nullptr,  "mprc",   "mpua0", "mpua8",  }, /* sr1  */
 /* sr2  */ { "fepc",   "rbase",    nullptr,    nullptr, nullptr,  nullptr,  "mpat0", "mpat8",  }, /* sr2  */
 /* sr3  */ { "fepsw",  "ebase",    nullptr,    nullptr, nullptr,  nullptr,  nullptr, nullptr,  }, /* sr3  */
-/* sr4  */ { nullptr,  "intbp",    nullptr,    nullptr, "telo0",  "mpbrgn", "mpla1", "mpla9",  }, /* sr4  */
+/* sr4  */ { "ecr",    "intbp",    nullptr,    nullptr, "telo0",  "mpbrgn", "mpla1", "mpla9",  }, /* sr4  */
 /* sr5  */ { "psw",    "mctl",     "htctl",    nullptr, "telo1",  "mptrgn", "mpua1", "mpua9",  }, /* sr5  */
 /* sr6  */ { "fpsr",   "pid",      "mea",      nullptr, "tehi0",  nullptr,  "mpat1", "mpat9",  }, /* sr6  */
 /* sr7  */ { "fpepc",  "fpipr",    "asid",     nullptr, "tehi1",  nullptr,  nullptr, nullptr,  }, /* sr7  */
@@ -26,13 +26,13 @@ static const char *const reg_and_sel_ids_to_symbolic_names[32][8] =
 /* sr12 */ { "sesr",   "scbp",     "icsr",     nullptr, "bwerrl", nullptr,  "mpla3", "mpla11", }, /* sr12 */
 /* sr13 */ { "eiic",   "hvccfg",   "intcfg",   nullptr, "bwerrh", nullptr,  "mpua3", "mpua11", }, /* sr13 */
 /* sr14 */ { "feic",   "hvcbp",    nullptr,    nullptr, "brerrl", nullptr,  "mpat3", "mpat11", }, /* sr14 */
-/* sr15 */ { nullptr,  "vcsel",    nullptr,    nullptr, "brerrh", nullptr,  nullptr, nullptr,  }, /* sr15 */
+/* sr15 */ { "dbic",  "vcsel",    nullptr,    nullptr, "brerrh", nullptr,  nullptr, nullptr,  }, /* sr15 */
 /* sr16 */ { "ctpc",   "vmprt0",   "tlbsch",   nullptr, "ictagl", nullptr,  "mpla4", "mpla12", }, /* sr16 */
 /* sr17 */ { "ctpsw",  "vmprt1",   nullptr,    nullptr, "ictagh", nullptr,  "mpua4", "mpua12", }, /* sr17 */
-/* sr18 */ { nullptr,  "vmprt1",   nullptr,    nullptr, "icdatl", nullptr,  "mpat4", "mpat12", }, /* sr18 */
-/* sr19 */ { nullptr,  nullptr,    nullptr,    nullptr, "icdath", nullptr,  nullptr, nullptr,  }, /* sr19 */
+/* sr18 */ { "dbpc",   "vmprt1",   nullptr,    nullptr, "icdatl", nullptr,  "mpat4", "mpat12", }, /* sr18 */
+/* sr19 */ { "dbpsw",  nullptr,    nullptr,    nullptr, "icdath", nullptr,  nullptr, nullptr,  }, /* sr19 */
 /* sr20 */ { "ctbp",   nullptr,    nullptr,    nullptr, "dctagl", "mpprt0", "mpla5", "mpla13", }, /* sr20 */
-/* sr21 */ { nullptr,  nullptr,    nullptr,    nullptr, "dctagh", "mpprt1", "mpua5", "mpua13", }, /* sr21 */
+/* sr21 */ { "dir",    nullptr,    nullptr,    nullptr, "dctagh", "mpprt1", "mpua5", "mpua13", }, /* sr21 */
 /* sr22 */ { nullptr,  nullptr,    nullptr,    nullptr, "dcdatl", "mpprt2", "mpat5", "mpat13", }, /* sr22 */
 /* sr23 */ { nullptr,  "vmscctl",  "htscctl",  nullptr, "dcdath", nullptr,  nullptr, nullptr,  }, /* sr23 */
 /* sr24 */ { nullptr,  "vmsctbl0", "htsctbl0", nullptr, "icctrl", nullptr,  "mpla6", "mpla14"  }, /* sr24 */
@@ -41,7 +41,7 @@ static const char *const reg_and_sel_ids_to_symbolic_names[32][8] =
 /* sr27 */ { nullptr,  "vmsctbl3", "htsctbl3", nullptr, "dccfg",  nullptr,  nullptr, nullptr,  }, /* sr27 */
 /* sr28 */ { "eiwr",   nullptr,    "htsctbl4", nullptr, "icerr",  nullptr,  "mlua7", "mpla15", }, /* sr28 */
 /* sr29 */ { "fewr",   nullptr,    "htsctbl5", nullptr, "dcerr",  nullptr,  "mpua7", "mpua15", }, /* sr29 */
-/* sr30 */ { nullptr,  nullptr,    "htsctbl6", nullptr, nullptr,  nullptr,  "mpat7", "mpat15", }, /* sr30 */
+/* sr30 */ { "dbwr",   nullptr,    "htsctbl6", nullptr, nullptr,  nullptr,  "mpat7", "mpat15", }, /* sr30 */
 /* sr31 */ { "bsel",   nullptr,    "htsctbl7", nullptr, nullptr,  nullptr,  nullptr, nullptr,  }, /* sr31 */
 /* selId     0         1           2           3        4         5         6        7                    */
 };

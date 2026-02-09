@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 2005-2025 Hex-Rays SA <support@hex-rays.com>
+ *      Copyright (c) 2005-2026 Hex-Rays SA <support@hex-rays.com>
  *      ALL RIGHTS RESERVED.
  *
  *      Routines and data structures for working with library signatures (e.g. FLIRT).

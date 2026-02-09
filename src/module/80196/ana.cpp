@@ -101,7 +101,7 @@ static int NT_CDECL cmp(const void *x, const void *y)
 // perform WSR/WSR1 mapping
 ea_t i196_t::map(ea_t iea, ea_t v) const
 {
-  if ( !extended )
+  if ( !is_80196NP() )
     return v;
   if ( v < 0x40 )
     return v;
@@ -164,7 +164,7 @@ void i196_t::aop(insn_t &insn, uint code, op_t &op)
 //----------------------------------------------------------------------
 int i196_t::ld_st(insn_t &insn, ushort itype, char dtype, bool indirect, op_t &reg, op_t &mem)
 {
-  if ( !extended )
+  if ( !is_80196NP() )
     return 0;
   insn.itype = itype;
   reg.dtype  = dtype;
@@ -211,20 +211,25 @@ int i196_t::ana(insn_t *_insn)
   {
     static const char cmd01[] =
     {
-      I196_skip, I196_clr,  I196_not,   I196_neg,
-      I196_xch,  I196_dec,  I196_ext,   I196_inc,
-      I196_shr,  I196_shl,  I196_shra,  I196_xch,
-      I196_shrl, I196_shll, I196_shral, I196_norml,
-      I196_null, I196_clrb, I196_notb,  I196_negb,
-      I196_xchb, I196_decb, I196_extb,  I196_incb,
-      I196_shrb, I196_shlb, I196_shrab, I196_xchb,
-      I196_est,  I196_est,  I196_estb,  I196_estb
+      I196_skip,    I196_clr,  I196_not,   I196_neg,
+      I196_xch,     I196_dec,  I196_ext,   I196_inc,
+      I196_shr,     I196_shl,  I196_shra,  I196_xch,
+      I196_shrl,    I196_shll, I196_shral, I196_norml,
+      I196_rombank, I196_clrb, I196_notb,  I196_negb,
+      I196_xchb,    I196_decb, I196_extb,  I196_incb,
+      I196_shrb,    I196_shlb, I196_shrab, I196_xchb,
+      I196_est,     I196_est,  I196_estb,  I196_estb
     };
 
     insn.itype = cmd01[code & 0x1F];
 
-    if ( insn.itype == I196_null )
-      return 0;   // unknown instruction
+    // ROMBANK supported only on 8065
+    if ( !is_8065() && insn.itype == I196_rombank )
+      return 0;
+
+    // XCH and XCHB are available only on 80196
+    if ( !is_80196() && (insn.itype == I196_xch || insn.itype == I196_xchb) )
+      return 0;
 
     switch ( code )
     {
@@ -242,6 +247,11 @@ int i196_t::ana(insn_t *_insn)
         insn.Op2.type = o_mem;
         insn.Op1.addr = map(insn.ea, insn.get_next_byte());
         insn.Op1.type = o_mem;
+        break;
+
+      case 0x10: // rombank
+        insn.Op1.value = insn.get_next_byte() & 0xF;
+        insn.Op1.type = o_imm;
         break;
 
       case 0x1C:                 // est.indirect
@@ -380,15 +390,21 @@ int i196_t::ana(insn_t *_insn)
     switch ( code )
     {
       case 0xC1:
+        if ( !is_80196() )
+          return 0;
         insn.itype = I196_bmov;
         goto cont1;
 
       case 0xC5:
+        if ( !is_80196() )
+          return 0;
         insn.itype     = I196_cmpl;
         insn.Op2.dtype = dt_dword;
         goto cont2;
 
       case 0xCD:
+        if ( !is_80196() )
+          return 0;
         insn.itype = I196_bmovi;
 cont1:
         insn.Op2.dtype = dt_word;
@@ -438,6 +454,8 @@ cont3:
       case 0x0: case 0x1:       // djnz, djnzw
         if ( nibble0 & 1 )
         {
+          if ( !is_80196() )
+            return 0;
           insn.itype = I196_djnzw;
           insn.Op1.dtype = dt_word;
         }
@@ -453,6 +471,8 @@ cont3:
         break;
 
       case 0x2:                 // tijmp
+        if ( !is_80196() )
+          return 0;
         insn.itype     = I196_tijmp;
         insn.Op1.dtype = insn.Op2.dtype = dt_word;
         insn.Op2.type  = o_indirect;
@@ -464,12 +484,14 @@ cont3:
         break;
 
       case 0x3:                 // br
-        insn.itype = extended ? I196_ebr : I196_br;
+        if ( is_8x6x() )
+          return 0;
+        insn.itype = is_80196NP() ? I196_ebr : I196_br;
         aop(insn, 2, insn.Op1);
         break;
 
       case 0x4:                 // ebmovi
-        if ( !extended )
+        if ( !is_80196NP() )
           return 0;
         insn.itype = I196_ebmovi;
         insn.Op1.type = o_mem;
@@ -479,7 +501,7 @@ cont3:
         break;
 
       case 0x6:                 // ejmp
-        if ( !extended )
+        if ( !is_80196NP() )
           return 0;
         insn.itype    = I196_ejmp;
         insn.Op1.type = o_near;
@@ -497,10 +519,14 @@ cont3:
         return ld_st(insn, I196_eldb, dt_byte, nibble0 == 0xA, insn.Op1, insn.Op2);
 
       case 0xC:                 // dpts
+        if ( !is_80196() )
+          return 0;
         insn.itype = I196_dpts;
         break;
 
       case 0xD:                 // epts
+        if ( !is_80196() )
+          return 0;
         insn.itype = I196_epts;
         break;
 
@@ -526,20 +552,45 @@ cont3:
       I196_clrvt, I196_nop,  I196_null,  I196_rst
     };
 
-    insn.itype = cmdf[nibble0];
-    if ( nibble0 == 1 ) // ecall
+    static const char cmdf_8065[] =
     {
-      if ( !extended )
+      I196_ret,   I196_retei, I196_pushf, I196_popf,
+      I196_bank0, I196_bank1, I196_bank2, I196_trap,
+      I196_clrc,  I196_setc,  I196_di,    I196_ei,
+      I196_clrvt, I196_bank3, I196_null,  I196_nop
+    };
+
+    insn.itype = is_8065() ? cmdf_8065[nibble0] : cmdf[nibble0];
+
+    // PUSHA and POPA available only on 80196
+    if ( !is_80196() && (insn.itype == I196_pusha || insn.itype == I196_popa) )
+      return 0;
+
+    if ( nibble0 == 1 ) // ecall or return from interrupt
+    {
+      if ( is_8061() )
+        insn.itype = I196_reti;
+      else if ( is_8065() )
+        insn.itype = I196_retei;
+      else if ( !is_80196NP() )
         return 0;
-      off = insn.get_next_word();
-      off |= int32(insn.get_next_byte()) << 16;
-      insn.Op1.type = o_near;
-      insn.Op1.addr = truncate(insn.ip + insn.size + off);
+      else
+      {
+        off = insn.get_next_word();
+        off |= int32(insn.get_next_byte()) << 16;
+        insn.Op1.type = o_near;
+        insn.Op1.addr = truncate(insn.ip + insn.size + off);
+      }
     }
     else if ( nibble0 == 6 )        // idlpd
     {
-      insn.Op1.type  = o_imm;
-      insn.Op1.value = insn.get_next_byte();
+      if ( insn.itype == I196_idlpd )
+      {
+        if ( !is_80196() )
+          return 0;
+        insn.Op1.type  = o_imm;
+        insn.Op1.value = insn.get_next_byte();
+      }
     }
     else if ( nibble0 == 0xE ) // prefix
     {
@@ -589,6 +640,13 @@ cont3:
 
         default:
           return 0;
+      }
+    }
+    else if ( nibble0 == 0xF )
+    {
+      if ( is_8x6x() )
+      {
+        insn.itype = I196_nop;
       }
     }
   }

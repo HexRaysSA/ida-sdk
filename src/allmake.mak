@@ -806,11 +806,6 @@ DUMB=$(L)dumb$(O)
 HELP=$(L)help$(O)
 HLIB=$(HI)_ida.hlp
 
-# We need an ASAN build of LLVM when building IDA with ASAN, to work around
-# https://github.com/llvm/llvm-project/issues/151430
-# NOTE: _opt is hardcoded because LLVM is always built optimized (no debug LLVM build exists)
-LLVM_BUILD=$(LLVM_SRC)build/$(TARGET_PROCESSOR_NAME)_$(SYSNAME)_$(COMPILER_NAME)_opt$(EXTRASUF3)
-
 # to be used like this:
 # $(L)va$(A): $(call lib, $(VA_OBJS))
 lib=$(1); $(strip $(QARf)$(AR) $(OUTAR)$$@ $$^)

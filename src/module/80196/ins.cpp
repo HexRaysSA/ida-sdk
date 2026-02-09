@@ -175,6 +175,17 @@ const instruc_t Instructions[] =
   { "est",    CF_USE1|CF_CHG2         },  // Extended store word
   { "estb",   CF_USE1|CF_CHG2         },  // Extended store byte
 
+// 8x6x specific instructions
+
+  { "reti",   CF_STOP                 }, // Return from interrupt
+  { "retei",  CF_STOP                 }, // Return from interrupt and enable interrupt service
+
+  { "rombank", CF_USE1           }, // Enables selection of different external memory banks
+  { "bank0",   0                 }, // Select RAM bank 1 on-board the microprocessor IC chip
+  { "bank1",   0                 }, // Select RAM bank 2 on-board the microprocessor IC chip
+  { "bank2",   0                 }, // Select RAM bank 3 on-board the microprocessor IC chip
+  { "bank3",   0                 }, // Select RAM bank 4 on-board the microprocessor IC chip
+
 };
 
 CASSERT(qnumber(Instructions) == I196_last);

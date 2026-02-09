@@ -1,7 +1,7 @@
 /*
  *      Interactive disassembler (IDA).
  *      ALL RIGHTS RESERVED.
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *
  *
  *      This file defines the functions prototypes that are exported by bochsys.dll

@@ -5,11 +5,10 @@ include ../plugin.mak
 # MAKEDEP dependency list ------------------
 $(F)hexrays_sample18$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp     \
                   $(I)fpro.h $(I)funcs.hpp $(I)gdl.hpp $(I)hexrays.hpp      \
-                  $(I)hexrays_ctree.hpp $(I)hexrays_defs.hpp                \
-                  $(I)hexrays_micro.hpp $(I)ida.hpp $(I)idp.hpp $(I)ieee.h  \
-                  $(I)kernwin.hpp $(I)lines.hpp $(I)llong.hpp               \
-                  $(I)loader.hpp $(I)nalt.hpp $(I)name.hpp $(I)netnode.hpp  \
-                  $(I)pro.h $(I)qalloc_shim.hpp $(I)qallocator.hpp          \
+                  $(I)ida.hpp $(I)idp.hpp $(I)ieee.h $(I)kernwin.hpp        \
+                  $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp $(I)nalt.hpp   \
+                  $(I)name.hpp $(I)netnode.hpp $(I)pro.h                    \
+                  $(I)qalloc_shim.hpp $(I)qallocator.hpp                    \
                   $(I)qida_alloc_shim.hpp $(I)qiterator.hpp $(I)qmap.hpp    \
                   $(I)qpair.hpp $(I)qset.hpp $(I)qtree.hpp $(I)range.hpp    \
                   $(I)segment.hpp $(I)typeinf.hpp $(I)ua.hpp $(I)xref.hpp   \

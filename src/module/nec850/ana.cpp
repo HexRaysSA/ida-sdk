@@ -3172,35 +3172,43 @@ bool nec850_t::is_reg_used_after_insn(
         int reg,
         int def_reg) const
 {
-  // The assembler-reserved register (r1) is used as a temporary register
-  // when instruction expansion is performed using the assembler.
-  // TODO add an option (cfgvar) to control this option
-  //      see in mips IDP_MACRO_HIDDEN_R1
-  //      turn it off for v850e2m_firmware.bin
-  //      also this option can be extended (IDP_MACRO_RESPECT_ABI)
-  //      in this case we allow call/return in the lookup below
-  if ( reg == rR1 )
+  // The assembler-reserved register (R1) may be used as a temporary
+  // register when instruction expansion is performed using the assembler.
+  // TODO extend the IDP_MACRO_HIDDEN_R1 option.
+  //      add IDP_MACRO_RESPECT_ABI.
+  //      if it is set we allow call/return in the lookup below.
+  if ( reg == rR1 && macro_hidden_r1() )
     return false;
   // REG is defined in the START insn
   if ( reg == def_reg )
     return false;
 
+  const segment_t *seg = getseg(start.ea);
+  if ( seg == nullptr )
+    return true;
+  ea_t end_ea = seg->end_ea;
+  if ( end_ea - start.ea <= start.size )
+    return true;
   ea_t ea = start.ea + start.size;
   for ( size_t cnt = 0; cnt < 16; ++cnt )
   {
+    // assert: ea < end_ea
     insn_t insn;
     if ( decode_insn(&insn, ea) <= 0 )
       break;
     if ( is_branch_insn(insn) )
     {
-      if ( insn.itype == NEC850_BR )
+      if ( (insn.itype == NEC850_BR || insn.itype == NEC850_JR)
+        && insn.Op1.type == o_near )
       {
-        // assert: insn.Op1.type == o_near
         ea = insn.Op1.addr;
+        if ( !seg->contains(ea) )
+          break;
         continue;
       }
       break; // a branch/call stops the lookup
     }
+    // assert: INSN is not a stop-insn (i.e. there is flow to the next insn)
     reglist_t regs;
     uses(&regs, insn);
     if ( regs.has(reg) )
@@ -3208,6 +3216,8 @@ bool nec850_t::is_reg_used_after_insn(
     spoils(&regs, insn);
     if ( regs.has(reg) )
       return false; // REG is redefining before using
+    if ( end_ea - ea <= insn.size )
+      break;
     ea += insn.size;
   }
   return true;

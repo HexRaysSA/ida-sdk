@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      Graph type definitions
  *
  *      Due to the use of STL and virtual functions, some parts of this

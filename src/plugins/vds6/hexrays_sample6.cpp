@@ -1,6 +1,6 @@
 /*
  *      Hex-Rays Decompiler project
- *      Copyright (c) 2007-2025 by Hex-Rays, support@hex-rays.com
+ *      Copyright (c) 2007-2026 by Hex-Rays, support@hex-rays.com
  *      ALL RIGHTS RESERVED.
  *
  *      Sample plugin for the Hex-Rays Decompiler.

@@ -278,7 +278,7 @@ struct arg_allocator_t
 protected:
   int get_regno(size_t req_nregs)
   {
-    QASSERT(0, num_gprs + req_nregs <= max_regs);
+    QASSERT(10518, num_gprs + req_nregs <= max_regs);
     int regno = rR6 + num_gprs;
     num_gprs += req_nregs;
     return regno;
@@ -288,7 +288,7 @@ protected:
 //-------------------------------------------------------------------------
 void arg_allocator_t::alloc_scattered(argloc_t *aloc, size_t size)
 {
-  QASSERT(0, has_free_gprs());
+  QASSERT(10519, has_free_gprs());
 
   std::unique_ptr<scattered_aloc_t> scloc(new scattered_aloc_t);
   size_t chunk_off = 0;
@@ -369,7 +369,7 @@ bool arg_allocator_t::calc_argloc(
     case BAD:
       return false;
     default:
-      INTERR(0);
+      INTERR(10520);
   }
   return true;
 }

@@ -1,6 +1,6 @@
 /* Tracing API sample plugin.
  *
- * Copyright (c) 2012-2025 Hex-Rays, support@hex-rays.com
+ * Copyright (c) 2012-2026 Hex-Rays, support@hex-rays.com
  *
  * This sample plugin demonstrates how to use the tracing events API
  * in IDA v6.3

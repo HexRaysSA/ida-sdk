@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -517,6 +517,7 @@ struct event_listener_t
 #define PLFM_RL78       73        ///< Renesas RL78
 #define PLFM_RX         74        ///< Renesas RX
 #define PLFM_WASM       75        ///< WASM
+#define PLFM_NDS32      76        ///< Andes Technology NDS32
 ///@}
 
 //-------------------------------------------------------------------------
@@ -585,6 +586,8 @@ struct event_listener_t
 #define PR2_USE_CALCREL 0x000020  ///< (Lumina) the module supports calcrel info
 #define PR2_REL_BITS    0x000040  ///< (Lumina) calcrel info has bits granularity, not bytes - construction flag only
 #define PR2_FORCE_16BIT 0x000080  ///< use 16-bit basic types despite of 32-bit segments (used by c166)
+#define PR2_IGNORE_IDA_GUESS 0x000100 ///< allow to create items inside the IDA-guessed data arrays
+
 ///@}
 
 //-------------------------------------------------------------------------

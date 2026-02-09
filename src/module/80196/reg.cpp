@@ -7,7 +7,7 @@
 #include "i196.hpp"
 
 //--------------------------------------------------------------------------
-static const predefined_t iregs[] =
+static const predefined_t iregs_80196[] =
 {
   { 0x00, "ZERO_REG",  "Zero register" },
   { 0x08, "INT_MASK",  "Interrupt mask register" },
@@ -98,6 +98,16 @@ struct entry_t
   const char *cmt;
 };
 
+struct memory_layout_t
+{
+  const predefined_t *const iregs;
+  size_t iregs_size;
+  const entry_t *const entries;
+  size_t entries_size;
+  uval_t intmem_length;
+  uval_t program_start;
+};
+
 static const char cmt01[] = "Timer overflow";
 static const char cmt02[] = "A/D conversion complete";
 static const char cmt03[] = "HSI data available";
@@ -115,7 +125,7 @@ static const char cmt14[] = "Timer 2 overflow";
 static const char cmt15[] = "EXTINT1";
 static const char cmt16[] = "HSI FIFO FULL";
 
-static entry_t const entries[] =
+static entry_t const entries_80196[] =
 {
 //
 //  { I196F_CMT, 0x2000, 0,           "\nlower int vectors\n" },
@@ -183,7 +193,213 @@ static entry_t const entries[] =
 };
 
 //--------------------------------------------------------------------------
+static const predefined_t iregs_8096[] =
+{
+  { 0x00, "ZERO_REG",  "Zero register" },
+  { 0x08, "INT_MASK",  "Interrupt mask register" },
+  { 0x09, "INT_PEND",  "Interrupt pending register" },
+  { 0x0F, "IOPORT1",   "Input/output port 1" },
+  { 0x10, "IOPORT2",   "Input/output port 2" },
+  { 0x12, "INT_PEND1", "Interrupt pending register 1" },
+  { 0x18, "SP",        "Stack pointer" },
+  { 0x00, nullptr, nullptr }
+};
+
+//--------------------------------------------------------------------------
+/* 8096 memory map
+ *
+ * 0000-03FF - register file
+ *   0000    - CPU SFRs
+ *   0018    - SP (LO)
+ *   0019    - SP (HI)
+ *   001A    - Register RAM
+ *   0100    - Register RAM (upper file)
+ * 0400-1FFD - ext memory
+ * 1FFE      - port 3 (word)
+ * 1FFF      - port 4 (word)
+ * 2000-207F - special purpose memory
+ *   2000    - lower int vectors
+ *     2000  - INT00 - Timer overflow
+ *     2002  - INT01 - A/D conversion complete
+ *     2004  - INT02 - HSI data available
+ *     2006  - INT03 - High speed output
+ *     2008  - INT04 - HSI.0
+ *     200A  - INT05 - Software timer
+ *     200C  - INT06 - Serial port
+ *     200E  - INT07 - EXTINT
+ *     2010  - Software trap
+ *   2012-207F    - factory test code
+ * 2080-FFFF - program/ext memory
+ */
+//--------------------------------------------------------------------------
+
+static entry_t const entries_8096[] =
+{
+//
+//  { I196F_CMT, 0x2000, 0,           "\nlower int vectors\n" },
+  { I196F_OFF, 0x2000, "Int00",     cmt01 },
+  { I196F_OFF, 0x2002, "Int01",     cmt02 },
+  { I196F_OFF, 0x2004, "Int02",     cmt03 },
+  { I196F_OFF, 0x2006, "Int03",     cmt04 },
+  { I196F_OFF, 0x2008, "Int04",     cmt05 },
+  { I196F_OFF, 0x200A, "Int05",     cmt06 },
+  { I196F_OFF, 0x200C, "Int06",     cmt07 },
+  { I196F_OFF, 0x200E, "Int07",     cmt08 },
+  { I196F_OFF, 0x2010, "Int08",      "Software" },
+
+  { I196F_CMT, 0x2012, 0,           0 },    // empty line
+  { I196F_BTS, 0x2012, 0,           "Factory test code" },
+
+  { I196F_CMT, 0x2080, 0,           0 },
+  { I196F_BTS, 0x2080, 0,           cmt09 },
+//  { I196F_CMT, 0x2080, 0,           "\nProgram entry point\n" },
+  { I196F_CMT, 0x2080, 0,           0 }
+};
+
+//--------------------------------------------------------------------------
+static const predefined_t iregs_8061[] =
+{
+  { 0x00, "ZERO_REG",  "Zero register" },
+  { 0x08, "INT_MASK",  "Interrupt mask register" },
+  { 0x09, "INT_PEND",  "Interrupt pending register" },
+  { 0x0A, "IOSTATUS",   "Input/output status register" },
+  { 0x10, "SP",        "Stack pointer" },
+  { 0x00, nullptr, nullptr }
+};
+
+//--------------------------------------------------------------------------
+/* 8096 memory map
+ *
+ * 0000-00FF - register file
+ *   0000    - CPU SFRs
+ *   0010    - SP (LO)
+ *   0011    - SP (HI)
+ *   0012    - Register RAM
+ *   00FF    - Register RAM (upper file)
+ * 0100-0BFF - ext memory
+ * 2000-BFFF - special strategy program
+ *   2010    - lower int vectors
+ *     2010  - INT00 - HSO Port Output Interrupt #2
+ *     2012  - INT01 - Master I/O Timer Overflow
+ *     2014  - INT02 - A/D End-of-Conversion
+ *     2016  - INT03 - HSI Port Input Data Available
+ *     2018  - INT04 - External Interrupt Input
+ *     201A  - INT05 - HSO Port Output Interrupt #1
+ *     201C  - INT06 - High-Speed Input #1
+ *     201E  - INT07 - High-Speed Input #0
+ */
+//--------------------------------------------------------------------------
+
+static entry_t const entries_8061[] =
+{
+//
+//  { I196F_CMT, 0x2000, 0,           "\nlower int vectors\n" },
+  { I196F_OFF, 0x2010, "Int00",     "HSO Port Output Interrupt #2" },
+  { I196F_OFF, 0x2012, "Int01",     "Master I/O Timer Overflow" },
+  { I196F_OFF, 0x2014, "Int02",     "A/D End-of-Conversion" },
+  { I196F_OFF, 0x2016, "Int03",     "HSI Port Input Data Available" },
+  { I196F_OFF, 0x2018, "Int04",     "External Interrupt Input" },
+  { I196F_OFF, 0x201A, "Int05",     "HSO Port Output Interrupt #1" },
+  { I196F_OFF, 0x201C, "Int06",     "High-Speed Input #1" },
+  { I196F_OFF, 0x201E, "Int07",     "High-Speed Input #0" },
+
+//  { I196F_CMT, 0x2080, 0,           "\nProgram entry point\n" },
+  { I196F_CMT, 0x2020, 0,           0 }
+};
+
+//--------------------------------------------------------------------------
+static const predefined_t iregs_8065[] =
+{
+  { 0x00, "ZERO_REG",  "Zero register" },
+  { 0x08, "INT_MASK",  "Interrupt mask register" },
+  { 0x09, "INT_PEND",  "Interrupt pending register" },
+  { 0x0A, "IOSTATUS",   "Input/output status register" },
+  { 0x10, "ROM_BANK_CTL",   "Memory bank select register" },
+  { 0x20, "SP",        "Stack pointer" },
+  { 0x22, "ALT_SP",        "Alternate stack pointer" },
+  { 0x00, nullptr, nullptr }
+};
+
+//--------------------------------------------------------------------------
+/* 8096 memory map
+ *
+ * 0000-00FF - register file (bank 0)
+ * 0100-01FF - register file (bank 1)
+ * 0200-02FF - register file (bank 2)
+ * 0300-03FF - register file (bank 3)
+ * 2000-BFFF - special strategy program
+ *   2010    - lower int vectors
+ *     2010  - INT00 - HSO Port Output Interrupt #2
+ *     2012  - INT01 - Master I/O Timer Overflow
+ *     2014  - INT02 - A/D End-of-Conversion
+ *     2016  - INT03 - HSI Port Input Data Available
+ *     2018  - INT04 - External Interrupt Input
+ *     201A  - INT05 - HSO Port Output Interrupt #1
+ *     201C  - INT06 - High-Speed Input #1
+ *     201E  - INT07 - High-Speed Input #0
+ */
+//--------------------------------------------------------------------------
+
+static entry_t const entries_8065[] =
+{
+  { I196F_OFF, 0x2010, "Int00",     "HSO Pin #0" },
+  { I196F_OFF, 0x2012, "Int01",     "HSO Pin #1" },
+  { I196F_OFF, 0x2014, "Int02",     "HSO Pin #2" },
+  { I196F_OFF, 0x2016, "Int03",     "HSO Pin #3" },
+  { I196F_OFF, 0x2018, "Int04",     "HSO Pin #4" },
+  { I196F_OFF, 0x201A, "Int05",     "HSO Pin #5" },
+  { I196F_OFF, 0x201C, "Int06",     "HSO Pin #6" },
+  { I196F_OFF, 0x201E, "Int07",     "HSO Pin #7" },
+  { I196F_OFF, 0x2020, "Int08",     "HSO Pin #8" },
+  { I196F_OFF, 0x2022, "Int09",     "HSO Pin #9" },
+  { I196F_OFF, 0x2024, "Int10",     "HSO Expansion Pin #A" },
+  { I196F_OFF, 0x2026, "Int11",     "HSO Expansion Pin #B" },
+  { I196F_OFF, 0x2028, "Int12",     "HSO Expansion Pin #C" },
+  { I196F_OFF, 0x202A, "Int13",     "HSO Expansion Pin #D" },
+  { I196F_OFF, 0x202C, "Int14",     "HSO Expansion Pin #E" },
+  { I196F_OFF, 0x202E, "Int15",     "HSO Expansion Pin #F" },
+  { I196F_OFF, 0x2030, "Int16",     "HSI Port FIFO 50% Full" },
+  { I196F_OFF, 0x2032, "Int17",     "External Interrupt Input Pin" },
+  { I196F_OFF, 0x2034, "Int18",     "HSI Pin #0 Interrupt" },
+  { I196F_OFF, 0x2036, "Int19",     "HSI Port Data Available" },
+  { I196F_OFF, 0x2038, "Int20",     "HSI Pin #1 Interrupt" },
+  { I196F_OFF, 0x203A, "Int21",     "Immediate A/D Conversion Done" },
+  { I196F_OFF, 0x203C, "Int22",     "Timed A/D Conversion Done" },
+  { I196F_OFF, 0x203E, "Int23",     "Alternate I/O Timer Overflow" },
+  { I196F_OFF, 0x2040, "Int24",     "Timed A/D Conv Started" },
+  { I196F_OFF, 0x2042, "Int25",     "Alt I/O Timer Started" },
+  { I196F_OFF, 0x2044, "Int26",     "Start/Stop Counter #1" },
+  { I196F_OFF, 0x2046, "Int27",     "Start/Stop Counter #2" },
+  { I196F_OFF, 0x2048, "Int28",     "Start/Stop Counter #3" },
+  { I196F_OFF, 0x204A, "Int29",     "Start/Stop Counter #4" },
+  { I196F_OFF, 0x204C, "Int30",     "HSO Code 16" },
+  { I196F_OFF, 0x204E, "Int31",     "HSO Code 17" },
+  { I196F_OFF, 0x2050, "Int32",     "HSO Code 18" },
+  { I196F_OFF, 0x2052, "Int33",     "HSO Code 19" },
+  { I196F_OFF, 0x2054, "Int34",     "HSO Code 1A" },
+  { I196F_OFF, 0x2056, "Int35",     "HSO Code 1B" },
+  { I196F_OFF, 0x2058, "Int36",     "HSO Code 1C" },
+  { I196F_OFF, 0x205A, "Int37",     "HSO Code 1D" },
+  { I196F_OFF, 0x205C, "Int38",     "HSO Code 1E" },
+  { I196F_OFF, 0x205E, "Int39",     "HSO Code 1F" },
+  { I196F_CMT, 0x2060, 0,           0 }
+};
+
+//--------------------------------------------------------------------------
+
 static const char *const RegNames[] = { "cs", "ds", "WSR", "WSR1" };
+
+//--------------------------------------------------------------------------
+
+static const memory_layout_t memory_layout[] =
+{
+  { iregs_80196, qnumber(iregs_80196), entries_80196, qnumber(entries_80196), 0x400, 0x2080},
+  { iregs_80196, qnumber(iregs_80196), entries_80196, qnumber(entries_80196), 0x400, 0x2080 },
+  { iregs_8096, qnumber(iregs_8096), entries_8096, qnumber(entries_8096), 0x400, 0x2080 },
+  { iregs_8061, qnumber(iregs_8061), entries_8061, qnumber(entries_8061), 0x100, 0x2000 },
+  { iregs_8065, qnumber(iregs_8065), entries_8065, qnumber(entries_8065), 0x400, 0x2000 },
+  { nullptr, 0x0, nullptr, 0x0},
+};
 
 //------------------------------------------------------------------------
 static bool idaapi can_have_type(const op_t &x)      // returns 1 - operand can have
@@ -230,25 +446,28 @@ ssize_t idaapi i196_t::on_event(ssize_t msgid, va_list va)
 
         ea_t ea, ea1;
 
-        for ( int i = 0; i < qnumber(entries); i++ )
+        auto layout = memory_layout[ph.get_proc_index()];
+
+        for ( int i = 0; i < layout.entries_size; i++ )
         {
-          ea = to_ea(inf_get_baseaddr(), entries[i].off);
+          auto &entry = layout.entries[i];
+          ea = to_ea(inf_get_baseaddr(), entry.off);
 
           if ( is_mapped(ea) )
           {
-            switch ( entries[i].type )
+            switch ( entry.type )
             {
               case I196F_BTS:
-                if ( i < qnumber(entries)-1 )
+                if ( i < layout.entries_size-1 )
                 {
-                  create_byte(ea, entries[i+1].off-entries[i].off);
-                  set_cmt(ea, entries[i].cmt, 0);
+                  create_byte(ea, layout.entries[i+1].off-layout.entries[i].off);
+                  set_cmt(ea, entry.cmt, 0);
                 }
                 break;
 
               case I196F_CMT:
-                if ( entries[i].cmt != nullptr )
-                  add_extra_cmt(ea, true, "%s", entries[i].cmt);
+                if ( entry.cmt != nullptr )
+                  add_extra_cmt(ea, true, "%s", entry.cmt);
                 else
                   add_extra_line(ea, true, "");
                 break;
@@ -262,29 +481,29 @@ ssize_t idaapi i196_t::on_event(ssize_t msgid, va_list va)
                 // add a simple comment
                 // after function is created, it will be converted
                 // to function comment
-                set_cmt(ea1, entries[i].cmt, 1);
+                set_cmt(ea1, entry.cmt, 1);
             }
 
-            set_name(ea, entries[i].name, SN_NODUMMY);
+            set_name(ea, entry.name, SN_NODUMMY);
           }
         }
 
-        ea = to_ea(inf_get_baseaddr(), 0x2080);
+        ea = to_ea(inf_get_baseaddr(), layout.program_start);
         if ( is_mapped(ea) )
         {
           inf_set_start_ea(ea);
-          inf_set_start_ip(0x2080);
+          inf_set_start_ip(layout.program_start);
         }
 
         segment_t s;
         s.start_ea = to_ea(inf_get_baseaddr(), 0);
-        s.end_ea   = to_ea(inf_get_baseaddr(), 0x400);
+        s.end_ea   = to_ea(inf_get_baseaddr(), layout.intmem_length);
         s.sel     = inf_get_baseaddr();
         s.type    = SEG_IMEM;                         // internal memory
         add_segm_ex(&s, "INTMEM", nullptr, ADDSEG_OR_DIE);
 
         const predefined_t *ptr;
-        for ( ptr = iregs; ptr->name != nullptr; ptr++ )
+        for ( ptr = layout.iregs; ptr->name != nullptr; ptr++ )
         {
           ea = to_ea(inf_get_baseaddr(), ptr->addr);
           ea_t oldea = get_name_ea(BADADDR, ptr->name);
@@ -312,13 +531,17 @@ ssize_t idaapi i196_t::on_event(ssize_t msgid, va_list va)
 
     case processor_t::ev_ending_undo:
       // restore ptype
-      extended = ph.get_proc_index();
+      proctype = proctypes[ph.get_proc_index()];
       goto SETFLAG;
 
     case processor_t::ev_newprc:
-      extended = va_arg(va,int) != 0;
+      {
+        int idx = va_arg(va, int);
+        proctype = proctypes[idx];
+      }
+
 SETFLAG:
-      if ( !extended )
+      if ( !is_80196NP() )
         ph.flag &= ~PR_SEGS;
       else
         ph.flag |= PR_SEGS;
@@ -369,7 +592,8 @@ SETFLAG:
     case processor_t::ev_out_insn:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        out_insn(*ctx);
+        bool use_alternative_mnem = is_8x6x();
+        out_insn(*ctx, use_alternative_mnem);
         return 1;
       }
 
@@ -447,8 +671,8 @@ static const asm_t *const asms[] = { &unkasm, nullptr };
 
 //--------------------------------------------------------------------------
 #define FAMILY "Intel 196 series:"
-static const char *const shnames[] = { "80196", "80196NP", nullptr };
-static const char *const lnames[]  = { FAMILY"Intel 80196", "Intel 80196NP", nullptr };
+static const char *const shnames[] = { "80196", "80196NP", "8096", "8061", "8065", nullptr };
+static const char *const lnames[]  = { FAMILY"Intel 80196", "Intel 80196NP", "Intel 8096", "Intel 8061", "Intel 8065", nullptr };
 
 //--------------------------------------------------------------------------
 static const uchar retcode[] = { 0xF0 };  // ret

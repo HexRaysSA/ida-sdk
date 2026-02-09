@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      V850/RH850 module
@@ -115,7 +115,7 @@ public:
   }
   sval_t get_spd() const
   {
-    QASSERT(0, !store.empty()
+    QASSERT(10521, !store.empty()
             && store[0].reg == rSP
             && store[0].srcreg == rSP);
     return store[0].spd;
@@ -175,6 +175,12 @@ struct rh850_frame_t
     preserving_regs.add(rGP);
     preserving_regs.add(rTP);
     preserving_regs.add(rEP);
+  }
+  bool can_be_saved(int reg) const
+  {
+    return preserving_regs.has(reg)
+        || reg == rCTPC
+        || reg == rCTPSW;
   }
 
   bool analyze_frame(bool reanalyze);
@@ -267,14 +273,15 @@ rh850_frame_t::track_res_t rh850_frame_t::track_stack(const insn_t &insn)
   if ( is_branch_insn(insn) )
   {
     reglist_t regs;
-    special_func_t spf = pm.v850_is_special_func_call(&regs, insn);
+    uval_t locals;
+    special_func_t spf = pm.is_special_func_call(&regs, &locals, insn);
     if ( spf == SPF_SAVE )
     {
       // the register order is opposite to DISPOSE
       uval_t delta = regs.count() * 4;
       // allocate the frame
       sval_t addr = tracked_regs.get_spd() - delta;
-      if ( !update_spbased_reg(rSP, addr, insn.ea) )
+      if ( !update_spbased_reg(rSP, addr - locals, insn.ea) )
         return STOP;
       regs.for_each(
         [this, &addr, &insn](int reg)
@@ -332,6 +339,7 @@ rh850_frame_t::track_res_t rh850_frame_t::track_stack(const insn_t &insn)
       break;
 
     case NEC850_MOV:
+    case NEC850_STSR:
       {
         if ( insn.Op1.type != o_reg )
           return UNKNOWN;
@@ -417,7 +425,7 @@ bool rh850_frame_t::prepare_frame(bool reanalyze)
   }
   // registers should be pushed together at the top
   while ( p != psi.end()
-       && preserving_regs.has(p->reg)
+       && can_be_saved(p->reg)
        && p->off + p->width == curoff )
   {
     curoff -= p->width;

@@ -1,6 +1,6 @@
 /*
         Interactive disassembler (IDA).
-        Copyright (c) 2005-2025 Hex-Rays SA <support@hex-rays.com>
+        Copyright (c) 2005-2026 Hex-Rays SA <support@hex-rays.com>
         ALL RIGHTS RESERVED.
 
         Merge functionality for the tms320c3x module.

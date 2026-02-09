@@ -10,6 +10,7 @@
 //#define LDEB            // enable debug print in this module
 
 #include <sys/syscall.h>
+#include <sys/utsname.h>
 #include <pthread.h>
 #include <dirent.h>
 
@@ -240,6 +241,26 @@ static long qptrace(__ptrace_request request, pid_t pid, void *addr, void *data)
 #endif
   return code;
 }
+
+//--------------------------------------------------------------------------
+#if defined(__ARM__) && !defined(__X86__)
+static bool kernel_needs_hwss_detach_workaround()
+{
+  static int cached = -1;
+  if ( cached < 0 )
+  {
+    cached = 0;
+    struct utsname uts;
+    if ( uname(&uts) == 0 )
+    {
+      int major = 0;
+      if ( sscanf(uts.release, "%d", &major) == 1 && major < 5 )
+        cached = 1;
+    }
+  }
+  return cached != 0;
+}
+#endif
 
 //--------------------------------------------------------------------------
 #ifdef LDEB
@@ -1314,6 +1335,8 @@ int linux_debmod_t::dbg_thaw_threads(thid_t tid, bool exclude)
     if ( ti.state == STOPPED || ti.state == DYING )
     {
       __ptrace_request request = ti.single_step ? PTRACE_SINGLESTEP : PTRACE_CONT;
+      if ( ti.single_step )
+        ever_singlestepped = true;
 #ifdef LDEB
       char ostate = getstate(ti.tid);
 #endif
@@ -1814,6 +1837,7 @@ void linux_debmod_t::cleanup(void)
   complained_shlib_bpt = false;
   bpts.clear();
   using_seize = false;
+  ever_singlestepped = false;
 
   tdb_delete();
   erase_internal_bp(birth_bpt);
@@ -2215,6 +2239,21 @@ drc_t idaapi linux_debmod_t::dbg_detach_process(void)
     thread_info_t &ti = p->second;
     if ( ti.tid == process_handle )
       had_pid = true;
+
+#if defined(__ARM__) && !defined(__X86__)
+    // On some older ARM64 kernels, PTRACE_DETACH after PTRACE_SINGLESTEP
+    // can leave the process in a bad state. Work around by doing
+    // PTRACE_CONT + SIGSTOP before detaching.
+    if ( ever_singlestepped && kernel_needs_hwss_detach_workaround() )
+    {
+      if ( qptrace(PTRACE_CONT, ti.tid, nullptr, nullptr) == 0 )
+      {
+        qkill(ti.tid, SIGSTOP);
+        int status = 0;
+        check_for_signal(&status, ti.tid, 1000);
+      }
+    }
+#endif
 
     ok = qptrace(PTRACE_DETACH, ti.tid, nullptr, nullptr) == 0;
     log(-1, "detach tid %d: ok=%d\n", ti.tid, ok);

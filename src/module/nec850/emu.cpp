@@ -24,21 +24,28 @@
 // 0: the instruction is created because
 //    of some coderef, user request or another
 //    weighty reason.
-// The instruction is in 'cmd'
-// returns: 1-ok, <=0-no, the instruction isn't likely to appear in the program
-int nec850_t::nec850_is_sane_insn(const insn_t &insn, int /*no_crefs*/) const
+// returns: false if the instruction isn't likely to appear in the program
+bool nec850_t::is_sane_insn(const insn_t &insn, int /*no_crefs*/) const
 {
-#define CHECK_R0_WRITE(n)             \
-  if ( ((Feature & CF_CHG ## n) != 0) \
-    && insn.Op ## n.is_reg(rZERO) )   \
-  {                                   \
-    return 0;                         \
-  }
   int Feature = insn.get_canon_feature(ph);
+  for ( int i = 0; i < 2; ++i )
+    if ( has_cf_chg(Feature, i) && insn.ops[i].is_reg(rZERO) )
+      return false;
+  if ( insn.itype == NEC850_JARL
+    && insn.Op1.type == o_near
+    && insn.Op1.addr == insn.ea )
+  {
+    return false; // endless loop should not use JARL
+  }
+  return true;
+}
 
-  CHECK_R0_WRITE(1);
-  CHECK_R0_WRITE(2);
-  return 1;
+//----------------------------------------------------------------------
+size_t v850_is_align_insn(ea_t ea)
+{
+  if ( get_word(ea) == 0 )
+    return 2;
+  return 0;
 }
 
 //----------------------------------------------------------------------
@@ -75,15 +82,20 @@ ea_t nec850_t::get_fixed_sreg(ea_t ea, const op_t &op) const
   ea_t res = BADADDR;
   switch ( op.reg )
   {
+    case rGP:
+      res = get_sreg(ea, srGP);
+      if ( res == BADADDR && g_gp_ea != BADADDR )
+        res = g_gp_ea;
+      break;
     case rTP:
       res = get_sreg(ea, srTP);
       if ( res == BADADDR && g_tp_ea != BADADDR )
         res = g_tp_ea;
       break;
-    case rGP:
-      res = get_sreg(ea, srGP);
-      if ( res == BADADDR && g_gp_ea != BADADDR )
-        res = g_gp_ea;
+    case rEP:
+      res = get_sreg(ea, srEP);
+      if ( res == BADADDR && g_ep_ea != BADADDR )
+        res = g_ep_ea;
       break;
   }
   return res;
@@ -197,10 +209,14 @@ reglist_t nec850_t::callee_saved_regs() const
   reglist_t regs;
   regs.add_range(rR20, 10);
   regs.add(rSP);
-  if ( g_gp_ea != BADADDR )
-    regs.add(rGP); // if it is globally set it should be preserved
-  if ( g_tp_ea != BADADDR )
-    regs.add(rTP); // if it is globally set it should be preserved
+  if ( is_gp_callee_saved() )
+    regs.add(rGP);
+  if ( is_tp_callee_saved() )
+    regs.add(rTP);
+  if ( is_ep_callee_saved() )
+    regs.add(rEP);
+  if ( is_r2_callee_saved() )
+    regs.add(rR2);
   return regs;
 }
 
@@ -231,20 +247,15 @@ void nec850_t::spoils(reglist_t *regs, const insn_t &insn) const
       break;
     case NEC850_JARL:
     case NEC850_JR:
-      switch ( v850_is_special_func_call(regs, insn) )
+    case NEC850_CALLT:
       {
-        case SPF_SAVE:
-          regs->clear();
-          regs->add(rSP);
-          regs->add(rR10);  // used as a scratch register
+        reglist_t func_regs;
+        if ( special_func_spoils(&func_regs, insn) )
+        {
+          regs->add(func_regs);
           return;
-        case SPF_RETURN:
-          regs->add(rSP);
-          if ( insn.itype == NEC850_JARL )
-            regs->add(rLP);
-          return;
-        default:
-          break;
+        }
+        break;
       }
     default:
       break;
@@ -427,15 +438,6 @@ inline bool is_ep_equal_to_sp(ea_t ea)
     return false;
 
   return sp_value == ep_value;
-}
-
-//----------------------------------------------------------------------
-void nec850_t::set_canonical_sreg(ea_t new_segreg_value, ea_t &old_segreg_value, int srnum) const
-{
-  if ( new_segreg_value == BADADDR || new_segreg_value == old_segreg_value )
-    return;
-  old_segreg_value = new_segreg_value;
-  set_default_sreg_value(nullptr, srnum, new_segreg_value);
 }
 
 //----------------------------------------------------------------------
@@ -631,18 +633,19 @@ int nec850_t::calc_stack_delta(const insn_t &insn) const
     case NEC850_PREPARE_i:
     case NEC850_PREPARE_sp:
       regs.add_reglist(insn.Op1);
-      locals = insn.Op2.value;
+      locals = insn.Op2.value * 4;
       sub = true;
       break;
     case NEC850_DISPOSE_r:
     case NEC850_DISPOSE_r0:
       regs.add_reglist(insn.Op2);
-      locals = insn.Op1.value;
+      locals = insn.Op1.value * 4;
       sub = false;
       break;
     case NEC850_JARL:
     case NEC850_JR:
-      switch ( v850_is_special_func_call(&regs, insn) )
+    case NEC850_CALLT:
+      switch ( is_special_func_call(&regs, &locals, insn) )
       {
         case SPF_SAVE:
           sub = true;
@@ -657,7 +660,7 @@ int nec850_t::calc_stack_delta(const insn_t &insn) const
     default:
       return 0;
   }
-  int res = (regs.count() + locals) * 4;
+  int res = regs.count() * 4 + locals;
   return sub ? -res : res;
 }
 
@@ -673,6 +676,7 @@ void nec850_t::trace_sp(func_t *pfn, const insn_t &insn) const
     case NEC850_DISPOSE_r0:
     case NEC850_JARL:
     case NEC850_JR:
+    case NEC850_CALLT:
       delta = calc_stack_delta(insn);
       break;
     case NEC850_ADD:
@@ -871,15 +875,7 @@ bool nec850_t::handle_call_or_jump(const insn_t &insn) const
 
   if ( is_call && !func_does_return(target) )
     flow = false;
-  // callt can be used for jumping to outlined epilog
-  // v850e1_callt.bin 8762
-  if ( flow && insn.itype == NEC850_CALLT )
-  {
-    insn_t tmp;
-    if ( decode_insn(&tmp, target) != 0 && is_ret_itype(tmp) )
-      flow = false;
-  }
-  if ( flow && v850_is_special_func(nullptr, target) == SPF_RETURN )
+  if ( is_call && is_special_return_func(insn) )
     flow = false;
   if ( is_call )
     auto_apply_type(insn.ea, target);
@@ -987,21 +983,55 @@ int nec850_t::nec850_emu(const insn_t &insn) const
 }
 
 //----------------------------------------------------------------------
-int nec850_may_be_func(const insn_t &insn)
+int nec850_t::may_be_func(const insn_t &start_insn) const
 {
-  int prop = 0;
-  if ( insn.itype == NEC850_PREPARE_i || insn.itype == NEC850_PREPARE_sp )
-    prop = 100;
-  return prop;
+  switch ( start_insn.itype )
+  {
+    case NEC850_PREPARE_i:
+    case NEC850_PREPARE_sp:
+      return 100;
+    case NEC850_JARL:
+    case NEC850_JR:
+    case NEC850_CALLT:
+      if ( is_special_save_func(start_insn) )
+        return 100;
+      break;
+    case NEC850_ADD:
+    case NEC850_ADDI:
+      // add -0x18, sp
+      if ( start_insn.Op1.type == o_imm
+        && start_insn.Op2.is_reg(rSP)
+        && (start_insn.Op3.type == o_void || start_insn.Op3.is_reg(rSP))
+        && sval_t(start_insn.Op1.value) < 0 )
+      {
+        sval_t spd = start_insn.Op1.value;
+        ea_t ea = start_insn.ea + start_insn.size;
+        insn_t insn;
+        // st.w lp, var_s14[sp]
+        if ( decode_insn(&insn, ea) > 0
+          && insn.itype == NEC850_ST_W
+          && insn.Op1.is_reg(rLP)
+          && insn.Op2.type == o_displ
+          && insn.Op2.phrase == rSP
+          && spd + insn.Op2.addr == -4 )
+        {
+          return 100;
+        }
+      }
+      break;
+  }
+  return 0;
 }
 
 //----------------------------------------------------------------------
-bool nec850_is_return(const insn_t &insn, bool strict)
+bool nec850_t::is_return_insn(const insn_t &insn, bool strict) const
 {
   if ( is_ret_itype(insn) )
     return true;
-  if ( insn.itype == NEC850_DISPOSE_r0 )
-    return !strict;
+  if ( !strict && insn.itype == NEC850_DISPOSE_r0 )
+    return true;
+  if ( is_special_return_func(insn) )
+    return true;
   return false;
 }
 

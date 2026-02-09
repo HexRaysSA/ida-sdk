@@ -225,6 +225,7 @@ public:
 
   bool exited;             // Did the process exit?
   bool using_seize = false;  // Use PTRACE_SEIZE instead of PTRACE_ATTACH (Android 14+)
+  bool ever_singlestepped = false;  // Did we ever use PTRACE_SINGLESTEP? (for diagnostics)
 
   easet_t removed_bpts; // removed breakpoints
 

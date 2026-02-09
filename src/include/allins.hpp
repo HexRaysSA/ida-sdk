@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -2229,13 +2229,24 @@ NN_hreset,              // History Reset
 NN_prefetchit0,         // Prefetch code into all levels of the cache hierarchy
 NN_prefetchit1,         // Prefetch code into all but the first-level of the cache hierarchy
 
+// VIA PadLock vendor extension
+NN_montmul,             // Montgomery Multiplication
+NN_xsha1,               // Hash Function SHA-1
+NN_xsha256,             // Hash Function SHA-256
+NN_xstore,              // Store Available Random Bytes
+NN_xcryptecb,           // AES Electronic Code Book
+NN_xcryptcbc,           // AES Cipher Block Chaining
+NN_xcryptctr,           // AES Counter Mode
+NN_xcryptcfb,           // AES Cipher Feedback Mode
+NN_xcryptofb,           // AES Output Feedback Mode
+
 NN_last,
 
     };
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -2534,7 +2545,7 @@ I5_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -2701,7 +2712,7 @@ I860_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -2789,7 +2800,7 @@ I51_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -3083,7 +3094,7 @@ TMS_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -3328,7 +3339,7 @@ enum m65_itype_t
 
 /*
  *      Interactive disassembler (IDA)
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      PDP11 module.
  *      Copyright (c) 1995-2006 by Iouri Kharon.
  *                        E-mail: yjh@styx.cabel.net
@@ -3458,7 +3469,7 @@ pdp_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -3682,7 +3693,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -3852,7 +3863,7 @@ mc8_last
 
 /*
  *      Interactive disassembler (IDA)
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      JVM module.
  *      Copyright (c) 1995-2006 by Iouri Kharon.
  *                        E-mail: yjh@styx.cabel.net
@@ -4113,7 +4124,7 @@ enum name_quick
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -5436,7 +5447,7 @@ ARM_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      TMS320C6xx - VLIW (very long instruction word) architecture
@@ -5948,12 +5959,22 @@ enum
   I196_est,         // Extended store word
   I196_estb,        // Extended store byte
 
+// 8x6x specific instructions
+
+  I196_reti,
+  I196_retei,
+  I196_rombank,
+  I196_bank0,
+  I196_bank1,
+  I196_bank2,
+  I196_bank3,
+
   I196_last
 };
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      Renesas SuperH - RISC with 16bit instructions
@@ -6225,7 +6246,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      Atmel AVR - 8-bit RISC processor
@@ -6378,7 +6399,7 @@ AVR_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -8197,7 +8218,7 @@ MIPS_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -8330,7 +8351,7 @@ H8_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -8537,7 +8558,7 @@ PIC_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -8676,7 +8697,7 @@ PIC16_last,
     };
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -8939,7 +8960,7 @@ SPARC_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9109,7 +9130,7 @@ HPPA_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9535,7 +9556,7 @@ enum PMNum // Parallel Move enumeration
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9664,7 +9685,7 @@ C166_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9903,7 +9924,7 @@ ST20_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9984,7 +10005,7 @@ ST7_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -10283,7 +10304,7 @@ IA64_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -10536,7 +10557,7 @@ NET_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      HCS12X opcodes added by alexbratovic@bratspeed.com 12/12/2007
@@ -10927,7 +10948,7 @@ MC12_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -11278,7 +11299,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -11562,7 +11583,7 @@ I960_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -11780,7 +11801,7 @@ F2MC_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -11892,7 +11913,7 @@ TMS320C3X_last,                 // last ID
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -12199,7 +12220,7 @@ TMS320C54_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -12545,7 +12566,7 @@ TMS320C55_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -12866,7 +12887,7 @@ NEC_78K_0_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -13499,7 +13520,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      MITSUBISHI 7900 Family
@@ -14018,7 +14039,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -15112,7 +15133,7 @@ mn102_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      PowerPC - RISC with very complex instructions
@@ -18744,7 +18765,7 @@ PPC_last,
 
 /*
 *      Interactive disassembler (IDA).
-*      Copyright (c) 1990-2025 Hex-Rays
+*      Copyright (c) 1990-2026 Hex-Rays
 *      ALL RIGHTS RESERVED.
 *
 */
@@ -19293,6 +19314,676 @@ enum NEC850_Instructions
 };
 
 /*
+ *      Interactive disassembler (IDA).
+ *      Copyright (c) 1990-2026 Hex-Rays
+ *      ALL RIGHTS RESERVED.
+ *
+ *      Andes NDS32 instruction definitions
+ *
+ */
+
+
+//-------------------------------------------------------------------------
+// Instruction codes
+// Organized by OP6 major opcode groups
+// See binutils include/opcode/nds32.h for OP6 definitions
+//
+// Note: Encoding variants (e.g., 333/45/55 formats) are stored in
+// insn_t::auxpref, not as separate instruction types.
+//
+// Note: Instruction suffixes (e.g., .bi, .pc, .adm, .itoff) are stored in
+// insn_t::insnpref (aliased as insn_suffix). See nds32_suffix_t enum.
+//-------------------------------------------------------------------------
+enum
+{
+  NDS32_null,  //   0  Unknown/invalid instruction
+
+  //=======================================================================
+  // OP6 0x00-0x07: Load byte/halfword/word (LBI, LHI, LWI, LDI)
+  // Post-increment (.bi) suffix stored in insn_suffix (ISUF_BI)
+  //=======================================================================
+  NDS32_lbi,  //   1  lbi
+  NDS32_lb,  //   2  lb (indexed)
+  NDS32_lhi,  //   3  lhi
+  NDS32_lh,  //   4  lh (indexed)
+  NDS32_lwi,  //   5  lwi
+  NDS32_lw,  //   6  lw (indexed)
+  NDS32_lwup,  //   7  lwup
+  NDS32_lbup,  //   8  lbup
+
+  //=======================================================================
+  // OP6 0x08-0x0F: Store byte/halfword/word (SBI, SHI, SWI, SDI)
+  //=======================================================================
+  NDS32_sbi,  //   9  sbi
+  NDS32_sb,  //  10  sb (indexed)
+  NDS32_shi,  //  11  shi
+  NDS32_sh,  //  12  sh (indexed)
+  NDS32_swi,  //  13  swi
+  NDS32_sw,  //  14  sw (indexed)
+  NDS32_swup,  //  15  swup
+  NDS32_sbup,  //  16  sbup
+
+  //=======================================================================
+  // OP6 0x10-0x17: Load signed, prefetch, GP-relative
+  //=======================================================================
+  NDS32_lbsi,  //  17  lbsi
+  NDS32_lbs,  //  18  lbs (indexed)
+  NDS32_lhsi,  //  19  lhsi
+  NDS32_lhs,  //  20  lhs (indexed)
+  NDS32_dprefi,  //  21  dprefi (+ ISUF_DWORD, ISUF_WORD)
+  NDS32_dpref,  //  22  dpref
+
+  //=======================================================================
+  // OP6 0x18-0x1D: Memory extensions (MEM), LSMW, atomics
+  // LMW/SMW mode suffixes (.bi/.bim/.bd/.bdm/.ai/.aim/.ad/.adm) stored in insn_suffix
+  // LMWZB/SMWZB mode suffixes (.b/.bm/.bx/.bmx/.a/.am/.ax/.amx) stored in insn_suffix
+  //=======================================================================
+  NDS32_llw,  //  23  llw (load-linked word)
+  NDS32_scw,  //  24  scw (store-conditional word)
+  NDS32_lmw,  //  25  lmw (+ ISUF_LMW_* suffix)
+  NDS32_smw,  //  26  smw (+ ISUF_LMW_* suffix)
+  NDS32_lmwa,  //  27  lmwa (+ ISUF_LMW_* suffix)
+  NDS32_smwa,  //  28  smwa (+ ISUF_LMW_* suffix)
+  NDS32_lmwzb,  //  29  lmwzb (+ ISUF_ZB_* suffix)
+  NDS32_smwzb,  //  30  smwzb (+ ISUF_ZB_* suffix)
+
+  //=======================================================================
+  // OP6 0x20: ALU1 - Basic arithmetic and logic
+  //=======================================================================
+  NDS32_add,  //  31  add
+  NDS32_sub,  //  32  sub
+  NDS32_and,  //  33  and
+  NDS32_xor,  //  34  xor
+  NDS32_or,  //  35  or
+  NDS32_nor,  //  36  nor
+  NDS32_slt,  //  37  slt
+  NDS32_slts,  //  38  slts
+  NDS32_slli,  //  39  slli
+  NDS32_sll,  //  40  sll
+  NDS32_srli,  //  41  srli
+  NDS32_srl,  //  42  srl
+  NDS32_srai,  //  43  srai
+  NDS32_sra,  //  44  sra
+  NDS32_rotri,  //  45  rotri
+  NDS32_rotr,  //  46  rotr
+  NDS32_seb,  //  47  seb (sign-extend byte)
+  NDS32_seh,  //  48  seh (sign-extend halfword)
+  NDS32_zeh,  //  49  zeh (zero-extend halfword)
+  NDS32_zeb,  //  50  zeb (zero-extend byte)
+  NDS32_wsbh,  //  51  wsbh (swap bytes in halfwords)
+  NDS32_sva,  //  52  sva
+  NDS32_svs,  //  53  svs
+  NDS32_cmovz,  //  54  cmovz
+  NDS32_cmovn,  //  55  cmovn
+  NDS32_neg,  //  56  neg
+  NDS32_not,  //  57  not
+
+  //=======================================================================
+  // OP6 0x21: ALU2 - Multiply, divide, DSP
+  //=======================================================================
+  NDS32_mul,  //  58  mul
+  NDS32_mult32,  //  59  mult32
+  NDS32_mults64,  //  60  mults64
+  NDS32_mult64,  //  61  mult64
+  NDS32_madd32,  //  62  madd32
+  NDS32_madd64,  //  63  madd64
+  NDS32_madds64,  //  64  madds64
+  NDS32_msub32,  //  65  msub32
+  NDS32_msub64,  //  66  msub64
+  NDS32_msubs64,  //  67  msubs64
+  NDS32_divr,  //  68  divr
+  NDS32_divsr,  //  69  divsr
+  NDS32_mfusr,  //  70  mfusr
+  NDS32_mtusr,  //  71  mtusr
+  NDS32_mflo,  //  72  mflo
+  NDS32_mfhi,  //  73  mfhi
+  NDS32_mtlo,  //  74  mtlo
+  NDS32_mthi,  //  75  mthi
+  NDS32_mult,  //  76  mult
+  NDS32_div,  //  77  div
+  NDS32_divo,  //  78  divo
+  NDS32_divs,  //  79  divs
+  NDS32_mult_x,  //  80  mult_x
+  NDS32_mulx_d0,  //  81  mulx_d0
+  NDS32_mulx_d1,  //  82  mulx_d1
+  NDS32_mulx_d2,  //  83  mulx_d2
+  NDS32_mulx_d3,  //  84  mulx_d3
+  NDS32_maddr32,  //  85  maddr32
+  NDS32_msubr32,  //  86  msubr32
+  NDS32_mulsr64,  //  87  mulsr64
+  NDS32_mulr64,  //  88  mulr64
+  NDS32_madds,  //  89  madds
+  NDS32_msubs,  //  90  msubs
+  NDS32_madd,  //  91  madd
+  NDS32_msub,  //  92  msub
+
+  //=======================================================================
+  // OP6 0x22: MOVI - Move immediate
+  //=======================================================================
+  NDS32_movi,  //  93  movi
+
+  //=======================================================================
+  // OP6 0x23: SETHI - Set high immediate
+  //=======================================================================
+  NDS32_sethi,  //  94  sethi
+
+  //=======================================================================
+  // OP6 0x24: JI - Jump immediate
+  //=======================================================================
+  NDS32_j,  //  95  j
+  NDS32_jal,  //  96  jal
+
+  //=======================================================================
+  // OP6 0x25: JREG - Jump register
+  // Suffixes (.itoff, .toff, .iton, .ton) stored in insn_suffix field
+  //=======================================================================
+  NDS32_jr,  //  97  jr (+ ISUF_ITOFF, ISUF_TOFF)
+  NDS32_ret,  //  98  ret (+ ISUF_ITOFF, ISUF_TOFF)
+  NDS32_jral,  //  99  jral (+ ISUF_ITON, ISUF_TON)
+  NDS32_jralnez,  // 100  jralnez
+  NDS32_jrnez,  // 101  jrnez
+
+  //=======================================================================
+  // OP6 0x26: BR1 - Branch (beq, bne)
+  //=======================================================================
+  NDS32_beq,  // 102  beq
+  NDS32_bne,  // 103  bne
+
+  //=======================================================================
+  // OP6 0x27: BR2 - Branch (beqz, bnez, bgez, bltz, bgtz, blez)
+  //=======================================================================
+  NDS32_beqz,  // 104  beqz
+  NDS32_bnez,  // 105  bnez
+  NDS32_bgez,  // 106  bgez
+  NDS32_bltz,  // 107  bltz
+  NDS32_bgtz,  // 108  bgtz
+  NDS32_blez,  // 109  blez
+  NDS32_bgezal,  // 110  bgezal
+  NDS32_bltzal,  // 111  bltzal
+  NDS32_mtlbi,  // 112  mtlbi (move to loop begin index)
+  NDS32_mtlei,  // 113  mtlei (move to loop end index)
+
+  //=======================================================================
+  // OP6 0x28-0x2C: Immediate ALU (ADDI, SUBRI, ANDI, XORI, ORI)
+  //=======================================================================
+  NDS32_addi,  // 114  addi
+  NDS32_subri,  // 115  subri
+  NDS32_andi,  // 116  andi
+  NDS32_xori,  // 117  xori
+  NDS32_ori,  // 118  ori
+  NDS32_subi,  // 119  subi (alias, not a real OP6)
+
+  //=======================================================================
+  // OP6 0x2D: BR3 - Compact branches (beqc, bnec)
+  //=======================================================================
+  NDS32_beqc,  // 120  beqc
+  NDS32_bnec,  // 121  bnec
+
+  //=======================================================================
+  // OP6 0x2E-0x2F: SLTI, SLTSI
+  //=======================================================================
+  NDS32_slti,  // 122  slti
+  NDS32_sltsi,  // 123  sltsi
+
+  //=======================================================================
+  // OP6 0x30: AEXT - Audio extension
+  //=======================================================================
+  NDS32_aaddl,  // 124  aaddl
+  NDS32_asubl,  // 125  asubl
+  NDS32_aaddla,  // 126  aaddla
+  NDS32_asubla,  // 127  asubla
+  NDS32_ala,  // 128  ala
+  NDS32_als,  // 129  als
+  NDS32_alr,  // 130  alr
+  NDS32_alr2,  // 131  alr2
+  NDS32_aupi,  // 132  aupi
+  NDS32_amfar,  // 133  amfar
+  NDS32_amfar2,  // 134  amfar2
+  NDS32_amtar,  // 135  amtar
+  NDS32_amtari,  // 136  amtari
+  NDS32_asats48,  // 137  asats48
+  NDS32_awext,  // 138  awext (+ ISUF_WORD for .w variant)
+  NDS32_amadd,  // 139  amadd
+  NDS32_amsub,  // 140  amsub
+  NDS32_amaddl,  // 141  amaddl (+ ISUF_SHORT, ISUF_LONG)
+  NDS32_amsubl,  // 142  amsubl (+ ISUF_SHORT, ISUF_LONG)
+  NDS32_amaddl2,  // 143  amaddl2 (+ ISUF_SHORT, ISUF_LONG)
+  NDS32_amsubl2,  // 144  amsubl2 (+ ISUF_SHORT, ISUF_LONG)
+  NDS32_amaddsa,  // 145  amaddsa
+  NDS32_amsubsa,  // 146  amsubsa
+  NDS32_azol,  // 147  azol
+  NDS32_amabbs,  // 148  amabbs
+  NDS32_amabts,  // 149  amabts
+  NDS32_amatbs,  // 150  amatbs
+  NDS32_amatts,  // 151  amatts
+  NDS32_amabbsl,  // 152  amabbsl (+ ISUF_SHORT)
+  NDS32_amabtsl,  // 153  amabtsl (+ ISUF_SHORT)
+  NDS32_amatbsl,  // 154  amatbsl (+ ISUF_SHORT)
+  NDS32_amattsl,  // 155  amattsl (+ ISUF_SHORT)
+  NDS32_amabbsl2,  // 156  amabbsl2 (+ ISUF_SHORT)
+  NDS32_amabtsl2,  // 157  amabtsl2 (+ ISUF_SHORT)
+  NDS32_amatbsl2,  // 158  amatbsl2 (+ ISUF_SHORT)
+  NDS32_amattsl2,  // 159  amattsl2 (+ ISUF_SHORT)
+  NDS32_amabbssa,  // 160  amabbssa
+  NDS32_amabtssa,  // 161  amabtssa
+  NDS32_amatbssa,  // 162  amatbssa
+  NDS32_amattssa,  // 163  amattssa
+  NDS32_amawbs,  // 164  amawbs
+  NDS32_amawts,  // 165  amawts
+  NDS32_amawbsl,  // 166  amawbsl (+ ISUF_SHORT)
+  NDS32_amawtsl,  // 167  amawtsl (+ ISUF_SHORT)
+  NDS32_amawbsl2,  // 168  amawbsl2 (+ ISUF_SHORT)
+  NDS32_amawtsl2,  // 169  amawtsl2 (+ ISUF_SHORT)
+  NDS32_amawbssa,  // 170  amawbssa
+  NDS32_amawtssa,  // 171  amawtssa
+  NDS32_amtbsl2,  // 172  amtbsl2 (+ ISUF_SHORT, ISUF_LONG)
+  NDS32_amttsl2,  // 173  amttsl2 (+ ISUF_SHORT, ISUF_LONG)
+  NDS32_aext,  // 174  Generic audio extension
+
+  //=======================================================================
+  // OP6 0x31: CEXT - Coprocessor extension
+  //=======================================================================
+  NDS32_cpe1,  // 175  cpe1 (coprocessor execute 1)
+  NDS32_cpe2,  // 176  cpe2 (coprocessor execute 2)
+  NDS32_cpe3,  // 177  cpe3 (coprocessor execute 3)
+  NDS32_cpe4,  // 178  cpe4 (coprocessor execute 4)
+  NDS32_cpld,  // 179  cpld (coprocessor load double)
+  NDS32_cpsd,  // 180  cpsd (coprocessor store double)
+  NDS32_cplw,  // 181  cplw (coprocessor load word)
+  NDS32_cpsw,  // 182  cpsw (coprocessor store word)
+  NDS32_cpldi,  // 183  cpldi (coprocessor load double immediate)
+  NDS32_cpsdi,  // 184  cpsdi (coprocessor store double immediate)
+  NDS32_cplwi,  // 185  cplwi (coprocessor load word immediate)
+  NDS32_cpswi,  // 186  cpswi (coprocessor store word immediate)
+  NDS32_mfcpd,  // 187  mfcpd (move from coprocessor double)
+  NDS32_mfcpw,  // 188  mfcpw (move from coprocessor word)
+  NDS32_mtcpd,  // 189  mtcpd (move to coprocessor double)
+  NDS32_mtcpw,  // 190  mtcpw (move to coprocessor word)
+
+  //=======================================================================
+  // OP6 0x32: MISC - Miscellaneous system instructions
+  //=======================================================================
+  NDS32_nop,  // 191  nop
+  NDS32_break,  // 192  break
+  NDS32_syscall,  // 193  syscall
+  NDS32_trap,  // 194  trap
+  NDS32_teqz,  // 195  teqz
+  NDS32_tnez,  // 196  tnez
+  NDS32_iret,  // 197  iret
+  NDS32_isync,  // 198  isync
+  NDS32_msync,  // 199  msync
+  NDS32_isb,  // 200  isb
+  NDS32_dsb,  // 201  dsb
+  NDS32_standby,  // 202  standby
+  NDS32_tlbop,  // 203  tlbop
+  NDS32_cctl,  // 204  cctl
+  NDS32_mfsr,  // 205  mfsr
+  NDS32_mtsr,  // 206  mtsr
+  NDS32_setend,  // 207  setend (+ ISUF_LITTLE, ISUF_BIG)
+  NDS32_setgie,  // 208  setgie (+ ISUF_DISABLE, ISUF_ENABLE)
+
+  //=======================================================================
+  // OP6 0x33: BITCI - Bit clear immediate
+  //=======================================================================
+  NDS32_bitci,  // 209  bitci
+
+  //=======================================================================
+  // OP6 0x35: COP - Coprocessor (FPU)
+  // Post-increment (.bi) suffix stored in insn_suffix (ISUF_BI)
+  // Exception (.e) and truncation (.z) suffixes stored in insn_suffix
+  //=======================================================================
+  // FPU single-precision
+  NDS32_fls,  // 210  fls (indexed)
+  NDS32_flsi,  // 211  flsi
+  NDS32_fss,  // 212  fss (indexed)
+  NDS32_fssi,  // 213  fssi
+  NDS32_fmfcfg,  // 214  fmfcfg
+  NDS32_fmfsr,  // 215  fmfsr
+  NDS32_fmtsr,  // 216  fmtsr
+  NDS32_fmfcsr,  // 217  fmfcsr
+  NDS32_fmtcsr,  // 218  fmtcsr
+  NDS32_fs2d,  // 219  fs2d
+  NDS32_fsqrts,  // 220  fsqrts
+  NDS32_fabss,  // 221  fabss
+  NDS32_fadds,  // 222  fadds
+  NDS32_fsubs,  // 223  fsubs
+  NDS32_fcpynss,  // 224  fcpynss
+  NDS32_fcpyss,  // 225  fcpyss
+  NDS32_fmadds,  // 226  fmadds
+  NDS32_fmsubs,  // 227  fmsubs
+  NDS32_fcmovns,  // 228  fcmovns
+  NDS32_fcmovzs,  // 229  fcmovzs
+  NDS32_fnmadds,  // 230  fnmadds
+  NDS32_fnmsubs,  // 231  fnmsubs
+  NDS32_fmuls,  // 232  fmuls
+  NDS32_fdivs,  // 233  fdivs
+  NDS32_fcmpeqs,  // 234  fcmpeqs (+ ISUF_EXCEPT)
+  NDS32_fcmplts,  // 235  fcmplts (+ ISUF_EXCEPT)
+  NDS32_fcmples,  // 236  fcmples (+ ISUF_EXCEPT)
+  NDS32_fcmpuns,  // 237  fcmpuns (+ ISUF_EXCEPT)
+  NDS32_fui2s,  // 238  fui2s
+  NDS32_fsi2s,  // 239  fsi2s
+  NDS32_fs2ui,  // 240  fs2ui (+ ISUF_TRUNC)
+  NDS32_fs2si,  // 241  fs2si (+ ISUF_TRUNC)
+  // FPU double-precision
+  NDS32_fld,  // 242  fld (indexed)
+  NDS32_fldi,  // 243  fldi
+  NDS32_fsd,  // 244  fsd (indexed)
+  NDS32_fsdi,  // 245  fsdi
+  NDS32_fmfdr,  // 246  fmfdr
+  NDS32_fmtdr,  // 247  fmtdr
+  NDS32_fd2s,  // 248  fd2s
+  NDS32_fsqrtd,  // 249  fsqrtd
+  NDS32_fabsd,  // 250  fabsd
+  NDS32_faddd,  // 251  faddd
+  NDS32_fsubd,  // 252  fsubd
+  NDS32_fcpynsd,  // 253  fcpynsd
+  NDS32_fcpysd,  // 254  fcpysd
+  NDS32_fmaddd,  // 255  fmaddd
+  NDS32_fmsubd,  // 256  fmsubd
+  NDS32_fcmovnd,  // 257  fcmovnd
+  NDS32_fcmovzd,  // 258  fcmovzd
+  NDS32_fnmaddd,  // 259  fnmaddd
+  NDS32_fnmsubd,  // 260  fnmsubd
+  NDS32_fmuld,  // 261  fmuld
+  NDS32_fdivd,  // 262  fdivd
+  NDS32_fcmpeqd,  // 263  fcmpeqd (+ ISUF_EXCEPT)
+  NDS32_fcmpltd,  // 264  fcmpltd (+ ISUF_EXCEPT)
+  NDS32_fcmpled,  // 265  fcmpled (+ ISUF_EXCEPT)
+  NDS32_fcmpund,  // 266  fcmpund (+ ISUF_EXCEPT)
+  NDS32_fui2d,  // 267  fui2d
+  NDS32_fsi2d,  // 268  fsi2d
+  NDS32_fd2ui,  // 269  fd2ui (+ ISUF_TRUNC)
+  NDS32_fd2si,  // 270  fd2si (+ ISUF_TRUNC)
+
+  //=======================================================================
+  // Performance extension (PERF1, PERF2)
+  //=======================================================================
+  NDS32_pbsad,  // 271  pbsad
+  NDS32_pbsada,  // 272  pbsada
+  NDS32_ffb,  // 273  ffb
+  NDS32_ffbi,  // 274  ffbi
+  NDS32_ffmism,  // 275  ffmism
+  NDS32_ffzmism,  // 276  ffzmism
+  NDS32_flmism,  // 277  flmism
+  NDS32_rdov,  // 278  rdov
+  NDS32_bitc,  // 279  bitc
+  NDS32_bse,  // 280  bse
+  NDS32_bsp,  // 281  bsp
+  NDS32_bfmi,  // 282  bfmi
+  NDS32_bfmil,  // 283  bfmil
+  NDS32_bfmsi,  // 284  bfmsi
+  NDS32_clips,  // 285  clips
+  NDS32_clip,  // 286  clip
+  NDS32_clo,  // 287  clo
+  NDS32_clz,  // 288  clz
+  NDS32_ave,  // 289  ave (+ ISUF_ROUND for .r variant)
+  NDS32_bclr,  // 290  bclr
+  NDS32_bset,  // 291  bset
+  NDS32_btgl,  // 292  btgl
+  NDS32_btst,  // 293  btst
+  NDS32_kadd,  // 294  kadd
+  NDS32_ksub,  // 295  ksub
+  NDS32_wext,  // 296  wext
+  NDS32_kslraw,  // 297  kslraw (+ ISUF_U for .u variant)
+  NDS32_rotrv,  // 298  rotrv
+  NDS32_sclip32,  // 299  sclip32
+  NDS32_uclip32,  // 300  uclip32
+  NDS32_kaddw,  // 301  kaddw
+  NDS32_ksubw,  // 302  ksubw
+  NDS32_kaddh,  // 303  kaddh
+  NDS32_ksubh,  // 304  ksubh
+  NDS32_max,  // 305  max
+  NDS32_min,  // 306  min
+  NDS32_abs,  // 307  abs
+  NDS32_isps,  // 308  isps
+  NDS32_bpick,  // 309  bpick
+  NDS32_add64,  // 310  add64
+  NDS32_sub64,  // 311  sub64
+
+  //=======================================================================
+  // DSP extension
+  //=======================================================================
+  NDS32_kdmbb,  // 312  kdmbb
+  NDS32_v_kdmbb,  // 313  v.kdmbb
+  NDS32_kdmbt,  // 314  kdmbt
+  NDS32_v_kdmbt,  // 315  v.kdmbt
+  NDS32_kdmtb,  // 316  kdmtb
+  NDS32_v_kdmtb,  // 317  v.kdmtb
+  NDS32_kdmtt,  // 318  kdmtt
+  NDS32_v_kdmtt,  // 319  v.kdmtt
+  NDS32_khmbb,  // 320  khmbb
+  NDS32_v_khmbb,  // 321  v.khmbb
+  NDS32_khmbt,  // 322  khmbt
+  NDS32_v_khmbt,  // 323  v.khmbt
+  NDS32_khmtb,  // 324  khmtb
+  NDS32_v_khmtb,  // 325  v.khmtb
+  NDS32_khmtt,  // 326  khmtt
+  NDS32_v_khmtt,  // 327  v.khmtt
+  NDS32_smar64,  // 328  smar64
+  NDS32_smsr64,  // 329  smsr64
+  NDS32_umar64,  // 330  umar64
+  NDS32_umsr64,  // 331  umsr64
+  NDS32_kmar64,  // 332  kmar64
+  NDS32_kmsr64,  // 333  kmsr64
+  NDS32_ukmar64,  // 334  ukmar64
+  NDS32_ukmsr64,  // 335  ukmsr64
+  NDS32_kmda,  // 336  kmda
+  NDS32_kmxda,  // 337  kmxda
+  NDS32_kmada,  // 338  kmada
+  NDS32_kmaxda,  // 339  kmaxda
+  NDS32_kmads,  // 340  kmads
+  NDS32_kmadrs,  // 341  kmadrs
+  NDS32_kmaxds,  // 342  kmaxds
+  NDS32_kmsda,  // 343  kmsda
+  NDS32_kmsxda,  // 344  kmsxda
+  NDS32_smal,  // 345  smal
+
+  //=======================================================================
+  // DSP extension - ALU2 Page 0 (64-bit arithmetic)
+  //=======================================================================
+  NDS32_radd64,                 // radd64  - halving add 64-bit
+  NDS32_rsub64,                 // rsub64  - halving sub 64-bit
+  NDS32_uradd64,                // uradd64 - unsigned halving add 64-bit
+  NDS32_ursub64,                // ursub64 - unsigned halving sub 64-bit
+  NDS32_kadd64,                 // kadd64  - saturating add 64-bit
+  NDS32_ksub64,                 // ksub64  - saturating sub 64-bit
+  NDS32_ukadd64,                // ukadd64 - unsigned saturating add 64-bit
+  NDS32_uksub64,                // uksub64 - unsigned saturating sub 64-bit
+
+  //=======================================================================
+  // DSP extension - ALU2 Page 1 (64-bit MAC, multiply)
+  //=======================================================================
+  NDS32_smalda,                 // smalda  - signed multiply two halfs add 64-bit
+  NDS32_smslda,                 // smslda  - signed multiply two halfs sub 64-bit
+  NDS32_smalds,                 // smalds  - signed multiply two halfs add 64-bit straight
+  NDS32_smalbb,                 // smalbb  - signed multiply bottom*bottom add 64-bit
+  NDS32_smalxda,                // smalxda - signed multiply two halfs crossed add 64-bit
+  NDS32_smslxda,                // smslxda - signed multiply two halfs crossed sub 64-bit
+  NDS32_smalxds,                // smalxds - signed multiply two halfs crossed add 64-bit straight
+  NDS32_smalbt,                 // smalbt  - signed multiply bottom*top add 64-bit
+  NDS32_smaldrs,                // smaldrs - signed multiply add 64-bit reverse straight
+  NDS32_smaltt,                 // smaltt  - signed multiply top*top add 64-bit
+  NDS32_smds,                   // smds    - signed multiply two halfs diff straight
+  NDS32_smxds,                  // smxds   - signed multiply two halfs crossed diff straight
+  NDS32_smdrs,                  // smdrs   - signed multiply diff reverse straight
+  NDS32_clrov,                  // clrov   - clear overflow flag
+
+  //=======================================================================
+  // DSP extension - ALU2 Page 2 (SIMD 16-bit/8-bit arithmetic)
+  //=======================================================================
+  NDS32_kadd16,                 // kadd16   - saturating add 16-bit
+  NDS32_ksub16,                 // ksub16   - saturating sub 16-bit
+  NDS32_kcras16,                // kcras16  - saturating cross add/sub 16-bit
+  NDS32_kcrsa16,                // kcrsa16  - saturating cross sub/add 16-bit
+  NDS32_kadd8,                  // kadd8    - saturating add 8-bit
+  NDS32_ksub8,                  // ksub8    - saturating sub 8-bit
+  NDS32_wexti,                  // wexti    - extract word immediate
+  NDS32_ukadd16,                // ukadd16  - unsigned saturating add 16-bit
+  NDS32_uksub16,                // uksub16  - unsigned saturating sub 16-bit
+  NDS32_ukcras16,               // ukcras16 - unsigned saturating cross add/sub 16-bit
+  NDS32_ukcrsa16,               // ukcrsa16 - unsigned saturating cross sub/add 16-bit
+  NDS32_ukadd8,                 // ukadd8   - unsigned saturating add 8-bit
+  NDS32_uksub8,                 // uksub8   - unsigned saturating sub 8-bit
+  NDS32_sunpkd810,              // sunpkd810 - signed unpack bytes to halfwords
+  NDS32_sunpkd820,              // sunpkd820 - signed unpack bytes to halfwords
+  NDS32_sunpkd830,              // sunpkd830 - signed unpack bytes to halfwords
+  NDS32_sunpkd831,              // sunpkd831 - signed unpack bytes to halfwords
+  NDS32_zunpkd810,              // zunpkd810 - zero-extend unpack bytes to halfwords
+  NDS32_zunpkd820,              // zunpkd820 - zero-extend unpack bytes to halfwords
+  NDS32_zunpkd830,              // zunpkd830 - zero-extend unpack bytes to halfwords
+  NDS32_zunpkd831,              // zunpkd831 - zero-extend unpack bytes to halfwords
+  NDS32_kabs16,                 // kabs16  - saturating absolute 16-bit
+  NDS32_kabs8,                  // kabs8   - saturating absolute 8-bit
+  NDS32_insb,                   // insb    - insert byte
+  NDS32_smbb,                   // smbb    - signed multiply bottom*bottom
+  NDS32_smbt,                   // smbt    - signed multiply bottom*top
+  NDS32_smtt,                   // smtt    - signed multiply top*top
+  NDS32_kmabb,                  // kmabb   - saturating multiply bottom*bottom add
+  NDS32_kmabt,                  // kmabt   - saturating multiply bottom*top add
+  NDS32_kmatt,                  // kmatt   - saturating multiply top*top add
+  NDS32_radd16,                 // radd16  - halving add 16-bit
+  NDS32_rsub16,                 // rsub16  - halving sub 16-bit
+  NDS32_rcras16,                // rcras16 - halving cross add/sub 16-bit
+  NDS32_rcrsa16,                // rcrsa16 - halving cross sub/add 16-bit
+  NDS32_radd8,                  // radd8   - halving add 8-bit
+  NDS32_rsub8,                  // rsub8   - halving sub 8-bit
+  NDS32_raddw,                  // raddw   - halving add word
+  NDS32_rsubw,                  // rsubw   - halving sub word
+  NDS32_uradd16,                // uradd16 - unsigned halving add 16-bit
+  NDS32_ursub16,                // ursub16 - unsigned halving sub 16-bit
+  NDS32_urcras16,               // urcras16- unsigned halving cross add/sub 16-bit
+  NDS32_urcrsa16,               // urcrsa16- unsigned halving cross sub/add 16-bit
+  NDS32_uradd8,                 // uradd8  - unsigned halving add 8-bit
+  NDS32_ursub8,                 // ursub8  - unsigned halving sub 8-bit
+  NDS32_uraddw,                 // uraddw  - unsigned halving add word
+  NDS32_ursubw,                 // ursubw  - unsigned halving sub word
+  NDS32_add16,                  // add16   - add 16-bit
+  NDS32_sub16,                  // sub16   - sub 16-bit
+  NDS32_cras16,                 // cras16  - cross add/sub 16-bit
+  NDS32_crsa16,                 // crsa16  - cross sub/add 16-bit
+  NDS32_add8,                   // add8    - add 8-bit
+  NDS32_sub8,                   // sub8    - sub 8-bit
+  NDS32_bitrev,                 // bitrev  - bit reverse
+  NDS32_bitrevi,                // bitrevi - bit reverse immediate
+  NDS32_smmul,                  // smmul   - signed most significant word multiply (+ ISUF_U)
+  NDS32_kmmac,                  // kmmac   - saturating most significant word MAC (+ ISUF_U)
+  NDS32_kmmsb,                  // kmmsb   - saturating most significant word MSB (+ ISUF_U)
+  NDS32_kwmmul,                 // kwmmul  - saturating word most significant word multiply (+ ISUF_U)
+  NDS32_khm16,                  // khm16   - signed half-word multiply
+  NDS32_khmx16,                 // khmx16  - signed half-word multiply crossed
+  NDS32_smul16,                 // smul16  - signed 16-bit multiply
+  NDS32_smulx16,                // smulx16 - signed 16-bit multiply crossed
+  NDS32_umul16,                 // umul16  - unsigned 16-bit multiply
+  NDS32_umulx16,                // umulx16 - unsigned 16-bit multiply crossed
+
+  //=======================================================================
+  // DSP extension - ALU2 Page 3 (SIMD shifts, compares)
+  //=======================================================================
+  NDS32_smmwb,                  // smmwb   - signed most significant word multiply bottom (+ ISUF_U)
+  NDS32_smmwt,                  // smmwt   - signed most significant word multiply top (+ ISUF_U)
+  NDS32_kmmawb,                 // kmmawb  - saturating MSW multiply-add bottom (+ ISUF_U)
+  NDS32_kmmawt,                 // kmmawt  - saturating MSW multiply-add top (+ ISUF_U)
+  NDS32_pktt16,                 // pktt16  - pack two top halfwords
+  NDS32_pktb16,                 // pktb16  - pack top and bottom halfword
+  NDS32_pkbt16,                 // pkbt16  - pack bottom and top halfword
+  NDS32_pkbb16,                 // pkbb16  - pack two bottom halfwords
+  NDS32_sclip16,                // sclip16 - signed clip 16-bit
+  NDS32_smax16,                 // smax16  - signed max 16-bit
+  NDS32_smax8,                  // smax8   - signed max 8-bit
+  NDS32_uclip16,                // uclip16 - unsigned clip 16-bit
+  NDS32_umax16,                 // umax16  - unsigned max 16-bit
+  NDS32_umax8,                  // umax8   - unsigned max 8-bit
+  NDS32_sra16,                  // sra16   - arithmetic shift right 16-bit (+ ISUF_U)
+  NDS32_srl16,                  // srl16   - logical shift right 16-bit (+ ISUF_U)
+  NDS32_sll16,                  // sll16   - logical shift left 16-bit
+  NDS32_kslra16,                // kslra16 - saturating shift left/right 16-bit (+ ISUF_U)
+  NDS32_srai16,                 // srai16  - arithmetic shift right immediate 16-bit (+ ISUF_U)
+  NDS32_srli16,                 // srli16  - logical shift right immediate 16-bit (+ ISUF_U)
+  NDS32_slli16,                 // slli16  - logical shift left immediate 16-bit
+  NDS32_kslli16,                // kslli16 - saturating shift left immediate 16-bit
+  NDS32_kslli,                  // kslli   - saturating shift left immediate
+  NDS32_cmpeq16,                // cmpeq16 - compare equal 16-bit
+  NDS32_scmplt16,               // scmplt16- signed compare less than 16-bit
+  NDS32_scmple16,               // scmple16- signed compare less or equal 16-bit
+  NDS32_smin16,                 // smin16  - signed min 16-bit
+  NDS32_cmpeq8,                 // cmpeq8  - compare equal 8-bit
+  NDS32_scmplt8,                // scmplt8 - signed compare less than 8-bit
+  NDS32_scmple8,                // scmple8 - signed compare less or equal 8-bit
+  NDS32_smin8,                  // smin8   - signed min 8-bit
+  NDS32_ucmplt16,               // ucmplt16- unsigned compare less than 16-bit
+  NDS32_ucmple16,               // ucmple16- unsigned compare less or equal 16-bit
+  NDS32_umin16,                 // umin16  - unsigned min 16-bit
+  NDS32_ucmplt8,                // ucmplt8 - unsigned compare less than 8-bit
+  NDS32_ucmple8,                // ucmple8 - unsigned compare less or equal 8-bit
+  NDS32_umin8,                  // umin8   - unsigned min 8-bit
+
+  //=======================================================================
+  // 16-bit compact instructions
+  // Encoding variants (333/45/55/37/38 formats) stored in auxpref
+  // Addressing mode suffixes (.sp, .pc) stored in insn_suffix
+  //
+  // Note: Many 16-bit instructions share itypes with 32-bit equivalents:
+  //   - addi with ENC_10 + ISUF_SP  -> addi10.sp
+  //   - add with ENC_5 + ISUF_PC    -> add5.pc
+  //   - mov with ENC_55             -> mov55
+  //   - mov with ENC_44             -> movd44 (but uses NDS32_movd for different semantics)
+  //=======================================================================
+  // 16-bit: Base mov instruction (55 format uses ENC_55 in auxpref)
+  NDS32_mov,  // 469  mov (uses ENC_55 for 16-bit)
+
+  // 16-bit: Instructions with unique 16-bit encodings or different semantics
+  NDS32_movpi,  // 470  movpi (uses ENC_45, adds +16 to immediate)
+  NDS32_xlsb,  // 471  xlsb (uses ENC_33 for xlsb33)
+  NDS32_x11b,  // 472  x11b (uses ENC_33 for x11b33)
+  NDS32_bmski,  // 473  bmski (uses ENC_33 for bmski33)
+  NDS32_fexti,  // 474  fexti (uses ENC_33 for fexti33)
+
+  // 16-bit: Branches (38, 8 format) - unique semantics (compare with $ta)
+  NDS32_beqs,  // 475  beqs - compare with $ta (uses ENC_38)
+  NDS32_bnes,  // 476  bnes - compare with $ta (uses ENC_38)
+  NDS32_beqzs,  // 477  beqzs - test $ta (uses ENC_8)
+  NDS32_bnezs,  // 478  bnezs - test $ta (uses ENC_8)
+
+  // 16-bit: Stack operations
+  // Note: addi10.sp uses NDS32_addi with ENC_10 + ISUF_SP
+  // Note: add5.pc uses NDS32_add with ENC_5 + ISUF_PC
+  NDS32_addri,  // 479  addri (uses ENC_36 + ISUF_SP for addri36.sp)
+  NDS32_push,  // 480  push (uses ENC_25 variant)
+  NDS32_pop,  // 481  pop (uses ENC_25 variant)
+  NDS32_pushe,  // 482  pushe (uses ENC_25 variant)
+  NDS32_pope,  // 483  pope (uses ENC_25 variant)
+  NDS32_movd,  // 484  movd (uses ENC_44 for movd44, moves register pair)
+
+  // 16-bit: Special
+  // Note: 16-bit nop (0x0092) uses NDS32_nop with ENC_16 encoding variant
+  // Note: 16-bit break (0xea/0xeb) uses NDS32_break with ENC_16 encoding variant
+  // Note: 16-bit break v3 uses NDS32_break with ENC_16V3 encoding variant
+  NDS32_ifcall,  // 485  ifcall (ENC_9 for 16-bit variant)
+  NDS32_ifret,  // 486  ifret (ENC_16 for 16-bit variant)
+  NDS32_ex,  // 487  ex (uses ENC_9 + ISUF_IT for ex9.it)
+
+  //=======================================================================
+  // Pseudo-instructions and aliases
+  //=======================================================================
+  NDS32_add_slli,  // 488  add_slli
+  NDS32_sub_slli,  // 489  sub_slli
+  NDS32_and_slli,  // 490  and_slli
+  NDS32_xor_slli,  // 491  xor_slli
+  NDS32_or_slli,  // 492  or_slli
+  NDS32_add_srli,  // 493  add_srli
+  NDS32_sub_srli,  // 494  sub_srli
+  NDS32_and_srli,  // 495  and_srli
+  NDS32_xor_srli,  // 496  xor_srli
+  NDS32_or_srli,  // 497  or_srli
+
+  NDS32_last,  // 498
+};
+
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+/*
  *      Tricore Disassembly Module
  *      Version 1.0
  *      Copyright (c) 2000 by Juergen Krumm
@@ -19572,7 +20263,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -19954,7 +20645,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -22960,7 +23651,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      Risc-V module
@@ -23535,6 +24226,51 @@ enum
 
   // Pseudo-instruction containing info about unimplemented instructions, such as length
   RISCV_unk,     // Unsupported instruction
+
+  // Andes Performance Extension (XAndesPerf)
+  // Reference: AndeStar V5 Instruction Extension Specification
+  //            Document UM165-155, Version 1.5.8 (2025-03-17)
+  //            https://github.com/andestech/nds-gnu-toolchain
+  //
+  // GP-relative instructions (opcodes 0x0b, 0x2b)
+  // Use GP as implicit base register with large immediate offsets
+  RISCV_ndslbgp,        // lbgp rd, imm       - Rd = SE(MEM[GP + SE(imm[17:0])])
+  RISCV_ndslbugp,       // lbugp rd, imm      - Rd = ZE(MEM[GP + SE(imm[17:0])])
+  RISCV_ndslhgp,        // lhgp rd, imm       - Rd = SE(MEM[GP + SE(imm[17:1]<<1)])
+  RISCV_ndslhugp,       // lhugp rd, imm      - Rd = ZE(MEM[GP + SE(imm[17:1]<<1)])
+  RISCV_ndslwgp,        // lwgp rd, imm       - Rd = SE(MEM[GP + SE(imm[18:2]<<2)])
+  RISCV_ndslwugp,       // lwugp rd, imm      - Rd = ZE(MEM[GP + SE(imm[18:2]<<2)]) (RV64)
+  RISCV_ndsldgp,        // ldgp rd, imm       - Rd = MEM[GP + SE(imm[19:3]<<3)] (RV64)
+  RISCV_ndssbgp,        // sbgp rs2, imm      - MEM[GP + SE(imm[17:0])] = Rs2[7:0]
+  RISCV_ndsshgp,        // shgp rs2, imm      - MEM[GP + SE(imm[17:1]<<1)] = Rs2[15:0]
+  RISCV_ndsswgp,        // swgp rs2, imm      - MEM[GP + SE(imm[18:2]<<2)] = Rs2[31:0]
+  RISCV_ndssdgp,        // sdgp rs2, imm      - MEM[GP + SE(imm[19:3]<<3)] = Rs2 (RV64)
+  RISCV_ndsaddigp,      // addigp rd, imm     - Rd = GP + SE(imm[17:0])
+  // Bit field operations (opcode 0x5b, funct3=0)
+  RISCV_ndsbfoz,        // bfoz rd, rs1, msb, lsb - Rd = ZE(Rs1[msb:lsb])
+  RISCV_ndsbfos,        // bfos rd, rs1, msb, lsb - Rd = SE(Rs1[msb:lsb])
+  // Branch on bit test (opcode 0x5b, funct3=6/7)
+  RISCV_ndsbbc,         // bbc rs1, cimm, imm  - if (Rs1[cimm] == 0) PC += SE(imm)
+  RISCV_ndsbbs,         // bbs rs1, cimm, imm  - if (Rs1[cimm] != 0) PC += SE(imm)
+  // Branch on constant comparison (opcode 0x5b, funct3=4/5)
+  RISCV_ndsbeqc,        // beqc rs1, cimm, imm - if (Rs1 == ZE(cimm)) PC += SE(imm)
+  RISCV_ndsbnec,        // bnec rs1, cimm, imm - if (Rs1 != ZE(cimm)) PC += SE(imm)
+  // Load effective address (opcode 0x5b, funct3=0, funct7=0x04-0x0B)
+  // Compute address with scaled index: Rd = Rs1 + Rs2 * scale
+  RISCV_ndsleah,        // lea.h rd, rs1, rs2  - Rd = Rs1 + Rs2*2
+  RISCV_ndsleaw,        // lea.w rd, rs1, rs2  - Rd = Rs1 + Rs2*4
+  RISCV_ndslead,        // lea.d rd, rs1, rs2  - Rd = Rs1 + Rs2*8
+  // LEA with unsigned 32-bit index (RV64 only)
+  RISCV_ndsleabze,      // lea.b.ze rd, rs1, rs2 - Rd = Rs1 + ZE32(Rs2[31:0]) (RV64)
+  RISCV_ndsleahze,      // lea.h.ze rd, rs1, rs2 - Rd = Rs1 + ZE32(Rs2[31:0])*2 (RV64)
+  RISCV_ndsleawze,      // lea.w.ze rd, rs1, rs2 - Rd = Rs1 + ZE32(Rs2[31:0])*4 (RV64)
+  RISCV_ndsleadze,      // lea.d.ze rd, rs1, rs2 - Rd = Rs1 + ZE32(Rs2[31:0])*8 (RV64)
+  // String processing (opcode 0x5b, funct3=0, funct7=0x10-0x13)
+  // Find byte position within a register pair (for strcmp/strlen optimization)
+  RISCV_ndsffb,         // ffb rd, rs1, rs2    - Find first matching byte position
+  RISCV_ndsffmism,      // ffmism rd, rs1, rs2 - Find first mismatching byte position
+  RISCV_ndsffzmism,     // ffzmism rd, rs1, rs2 - Find first zero or mismatch position
+  RISCV_ndsflmism,      // flmism rd, rs1, rs2 - Find last mismatching byte position
 
   RISCV_last
 };

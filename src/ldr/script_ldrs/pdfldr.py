@@ -3,7 +3,7 @@ A script that extracts shellcode from PDF files
 
 The script uses very basic shellcode extraction algorithm
 
-Copyright (c) 1990-2025 Hex-Rays
+Copyright (c) 1990-2026 Hex-Rays
 ALL RIGHTS RESERVED.
 
 Revision history

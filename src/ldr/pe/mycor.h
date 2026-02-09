@@ -339,6 +339,7 @@ inline HRESULT VariantClear(VARIANTARG *pVar)
 #define CLITAG_CUSTATTRS   'K'
 #define CLITAG_MODULEREFS  'L'
 #define CLITAG_MEMBERREFS  'M'  // 'N' shouldn't be used (as well as 'V')
+#define CLITAG_METHODSPECS 'O'
 
 
 struct param_info_t      // +name +value
@@ -429,6 +430,11 @@ struct typespec_info_t   // +sig
 {
 };
 
+struct methodspec_info_t // +sig
+{
+  mdToken parent;
+};
+
 struct userstring_info_t // +name
 {
 };
@@ -501,6 +507,7 @@ void setblob(ea_t idx, const void *body, int size, char tag);
 void save_name(ea_t idx, const qstring &name);
 qstring retrieve_name(ea_t idx);
 uint32 get_constant_element_type_raw_size(CorElementType type, uint32 chars);
+ea_t get_cli_imagebase(void);
 
 bool load_metadata(const void *metadata, size_t metasize);
 

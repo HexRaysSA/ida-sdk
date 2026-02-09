@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA)
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  */
 
@@ -2085,6 +2085,7 @@ enum sclass_t    ///< storage class
                                        ///< strictly speaking it is not a valid C++ code,
                                        ///< IDA Pro specific
 #define HTI_VOID_OK     0x00800000     ///< accept void as a standalone type
+#define HTI_NO_MANGLE   0x01000000     ///< don't mangle name (see \ref HTI_NDC)
 ///@}
 
 
@@ -2166,22 +2167,23 @@ idaman bool ida_export parse_decl(
 
 /// \defgroup PT_ Type parsing flags
 ///@{
-#define PT_SIL       0x0001  ///< silent, no messages
-#define PT_NDC       0x0002  ///< don't decorate names
-#define PT_TYP       0x0004  ///< return declared type information
-#define PT_VAR       0x0008  ///< return declared object information
-#define PT_PACKMASK  0x0070  ///< mask for pack alignment values
-#define PT_HIGH      0x0080  ///< assume high level prototypes
-                             ///< (with hidden args, etc)
-#define PT_LOWER     0x0100  ///< lower the function prototypes
-#define PT_REPLACE   0x0200  ///< replace the old type (used in idc)
-#define PT_RAWARGS   0x0400  ///< leave argument names unchanged (do not remove underscores)
-#define PT_RELAXED   0x1000  ///< accept references to unknown namespaces
-#define PT_EMPTY     0x2000  ///< accept empty decl
-#define PT_SEMICOLON 0x4000  ///< append the terminating semicolon
-#define PT_SYMBOL    0x8000  ///< accept a symbol name and return its type.
-                             ///< e.g. "LoadLibrary" will return its prototype
-#define PT_VOID_OK  0x10000  ///< accept void as a standalone type
+#define PT_SIL         0x00000001  ///< silent, no messages
+#define PT_NDC         0x00000002  ///< don't decorate names
+#define PT_TYP         0x00000004  ///< return declared type information
+#define PT_VAR         0x00000008  ///< return declared object information
+#define PT_PACKMASK    0x00000070  ///< mask for pack alignment values
+#define PT_HIGH        0x00000080  ///< assume high level prototypes
+                                   ///< (with hidden args, etc)
+#define PT_LOWER       0x00000100  ///< lower the function prototypes
+#define PT_REPLACE     0x00000200  ///< replace the old type (used in idc)
+#define PT_RAWARGS     0x00000400  ///< leave argument names unchanged (do not remove underscores)
+#define PT_RELAXED     0x00001000  ///< accept references to unknown namespaces
+#define PT_EMPTY       0x00002000  ///< accept empty decl
+#define PT_SEMICOLON   0x00004000  ///< append the terminating semicolon
+#define PT_SYMBOL      0x00008000  ///< accept a symbol name and return its type.
+                                   ///< e.g. "LoadLibrary" will return its prototype
+#define PT_VOID_OK     0x00010000  ///< accept void as a standalone type
+#define PT_NO_MANGLE   0x00020000  ///< don't mangle name (see \ref PT_NDC)
 ///@}
 
 

@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -1412,6 +1412,10 @@ struct reglist_base_t
   bool has(int regnum) const { return (regs & _encode(regnum)) != 0; }
   bool has_any(const reglist_base_t &r) const { return (regs & r.regs) != 0; }
   bool contains(const reglist_base_t &r) const { return (r.regs & ~regs) == 0; }
+  DECLARE_COMPARISONS(reglist_base_t)
+  {
+    return ::compare(regs, r.regs);
+  }
   // FUNC can return a non-zero code to immediately exit the loop
   int for_each(std::function<int(int)> func) const
   {

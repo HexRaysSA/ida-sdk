@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -59,6 +59,8 @@ reg_value_info_t nec850_reg_finder_t::handle_well_known_regs(
     return rvi_t::make_num(_pm.g_gp_ea, ea, reg_value_def_t::LIKE_GOT);
   if ( op.is_reg(rTP) && _pm.g_tp_ea != BADADDR )
     return rvi_t::make_num(_pm.g_tp_ea, ea);
+  if ( op.is_reg(rEP) && _pm.g_ep_ea != BADADDR )
+    return rvi_t::make_num(_pm.g_ep_ea, ea);
   return rvi_t();
 }
 
@@ -161,6 +163,24 @@ bool nec850_reg_finder_t::emulate_insn(
       value->set_num(insn.Op1.value, insn);
       return true;
     case NEC850_MOVEA:
+      if ( only_linear_flow()
+        && insn.Op1.type == o_imm
+        && is_off0(get_flags32(insn.ea)) )
+      {
+        // try to use the offset target (only if called from is_call_insn())
+        refinfo_t ri;
+        if ( get_item_refinfo(&ri, insn.ea, 0) )
+        {
+          sval_t v = _pm.ea2sval(insn.Op1.value);
+          ea_t target;
+          if ( calc_reference_data(&target, nullptr, insn.ea, ri, v) )
+          {
+            value->set_num(target, insn);
+            return true;
+          }
+        }
+      }
+      [[fallthrough]];
     case NEC850_ADDI:
     case NEC850_ADD:
     case NEC850_SUB:

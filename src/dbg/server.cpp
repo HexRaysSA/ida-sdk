@@ -236,7 +236,7 @@ int NT_CDECL main(int argc, const char *argv[])
 #endif
 
   lprintf("IDA " SYSTEM SYSBITS " remote debug server(" __SERVER_TYPE__ ") "
-          "v%d.%d.%d. Hex-Rays (c) 2004-2025\n",
+          "v%d.%d.%d. Hex-Rays (c) 2004-2026\n",
            ida_major, ida_minor, IDD_INTERFACE_VERSION);
 
   dispatcher.broken_conns_supported = debmod_t::reuse_broken_connections;

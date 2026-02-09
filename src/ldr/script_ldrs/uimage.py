@@ -1,5 +1,5 @@
 # a file loader for U-Boot "uImage" flash images
-# Copyright (c) 2011-2025 Hex-Rays
+# Copyright (c) 2011-2026 Hex-Rays
 # ALL RIGHTS RESERVED.
 
 import idaapi

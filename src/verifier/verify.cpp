@@ -1,6 +1,6 @@
 /*
  *      Decompiler project
- *      Copyright (c) 2005-2025 Hex-Rays SA <support@hex-rays.com>
+ *      Copyright (c) 2005-2026 Hex-Rays SA <support@hex-rays.com>
  *      ALL RIGHTS RESERVED.
  *
  *      Verify microcode consistency
@@ -171,7 +171,7 @@ void mcases_t::verify(const micro_verifier_t &mv) const
 }
 
 //-------------------------------------------------------------------------
-inline bool valid_pair_part(mopt_t t)
+constexpr bool valid_pair_part(mopt_t t)
 {
   switch ( t )
   {
@@ -217,11 +217,12 @@ void mop_t::verify(micro_verifier_t &mv, int flags) const
       // propagated insn destination must have a valid size
       if ( (flags & VMOP_PROPDST) != 0 )
         break;
-       // no break
+      [[fallthrough]];
     case mop_b:           // basic blocks have no size
     case mop_c:           // cases have no size
       if ( size != NOSIZE )
         mv.MINSN_INTERR(50754); // meaningless 'size' value
+      [[fallthrough]];
     case mop_h:           // helper functions have no size
       break;
     case mop_str:
@@ -676,9 +677,6 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
       mv.MINSN_INTERR(50804); // wrong instruction opcode
   }
 
-  if ( !with_target && (next != nullptr || prev != nullptr) )
-    mv.MINSN_INTERR(50805); // subinstructions must not have prev or next fields
-
   // check operand presence
   switch ( opcode )
   {
@@ -889,7 +887,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_fdiv:
       if ( r.size != d.size )
         mv.MINSN_INTERR(50830); // wrong operand sizes
-      // no break
+      [[fallthrough]];
     case m_jnz:
     case m_jz:
     case m_jae:
@@ -919,7 +917,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_seto:
       if ( l.size != r.size )
         mv.MINSN_INTERR(50832); // wrong operand sizes
-      // no break
+      [[fallthrough]];
     case m_sets:
       if ( d.size != 1 )
         mv.MINSN_INTERR(50833); // wrong operand size
@@ -940,7 +938,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
         if ( shm != 0 && uint8(r.nnn->value) > shm )
           mv.MINSN_INTERR(52118); // wrong shift value
       }
-      // no break
+      [[fallthrough]];
     case m_ldc:
     case m_mov:
     case m_neg:
@@ -1120,7 +1118,7 @@ void mblock_t::verify(micro_verifier_t &mv) const
         // passes execution to another function?
         if ( is_call_block() )
         {
-          if ( tail->is_noret_call(hv.mvm, NORET_FORBID_ANALYSIS) ) // -V595 tail is used before verifying against nullptr
+          if ( tail != nullptr && tail->is_noret_call(hv.mvm, NORET_FORBID_ANALYSIS) )
             mv.MBLOCK_INTERR(51774);    // should be BLT_0WAY
           if ( nsucc() == 0 || succ(0) != serial+1 )
             mv.MBLOCK_INTERR(50854); // 1-way call block must pass execution to the next block
@@ -1319,12 +1317,14 @@ void mblock_t::verify(micro_verifier_t &mv) const
     ea_t sp = mba->spbase;
     mlist_t invisible_mem(ivl_t(sp, mba->main_subframe().bottom));
     const subframe_t &sf = mba->subframes[subframe_idx];
-    if ( (flags & MBL_EXTFRAME) != 0 )
+    if ( mba->has_extra_subframes() )
     {
-      // extend acceptable stack by one slot if there is a 'push' in the block:
-      // just in case the 'push' instruction is the last one in the function
-      // chunk. Later convert_pushes() will check this situation more carefully
-      sval_t delta = (flags & MBL_PUSH) != 0 ? mba->slotsize() : 0;
+      // extend acceptable stack by one slot for 'push' instructions that may
+      // access memory below the subframe bottom. convert_pushes() rejects such
+      // functions with MERR_BADSP, but only for negative spoff; we relax the
+      // verification here rather than add a check against subframe bottom there
+      sval_t spwidth = mba->slotsize();
+      sval_t delta = qmin(spwidth, sp+sf.bottom);
       invisible_mem.mem.sub(sp+sf.bottom-delta, sf.size+delta);
     }
     if ( invisible_mem.mem.has_common(mustbuse.mem) )
@@ -1511,7 +1511,7 @@ void mba_t::verify_lvars(micro_verifier_t &mv, bool check_args) const
     if ( v.type().get_size() != v.width )
     {
       if ( !v.is_unpadded() )
-        mv.LVAR_INTERR(50898); // variable type and size mistmatch
+        mv.LVAR_INTERR(50898); // variable type and size mismatch
       if ( v.width != v.type().get_unpadded_size() )
         mv.LVAR_INTERR(51926); // variable type and size mismatch even when taking into account the padding
     }
@@ -1572,8 +1572,6 @@ void mba_t::verify(bool always) const
   if ( cnt != qty )
     INTERR(50880); // inconsistent list of basic blocks
 
-  if ( flags & 0x80000000 )
-    INTERR(51685); // reserved mba_t::flags bit is set
   if ( flags2 & ~MBA2_ALL_FLAGS )
     INTERR(50881); // reserved mba_t::flags2 bit is set
 

@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2025 Hex-Rays
+ *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -1174,6 +1174,7 @@ inline void del_ret_target(ea_t ea) { return pc_module_t::del_ret_target(ea); }
 #define _PT_p4          0x00010000      // Pentium 4
 #define _PT_sse3        0x00020000      // SSE3 + SSSE3
 #define _PT_sse4        0x00040000      // SSE4.1 + SSE4.2
+#define _PT_padlock     0x00080000      // PadLock VIA vendor extensions
 
 //
 //   The following values mean 'is XXX processor or better?'
@@ -1192,6 +1193,7 @@ inline void del_ret_target(ea_t ea) { return pc_module_t::del_ret_target(ea); }
 #define PT_686r         ( PT_686p | _PT_686r )
 #define PT_586p         ( PT_686r | _PT_586p )
 #define PT_586r         ( PT_586p | _PT_586r )
+#define PT_padlock       _PT_padlock
 #define PT_486p         ( PT_586r | _PT_486p )
 #define PT_486r         ( PT_486p | _PT_486r )
 #define PT_386p         ( PT_486r | _PT_386p )
