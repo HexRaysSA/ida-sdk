@@ -250,9 +250,6 @@ endif
 #----------------------------------------------------------------------
 # Do not change the order if doesn't wan to update api_contents
 MODULES_NAMES += hexrays
-MODULES_NAMES += hexrays_defs
-MODULES_NAMES += hexrays_micro
-MODULES_NAMES += hexrays_ctree
 MODULES_NAMES += allins
 MODULES_NAMES += auto
 MODULES_NAMES += bitrange
@@ -608,8 +605,8 @@ $(ST_PYW)/py_kernwin_viewhooks.hpp: pywraps/py_kernwin_viewhooks.hpp \
                 -x $(ST_PARSED_HEADERS) \
                 -q "view_notification_t::" \
                 -m hookgenVIEW
-$(ST_PYW)/py_hexrays_ctree_hooks.hpp: pywraps/py_hexrays_ctree_hooks.hpp \
-        $(I)/hexrays_ctree.hpp \
+$(ST_PYW)/py_hexrays_hooks.hpp: pywraps/py_hexrays_hooks.hpp \
+        $(I)/hexrays.hpp \
         $(GENHOOKS)recipe_hexrays.py \
         $(GENHOOKS)genhooks.py $(PARSED_HEADERS_MARKER) $(MAKEFILE_DEP) | $(SDK_SOURCES)
 	$(QGENHOOKS)$(PYTHONCMD) $(GENHOOKS)genhooks.py -i $< -o $@ \
@@ -681,10 +678,7 @@ SWIG_IFACE_frame=range
 SWIG_IFACE_funcs=range
 SWIG_IFACE_gdl=range
 SWIG_IFACE_graph=gdl
-SWIG_IFACE_hexrays=hexrays_micro hexrays_defs hexrays_ctree
-SWIG_IFACE_hexrays_defs=pro typeinf xref gdl
-SWIG_IFACE_hexrays_micro=pro typeinf xref gdl hexrays_defs
-SWIG_IFACE_hexrays_ctree=pro typeinf xref gdl hexrays_defs hexrays_micro
+SWIG_IFACE_hexrays=pro typeinf xref gdl
 SWIG_IFACE_idd=range
 SWIG_IFACE_idp=bitrange
 SWIG_IFACE_segment=range
@@ -693,7 +687,7 @@ SWIG_IFACE_typeinf=idp
 SWIG_IFACE_tryblks=range
 
 MODULE_LIFECYCLE_bytes=--lifecycle-aware
-MODULE_LIFECYCLE_hexrays_ctree=--lifecycle-aware
+MODULE_LIFECYCLE_hexrays=--lifecycle-aware
 MODULE_LIFECYCLE_idaapi=--lifecycle-aware
 MODULE_LIFECYCLE_kernwin=--lifecycle-aware
 MODULE_LIFECYCLE_typeinf=--lifecycle-aware
@@ -1095,27 +1089,29 @@ $(F)idapyswitch$(O): $(I)auto.hpp $(I)bitrange.hpp $(I)bytes.hpp            \
 $(F)idapython$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp            \
                   $(I)diskio.hpp $(I)err.h $(I)expr.hpp $(I)fpro.h          \
                   $(I)funcs.hpp $(I)gdl.hpp $(I)graph.hpp $(I)hexrays.hpp   \
-                  $(I)hexrays_ctree.hpp $(I)hexrays_defs.hpp                \
-                  $(I)hexrays_micro.hpp $(I)ida.hpp                         \
-                  $(I)ida_highlighter.hpp $(I)idd.hpp $(I)idp.hpp           \
-                  $(I)ieee.h $(I)kernwin.hpp $(I)lex.hpp $(I)lines.hpp      \
-                  $(I)llong.hpp $(I)loader.hpp $(I)make_script_ns.hpp       \
-                  $(I)nalt.hpp $(I)name.hpp $(I)netnode.hpp                 \
-                  $(I)parsejson.hpp $(I)pro.h $(I)range.hpp                 \
+                  $(I)ida.hpp $(I)ida_highlighter.hpp $(I)idd.hpp           \
+                  $(I)idp.hpp $(I)ieee.h $(I)kernwin.hpp $(I)lex.hpp        \
+                  $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp                \
+                  $(I)make_script_ns.hpp $(I)nalt.hpp $(I)name.hpp          \
+                  $(I)netnode.hpp $(I)parsejson.hpp $(I)pro.h               \
+                  $(I)qalloc_shim.hpp $(I)qallocator.hpp                    \
+                  $(I)qida_alloc_shim.hpp $(I)qiterator.hpp $(I)qmap.hpp    \
+                  $(I)qpair.hpp $(I)qset.hpp $(I)qtree.hpp $(I)range.hpp    \
                   $(I)registry.hpp $(I)segment.hpp $(I)typeinf.hpp          \
                   $(I)ua.hpp $(I)xref.hpp extapi.cpp extapi.hpp             \
                   idapython.cpp py-include/Python_dynload.h                 \
                   py-include/Python_types.h pywraps.cpp pywraps.hpp
 $(F)test_pywraps$(O): $(I)bitrange.hpp $(I)bytes.hpp $(I)config.hpp         \
                   $(I)err.h $(I)expr.hpp $(I)fpro.h $(I)funcs.hpp           \
-                  $(I)gdl.hpp $(I)graph.hpp $(I)hexrays.hpp                 \
-                  $(I)hexrays_ctree.hpp $(I)hexrays_defs.hpp                \
-                  $(I)hexrays_micro.hpp $(I)ida.hpp $(I)idd.hpp             \
-                  $(I)idp.hpp $(I)ieee.h $(I)kernwin.hpp $(I)lex.hpp        \
-                  $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp $(I)nalt.hpp   \
-                  $(I)name.hpp $(I)netnode.hpp $(I)parsejson.hpp $(I)pro.h  \
-                  $(I)range.hpp $(I)registry.hpp $(I)segment.hpp            \
-                  $(I)typeinf.hpp $(I)ua.hpp $(I)xref.hpp extapi.cpp        \
-                  extapi.hpp py-include/Python_dynload.h                    \
-                  py-include/Python_types.h pywraps.cpp pywraps.hpp         \
-                  test_pywraps.cpp
+                  $(I)gdl.hpp $(I)graph.hpp $(I)hexrays.hpp $(I)ida.hpp     \
+                  $(I)idd.hpp $(I)idp.hpp $(I)ieee.h $(I)kernwin.hpp        \
+                  $(I)lex.hpp $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp    \
+                  $(I)nalt.hpp $(I)name.hpp $(I)netnode.hpp                 \
+                  $(I)parsejson.hpp $(I)pro.h $(I)qalloc_shim.hpp           \
+                  $(I)qallocator.hpp $(I)qida_alloc_shim.hpp                \
+                  $(I)qiterator.hpp $(I)qmap.hpp $(I)qpair.hpp              \
+                  $(I)qset.hpp $(I)qtree.hpp $(I)range.hpp                  \
+                  $(I)registry.hpp $(I)segment.hpp $(I)typeinf.hpp          \
+                  $(I)ua.hpp $(I)xref.hpp extapi.cpp extapi.hpp             \
+                  py-include/Python_dynload.h py-include/Python_types.h     \
+                  pywraps.cpp pywraps.hpp test_pywraps.cpp

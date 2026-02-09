@@ -439,7 +439,7 @@ def IDAPython_FormatExc(etype, value=None, tb=None, limit=None):
 
 
 # ------------------------------------------------------------
-def IDAPython_ExecScript(path, g, print_error=True):
+def IDAPython_ExecScript(path, g, print_error=True, script_args=None):
     """
     Run the specified script.
 
@@ -450,7 +450,10 @@ def IDAPython_ExecScript(path, g, print_error=True):
         sys.path.append(path_dir)
 
     argv = sys.argv
-    sys.argv = [path]
+    if script_args:
+        sys.argv = [path] + list(script_args)
+    else:
+        sys.argv = [path]
 
     # Adjust the __file__ path in the globals we pass to the script
     FILE_ATTR = "__file__"

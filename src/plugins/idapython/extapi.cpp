@@ -257,7 +257,7 @@ bool ext_api_t::load(qstring *errbuf)
   if ( !locate_libpython(errbuf) )
     return false;
 
-  QASSERT(0, lib_handle != nullptr);
+  QASSERT(30837, lib_handle != nullptr);
 
 #ifdef __NT__
 #define BIND_SYMBOL_x(Name_str, Name_t, Name_ptr, fail)                 \

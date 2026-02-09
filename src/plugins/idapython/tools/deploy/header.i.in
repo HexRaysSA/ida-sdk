@@ -309,10 +309,7 @@ class QLIST_TYPE##_iterator {};
 %enddef
 
 
-# if (defined(IDAPYTHON_MODULE_hexrays) \
-      || defined(IDAPYTHON_MODULE_hexrays_ctree) \
-      || defined(IDAPYTHON_MODULE_hexrays_defs) \
-      || defined(IDAPYTHON_MODULE_hexrays_micro))
+# if defined(IDAPYTHON_MODULE_hexrays)
 %define %ida_hexrays_wrapper_exception_catch()
     catch ( const vd_failure_t &e ) { __raise_vdf(e); SWIG_fail; }
 %enddef

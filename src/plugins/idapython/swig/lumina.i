@@ -90,22 +90,24 @@
 %uncomparable_elements_qvector(extra_cmt_t, extra_cmts_t);
 %uncomparable_elements_qvector(skipped_func_t, skipped_funcs_t);
 %uncomparable_elements_qvector(insn_ops_repr_t, insn_ops_reprs_t);
+%uncomparable_elements_qvector(pattern_id_t, pattern_ids_t);
+%uncomparable_elements_qvector(pop_fun_t, pop_fun_vec_t);
+%template(mdkey_vec_t) qvector<mdkey_t>;
 
 //-------------------------------------------------------------------------
 //                            metadata_t blob
 //-------------------------------------------------------------------------
 %typemap(in) (const uchar *ptr, const uchar *end) // for _wrap_extract_..._from_metadata
 {
+  // %typemap(in) (const uchar *ptr, const uchar *end)
   if ( !PyBytes_Check($input) )
     SWIG_exception_fail(SWIG_TypeError, "Expected bytes in method '$symname', argument $argnum of type 'bytes'");
-  bytevec_t bytes;
   char *buffer = nullptr;
   Py_ssize_t length = 0;
-  if ( PyBytes_AsStringAndSize($input, &buffer, &length) )
+  if ( PyBytes_AsStringAndSize($input, &buffer, &length) == 0 )
   {
-    bytes.append(buffer, length);
-    $1 = bytes.begin();
-    $2 = bytes.end();
+    $1 = (uchar *) buffer;
+    $2 = (uchar *) buffer + length;
     QASSERT(30575, $2 >= $1);
   }
 }

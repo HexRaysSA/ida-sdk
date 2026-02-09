@@ -52,6 +52,8 @@ struct dirspec_t;
 %ignore vask_text;
 %ignore ask_text;
 %ignore vwarning;
+%ignore builtin_widget_mask_from_id;
+
 // Note: don't do that for ask_form(), since that calls back into Python.
 %modal_dialog_triggering_function(ask_addr);
 %modal_dialog_triggering_function(ask_seg);

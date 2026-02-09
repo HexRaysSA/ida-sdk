@@ -596,10 +596,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             def recurse(node):
                 for value in node.values:
-                    if isinstance(value, ast.Str):
-                        # Double up braces to escape them.
-                        self.write(value.s.replace('{', '{{').replace('}', '}}'))
-                    elif isinstance(value, ast.FormattedValue):
+                    if isinstance(value, ast.FormattedValue):
                         with self.delimit('{}'):
                             # expr_text used for f-string debugging syntax.
                             if getattr(value, 'expr_text', None):
@@ -613,7 +610,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 self.write(':')
                                 recurse(value.format_spec)
                     elif has_ast_constant and isinstance(value, ast.Constant):
-                        self.write(value.value)
+                        if isinstance(value.value, str):
+                            # Double up braces to escape them.
+                            self.write(value.value.replace('{', '{{').replace('}', '}}'))
+                        else:
+                            self.write(value.value)
                     else:
                         kind = type(value).__name__
                         assert False, 'Invalid node %s inside JoinedStr' % kind

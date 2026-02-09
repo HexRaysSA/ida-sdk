@@ -40,7 +40,7 @@ def process(tree, opts, logger):
                         logger.debug(f"Found module replacement documentation: \"{node.value}\"");
                         logger.debug(f"NODE is: {node}")
                         self.module_doc = node.value
-            return super(overrides_visitor_t, self).visit_Constant(node)
+            return self.generic_visit(node)
 
         def visit_ClassDef(self, node):
             self._register_doc(node)

@@ -101,10 +101,63 @@ To achieve that, you want to use the `directorargout` typemap:
       }
     }
 
-# "intercept" access to a structure/class field, in order to perform extra work
+# Handle `qstring *errbuf` output parameters
 
-For example, `idainfo.lflags` bits should be set using proper setters,
-because they can have side-effects.
+Many C++ functions have an `errbuf` parameter for error messages:
+
+```cpp
+pkt_pull_md_result_t *pull_md(eavec_t *funcs, qstring *errbuf, uint32 flags=0);
+```
+
+## Default behavior
+
+In `header.i.in`, errbuf is mapped as an output parameter:
+```swig
+%apply qstring *result { qstring *errbuf };
+```
+This means by default, `errbuf` is **returned to the user** as part of the result tuple.
+
+## Module-specific overrides
+
+Modules can override this default to convert errors to exceptions:
+
+**1. Raise exception if errbuf is non-empty:**
+```swig
+%make_argout_errbuf_raise_exception_when_non_empty(errbuf);
+```
+Used in: `lumina.i` - The Python signature becomes `func(input, flags=0)` with no errbuf parameter. Errors raise `RuntimeError`.
+
+**2. Raise exception if result is null:**
+```swig
+%make_argout_errbuf_raise_when_null_result(errbuf);
+```
+Used in: `typeinf.i` - Raises exception using errbuf message when the function returns null.
+
+**3. Return errbuf as string on negative result (custom typemap):**
+```swig
+%typemap(argout) (qstring *errbuf)
+{
+  if ( result < 0 )
+  {
+    Py_XDECREF($result);
+    if ( $1 != nullptr )
+      $result = PyUnicode_from_qstring(*$1);
+    else
+      $result = PyUnicode_FromString("Unknown error");
+  }
+}
+```
+Used in: `idp.i` for processor notification handlers (`ev_cvt64_supval`, `ev_cvt64_hashval`, `ev_privrange_changed`).
+
+## Modules without explicit errbuf handling
+
+These modules use the default behavior (errbuf returned as output):
+- `idd.i` - debugger functions (`init_debugger`, `attach_process`, etc.)
+- `loader.i` - loader functions (`load_binary_file`, etc.)
+- `bytes.i` - byte manipulation functions
+- `expr.i` - expression evaluation (via pywraps)
+
+# "intercept" access to a structure/class field, in order to perform extra work
 
 . tell swig to consider the member as unreachable:
 

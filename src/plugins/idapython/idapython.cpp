@@ -1140,30 +1140,29 @@ bool idapython_plugin_t::init()
     if ( !qgetenv("IDAPYTHON_DYNLOAD_BASE", &dynload_base) )
       dynload_base = idadir(nullptr);
 
-    // Set IDAPYTHON_VERSION in Python
-    qstring init_code;
-    init_code.sprnt(
-            "IDAPYTHON_VERSION=(%d, %d, %d)\n"
-            "IDAPYTHON_REMOVE_CWD_SYS_PATH = %s\n"
-            "IDAPYTHON_DYNLOAD_BASE = r\"%s\"\n"
-            "IDAPYTHON_COMPAT_AUTOIMPORT_MODULES = %s\n"
-            "IDAPYTHON_IDAUSR_SYSPATH = %s\n"
-            "IDAPYTHON_OWNING_INTERPRETER = %s\n"
-            "IDAPYTHON_VENV_EXECUTABLE = r\"%s\"\n",
-            IDAVER_MAJOR, IDAVER_MINOR, IDAVER_PATCH,
-            config.remove_cwd_sys_path ? "True" : "False",
-            dynload_base.c_str(),
-            config.autoimport_compat_idaapi ? "True" : "False",
-            config.idausr_syspath ? "True" : "False",
-            owning_interpreter ? "True" : "False",
-            venv_exec_path.c_str()
-          );
+    PyObject *globals = _get_module_globals();
 
-    if ( extapi.PyRun_SimpleStringFlags_ptr(init_code.c_str(), nullptr) != 0 )
-    {
-      warning("IDAPython: error executing bootstrap code");
-      return false;
-    }
+    newref_t ida_ver(PyTuple_New(3));
+    PyTuple_SetItem(ida_ver.o, 0, PyLong_FromLong(IDAVER_MAJOR));
+    PyTuple_SetItem(ida_ver.o, 1, PyLong_FromLong(IDAVER_MINOR));
+    PyTuple_SetItem(ida_ver.o, 2, PyLong_FromLong(IDAVER_PATCH));
+    PyDict_SetItemString(globals, "IDAPYTHON_VERSION", ida_ver.o);
+
+    // Py_True and Py_False are immortal objects so the ref count does not need to be modified
+    PyDict_SetItemString(globals, "IDAPYTHON_REMOVE_CWD_SYS_PATH",
+                    config.remove_cwd_sys_path ? Py_True : Py_False);
+    PyDict_SetItemString(globals, "IDAPYTHON_COMPAT_AUTOIMPORT_MODULES",
+                    config.autoimport_compat_idaapi ? Py_True : Py_False);
+    PyDict_SetItemString(globals, "IDAPYTHON_IDAUSR_SYSPATH",
+                    config.idausr_syspath ? Py_True : Py_False);
+    PyDict_SetItemString(globals, "IDAPYTHON_OWNING_INTERPRETER",
+                    owning_interpreter ? Py_True : Py_False);
+
+    newref_t dynload_str(PyUnicode_FromString(dynload_base.c_str()));
+    PyDict_SetItemString(globals, "IDAPYTHON_DYNLOAD_BASE", dynload_str.o);
+
+    newref_t venv_str(PyUnicode_FromString(venv_exec_path.c_str()));
+    PyDict_SetItemString(globals, "IDAPYTHON_VENV_EXECUTABLE", venv_str.o);
 
     // Install extlang. Needs to be done before running init.py
     // in case it's calling idaapi.enable_extlang_python(1)
@@ -2199,12 +2198,36 @@ bool idapython_plugin_t::_handle_file(
     if ( !PyDict_Contains(globals, py_file_key.o) )
       PyDict_SetItem(globals, py_file_key.o, py_script.o);
   }
+  // Build script arguments list from IDC ARGV (skip first element which is script path)
+  newref_t py_script_args(PyList_New(0));
+  PyObject *script_args = nullptr;
+  if ( streq(idaapi_executor_func_name, S_IDAAPI_EXECSCRIPT) )
+  {
+    idc_value_t *idc_args = find_idc_gvar(S_IDC_ARGS_VARNAME);
+    if ( idc_args != nullptr )
+    {
+      idc_value_t attr;
+      char attr_name[20];
+      // Start from "1" to skip the script path
+      for ( int i = 1; ; i++ )
+      {
+        qsnprintf(attr_name, sizeof(attr_name), "%d", i);
+        if ( get_idcv_attr(&attr, idc_args, attr_name) != eOk )
+          break;
+        newref_t py_arg(PyUnicode_FromString(attr.c_str()));
+        PyList_Append(py_script_args.o, py_arg.o);
+      }
+      script_args = py_script_args.o;
+    }
+  }
+
   borref_t py_false(Py_False);
   newref_t py_ret(get_plugin_instance()->extapi.PyObject_CallFunctionObjArgs_ptr(
                           py_executor_func.o,
                           py_script.o,
                           globals,
                           py_false.o,
+                          script_args,
                           nullptr));
 
   // Failure at this point means the script was interrupted

@@ -1,4 +1,4 @@
-//<code(py_hexrays_ctree_hooks)>
+//<code(py_hexrays_hooks)>
 //---------------------------------------------------------------------------
 ssize_t idaapi Hexrays_Callback(void *ud, hexrays_event_t code, va_list va)
 {
@@ -32,9 +32,9 @@ Hexrays_Hooks::~Hexrays_Hooks()
 
 // hookgenHEXRAYS:methodsinfo_def
 
-//</code(py_hexrays_ctree_hooks)>
+//</code(py_hexrays_hooks)>
 
-//<inline(py_hexrays_ctree_hooks)>
+//<inline(py_hexrays_hooks)>
 //-------------------------------------------------------------------------
 // Hexrays hooks
 //---------------------------------------------------------------------------
@@ -131,4 +131,4 @@ private:
     return 0;
   }
 };
-//</inline(py_hexrays_ctree_hooks)>
+//</inline(py_hexrays_hooks)>

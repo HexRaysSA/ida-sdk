@@ -1,4 +1,7 @@
 {
+    "SwigDirector_Hexrays_Hooks::SwigDirector_Hexrays_Hooks" : [
+        ("maybe_collect_director_fixed_method_set", None),
+    ],
     "SwigDirector_microcode_filter_t::match" : [
         ("spontaneous_callback_call", None)
     ],

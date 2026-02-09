@@ -498,3 +498,8 @@ def get_custom_viewer_location(*args) -> bool:
     the text (and tags) of the text.
     """
     pass
+
+def request_refresh(mask: int) -> None:
+    """
+    Deprecated. Please use `mark_builtin_widgets` instead.
+    """
