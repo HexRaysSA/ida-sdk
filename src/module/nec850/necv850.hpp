@@ -398,24 +398,30 @@ struct nec850_t : public procmod_t
   // what registers are used by the instruction?
   void uses(reglist_t *regs, const insn_t &insn) const;
 
-  struct offset_info_t // reduce refinfo_t + operand
+  struct def_insn_t // info about the defining insn
   {
     ea_t ea;
-    int n;
-    uint32 flags;
-    ea_t base;
+    uint16 itype;
+    def_insn_t() : ea(BADADDR), itype(0) {}
+    def_insn_t(const reg_value_def_t &val)
+      : ea(val.def_ea), itype(val.def_itype) {}
+    // set offset for defining insns (including HIGH1/LOWW)
+    bool apply_offset(const nec850_t &pm, ea_t target) const;
   };
   bool find_reg_definition(
         ea_t *val,
-        offset_info_t *offinfo,
         ea_t ea,
         int reg,
+        def_insn_t *def_insn = nullptr,
         bool only_linear = false) const;
 
-  ea_t get_fixed_sreg(ea_t ea, const op_t &op) const;
+  ea_t get_base(ea_t ea, int reg, reg_value_info_t *rvi = nullptr) const;
+  ea_t get_fixed_sreg(ea_t ea, int reg) const;
   ea_t get_callt_ea(const insn_t &insn) const;
   bool handle_call_or_jump(const insn_t &insn) const;
   void handle_operand(const insn_t &insn, const op_t &op, bool isRead) const;
+  bool handle_immop_for_addi(const insn_t &insn, const op_t &op) const;
+  bool handle_displ(const insn_t &insn, const op_t &op) const;
   int nec850_emu(const insn_t &insn) const;
   bool is_sane_insn(const insn_t &insn, int no_crefs) const;
   sval_t regval(
@@ -488,6 +494,7 @@ struct nec850_t : public procmod_t
   bool special_func_spoils(reglist_t *regs, const insn_t &insn) const;
   bool is_special_save_func(const insn_t &insn) const;
   bool is_special_save_alloc_func(const insn_t &insn) const;
+  bool is_special_save_r29_func(const insn_t &insn) const;
   bool is_special_return_func(const insn_t &insn) const;
   // create the call table at EA
   void check_call_table(ea_t ea) const;

@@ -86,7 +86,7 @@ static int idaapi accept_file(
     nl++;
     strrpl(line, '-', ' ');
     int nw = make_words(line, words, qnumber(words));
-    if ( line[0] == ';' || line[0] == '#' || nw == 0 )
+    if ( nw == 0 || words[0][0] == ';' || words[0][0] == '#' )
     {
       if ( has_star )
         FAILED;
@@ -223,15 +223,13 @@ void idaapi load_file(linput_t *li, ushort _neflag, const char * /*fileformatnam
   while ( qlgets(line, sizeof(line), li) )
   {
     strrpl(line, '-', ' ');
-    if ( line[0] == ';' || line[0] == '#' )
-      continue;
-    int n = make_words(line, words, qnumber(words));
-    if ( n == 0 )
+    int nw = make_words(line, words, qnumber(words));
+    if ( nw == 0 || words[0][0] == ';' || words[0][0] == '#' )
       continue;
     nontrivial_line_count++;
     ssize_t bi;
     // od -x format may contain '*' lines which means repetition
-    if ( streq(words[0], "*") && n == 1 )
+    if ( streq(words[0], "*") && nw == 1 )
     {
       fill = size_t(top - ea);
       octpref = true;             // od -x have octal prefixes
@@ -282,7 +280,7 @@ void idaapi load_file(linput_t *li, ushort _neflag, const char * /*fileformatnam
     {
       ea = top;
     }
-    for ( bi=0; idx < n; idx++ ) //lint !e443
+    for ( bi=0; idx < nw; idx++ ) //lint !e443
     {
       ptr = words[idx];
       if ( nontrivial_line_count == 1 && !octnum && strlen(ptr) == 6 )

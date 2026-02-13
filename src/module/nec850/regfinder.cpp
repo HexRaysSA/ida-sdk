@@ -51,17 +51,20 @@ reg_value_info_t nec850_reg_finder_t::handle_well_known_regs(
         rfop_t op,
         bool /*is_func_start*/) const
 {
+  if ( !op.is_reg() )
+    return rvi_t();
+  int reg = op.get_reg();
   ea_t ea = flow.actual_ea();
-  if ( op.is_reg(rZERO) )
+
+  if ( reg == rZERO )
     return rvi_t::make_num(0, ea);
+
   auto &_pm = (const nec850_t &)pm;
-  if ( op.is_reg(rGP) && _pm.g_gp_ea != BADADDR )
-    return rvi_t::make_num(_pm.g_gp_ea, ea, reg_value_def_t::LIKE_GOT);
-  if ( op.is_reg(rTP) && _pm.g_tp_ea != BADADDR )
-    return rvi_t::make_num(_pm.g_tp_ea, ea);
-  if ( op.is_reg(rEP) && _pm.g_ep_ea != BADADDR )
-    return rvi_t::make_num(_pm.g_ep_ea, ea);
-  return rvi_t();
+  ea_t base = _pm.get_fixed_sreg(ea, reg);
+  if ( base == BADADDR )
+    return rvi_t();
+  uint16 val_flags = reg == rGP ? reg_value_def_t::LIKE_GOT : 0;
+  return rvi_t::make_num(base, ea, val_flags);
 }
 
 //-------------------------------------------------------------------------
@@ -230,11 +233,14 @@ bool nec850_reg_finder_t::emulate_insn(
         return true;
       }
     case NEC850_JARL:
-      if ( insn.Op1.type == o_near && insn.Op2.is_reg(reg) )
       {
-        // jarl nextaddr, r2 == jump (w/o flow)
         ea_t nextaddr = insn.ea + insn.size;
-        if ( to_ea(insn.cs, insn.Op1.addr) == nextaddr )
+        // - jarl nextaddr, r2 == jump (w/o flow)
+        // - jarl __ghssave25, r10 => R29 points after the call
+        if ( (insn.Op1.type == o_near
+           && insn.Op2.is_reg(reg)
+           && to_ea(insn.cs, insn.Op1.addr) == nextaddr)
+          || reg == rR29 && _pm.is_special_save_r29_func(insn) )
         {
           value->set_num(nextaddr, insn, reg_value_def_t::PC_BASED);
           return true;

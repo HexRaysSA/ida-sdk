@@ -587,7 +587,7 @@ bool check_bytes_t::check_ghs_save()
     for ( ; reg <= split; ++reg )
     {
       uval_t off = (split - reg) * 4;
-      if ( !get_dword(&x, ea) && !is_save_reg(x, reg, off) )
+      if ( !get_dword(&x, ea) || !is_save_reg(x, reg, off) )
         return false;
       ea += 4;
     }
@@ -680,7 +680,7 @@ bool check_bytes_t::check_ghs_load()
     {
       uval_t off = (29 - reg) * 4;
       uint32 x;
-      if ( !get_dword(&x, ea) && !is_load_reg(x, reg, off) )
+      if ( !get_dword(&x, ea) || !is_load_reg(x, reg, off) )
         return false;
       ea += 4;
     }
@@ -1168,6 +1168,15 @@ bool nec850_t::is_special_save_alloc_func(const insn_t &insn) const
   special_func_t res = check_call(*this, nullptr, &spf_feature, insn);
   return res == SPF_SAVE
       && (spf_feature & (GHS|GHS_LOCALS)) == (GHS|GHS_LOCALS);
+}
+
+//-------------------------------------------------------------------------
+bool nec850_t::is_special_save_r29_func(const insn_t &insn) const
+{
+  uint32 spf_feature;
+  special_func_t res = check_call(*this, nullptr, &spf_feature, insn);
+  // R29 points after the call
+  return res == SPF_SAVE && (spf_feature & (GHS|GHS_LP_ONLY)) == GHS;
 }
 
 //-------------------------------------------------------------------------

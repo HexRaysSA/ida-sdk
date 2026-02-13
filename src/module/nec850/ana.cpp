@@ -1600,13 +1600,18 @@ bool nec850_t::decode_instruction(const uint32 w, insn_t *ins)
       }
 
       sval_t v = PARSE_R1;
+      op_dtype_t dt;
       if ( inst_2[op].flags == 1 )
       {
         SIGN_EXTEND(sval_t, v, 5);
         ins->Op1.specflag1 |= N850F_OUTSIGNED;
+        dt = dt_dword;
       }
-
-      set_opimm(&ins->Op1, v, dt_byte);
+      else
+      {
+        dt = dt_byte;
+      }
+      set_opimm(&ins->Op1, v, dt);
       set_opreg(&ins->Op2, r2);
 
       // ADD imm, reg -> reg = reg + imm
@@ -3058,7 +3063,8 @@ OPS_FII:
   if ( displ_op != nullptr )
   {
     // A displacement with GP/TP and GP/TP is set?
-    if ( ea_t base = get_fixed_sreg(ins->ea, *displ_op); base != BADADDR )
+    ea_t base = get_fixed_sreg(ins->ea, displ_op->phrase);
+    if ( base != BADADDR )
     {
       displ_op->type = o_mem;
       if ( ins->itype == NEC850_SLD_BU || ins->itype == NEC850_LD_BU

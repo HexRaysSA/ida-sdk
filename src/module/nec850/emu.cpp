@@ -50,13 +50,13 @@ size_t v850_is_align_insn(ea_t ea)
 
 //----------------------------------------------------------------------
 // movea #imm, sp, reg
-inline bool is_stkvar_offset(const insn_t &insn)
+inline bool is_stkvar_sp_offset(const insn_t &insn)
 {
+  // assert: insn.Op2.type == o_reg
   return (insn.itype == NEC850_ADDI || insn.itype == NEC850_MOVEA)
-      && insn.Op1.type == o_imm
-      && insn.Op2.is_reg(rSP)
-      && insn.Op3.type != o_void
-      && !insn.Op3.is_reg(rSP);
+      && insn.Op2.reg == rSP
+      && insn.Op3.type == o_reg
+      && insn.Op3.reg != rSP;
 }
 
 //----------------------------------------------------------------------
@@ -68,37 +68,54 @@ int nec850_is_sp_based(const insn_t &insn, const op_t &x)
     return res | OP_SP_BASED;
 
   // check for movea   8, sp, r28
-  if ( is_stkvar_offset(insn) && x.n == 0 )
+  if ( x.n == 0
+    && x.type == o_imm
+    && insn.Op2.type == o_reg
+    && is_stkvar_sp_offset(insn) )
+  {
     return res | OP_SP_BASED;
+  }
 
   return res | OP_FP_BASED;
 }
 
 //----------------------------------------------------------------------
-// if op.reg refers to a known fixed register (e.g. GP ot TP), return its value
-// first try local segreg value, then global setting
-ea_t nec850_t::get_fixed_sreg(ea_t ea, const op_t &op) const
+ea_t nec850_t::get_fixed_sreg(ea_t ea, int reg) const
 {
-  ea_t res = BADADDR;
-  switch ( op.reg )
+  // if REG refers to a known fixed register (e.g. GP ot TP),
+  // return its value.
+  int sreg;
+  ea_t g_ea;
+  switch ( reg )
   {
-    case rGP:
-      res = get_sreg(ea, srGP);
-      if ( res == BADADDR && g_gp_ea != BADADDR )
-        res = g_gp_ea;
-      break;
-    case rTP:
-      res = get_sreg(ea, srTP);
-      if ( res == BADADDR && g_tp_ea != BADADDR )
-        res = g_tp_ea;
-      break;
-    case rEP:
-      res = get_sreg(ea, srEP);
-      if ( res == BADADDR && g_ep_ea != BADADDR )
-        res = g_ep_ea;
-      break;
+    case rGP: sreg = srGP; g_ea = g_gp_ea; break;
+    case rTP: sreg = srTP; g_ea = g_tp_ea; break;
+    case rEP: sreg = srEP; g_ea = g_ep_ea; break;
+    default: return BADADDR;
   }
-  return res;
+  // first try local segreg value, then global setting
+  ea_t base = get_sreg(ea, sreg);
+  return base != BADADDR ? base : g_ea;
+}
+
+//----------------------------------------------------------------------
+ea_t nec850_t::get_base(ea_t ea, int reg, reg_value_info_t *rvi) const
+{
+  atype_t auto_state = get_auto_state();
+  if ( auto_state == AU_NONE
+    || auto_state == AU_WEAK
+    || auto_state == AU_CODE )
+  {
+    return get_fixed_sreg(ea, reg);
+  }
+  // we can safely use the regtracker
+  reg_value_info_t buf;
+  if ( rvi == nullptr )
+    rvi = &buf;
+  ea_t base;
+  if ( find_rvi(rvi, ea, reg) && rvi->get_num(&base) )
+    return base;
+  return BADADDR;
 };
 
 //-------------------------------------------------------------------------
@@ -178,8 +195,8 @@ bool nec850_t::is_call_insn(const insn_t &insn) const
         // use ONLY_LINEAR because this function can be called from
         // find_rvi()
         ea_t lp_val;
-        if ( find_reg_definition(&lp_val, nullptr,
-                                 insn.ea, rLP, /*only_linear*/true)
+        if ( find_reg_definition(&lp_val, insn.ea, rLP,
+                                 nullptr, /*only_linear*/true)
           && lp_val == nextaddr )
         {
           return true;
@@ -433,11 +450,21 @@ void nec850_t::uses(reglist_t *regs, const insn_t &insn) const
 inline bool is_ep_equal_to_sp(ea_t ea)
 {
   sval_t sp_value, ep_value;
-  if ( !find_sp_value(&sp_value, ea, rSP)
-    || !find_sp_value(&ep_value, ea, rEP) )
-    return false;
+  return find_sp_value(&sp_value, ea, rSP)
+      && find_sp_value(&ep_value, ea, rEP)
+      && sp_value == ep_value;
+}
 
-  return sp_value == ep_value;
+//----------------------------------------------------------------------
+// movea #imm, ep, reg (reg != ep && ep == sp)
+inline bool is_stkvar_ep_offset(const insn_t &insn)
+{
+  // assert: insn.Op2.type == o_reg
+  return insn.itype == NEC850_MOVEA
+      && insn.Op2.reg == rEP
+      && insn.Op3.type == o_reg
+      && insn.Op3.reg != rEP
+      && is_ep_equal_to_sp(insn.ea);
 }
 
 //----------------------------------------------------------------------
@@ -452,12 +479,16 @@ ea_t nec850_t::get_callt_ea(const insn_t &insn) const
 // we have a possible reference from FROM to TARGET
 // check if we should make it an offset
 // like arm_t::good_target()
-static bool is_good_target(ea_t target)
+static bool is_good_target(ea_t target, bool allow_low_addrs = false)
 {
+  if ( target == BADADDR )
+    return false;
   segment_t *seg = getseg(target);
   if ( seg == nullptr )
     return false;
-  if ( target < 0x10000 || !is_mapped(target) )
+  if ( !is_mapped(target) )
+    return false;
+  if ( !allow_low_addrs && target < 0x10000 )
     return false;
 
   flags64_t F32 = get_flags32(target);
@@ -466,11 +497,12 @@ static bool is_good_target(ea_t target)
   {
     if ( !is_head(F32) ) // middle of instruction?
       return false;
-    // references to the possible function start are accepted
+    // references to the dead code are accepted
+    if ( !is_flow(F32) )
+      return true;
+    // references to the function start are accepted
     func_t *pfn = get_func(target);
-    if ( pfn == nullptr )
-      return !is_flow(F32);
-    return target == pfn->start_ea;
+    return pfn != nullptr && target == pfn->start_ea;
   }
   // check if it points into a DATA segment
   qstring segname;
@@ -508,32 +540,183 @@ static bool is_good_target(ea_t target)
 }
 
 //----------------------------------------------------------------------
+inline bool is_auto_refinfo(const refinfo_t &ri)
+{
+  return ri.target == BADADDR
+      && ri.base == 0
+      && !ri.no_base_xref() // the correct offset has REFINFO_NOBASE
+      && ri.tdelta == 0
+      && ri.type() == REF_OFF32;
+}
+
+//----------------------------------------------------------------------
+inline bool can_set_offset(ea_t ea, flags64_t F, int n)
+{
+  if ( !is_defarg(F, n) )
+    return true;
+  if ( !is_off(F, n) )
+    return false;
+  // allow to set over a possible incorrect zero-based offset
+  refinfo_t ri;
+  return get_refinfo(&ri, ea, n) && is_auto_refinfo(ri);
+}
+
+//----------------------------------------------------------------------
+static bool fix_localpic_label(
+        uint32 *flags,
+        const reg_value_info_t &rvi)
+{
+  ea_t localpic;
+  if ( !rvi.get_num(&localpic) || !rvi.is_all_vals_pc_based() )
+    return false;
+  *flags &= ~REFINFO_NOBASE; // show the base as a label
+  if ( !has_name(get_flags32(localpic)) )
+    force_name(localpic, "localpic", SN_NOWARN|SN_LOCAL);
+  return true;
+}
+
+//----------------------------------------------------------------------
+static bool create_offset_for_add(
+        const nec850_t &pm,
+        ea_t ea,
+        int n,
+        sval_t value,
+        int reg,
+        bool strict = false)
+{
+  reg_value_info_t rvi;
+  ea_t base = pm.get_base(ea, reg, &rvi);
+
+  if ( strict )
+  {
+    // the zero base for such insns is suspicious too
+    if ( base == BADADDR || base == 0 )
+      return false;
+    if ( !is_good_target(pm.trunc_uval(base + value), true) )
+      return false;
+  }
+
+  bool has_movhi = false;
+  insn_t movhi;
+  if ( !rvi.empty() )
+  {
+    const reg_value_def_t &val = *rvi.vals_begin();
+    has_movhi = int(value) >= SHRT_MIN
+             && int(value) <= SHRT_MAX
+             && val.def_itype == NEC850_MOVHI
+             && decode_insn(&movhi, val.def_ea) > 0;
+  }
+  uint32 flags = REFINFO_PASTEND | REFINFO_SIGNEDOP | REFINFO_NOBASE;
+  if ( !has_movhi )
+  {
+    if ( base == BADADDR )
+      return false;
+    fix_localpic_label(&flags, rvi);
+    return op_offset(ea, n, flags | REF_OFF32, BADADDR, base);
+  }
+  // assert: movhi.Op1.type == o_imm
+  ea_t target;
+  if ( base != BADADDR )
+  {
+    target = pm.trunc_uval(base + int16(value));
+    // try to detect PIC patterns
+    if ( rvi.is_num() )
+    {
+      if ( !pm.find_rvi(&rvi, movhi.ea, movhi.Op2.reg) )
+        INTERR(0);
+      fix_localpic_label(&flags, rvi);
+    }
+    base = pm.trunc_uval(base - (movhi.Op1.value << 16));
+  }
+  else
+  {
+    // assume a zero-based index in movhi.Op2.reg
+    target = pm.trunc_uval((movhi.Op1.value << 16) + int16(value));
+    if ( !is_good_target(target) )
+      return false;
+    base = 0;
+  }
+  if ( !op_offset(ea, n, flags | REF_LOW16, target, base) )
+    return false;
+  if ( !is_defarg0(get_flags32(movhi.ea)) )
+    op_offset(movhi.ea, 0, flags | pm.ref_ha16_id, target, base);
+  return true;
+}
+
+//----------------------------------------------------------------------
+bool nec850_t::handle_immop_for_addi(
+        const insn_t &insn,
+        const op_t &op) const
+{
+  // assert: op.n == 0
+  // ignore small changes
+  if ( op.value == 0 || op.value == 1 || sval_t(op.value) == -1 )
+    return false;
+
+  int dstreg = insn.Op3.type == o_reg ? insn.Op3.reg : insn.Op2.reg;
+  // ignore pseudo-compare insns
+  if ( dstreg == rZERO )
+    return false;
+  // ignore the fixed regs setup
+  if ( get_fixed_sreg(insn.ea, dstreg) != BADADDR )
+    return false;
+
+  return create_offset_for_add(*this, insn.ea, 0,
+                               op.value, insn.Op2.reg, true);
+}
+
+//----------------------------------------------------------------------
+bool nec850_t::handle_displ(const insn_t &insn, const op_t &op) const
+{
+  return create_offset_for_add(*this, insn.ea, op.n, op.addr, op.phrase);
+}
+
+//----------------------------------------------------------------------
 void nec850_t::handle_operand(
         const insn_t &insn,
         const op_t &op,
         bool isRead) const
 {
   flags64_t F = get_flags(insn.ea);
-  atype_t auto_state = get_auto_state();
   switch ( op.type )
   {
     case o_imm:
       set_immd(insn.ea);
-      // AF_IMMOFF is off for our processor
-      // so we do the same thing only for some insn types
-      if ( !inf_op_offset()
-        && op.n == 0
-        && !is_defarg0(F)
-        && (insn.itype == NEC850_MOV
-         || insn.itype == NEC850_CMP
-         || insn.itype == NEC850_MOVEA
-         || insn.itype == NEC850_ADDI && !insn.Op2.is_reg(rSP)
-         || insn.itype == NEC850_ADD && !insn.Op2.is_reg(rSP))
-        && is_good_target(op.value) )
+      if ( op.n == 0 && insn.Op2.type == o_reg )
       {
-        op_plain_offset(insn.ea, op.n, 0);
-        F = get_flags(insn.ea);
+        if ( (is_stkvar_sp_offset(insn) || is_stkvar_ep_offset(insn)) )
+        {
+          // addi imm, sp, reg
+          // 0 in create_stkvar() means that we don't know the stkvar size
+          if ( may_create_stkvars()
+            && !is_defarg0(F)
+            && insn.create_stkvar(op, op.value, 0) )
+          {
+            op_stkvar(insn.ea, 0);
+          }
+        }
+        else if ( can_set_offset(insn.ea, F, 0) )
+        {
+          bool is_like_addi = (insn.itype == NEC850_MOVEA
+                            || insn.itype == NEC850_ADDI
+                            || insn.itype == NEC850_ADD)
+                           && insn.Op2.reg != rSP;
+          bool ok = is_like_addi && handle_immop_for_addi(insn, op);
+          // AF_IMMOFF is off for our processor
+          // so we do the same thing only for some insn types
+          if ( !ok
+            && !inf_op_offset()
+            && !is_off0(F)
+            && (insn.itype == NEC850_MOV
+             || insn.itype == NEC850_CMP
+             || is_like_addi)
+            && is_good_target(op.value) )
+          {
+            op_plain_offset(insn.ea, op.n, 0);
+          }
+        }
       }
+      F = get_flags(insn.ea);
       if ( op_adds_xrefs(F, op.n) )
         insn.add_off_drefs(op, dr_O, 0);
       break;
@@ -542,59 +725,31 @@ void nec850_t::handle_operand(
       set_immd(insn.ea);
       if ( is_call_or_jump(insn.itype) )
         break; // already handled in handle_call_or_jump()
-      if ( !is_defarg(F, op.n) )
+      if ( (op.reg == rSP
+         || (op.reg == rEP && is_ep_equal_to_sp(insn.ea))) )
       {
-        if ( may_create_stkvars() && ( op.reg == rSP || ( op.reg == rEP && is_ep_equal_to_sp(insn.ea) ) ) )
+        if ( may_create_stkvars()
+          && !is_defarg(F, op.n)
+          && insn.create_stkvar(op, op.addr, STKVAR_VALID_SIZE) )
         {
-          func_t *pfn = get_func(insn.ea);
-          if ( pfn != nullptr && insn.create_stkvar(op, op.addr, STKVAR_VALID_SIZE) )
-            op_stkvar(insn.ea, op.n);
+          op_stkvar(insn.ea, op.n);
         }
-        else if ( auto_state == AU_USED )
-        {
-          bool ok = false;
-          reg_value_info_t rvi;
-          ea_t ea;
-          if ( find_rvi(&rvi, insn.ea, op.phrase) && rvi.get_num(&ea) )
-          {
-            uint32 flags = REF_OFF32
-                         | REFINFO_PASTEND
-                         | REFINFO_NOBASE
-                         | REFINFO_SIGNEDOP;
-            op_offset(insn.ea, op.n, flags, BADADDR, ea);
-            ok = true;
-          }
-          insn_t movhi;
-          if ( !ok
-            && int(op.addr) >= SHRT_MIN
-            && int(op.addr) <= SHRT_MAX
-            && rvi.is_unkinsn()
-            && rvi.get_def_itype() == NEC850_MOVHI
-            && decode_insn(&movhi, rvi.get_def_ea()) > 0 )
-          {
-            // assert: movhi.Op1.type == o_imm
-            ea = int16(op.addr) + (movhi.Op1.value << 16);
-            if ( is_good_target(ea) )
-            {
-              uint32 flags = REF_LOW16 | REFINFO_PASTEND | REFINFO_SIGNEDOP;
-              op_offset(insn.ea, op.n, flags, ea);
-              if ( !is_defarg0(get_flags32(movhi.ea)) )
-              {
-                flags = ref_ha16_id | REFINFO_PASTEND | REFINFO_SIGNEDOP;
-                op_offset(movhi.ea, 0, flags, ea);
-              }
-              ok = true;
-            }
-          }
-          if ( !ok && !inf_op_offset() && is_good_target(op.addr) )
-          {
-            // assume a zero based index
-            op_plain_offset(insn.ea, op.n, 0);
-          }
-        }
-        F = get_flags(insn.ea);
       }
-
+      else if ( can_set_offset(insn.ea, F, op.n) )
+      {
+        bool ok = handle_displ(insn, op);
+        // AF_IMMOFF is off for our processor
+        // so we do the same thing manually
+        if ( !ok
+          && !inf_op_offset()
+          && !is_off(F, op.n)
+          && is_good_target(op.addr) )
+        {
+          // assume a zero based index
+          op_plain_offset(insn.ea, op.n, 0);
+        }
+      }
+      F = get_flags(insn.ea);
       if ( op_adds_xrefs(F, op.n) )
       { // create data xrefs
         int outf = get_displ_outf(insn, op, F);
@@ -706,9 +861,9 @@ void nec850_t::trace_sp(func_t *pfn, const insn_t &insn) const
 //-------------------------------------------------------------------------
 bool nec850_t::find_reg_definition(
         ea_t *_val,
-        offset_info_t *offinfo,
         ea_t ea,
         int reg,
+        def_insn_t *def_insn,
         bool only_linear) const
 {
   // look for the defining insn
@@ -726,35 +881,51 @@ bool nec850_t::find_reg_definition(
       // mov loc, lp
       // movea (loc - 0xXXXX), r29, lp
       // add loc - PC, lp
-      *_val = val.val;
-      if ( offinfo != nullptr )
-      {
-        offinfo->ea = BADADDR;
-        insn_t insn;
-        if ( decode_insn(&insn, val.def_ea) > 0 && insn.Op1.type == o_imm )
-        {
-          offinfo->ea = val.def_ea;
-          offinfo->n = 0;
-          offinfo->flags = REF_OFF32;
-          offinfo->base = 0;
-          if ( val.def_itype == NEC850_MOVEA )
-            offinfo->flags |= REFINFO_NOBASE;
-          if ( val.def_itype != NEC850_MOV )
-          {
-            offinfo->flags |= REFINFO_SIGNEDOP;
-            // ensuring target == val.val
-            offinfo->base = val.val - insn.Op1.value;
-          }
-        }
-      }
-      return true;
+      if ( def_insn != nullptr )
+        *def_insn = def_insn_t(val);
+      break;
     case NEC850_JARL:
     case NEC850_LD_W:
     case NEC850_SLD_W:
-      *_val = val.val;
-      if ( offinfo != nullptr )
-        offinfo->ea = BADADDR;
-      return true;
+      if ( def_insn != nullptr )
+        *def_insn = def_insn_t();
+      break;
+    default:
+      return false;
+  }
+  *_val = val.val;
+  return true;
+}
+
+//-------------------------------------------------------------------------
+bool nec850_t::def_insn_t::apply_offset(
+        const nec850_t &pm,
+        ea_t target) const
+{
+  if ( ea == BADADDR )
+    return false;
+  if ( is_defarg0(get_flags32(ea)) )
+    return false;
+  insn_t insn;
+  if ( decode_insn(&insn, ea) <= 0 || insn.Op1.type != o_imm )
+    return false;
+  switch ( insn.itype )
+  {
+    case NEC850_MOV:
+      return op_offset(ea, 0, REF_OFF32); // a simple zero-base offset
+    case NEC850_ADD:
+      {
+        ea_t base = pm.trunc_uval(target - insn.Op1.value);
+        // so there is no need to check the high/low parts for 'add',
+        // because it is used only in the following pattern:
+        //   1000   jarl loc_1000F6, lp
+        //   1004 loc_1000F6:
+        //   1004   add  4, lp  -- LP points to 0x1008
+        //   1006   jmp  [r20]
+        return op_offset(ea, 0, REF_OFF32|REFINFO_SIGNEDOP, BADADDR, base);
+      }
+    case NEC850_MOVEA:
+      return create_offset_for_add(pm, ea, 0, insn.Op1.value, insn.Op2.reg);
   }
   return false;
 }
@@ -791,17 +962,10 @@ bool nec850_t::handle_call_or_jump(const insn_t &insn) const
         if ( reg != rLP )
         {
           ea_t lp_val;
-          offset_info_t offinfo;
-          if ( find_reg_definition(&lp_val, &offinfo, insn.ea, rLP) )
+          def_insn_t def_insn;
+          if ( find_reg_definition(&lp_val, insn.ea, rLP, &def_insn) )
           {
-            if ( offinfo.ea != BADADDR )
-            {
-              op_offset(offinfo.ea,
-                        offinfo.n,
-                        offinfo.flags,
-                        BADADDR,
-                        offinfo.base);
-            }
+            def_insn.apply_offset(*this, lp_val);
             is_call = true; // 'jmp' is very similar to call
             nextaddr = lp_val;
           }
@@ -842,7 +1006,7 @@ bool nec850_t::handle_call_or_jump(const insn_t &insn) const
   }
 
   ea_t target;
-  offset_info_t offinfo;
+  def_insn_t def_insn;
   if ( reg == -1 || reg == rZERO && insn.Op1.type == o_displ )
   {
     // assert: insn.Op1.type == o_near
@@ -850,21 +1014,12 @@ bool nec850_t::handle_call_or_jump(const insn_t &insn) const
   }
   else if ( reg != rZERO
          && get_auto_state() == AU_USED
-         && find_reg_definition(&target, &offinfo, insn.ea, reg) )
+         && find_reg_definition(&target, insn.ea, reg, &def_insn) )
   {
     if ( insn.Op1.type == o_displ )
-    {
-      target = trunc_ea(target + insn.Op1.addr);
-    }
-    else if ( offinfo.ea != BADADDR )
-    {
-      // assert: insn.Op1.type == o_reg
-      op_offset(offinfo.ea,
-                offinfo.n,
-                offinfo.flags,
-                BADADDR,
-                offinfo.base);
-    }
+      target = trunc_uval(target + insn.Op1.addr);
+    else
+      def_insn.apply_offset(*this, target);
   }
   else
   {
@@ -913,42 +1068,6 @@ int nec850_t::nec850_emu(const insn_t &insn) const
   if ( Feature & CF_JUMP )
     remember_problem(PR_JUMP, insn.ea);
 
-  // addi imm, sp, reg
-  if ( may_create_stkvars()
-    && !is_defarg0(get_flags32(insn.ea))
-    && is_stkvar_offset(insn) )
-  {
-    // 0 means that we don't know the stkvar size
-    if ( insn.create_stkvar(insn.Op1, insn.Op1.value, 0) )
-      op_stkvar(insn.ea, insn.Op1.n);
-  }
-  if ( !is_defarg0(get_flags32(insn.ea))
-    && insn.itype == NEC850_MOVEA
-    && insn.Op1.type == o_imm )
-  {
-    // movea imm16, ep, reg (reg != ep && ep == sp)
-    if ( may_create_stkvars()
-      && insn.Op2.is_reg(rEP)
-      && !insn.Op3.is_reg(rEP)
-      && is_ep_equal_to_sp(insn.ea) )
-    {
-      if ( insn.create_stkvar(insn.Op1, insn.Op1.value, 0) )
-        op_stkvar(insn.ea, 0);
-    }
-    else if ( ea_t base = get_fixed_sreg(insn.ea, insn.Op2); base != BADADDR )
-    {
-      uint32 flags = REF_OFF32
-                   | REFINFO_PASTEND
-                   | REFINFO_SIGNEDOP
-                   | REFINFO_NOBASE;
-      if ( op_offset(insn.ea, 0, flags, BADADDR, base) )
-      {
-        ea_t target = trunc_uval(base + insn.Op1.value);
-        insn.add_dref(target, insn.Op1.offb, dr_O);
-      }
-    }
-  }
-
   if ( may_trace_sp() )
   {
     func_t *pfn = get_func(insn.ea);
@@ -963,20 +1082,20 @@ int nec850_t::nec850_emu(const insn_t &insn) const
     ea_t ctbp_ea = get_sreg(insn.ea, srCTBP);
     if ( is_mapped(ctbp_ea) )
     {
-      ea_t ea = trunc_ea(ctbp_ea + (insn.Op1.value << 1));
+      ea_t ea = trunc_uval(ctbp_ea + (insn.Op1.value << 1));
       insn.create_op_data(ea, insn.Op1.offb, dt_word);
       insn.add_dref(ea, insn.Op1.offb, dr_R);
     }
   }
 
   // ldsr reg2, ctbp
-  if ( insn.itype == NEC850_LDSR && insn.Op2.is_reg(rCTBP) && insn.Op3.type == o_void )
+  if ( insn.itype == NEC850_LDSR
+    && insn.Op2.is_reg(rCTBP)
+    && insn.Op3.type == o_void )
   {
     uval_t ctbp_val;
     if ( find_regval(&ctbp_val, insn.ea, insn.Op1.reg) )
-    {
       split_sreg_range(insn.ea + insn.size, srCTBP, ctbp_val, SR_auto);
-    }
   }
 
   return 1;
@@ -1223,7 +1342,7 @@ ea_t nec850_t::nec850_calc_step_over(ea_t ip) const
       {
         // jmp + lp points to nextaddr == call
         ea_t lp_val;
-        if ( find_reg_definition(&lp_val, nullptr, insn.ea, rLP)
+        if ( find_reg_definition(&lp_val, insn.ea, rLP)
           && lp_val == nextaddr )
         {
           break; // step over the call
