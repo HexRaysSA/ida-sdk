@@ -18,6 +18,31 @@ The SDK is currently closed to external contributions, as it requires tight inte
 
 However, feel free to report bugs or suggest features via [Issues](https://github.com/HexRaysSA/ida-sdk/issues).
 
+## Versioning
+
+Git tags use [semver](https://semver.org/)-compatible syntax to track both IDA product releases and independent SDK updates:
+
+| Tag pattern | Meaning |
+|---|---|
+| `vX.Y.Z-release` | SDK snapshot shipped with an IDA release |
+| `vX.Y.Z-sdk.N` | SDK-only update between IDA releases (build system, docs, examples, etc.) |
+
+`X.Y.Z` matches the IDA version that the SDK targets. The pre-release suffix distinguishes the type of change:
+
+- **`-release`** marks the exact SDK state shipped with a given IDA version.
+- **`-sdk.N`** marks subsequent SDK improvements that still target the same IDA version. `N` increments with each update.
+
+**Sort order.** Semver compares pre-release identifiers lexically, so `-release` sorts before `-sdk.N` (`r` < `s`), which gives the correct chronological order:
+
+```
+v9.3.0-release        ← IDA 9.3.0 ships, SDK updated to match
+v9.2.0-sdk.2          ← second SDK-only update for IDA 9.2.0
+v9.2.0-sdk.1          ← first SDK-only update (e.g., CMake support added)
+v9.2.0-release        ← IDA 9.2.0 ships (initial commit)
+```
+
+**Note:** In strict semver, a pre-release version (e.g., `v9.3.0-release`) has lower precedence than the corresponding normal version (`v9.3.0`). Since this repository never publishes bare `vX.Y.Z` tags, the ordering among tagged versions is unambiguous and correct.
+
 ## Requirements
 
 To build:
