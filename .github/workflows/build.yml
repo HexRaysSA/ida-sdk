@@ -7,6 +7,162 @@ on:
     branches: [ main, cmake ]
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      cmake-changed: ${{ steps.filter.outputs.cmake }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          cmake:
+            - 'src/cmake/**'
+
+  # Qt build jobs — only run when src/cmake/** changes and Qt is not cached.
+  # These run in parallel with the main build jobs. Qt plugins in the main
+  # build jobs use Qt from cache (populated by a previous run).
+  build-qt-windows:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.cmake-changed == 'true'
+    runs-on: windows-latest
+    env:
+      IDASDK: ${{ github.workspace }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Visual Studio Developer Environment
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Restore Qt6 cache
+      id: qt-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          src/build/qt-install
+          src/build/qt-src
+        key: ${{ runner.os }}-qt6-${{ hashFiles('src/cmake/**') }}
+
+    - name: Configure CMake
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      working-directory: src
+      run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+    - name: Build Qt6
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      working-directory: src
+      run: cmake --build build --target build_qt --config Release
+
+    - name: Save Qt6 cache
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          src/build/qt-install
+          src/build/qt-src
+        key: ${{ runner.os }}-qt6-${{ hashFiles('src/cmake/**') }}
+
+  build-qt-linux:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.cmake-changed == 'true'
+    runs-on: ubuntu-latest
+    env:
+      IDASDK: ${{ github.workspace }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build \
+          libgl1-mesa-dev libxcb-xinerama0-dev libxkbcommon-dev \
+          libxcb-cursor-dev libxcb-icccm4-dev libxcb-image0-dev \
+          libxcb-keysyms1-dev libxcb-randr0-dev libxcb-render-util0-dev \
+          libxcb-shape0-dev libxcb-sync-dev libxcb-xfixes0-dev
+
+    - name: Restore Qt6 cache
+      id: qt-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          src/build/qt-install
+          src/build/qt-src
+        key: ${{ runner.os }}-qt6-${{ hashFiles('src/cmake/**') }}
+
+    - name: Configure CMake
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      working-directory: src
+      run: cmake -B build -G Ninja
+
+    - name: Build Qt6
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      working-directory: src
+      run: cmake --build build --target build_qt
+
+    - name: Save Qt6 cache
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          src/build/qt-install
+          src/build/qt-src
+        key: ${{ runner.os }}-qt6-${{ hashFiles('src/cmake/**') }}
+
+  build-qt-macos:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.cmake-changed == 'true'
+    runs-on: macos-latest
+    env:
+      IDASDK: ${{ github.workspace }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install build dependencies
+      run: |
+        brew install cmake ninja
+
+    - name: Restore Qt6 cache
+      id: qt-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          src/build/qt-install
+          src/build/qt-src
+        key: ${{ runner.os }}-qt6-${{ hashFiles('src/cmake/**') }}
+
+    - name: Configure CMake
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      working-directory: src
+      run: cmake -B build -G Ninja
+
+    - name: Build Qt6
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      working-directory: src
+      run: cmake --build build --target build_qt
+
+    - name: Save Qt6 cache
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          src/build/qt-install
+          src/build/qt-src
+        key: ${{ runner.os }}-qt6-${{ hashFiles('src/cmake/**') }}
+
+  # Main build jobs — build SDK + IDAPython. Qt plugins build only if Qt
+  # is available from cache (populated by a previous build-qt run).
   build-windows:
     runs-on: windows-latest
     env:
@@ -32,38 +188,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-vcpkg-
 
-    - name: Cache Qt6 build
-      uses: actions/cache@v4
+    - name: Restore Qt6 cache
+      uses: actions/cache/restore@v4
       with:
         path: |
           src/build/qt-install
           src/build/qt-src
-        key: ${{ runner.os }}-qt6-6.8.2-qtnamespace-v3
-        restore-keys: |
-          ${{ runner.os }}-qt6-
+        key: ${{ runner.os }}-qt6-${{ hashFiles('src/cmake/**') }}
+
+    - name: Install IDAPython build dependencies
+      run: choco install swig zip unzip make -y
 
     - name: Configure CMake
       working-directory: src
       run: cmake -B build -G "Visual Studio 17 2022" -A x64
-
-    - name: Check if Qt6 is cached
-      id: check-qt
-      working-directory: src
-      shell: bash
-      run: |
-        if [ -f "build/qt-install/lib/cmake/Qt6/Qt6Config.cmake" ]; then
-          echo "Qt6 found in cache"
-          echo "qt_cached=true" >> $GITHUB_OUTPUT
-        else
-          echo "Qt6 not found, will build"
-          echo "qt_cached=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Build Qt6 (if not cached)
-      if: steps.check-qt.outputs.qt_cached != 'true'
-      working-directory: src
-      run: cmake --build build --target build_qt --config Release
-      continue-on-error: true
 
     - name: Build SDK (all components)
       working-directory: src
@@ -127,37 +265,17 @@ jobs:
           libxcb-keysyms1-dev libxcb-randr0-dev libxcb-render-util0-dev \
           libxcb-shape0-dev libxcb-sync-dev libxcb-xfixes0-dev
 
-    - name: Cache Qt6 build
-      uses: actions/cache@v4
+    - name: Restore Qt6 cache
+      uses: actions/cache/restore@v4
       with:
         path: |
           src/build/qt-install
           src/build/qt-src
-        key: ${{ runner.os }}-qt6-6.8.2-qtnamespace-v3
-        restore-keys: |
-          ${{ runner.os }}-qt6-
+        key: ${{ runner.os }}-qt6-${{ hashFiles('src/cmake/**') }}
 
     - name: Configure CMake
       working-directory: src
       run: cmake -B build -G Ninja
-
-    - name: Check if Qt6 is cached
-      id: check-qt
-      working-directory: src
-      run: |
-        if [ -f "build/qt-install/lib/cmake/Qt6/Qt6Config.cmake" ]; then
-          echo "Qt6 found in cache"
-          echo "qt_cached=true" >> $GITHUB_OUTPUT
-        else
-          echo "Qt6 not found, will build"
-          echo "qt_cached=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Build Qt6 (if not cached)
-      if: steps.check-qt.outputs.qt_cached != 'true'
-      working-directory: src
-      run: cmake --build build --target build_qt
-      continue-on-error: true
 
     - name: Build SDK (all components)
       working-directory: src
@@ -215,37 +333,17 @@ jobs:
       run: |
         brew install cmake ninja
 
-    - name: Cache Qt6 build
-      uses: actions/cache@v4
+    - name: Restore Qt6 cache
+      uses: actions/cache/restore@v4
       with:
         path: |
           src/build/qt-install
           src/build/qt-src
-        key: ${{ runner.os }}-qt6-6.8.2-qtnamespace-v3
-        restore-keys: |
-          ${{ runner.os }}-qt6-
+        key: ${{ runner.os }}-qt6-${{ hashFiles('src/cmake/**') }}
 
     - name: Configure CMake
       working-directory: src
       run: cmake -B build -G Ninja
-
-    - name: Check if Qt6 is cached
-      id: check-qt
-      working-directory: src
-      run: |
-        if [ -f "build/qt-install/lib/cmake/Qt6/Qt6Config.cmake" ]; then
-          echo "Qt6 found in cache"
-          echo "qt_cached=true" >> $GITHUB_OUTPUT
-        else
-          echo "Qt6 not found, will build"
-          echo "qt_cached=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Build Qt6 (if not cached)
-      if: steps.check-qt.outputs.qt_cached != 'true'
-      working-directory: src
-      run: cmake --build build --target build_qt
-      continue-on-error: true
 
     - name: Build SDK (all components)
       working-directory: src
