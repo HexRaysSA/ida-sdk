@@ -280,18 +280,18 @@ ifdef __NT__
     endif
 
     # Export LIB as an environment variable so it may be used by cl/link.
-    ifndef LIB
+    ifeq ($(LIB),)  # Allows to reset in submake runs
       ifdef __XPCOMPAT__
         ifdef __X86__
-          LIB = $(MSVC_PATH)/lib/x86;$(LIB_UCRT)/x86;$(LIB_MSSDK71)
+          override LIB = $(MSVC_PATH)/lib/x86;$(LIB_UCRT)/x86;$(LIB_MSSDK71)
         else
-          LIB = $(MSVC_PATH)/lib/x64;$(LIB_UCRT)/x64;$(LIB_MSSDK71)/x64
+          override LIB = $(MSVC_PATH)/lib/x64;$(LIB_UCRT)/x64;$(LIB_MSSDK71)/x64
         endif
       else
         ifdef __X86__
-          LIB = $(MSVC_PATH)/lib/x86;$(LIB_UCRT)/x86;$(LIB_UM)/x86
+          override LIB = $(MSVC_PATH)/lib/x86;$(LIB_UCRT)/x86;$(LIB_UM)/x86
         else
-          LIB = $(MSVC_PATH)/lib/x64;$(LIB_UCRT)/x64;$(LIB_UM)/x64
+          override LIB = $(MSVC_PATH)/lib/x64;$(LIB_UCRT)/x64;$(LIB_UM)/x64
         endif
       endif
       export LIB
@@ -340,6 +340,17 @@ else ifdef __MAC__
     export MACSDK
   endif
   ARCH_FLAGS += -isysroot $(MACSDK)
+endif
+
+# Cross-compilation flags for arm64 linux.
+# CROSS_ARCH_FLAGS and CROSS_LDFLAGS use '^' as space separator (decoded below).
+# Example (native gcc on arm64 linux):
+#   make __ARM__=1 CROSS_ARCH_FLAGS="-fsigned-char^-mno-outline-atomics"
+ifneq ($(CROSS_ARCH_FLAGS),)
+  _S = ^
+  ARCH_FLAGS    += $(subst $(_S),$(space),$(CROSS_ARCH_FLAGS))
+  LDFLAGS       += $(subst $(_S),$(space),$(CROSS_LDFLAGS))
+  STUB_LDFLAGS  += $(subst $(_S),$(space),$(CROSS_LDFLAGS))
 endif
 
 #############################################################################
@@ -653,6 +664,9 @@ else ifeq ($(COMPILER_NAME),vc)
     LDOPT += /INCREMENTAL:NO /OPT:ICF /OPT:REF
   endif
 
+  # static runtime suffix (used by SDK lib dirs and EXTRASUF2)
+  STATIC_RUNTIME_SUFFIX := _s
+
   # set c runtime to use
   ifdef NDEBUG
     ifdef USE_STATIC_RUNTIME
@@ -763,9 +777,9 @@ else
     EXTRASUF1:=_class
   endif
   ifdef USE_STATIC_RUNTIME
-    EXTRASUF2:=_s
+    EXTRASUF2:=$(STATIC_RUNTIME_SUFFIX)
     # libraries for static build on Windows use different settings from dynamic
-    EXTRASUFS:=_s
+    EXTRASUFS:=$(STATIC_RUNTIME_SUFFIX)
   endif
   ifdef __ASAN__
     EXTRASUF3:=_asan
@@ -779,12 +793,13 @@ EXTRASUF=$(EXTRASUF1)$(EXTRASUF2)$(EXTRASUF3)$(EXTRASUF4)
 #############################################################################
 SYSDIR=$(TARGET_PROCESSOR_NAME)_$(SYSNAME)_$(COMPILER_NAME)_$(ADRSIZE)$(OPTSUF)$(EXTRASUF)
 SYSDIR_NOOPT=$(TARGET_PROCESSOR_NAME)_$(SYSNAME)_$(COMPILER_NAME)_$(ADRSIZE)$(EXTRASUF)
+SDK_SYSDIR=$(TARGET_PROCESSOR_NAME)_$(SYSNAME)_$(ADRSIZE)$(EXTRASUF)
 # libraries directory
-LIBDIR=$(IDA)lib/$(SYSDIR_NOOPT)
+LIBDIR=$(IDA)lib/$(SDK_SYSDIR)
 # object files directory (using ?= to allow overriding)
 OBJDIR?=obj/$(SYSDIR)
 # PDB files directory
-PDBDIR=$(IDA)pdb/$(SYSDIR_NOOPT)
+PDBDIR=$(IDA)pdb/$(SDK_SYSDIR)
 # output directory for target platform
 R=$(IDA)bin/
 # input directory with existing build utilities

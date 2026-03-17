@@ -18,6 +18,21 @@ inline bool is_arm64_ea(ea_t ea)
 }
 
 
+#ifndef ARM_DEBMOD_PREAMBLE
+//-------------------------------------------------------------------------
+bool is_32bit_thumb_insn(uint16 code)
+{
+  switch ( code >> 11 )
+  { // if bits 15..11 are the following, we have a 32-bit instruction
+    case 0x1D:
+    case 0x1E:
+    case 0x1F:
+      return true;
+  }
+  return false;
+}
+#endif // ARM_DEBMOD_PREAMBLE
+
 //--------------------------------------------------------------------------
 arm_debmod_t::arm_debmod_t(void)
 {
