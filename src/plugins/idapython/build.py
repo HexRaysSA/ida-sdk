@@ -15,8 +15,10 @@ from __future__ import print_function
 
 import argparse
 import os
+import platform
 import shutil
 import subprocess
+import sys
 
 from pathlib import Path
 
@@ -31,9 +33,8 @@ What follows, are example build commands
 
 # Windows
 Assume SWiG is installed with `winget swig` in the default place and added to PATH
-and IDA is in C:/Program Files/IDA Professional 9.2
 
-  python3 build.py --ida-install "C:/Program Files/IDA Professional 9.2"
+  python3 build.py
 
 If swig is not in the PATH
 For simplicity next parts replaced with "<path_to_swig>":
@@ -42,22 +43,18 @@ For simplicity next parts replaced with "<path_to_swig>":
 - powershell: $env:LOCALAPPDATA/Microsoft/WinGet/Packages/
     SWIG.SWIG_Microsoft.Winget.Source_<hash>/swigwin-4.3.1/
 
-  python3 build.py \
-      --swig "<path_to_swig>/swig.exe" \
-      --ida-install "C:/Program Files/IDA Professional 9.2"
+  python3 build.py --swig "<path_to_swig>/swig.exe"
 
 # Linux/OSX
-Assume SWiG is installed with package manager and the executable is /bin/swig,
-and IDA is in /opt/my-ida-install
+Assume SWiG is installed with package manager and the executable is /bin/swig
 
-  python3 build.py --ida-install /opt/my-ida-install
+  python3 build.py
 
 If want use swig build from the sources
-  python3 build.py --swig "<path_to_swig_executable>" \
-    --ida-install /opt/my-ida-install
+  python3 build.py --swig "<path_to_swig_executable>"
 """)
 parser.add_argument(
-    "--swig", type=Path, default=None, help="Path to the SWIG executalbe")
+    "--swig", type=Path, default=None, help="Path to the SWIG executable")
 parser.add_argument(
     "--debug", default=False, action="store_true",
     help="Build debug version of the plugin",
@@ -69,8 +66,9 @@ parser.add_argument(
 parser.add_argument(
     "-v", "--verbose", help="Verbose mode", default=False, action="store_true")
 parser.add_argument(
-    "-I", "--ida-install", required=True, type=Path,
-    help="IDA's installation directory",
+    "-I", "--ida-install", required=False, type=Path, default=None,
+    help="IDA's installation directory. Required for idapyswitch\n"
+         "and docs generation (idat); not needed for compilation only.",
 )
 parser_args = parser.parse_args()
 
@@ -102,17 +100,31 @@ def main():
     """Execute IDAPython build"""
     env = {
         "OUT_OF_TREE_BUILD" : "1",
-        "IDA_INSTALL": str(parser_args.ida_install),
         "SWIG": get_swig_or_raise(),
     }
+    if parser_args.ida_install:
+        env["IDA_INSTALL"] = str(parser_args.ida_install)
+    applied_minor = os.environ.get("PYTHON_VERSION_MINOR",
+                                   str(sys.version_info.minor))
+    env["PYTHON_VERSION_MINOR"] = applied_minor
+    if "PYTHON_ROOT" not in os.environ and platform.system() == "Windows":
+        env["PYTHON_ROOT"] = str(Path(sys.executable).parent)
     argv = ["make"]
     if parser_args.jobs > 0:
         argv.append(f"-j{parser_args.jobs}")
+    else:
+        argv.append("-j")
     if not parser_args.debug:
         env["NDEBUG"] = "1"
     if parser_args.verbose:
         argv.append("-d")
-    print("### Building IDAPython plugin")
+    # On Windows, generate the MSVC .cfg files first (needed by the makefile)
+    if platform.system() == "Windows":
+        sdk_dir = os.environ.get("SDK_DIR", str(Path(__file__).resolve().parent.parent.parent))
+        print("### Generating MSVC environment config")
+        run(["make", "-C", sdk_dir, "NDEBUG=1", "env_vc"], env=env)
+
+    print(f"### Building IDAPython plugin for Python 3.{applied_minor}")
     run(argv, env=env)
 
 # -----------------------------------------------------------------------

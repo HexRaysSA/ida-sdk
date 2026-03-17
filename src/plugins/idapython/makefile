@@ -235,7 +235,7 @@ SDK_SOURCES=$(wildcard $(ST_SDK)/*.h) $(wildcard $(ST_SDK)/*.hpp)
 _SWIGPY3FLAG := -DPY3=1
 ST_INCLUDES = -I$(ST_SDK)
 CC_DEFS += PY3=1
-CC_DEFS += Py_LIMITED_API=0x03040000 # we should make sure we use the same version as SWiG
+CC_DEFS += Py_LIMITED_API=0x03090000 # we should make sure we use the same version as SWiG
 
 # We want the idapython shared object to runtime link against all python symbols.
 $(F)idapython$(O): CC_DEFS += INDIRECT_PYTHON_API

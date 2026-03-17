@@ -92,37 +92,33 @@ DF_DOC  = 0x1
 def produce_function_prototype(node, name):
 
     def get_value(node):
-        if type(node) == ast.Name:
+        if isinstance(node, ast.Name):
             return node.id
-        if type(node) == ast.Num:
-            return str(node.n)
-        if type(node) == ast.Subscript:
+        if isinstance(node, ast.Subscript):
             return get_value(node.value)+"["+get_value(node.slice)+"]"
-        if type(node) == ast.Index:
+        if isinstance(node, ast.Index):
             return get_value(node.value)
-        if type(node) == ast.Tuple:
+        if isinstance(node, ast.Tuple):
             return ", ".join(map(get_value,node.elts))
-        if type(node) == ast.Ellipsis:
-            return "..."
-        if type(node) == ast.NameConstant:
-            return str(node.value)
-        if type(node) == ast.Attribute:
+        if isinstance(node, ast.Attribute):
             return get_value(node.value)+"."+node.attr
-        if type(node) == ast.Constant:
+        if isinstance(node, ast.Constant):
+            if node.value is Ellipsis:
+                return "..."
             value = str(node.value)
             if isinstance(node.value, str):
                 value = f'"{value}"'
             return value
-        if type(node) == ast.List:
+        if isinstance(node, ast.List):
             pieces = map(get_value, node.elts)
             return "[" + ", ".join(pieces) + "]"
-        if type(node) == ast.UnaryOp:
+        if isinstance(node, ast.UnaryOp):
             return get_value(node.op) + get_value(node.operand)
-        if type(node) == ast.BinOp:
+        if isinstance(node, ast.BinOp):
             return get_value(node.left) + get_value(node.op) + get_value(node.right)
-        if type(node) == ast.USub:
+        if isinstance(node, ast.USub):
             return "-"
-        if type(node) == ast.BitOr:
+        if isinstance(node, ast.BitOr):
             return "|"
         print(type(node))
         return "???"
