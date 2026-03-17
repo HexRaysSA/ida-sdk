@@ -89,10 +89,12 @@ ifndef __MKDEP__
   I = $(ST_SDK)/
 endif
 
-# HACK HIJACK the $(LIBDIR) variable to point to our staging SDK
-ifneq ($(OUT_OF_TREE_BUILD),)
-  LIBDIR = $(IDA)lib/$(TARGET_PROCESSOR_NAME)_$(SYSNAME)_$(COMPILER_NAME)_$(ADRSIZE)$(EXTRASUF)
-endif
+IDAPYSWITCH_LINK_LIBS := $(call dumb_target, pro int128 compress, $(F)idapyswitch$(O))
+TEST_PYWRAPS_LINK_LIBS := $(call dumb_target, json idc unicode pro compress, $(F)test_pywraps$(O))
+
+INTERNAL_LIBDIR := $(LIBDIR)
+# make $(LIBDIR) point to staging SDK libs
+LIBDIR = $(SDK_DIR)/lib/$(SDK_SYSDIR)
 
 # HACK for mkdep to add dependencies for $(F)idapython$(O)
 ifdef __MKDEP__
@@ -859,7 +861,11 @@ define make-api-contents-rule
 	$(Q)(($(DIFFCMD) -w $(1) $(2)) > /dev/null && $(TOUCHMD) $$@) || \
           (echo "API CONTENTS CHANGED! update $(1) or fix the API" && \
            echo "(New API: $(2)) ***" && \
-           ($(DIFFCMD) -U 1 -w $(1) $(2); true))
+           ($(DIFFCMD) -U 1 -w $(1) $(2); true); \
+           $(if $(IDAPYTHON_API_CONTENT_BREAK),\
+             echo "(to reproduce build failure locally, run your flavor build with IDAPYTHON_API_CONTENT_BREAK=1)" && \
+             echo "(don't forget to copy & commit the updated $(1) file)" && false,\
+             true))
     else
 	$(Q)$(TOUCHMD) $$@
     endif
@@ -959,7 +965,6 @@ ifeq ($(OUT_OF_TREE_BUILD),)
 endif
 
 #----------------------------------------------------------------------
-IDAPYSWITCH_OBJS += $(F)idapyswitch$(O)
 ifdef __NT__
   ifneq ($(OUT_OF_TREE_BUILD),)
      # SDK provides only MT libraries
@@ -970,10 +975,9 @@ ifdef __NT__
     endif
   endif
 endif
-$(R)idapyswitch$(B): $(QT_BINDINGS_DEPS) $(call dumb_target, pro int128 compress, $(IDAPYSWITCH_OBJS))
+$(R)idapyswitch$(B): $(QT_BINDINGS_DEPS) $(IDAPYSWITCH_LINK_LIBS)
 
 #----------------------------------------------------------------------
-TEST_PYWRAPS_OBJS += $(F)test_pywraps$(O)
 TEST_PYWRAPS_DEPS := pywraps.cpp pywraps.hpp extapi.cpp extapi.hpp
 $(F)test_pywraps$(O): $(PARSED_HEADERS_MARKER) $(TEST_PYWRAPS_DEPS)
 ifdef __NT__
@@ -987,7 +991,7 @@ ifdef __MAC__
   LDFLAGS_EXE += -Wl,-rpath,@executable_path
   LDFLAGS_EXE += -Wl,-weak-l$(PYTHON_VERNAME) -flat_namespace
 endif
-$(R)test_pywraps$(B): $(call dumb_target, json idc unicode pro compress, $(TEST_PYWRAPS_OBJS)) $(PYTHON_LDFLAGS) $(LDFLAGS_EXE)
+$(R)test_pywraps$(B): $(TEST_PYWRAPS_LINK_LIBS) $(PYTHON_LDFLAGS) $(LDFLAGS_EXE)
 
 $(F)$(TEST_PYWRAPS_RESULT_FNAME).marker: $(R)test_pywraps$(B)
 	$(Q)$(TEST_PYWRAPS_ENV) $(TIMEWRAP-1) $(R)test_pywraps$(B) > $(F)$(TEST_PYWRAPS_RESULT_FNAME)
