@@ -1,0 +1,92 @@
+name: IDAPython Build (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+      os:
+        required: true
+        type: string
+      sdk-artifact:
+        required: true
+        type: string
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+    runs-on: ${{ inputs.os }}
+    env:
+      IDASDK: ${{ github.workspace }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Download SDK build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.sdk-artifact }}
+        path: src/bin/
+
+    - name: Setup Visual Studio Developer Environment
+      if: runner.os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Install Cygwin
+      if: runner.os == 'Windows'
+      uses: cygwin/cygwin-install-action@v4
+      with:
+        packages: make zip unzip
+        add-to-path: true
+
+    # Install SWIG outside of Cygwin — Cygwin's swig has a different
+    # directory structure from the official release and is not compatible.
+    - name: Install SWIG (Windows)
+      if: runner.os == 'Windows'
+      run: choco install swig -y
+
+    - name: Install build dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential swig zip unzip
+
+    - name: Install build dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install swig
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Build IDAPython
+      working-directory: src/plugins/idapython
+      shell: bash
+      run: python3 build.py -I ${{ runner.temp }}
+
+    - name: Build Statistics
+      working-directory: src
+      shell: bash
+      run: |
+        echo "=== IDAPython (${{ inputs.platform }}, Python ${{ matrix.python }}) ==="
+        echo "IDAPython plugins: $(ls -1 bin/plugins/idapython3* 2>/dev/null | wc -l)"
+        ls -la bin/plugins/idapython3* 2>/dev/null || echo "  (none found)"
+
+    - name: Upload IDAPython artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: idapython-${{ inputs.platform }}-py${{ matrix.python }}
+        path: |
+          src/bin/plugins/idapython3*
+          src/bin/python/
+        retention-days: 7
