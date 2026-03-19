@@ -1,3 +1,8 @@
+"""File I/O functions for IDA.
+
+You should not use standard C file I/O functions in modules. Use functions from this header, pro.h and fpro.h instead.
+This file also declares a call_system() function. 
+"""
 
 def enumerate_files(path, fname, callback):
     """

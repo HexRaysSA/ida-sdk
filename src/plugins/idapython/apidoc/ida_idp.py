@@ -1,3 +1,18 @@
+"""Contains definition of the interface to IDP modules.
+
+The interface consists of two structures:
+* definition of target assembler: ::ash
+* definition of current processor: ::ph
+
+
+These structures contain information about target processor and assembler features.
+It also defines two groups of kernel events:
+* processor_t::event_t processor related events
+* idb_event:event_code_t database related events
+
+
+The processor related events are used to communicate with the processor module. The database related events are used to inform any interested parties, like plugins or processor modules, about the changes in the database. 
+"""
 
 def AssembleLine(ea, cs, ip, use32, line):
     """

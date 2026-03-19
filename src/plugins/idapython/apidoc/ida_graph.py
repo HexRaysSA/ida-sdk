@@ -1,3 +1,4 @@
+"""Graph view management."""
 
 class GraphViewer(ida_kernwin.CustomIDAMemo):
 

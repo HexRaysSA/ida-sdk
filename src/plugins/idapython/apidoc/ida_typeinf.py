@@ -1,3 +1,88 @@
+"""Type information in IDA.
+
+In IDA, types are represented by and manipulated through tinfo_t objects.
+
+A tinfo_t can represent a simple type (e.g., `int`, `float`), a complex type 
+(a structure, enum, union, typedef), or even an array, or a function prototype.
+
+The key types in this file are:
+
+* til_t - a type info library. Holds type information in serialized form.
+* tinfo_t - information about a type (simple, complex, ...)
+
+
+Glossary
+--------
+
+All throughout this file, there are certain terms that will keep appearing:
+
+* udt: "user-defined type": a structure or union - but not enums. See udt_type_data_t
+* udm: "udt member": i.e., a structure or union member. See udm_t
+* edm: "enum member": i.e., an enumeration member - i.e., an enumerator. See edm_t
+
+
+Under the hood
+--------------
+
+The tinfo_t type provides a lot of useful methods already, but it's possible to 
+achieve even more by retrieving its contents into the container classes:
+
+* udt_type_data_t - for structures & unions. See tinfo_t::get_udt_details. 
+  Essentially, a vector of udm_t
+* enum_type_data_t - for enumerations. See tinfo_t::get_enum_details. 
+  Essentially, a vector of edm_t
+* ptr_type_data_t - for pointers. See tinfo_t::get_ptr_details
+* array_type_data_t - for arrays. See tinfo_t::get_array_details
+* func_type_data_t - for function prototypes. See tinfo_t::get_func_details
+* bitfield_type_data_t - for bitfields. See tinfo_t::get_bitfield_details
+
+
+Attached & detached tinfo_t objects
+------------------------------------
+
+tinfo_t objects can be attached to a til_t library, or can be created without 
+using any til_t.
+
+Here is an example, assigning a function prototype::
+
+    func_type_data_t func_info;
+    funcarg_t argc; 
+    argc.name = "argc"; 
+    argc.type = tinfo_t(BT_INT); 
+    func_info.push_back(argc);
+    funcarg_t argv; 
+    argc.name = "argv"; 
+    argc.type = tinfo_t("const char **"); 
+    func_info.push_back(argv)
+    tinfo_t tif; 
+    if ( tif.create_func(func_info) ) { 
+        ea_t ea = // get address of "main" 
+        apply_tinfo(ea, tif, TINFO_DEFINITE); 
+    }
+
+This code manipulates a "detached" tinfo_t object, which does not depend on any 
+til_t file. However, any complex type will require a til_t file. In IDA, there 
+is always a default til_t file for each idb file. This til_t file can be 
+specified by nullptr.
+
+On the other hand, the following code manipulates an "attached" tinfo_t object, 
+and any operation that modifies it, will also modify it in the hosting til_t::
+
+    tinfo_t tif; 
+    # Load type from the "Local Types" til_t. 
+    # Note: we could have used `get_idati()` instead of nullptr 
+    if ( tif.get_named_type(nullptr, "my_struct_t") ) 
+        tif.add_udm("extra_field", "unsigned long long");
+
+You can check if a tinfo_t instance is attached to a type in a til_t file by 
+calling tinfo_t::is_typeref.
+
+.. tip:: 
+   The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies 
+   common tasks and provides better type hints, while remaining fully compatible 
+   with IDAPython for advanced use cases.
+   
+   For type operations, see :mod:`ida_domain.types`."""
 
 def calc_type_size(til: til_t, type: bytes):
     """
