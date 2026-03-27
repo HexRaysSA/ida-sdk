@@ -74,7 +74,6 @@ examples: $(EXAMPLES)
 .PHONY: $(PLUGINS) $(SAMPLES) $(EXAMPLES)
 $(PLUGINS) $(SAMPLES) $(EXAMPLES):
 	$(Q)$(MAKE) -C $@
-
 #----------------------------------------------------------------------
 clean::
 	$(foreach dir,$(PLUGINS) $(SAMPLES) $(EXAMPLES),$(MAKE) -C $(dir) clean;)

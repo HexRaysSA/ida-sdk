@@ -42,6 +42,15 @@ ifneq ($(__ANDROID__)$(__ANDROID_X86__)$(__ARMLINUX__)$(__LINUX__)$(__MAC__)$(__
   $(error Only one build target may be defined (__ANDROID__, __ANDROID_X86__, __ARMLINUX__, __LINUX__, __MAC__, or __NT__))
 endif
 
+
+# Default to XP-compatible runtime for Windows static builds.
+# Override with __XPCOMPAT__= (empty) to disable.
+ifeq ($(__NT__)$(USE_STATIC_RUNTIME),11)
+ifeq ($(origin __XPCOMPAT__),undefined)
+__XPCOMPAT__ = 1
+endif
+endif
+
 # detect build configuration
 # Note: will set one of M, M32, M32H, MX86, MO, M32O, M32HO, MX86O, MSO, M32SO, or MX86SO
 # These should match the aliases defined in tools/*/env
@@ -176,11 +185,7 @@ ifdef __NT__
     fix_var=$(1):='$$(patsubst %\,%,$$(patsubst '%,%,$$(patsubst %',%,$$(patsubst "%,%,$$(patsubst %",%,$$($(1)))))))'
 
     # Note: these cfg files are created in makeenv_vc.mak
-    ifdef __XPCOMPAT__
-      -include $(IDA)vs19paths_xp.cfg
-    else
-      -include $(IDA)vs19paths.cfg
-    endif
+    -include $(IDA)vs19paths.cfg
 
     # Visual C++ 2022 Install Directory
     ifndef MSVC_ROOT
@@ -253,46 +258,28 @@ ifdef __NT__
     $(eval $(call require_path,INCLUDE_UCRT,$(INCLUDE_UCRT_PATH),Windows SDK Include/ucrt))
     $(eval $(call require_path,LIB_UCRT,$(LIB_UCRT_PATH),Windows SDK Lib/ucrt))
 
-    ifdef __XPCOMPAT__
-      $(eval $(call require_path,INCLUDE_MSSDK71,$(MSSDK71_PATH)/Include,Microsoft SDK Include))
-      $(eval $(call require_path,LIB_MSSDK71,$(MSSDK71_PATH)/Lib,Microsoft SDK Lib))
-      $(eval $(call require_path,SDK_BIN,$(MSSDK71_PATH)/Bin,Microsoft SDK Bin))
-    else
-      INCLUDE_SHARED_PATH ?= $(WSDK_PATH)/Include/$(WSDK_VER)/shared
-      INCLUDE_UM_PATH ?= $(WSDK_PATH)/Include/$(WSDK_VER)/um
-      LIB_UM_PATH ?= $(WSDK_PATH)/Lib/$(WSDK_VER)/um
-      SDK_BIN_PATH ?= $(WSDK_PATH)/Bin/$(WSDK_VER)/
+    INCLUDE_SHARED_PATH ?= $(WSDK_PATH)/Include/$(WSDK_VER)/shared
+    INCLUDE_UM_PATH ?= $(WSDK_PATH)/Include/$(WSDK_VER)/um
+    LIB_UM_PATH ?= $(WSDK_PATH)/Lib/$(WSDK_VER)/um
+    SDK_BIN_PATH ?= $(WSDK_PATH)/Bin/$(WSDK_VER)/
 
-      $(eval $(call require_path,INCLUDE_SHARED,$(INCLUDE_SHARED_PATH),Windows SDK Include/shared))
-      $(eval $(call require_path,INCLUDE_UM,$(INCLUDE_UM_PATH),Windows SDK Include/um))
-      $(eval $(call require_path,LIB_UM,$(LIB_UM_PATH),Windows SDK Lib/um))
-      $(eval $(call require_path,SDK_BIN,$(SDK_BIN_PATH),Windows SDK Bin))
-    endif
+    $(eval $(call require_path,INCLUDE_SHARED,$(INCLUDE_SHARED_PATH),Windows SDK Include/shared))
+    $(eval $(call require_path,INCLUDE_UM,$(INCLUDE_UM_PATH),Windows SDK Include/um))
+    $(eval $(call require_path,LIB_UM,$(LIB_UM_PATH),Windows SDK Lib/um))
+    $(eval $(call require_path,SDK_BIN,$(SDK_BIN_PATH),Windows SDK Bin))
 
     # Export INCLUDE as an environment variable so it may be used by cl.
     ifndef INCLUDE
-      ifdef __XPCOMPAT__
-        INCLUDE = $(MSVC_INCLUDE);$(INCLUDE_UCRT);$(INCLUDE_MSSDK71)
-      else
-        INCLUDE = $(MSVC_INCLUDE);$(INCLUDE_UCRT);$(INCLUDE_UM);$(INCLUDE_SHARED)
-      endif
+      INCLUDE = $(MSVC_INCLUDE);$(INCLUDE_UCRT);$(INCLUDE_UM);$(INCLUDE_SHARED)
       export INCLUDE
     endif
 
     # Export LIB as an environment variable so it may be used by cl/link.
     ifeq ($(LIB),)  # Allows to reset in submake runs
-      ifdef __XPCOMPAT__
-        ifdef __X86__
-          override LIB = $(MSVC_PATH)/lib/x86;$(LIB_UCRT)/x86;$(LIB_MSSDK71)
-        else
-          override LIB = $(MSVC_PATH)/lib/x64;$(LIB_UCRT)/x64;$(LIB_MSSDK71)/x64
-        endif
+      ifdef __X86__
+        override LIB = $(MSVC_PATH)/lib/x86;$(LIB_UCRT)/x86;$(LIB_UM)/x86
       else
-        ifdef __X86__
-          override LIB = $(MSVC_PATH)/lib/x86;$(LIB_UCRT)/x86;$(LIB_UM)/x86
-        else
-          override LIB = $(MSVC_PATH)/lib/x64;$(LIB_UCRT)/x64;$(LIB_UM)/x64
-        endif
+        override LIB = $(MSVC_PATH)/lib/x64;$(LIB_UCRT)/x64;$(LIB_UM)/x64
       endif
       export LIB
     endif

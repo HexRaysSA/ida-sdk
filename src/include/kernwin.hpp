@@ -1064,7 +1064,7 @@ enum ui_notification_t
 
   ui_get_last_widget,     ///< ui: see get_last_widget()
 
-  ui_action_ctx_base_ctl, ///< ui: misc. operations on a action_ctx_base_t
+  ui_obsolete_action_ctx_base_ctl,
 
   ui_prompt_function_prototype_ex,
                           ///< ui: open Function Prototype Editor and return new type and new name for function
@@ -3167,16 +3167,23 @@ typedef qvector<chooser_row_info_t> chooser_row_info_vec_t;
 #define GCRF_ALL       (GCRF_HIGH_BIT | 3)  ///< Return all rows
 ///@}
 
-/// \defgroup GCIF_ Flags for ui_get_current_items.
+/// \defgroup GCIF_ Flags for ui_get_selected_items.
 ///@{
 #define GCIF_SELECTION 0x1 ///< Selected row (tabular views), or current item (or possibly selected range) in disassembly
 #define GCIF_CURRENT   0x2 ///< Current row (tabular views), or current item in disassembly
 ///@}
 
-/// Item type to retrieve through ui_get_current_items
+/// Item type to retrieve through ui_get_selected_items
+enum item_query_method_t
+{
+  iqm_bwn,
+  iqm_ctx,
+};
+
 enum item_type_query_t
 {
   itq_functions,
+  itq_types,
 };
 
 /// the standard action description
@@ -4604,7 +4611,7 @@ struct action_ctx_base_t
   twidget_type_t widget_type;     ///< type of current widget
   qstring widget_title;           ///< title of current widget
   chooser_base_t *chooser;        ///< the underlying chooser_base_t (if 'widget' is a chooser widget)
-  sizevec_t chooser_selection;    ///< current chooser selection (0-based)
+  sizevec_t chooser_selection;    ///< current chooser selection (0-based). For performance reasons, the selection might be limited.
 
   const char *action;             ///< action name
 
@@ -4634,43 +4641,6 @@ struct action_ctx_base_t
   dirtree_selection_t *dirtree_selection; ///< the current dirtree_t selection (if applicable)
 
   til_type_ref_t *type_ref; ///< a reference to the current type (if 'widget' is a type listing widget; nullptr otherwise)
-
-  enum cxtctl_t
-  {
-    ctxctl_none = 0,
-    ctxctl_get_selection_as_ordinals,
-  };
-
-  /// Attempt converting the current selection (flat view, tree view, ...)
-  /// into a set of ordinals & a type info library.
-  ///
-  /// Because selections can be large,
-  /// *this should only be done upon action activation, not update*.
-  ///
-  /// A success indicates that the context/widget qualifies for this
-  /// operation (if passed, `out_til` will be filled), but does not
-  /// guarantee that any ordinal was retrieved (e.g., in case
-  /// only folders are selected.)
-  ///
-  /// \param out_til The type info library used by the widget
-  /// \param out_ordinals Ordinals storage
-  /// \param max_count The maximum number of ordinals to retrieve
-  /// \param flags Reserved
-  /// \return success
-  bool get_selection_as_ordinals(
-        const til_t **out_til,
-        ordvec_t *out_ordinals,
-        size_t max_count=size_t(-1),
-        uint32 flags=0) const
-  {
-    return callui(ui_action_ctx_base_ctl,
-                  ctxctl_get_selection_as_ordinals,
-                  this,
-                  out_til,
-                  out_ordinals,
-                  max_count,
-                  flags).cnd;
-  }
 };
 
 //-------------------------------------------------------------------------

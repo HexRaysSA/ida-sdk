@@ -1854,7 +1854,7 @@ inline void print_size(qstring *out, ea_t ea1, ea_t ea2, const ivl_t &ivl)
 //-------------------------------------------------------------------------
 void ivl_t::print(qstring *out) const
 {
-  if ( *this == allmem )
+  if ( *this == ALLMEM )
   {
     out->append("ALLMEM");
     return;

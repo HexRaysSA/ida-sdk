@@ -39,9 +39,6 @@ ifdef __NT__
   #       in allmake.mak under "Windows SDK Version".
   # WindowsSDKVersion ?= '10.0.19041.0\'
 
-  # Microsoft SDK v7.1A is only used for the win32 debugger server for
-  # Windows XP compatibility.
-  MSSDK71_PATH ?= '$(PROGRAMFILES_X86)/Microsoft SDKs/Windows/v7.1A'
 else ifdef __MAC__
   # oldest supported version of MacOSX
   # bumped on 2024-07-18 by Henri for IOKit's kIOMainPortDefault (kIOMasterPortDefault has been deprecated with macOS12, we'd have to have a macOS 11 ARM builder)
@@ -104,6 +101,8 @@ QTDIR-$(__LINUX__) = $(THIRD_PARTY_QT)Qt/$(QTVER)/$(TRGT_ARCH)linux$(QTDEBUG)/
 QTDIR-$(__MAC__)   = $(THIRD_PARTY_QT)Qt/$(QTVER)/$(TRGT_ARCH)mac$(QTDEBUG)/
 QTDIR-$(__NT__)    = $(THIRD_PARTY_QT)Qt/$(QTVER)/$(TRGT_ARCH)win$(QTDEBUG)/
 QTDIR ?= $(QTDIR-1)
+# Path normalization is needed when set manually without slash at the end
+QTDIR := $(patsubst %/,%,$(QTDIR))/
 
 QTDIR-HOST-$(__LINUX__) = $(THIRD_PARTY_QT)Qt/$(QTVER)/$(HOST_ARCH)linux$(QTDEBUG)/
 QTDIR-HOST-$(__MAC__)   = $(THIRD_PARTY_QT)Qt/$(QTVER)/$(HOST_ARCH)mac$(QTDEBUG)/

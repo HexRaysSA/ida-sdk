@@ -1194,9 +1194,10 @@ void linux_debmod_t::handle_extended_wait(bool *handled, const chk_signal_info_t
 
   // extended event guard
   int event = csi.status >> 16;
-  if ( !WIFSTOPPED(csi.status)
-    || WSTOPSIG(csi.status) != SIGTRAP
-    || event == 0 )
+  if ( !WIFSTOPPED(csi.status) || event == 0 )
+    return;
+  // For PTRACE_EVENT_STOP, WSTOPSIG may be the group-stop signal, not SIGTRAP
+  if ( WSTOPSIG(csi.status) != SIGTRAP && event != PTRACE_EVENT_STOP )
   {
     return;
   }
@@ -1209,6 +1210,13 @@ void linux_debmod_t::handle_extended_wait(bool *handled, const chk_signal_info_t
 
     linux_enable_event_reporting(new_pid);
     finish_attaching(new_pid, BADADDR, true);
+    if ( handled != nullptr )
+      *handled = true;
+  }
+  else if ( event == PTRACE_EVENT_STOP )
+  {
+    ddeb(("handle_extended_wait: PTRACE_EVENT_STOP(pid=%d, sig=%d)\n",
+          csi.pid, WSTOPSIG(csi.status)));
     if ( handled != nullptr )
       *handled = true;
   }

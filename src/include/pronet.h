@@ -84,7 +84,21 @@ inline int qselect(int nflds, fd_set *rds, fd_set *wds, fd_set *eds, struct time
   SIG_SAFE_CALL(::select(nflds, rds, wds, eds, timeout));
 }
 
-//-------------------------------------------------------------------------
+#if defined(__NT__) && _WIN32_WINNT < 0x0600
+#ifndef POLLIN
+#  define POLLIN   0x0100
+#  define POLLOUT  0x0010
+#  define POLLERR  0x0001
+struct pollfd
+{
+  SOCKET fd;
+  SHORT events;
+  SHORT revents;
+};
+#endif
+extern "C" __declspec(dllimport) int __stdcall WSAPoll(pollfd *, unsigned long, int);
+#endif
+
 inline int qpoll(pollfd *fds, uint32 nfds, int timeout_ms)
 {
 #ifdef __NT__

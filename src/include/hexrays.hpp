@@ -1989,8 +1989,8 @@ public:
 
   DECLARE_COMPARISONS(ivl_t);
   DEFINE_MEMORY_ALLOCATION_FUNCS()
-  static const ivl_t allmem;
-#define ALLMEM ivl_t::allmem
+  static ivl_t allmem() { return ivl_t(0, BADADDR); }
+#define ALLMEM ivl_t::allmem()
 };
 DECLARE_TYPE_AS_MOVABLE(ivl_t);
 

@@ -718,6 +718,31 @@ bool linux_debmod_t::read_asciiz(tid_t tid, ea_t ea, char *buf, size_t bufsize, 
 }
 
 //--------------------------------------------------------------------------
+#ifdef __ANDROID__
+void linux_debmod_t::refresh_art_code_ranges()
+{
+  art_code_ranges.clear();
+  if ( mapfp == nullptr )
+    return;
+  rewind(mapfp);
+  mapfp_entry_t me;
+  while ( read_mapping(&me) )
+  {
+    if ( me.empty() || strchr(me.perm, 'x') == nullptr )
+      continue;
+    bool is_art = me.fname.ends_with(".oat")
+               || me.fname.ends_with(".odex");
+    if ( !is_art )
+      is_art = strstr(me.fname.c_str(), "jit-cache") != nullptr;
+    if ( is_art )
+      art_code_ranges.add(range_t(me.ea1, me.ea2));
+  }
+  dmsg("ART: refreshed code ranges: %d regions\n",
+       (int)art_code_ranges.nranges());
+}
+#endif
+
+//--------------------------------------------------------------------------
 // may add/del threads!
 bool linux_debmod_t::gen_library_events(int /*tid*/)
 {
@@ -725,6 +750,9 @@ bool linux_debmod_t::gen_library_events(int /*tid*/)
   meminfo_vec_t miv;
   if ( get_memory_info(miv, false) == 1 )
     handle_dll_movements(miv);
+#ifdef __ANDROID__
+  refresh_art_code_ranges();
+#endif
   return events.size() != s;
 }
 
@@ -895,6 +923,33 @@ int linux_debmod_t::get_debug_event(debug_event_t *event, int timeout_ms)
   // any threads, all of them are suspended
   set_thread_state(*thif, STOPPED);
 
+#ifdef __ANDROID__
+  // ART runtime uses SIGSEGV internally for implicit null pointer checks
+  // in JIT/AOT-compiled code. If the faulting PC is in an ART code region,
+  // pass the signal to ART's FaultManager without freezing other threads.
+  // Real native crashes (PC outside ART code) still stop the debugger.
+  if ( WIFSTOPPED(status)
+    && WSTOPSIG(status) == SIGSEGV
+    && !art_code_ranges.empty() )
+  {
+    siginfo_t si;
+    memset(&si, 0, sizeof(si));
+    qptrace(PTRACE_GETSIGINFO, tid, nullptr, &si);
+    // si_code > 0 means hardware fault (SI_FROMKERNEL, see siginfo.h),
+    // as opposed to software-sent signals (kill/tkill) which have si_code <= 0
+    if ( si.si_code > 0 && art_code_ranges.contains(get_ip(tid)) )
+    {
+      // Pass SIGSEGV occurring inside AOT mappings to ART,
+      // deliver via explicit PTRACE_CONT, clear child_signum so
+      // a subsequent thaw (e.g. after SIGSTOP) won't re-deliver it.
+      thif->child_signum = 0;
+      set_thread_state(*thif, RUNNING);
+      qptrace(PTRACE_CONT, tid, 0, (void *)(size_t)SIGSEGV);
+      return false; // no event; caller will retry
+    }
+  }
+#endif
+
   dbg_freeze_threads(NO_THREAD);
   may_run = false;
 
@@ -1045,6 +1100,12 @@ RESUME:
           if ( bpts.find(proc_ip) != bpts.end()
             && !handling_lowcnds.has(proc_ip) )
           {
+            if ( removed_bpts.find(proc_ip) != removed_bpts.end() )
+            {
+              ldeb("ghost breakpoint at %a, resuming\n", proc_ip);
+              code = 0;
+              goto RESUME;
+            }
             bptaddr_t &bpta = event->set_bpt();
             bpta.hea = BADADDR;
             bpta.kea = BADADDR;
@@ -2035,6 +2096,7 @@ bool linux_debmod_t::handle_process_start(pid_t _pid, attach_mode_t attaching)
   deleted_threads.clear();
   process_handle = pid;
   threads_collected = false;
+  npending_signals = 0;
   add_thread(pid);
   int status;
   int options = 0;
@@ -2076,6 +2138,10 @@ bool linux_debmod_t::handle_process_start(pid_t _pid, attach_mode_t attaching)
   set_addr_size(4);
   if ( get_memory_info(miv, false) <= 0 )
     INTERR(30065);
+
+#ifdef __ANDROID__
+  refresh_art_code_ranges();
+#endif
 
   init_dynamic_regs();
 

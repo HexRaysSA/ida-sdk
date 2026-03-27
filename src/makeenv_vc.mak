@@ -203,11 +203,7 @@ endif
 ifdef USE_VS15
   VSCFG = vs15paths.cfg
 else
-  ifdef __XPCOMPAT__
-    VSCFG = vs19paths_xp.cfg
-  else
-    VSCFG = vs19paths.cfg
-  endif
+  VSCFG = vs19paths.cfg
 endif
 
 all: $(SYSDIR).cfg $(VSCFG)
@@ -227,7 +223,8 @@ ifdef USE_STATIC_RUNTIME
 	@echo /D__NOEXPORT__                    >>$@
 endif
 ifdef __XPCOMPAT__
-	@echo /D_USING_V110_SDK71_              >>$@
+	@echo /D__XPCOMPAT__                    >>$@
+	@echo /D_WIN32_WINNT=0x0501             >>$@
 	@echo /Zc:threadSafeInit-               >>$@
 else
 	@echo /Zc:__cplusplus                   >>$@
@@ -277,22 +274,3 @@ endef
 vs19paths.cfg:
 	@echo -e '$(subst $(newline),\n,$(VS17PATHS_CFG))' >$@
 
-define VS17PATHS_XP_CFG
-export MSVC_ROOT = $(MSVC_ROOT)
-export MSVC_TOOLSVER = $(MSVC_TOOLSVER)
-export MSVC_PATH = $(MSVC_PATH)
-export MSVC_INCLUDE = $(MSVC_INCLUDE)
-export MSVC_BIN-X86 = $(MSVC_BIN-X86)
-export MSVC_BIN-X64 = $(MSVC_BIN-X64)
-export WSDK_PATH = $(WSDK_PATH)
-export WSDK_VER = $(WSDK_VER)
-export INCLUDE_UCRT_PATH = $(INCLUDE_UCRT_PATH)
-export LIB_UCRT_PATH = $(LIB_UCRT_PATH)
-export INCLUDE_UCRT = $(INCLUDE_UCRT)
-export LIB_UCRT = $(LIB_UCRT)
-export INCLUDE_MSSDK71 = $(INCLUDE_MSSDK71)
-export LIB_MSSDK71 = $(LIB_MSSDK71)
-export SDK_BIN = $(SDK_BIN)
-endef
-vs19paths_xp.cfg:
-	@echo -e '$(subst $(newline),\n,$(VS17PATHS_XP_CFG))' >$@

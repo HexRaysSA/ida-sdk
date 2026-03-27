@@ -227,6 +227,12 @@ public:
   bool using_seize = false;  // Use PTRACE_SEIZE instead of PTRACE_ATTACH (Android 14+)
   bool ever_singlestepped = false;  // Did we ever use PTRACE_SINGLESTEP? (for diagnostics)
 
+#ifdef __ANDROID__
+  // Cached ART code ranges (OAT files + JIT code cache) for SIGSEGV filtering.
+  rangeset_t art_code_ranges;
+  void refresh_art_code_ranges();
+#endif
+
   easet_t removed_bpts; // removed breakpoints
 
   FILE *mapfp;             // map file handle
