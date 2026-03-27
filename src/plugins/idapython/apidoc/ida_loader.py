@@ -15,17 +15,17 @@ The PLUGIN interface consists of one structure: plugin_t
 
 Modules can't use standard FILE* functions. They must use functions from <fpro.h>
 
-Modules can't use standard memory allocation functions. They must use functions 
+Modules can't use standard memory allocation functions. They must use functions
 from <pro.h>
 
-The exported entry #1 in the module should point to the the appropriate 
+The exported entry #1 in the module should point to the the appropriate
 structure. (loader_t for LDR module, for example)
 
-.. tip:: 
-   The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies 
-   common tasks and provides better type hints, while remaining fully compatible 
+.. tip::
+   The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+   common tasks and provides better type hints, while remaining fully compatible
    with IDAPython for advanced use cases.
-   
+
    For database operations, see :mod:`ida_domain.database`."""
 
 def mem2base(mem, ea, fpos):

@@ -9795,6 +9795,8 @@ ida_hexrays.var_ref_t.__ne__(self, r: "var_ref_t") -> bool
 
 ida_hexrays.var_ref_t.compare(self, r: "var_ref_t") -> int
 
+ida_hexrays.var_ref_t.getv(self) -> "lvar_t &"
+
 ida_hexrays.var_ref_t.idx
     index into lvars_t
 
@@ -10266,10 +10268,25 @@ ida_allins
 ida_auto
     Functions that work with the autoanalyzer queue.
     
-    The autoanalyzer works when IDA is not busy processing the user keystrokes. It has several queues, each queue having its own priority. The analyzer stops when all queues are empty.
-    A queue contains addresses or address ranges. The addresses are kept sorted by their values. The analyzer will process all addresses from the first queue, then switch to the second queue and so on. There are no limitations on the size of the queues.
-    This file also contains functions that deal with the IDA status indicator and the autoanalysis indicator. You may use these functions to change the indicator value. 
-        
+    The autoanalyzer works when IDA is not busy processing the user keystrokes.
+    It has several queues, each queue having its own priority. The analyzer stops
+    when all queues are empty.
+    
+    A queue contains addresses or address ranges. The addresses are kept sorted by
+    their values. The analyzer will process all addresses from the first queue,
+    then switch to the second queue and so on. There are no limitations on the
+    size of the queues.
+    
+    This file also contains functions that deal with the IDA status indicator and
+    the autoanalysis indicator. You may use these functions to change the
+    indicator value.
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For auto-analysis operations, see :mod:`ida_domain.database`.
 
 ida_auto.AU_CHLB
     12: load signature file (file name is kept separately)
@@ -10544,10 +10561,21 @@ ida_bitrange.bitrange_t.sub(self, r: "bitrange_t") -> bool
 ida_bytes
     Contains functions that deal with individual byte characteristics.
     
-    Each byte of the disassembled program is represented by a 32-bit value. We will call this value 'flags'. The structure of the flags is here.
-    You are not allowed to inspect individual bits of flags and modify them directly. Use special functions to inspect and/or modify flags.
-    Flags are kept in a virtual array file (*.id1). Addresses (ea) are all 32-bit (or 64-bit) quantities. 
-        
+    Each byte of the disassembled program is represented by a 32-bit value. We will
+    call this value 'flags'. The structure of the flags is here.
+    
+    You are not allowed to inspect individual bits of flags and modify them directly.
+    Use special functions to inspect and/or modify flags.
+    
+    Flags are kept in a virtual array file (*.id1). Addresses (ea) are all 32-bit
+    (or 64-bit) quantities.
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For byte-level operations, see :mod:`ida_domain.bytes`.
 
 ida_bytes.ALOPT_APPEND
     if an existing strlit is encountered, then append it to the string. 
@@ -12610,8 +12638,7 @@ ida_dbg
     Contains functions to control the debugging of a process.
     
     See Debugger functions for a complete explanation of these functions.
-    These functions are inlined for the kernel. They are not inlined for the user interface. 
-        
+    These functions are inlined for the kernel. They are not inlined for the user-interfaces.
 
 ida_dbg.BKPT_ACTIVE
     active?
@@ -14375,8 +14402,7 @@ ida_diskio
     File I/O functions for IDA.
     
     You should not use standard C file I/O functions in modules. Use functions from this header, pro.h and fpro.h instead.
-    This file also declares a call_system() function. 
-        
+    This file also declares a call_system() function.
 
 ida_diskio.IDA_SUBDIR_IDADIR_FIRST
     $IDADIR/subdir will be first, not last
@@ -15127,12 +15153,16 @@ ida_entry
     
     Exported functions are considered as entry points as well.
     IDA maintains list of entry points to the program. Each entry point:
-    * has an address
-    * has a name
-    * may have an ordinal number 
+       * has an address
+       * has a name
+       * may have an ordinal number
     
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
     
-        
+       For entry point management, see :mod:`ida_domain.entries`.
 
 ida_entry.AEF_IDBENC
     the name is given in the IDB encoding; non-ASCII bytes will be decoded accordingly. Specifying AEF_IDBENC also implies AEF_NODUMMY 
@@ -15675,8 +15705,7 @@ ida_expr.throw_idc_exception(r: "idc_value_t", desc: str) -> "error_t"
 ida_fixup
     Functions that deal with fixup information.
     
-    A loader should setup fixup information using set_fixup(). 
-        
+    A loader should setup fixup information using set_fixup().
 
 ida_fixup.FIXUPF_CREATED
     fixup was not present in the input file
@@ -15914,8 +15943,7 @@ ida_fpro
     
     You should not use C standard I/O functions in your modules. The reason: Each module compiled with Borland (and statically linked to Borland's library) will host a copy of the FILE * information.
     So, if you open a file in the plugin and pass the handle to the kernel, the kernel will not be able to use it.
-    If you really need to use the standard functions, define USE_STANDARD_FILE_FUNCTIONS. In this case do not mix them with q... functions. 
-        
+    If you really need to use the standard functions, define USE_STANDARD_FILE_FUNCTIONS. In this case do not mix them with q... functions.
 
 ida_fpro.qfclose(fp: "FILE *") -> int
 
@@ -16006,7 +16034,8 @@ ida_fpro.qfile_t.writebytes(self, size, big_endian)
 ida_frame
     Routines to manipulate function stack frames, stack variables, register variables and local labels.
     
-    The frame is represented as a structure: 
+    The frame is represented as a structure::
+    
       +------------------------------------------------+
       | function arguments                             |
       +------------------------------------------------+
@@ -16024,12 +16053,18 @@ ida_frame
       +------------------------------------------------+ <- SP
     
     To access the structure of a function frame and stack variables, use:
+    
     * tinfo_t::get_func_frame(const func_t *pfn) (the preferred way)
     * get_func_frame(tinfo_t *out, const func_t *pfn)
-    * tinfo_t::get_udt_details() gives info about stack variables: their type, names, offset, etc 
+    * tinfo_t::get_udt_details() gives info about stack variables: their type,
+      names, offset, etc
     
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
     
-        
+       For function frame operations, see :mod:`ida_domain.functions`.
 
 ida_frame.REGVAR_ERROR_ARG
     function arguments are bad
@@ -16497,11 +16532,20 @@ ida_funcs
     Routines for working with functions within the disassembled program.
     
     This file also contains routines for working with library signatures (e.g. FLIRT).
+    
     Each function consists of function chunks. At least one function chunk must be present in the function definition - the function entry chunk. Other chunks are called function tails. There may be several of them for a function.
+    
     A function tail is a continuous range of addresses. It can be used in the definition of one or more functions. One function using the tail is singled out and called the tail owner. This function is considered as 'possessing' the tail. get_func() on a tail address will return the function possessing the tail. You can enumerate the functions using the tail by using func_parent_iterator_t.
+    
     Each function chunk in the disassembly is represented as an "range" (a range of addresses, see range.hpp for details) with characteristics.
-    A function entry must start with an instruction (code) byte. 
-        
+    A function entry must start with an instruction (code) byte.
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For function management and analysis, see :mod:`ida_domain.functions`.
 
 ida_funcs.FIND_FUNC_DEFINE
     create instruction if undefined byte is encountered
@@ -17323,6 +17367,13 @@ ida_funcs.update_func(pfn: "func_t") -> bool
 
 ida_gdl
     Low level graph drawing operations.
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For graph operations, see :mod:`ida_domain.functions`.
 
 ida_gdl.BasicBlock
     Basic block class. It is returned by the Flowchart class
@@ -18841,9 +18892,20 @@ ida_graph.viewer_set_titlebar_height(gv: "graph_viewer_t *", height: int) -> int
 ida_ida
     Contains the ::inf structure definition and some functions common to the whole IDA project.
     
-    The ::inf structure is saved in the database and contains information specific to the current program being disassembled. Initially it is filled with values from ida.cfg.
-    Although it is not a good idea to change values in ::inf structure (because you will overwrite values taken from ida.cfg), you are allowed to do it if you feel it necessary. 
-        
+    The ::inf structure is saved in the database and contains information specific
+    to the current program being disassembled. Initially it is filled with values
+    from ida.cfg.
+    
+    Although it is not a good idea to change values in ::inf structure (because you
+    will overwrite values taken from ida.cfg), you are allowed to do it if you feel
+    it necessary.
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For database operations, see :mod:`ida_domain.database`.
 
 ida_ida.ABI_8ALIGN4
     4 byte alignment for 8byte scalars (__int64/double) inside structures?
@@ -21051,8 +21113,7 @@ ida_idc.mark_position(ea: ida_idaapi.ea_t, lnnum: int, x: "short", y: "short", s
 ida_idd
     Contains definition of the interface to IDD modules.
     
-    The interface consists of structures describing the target debugged processor and a debugging API. 
-        
+    The interface consists of structures describing the target debugged processor and a debugging API.
 
 ida_idd.APPCALL_DEBEV
     Return debug event information.
@@ -22898,8 +22959,7 @@ ida_idp
     * idb_event:event_code_t database related events
     
     
-    The processor related events are used to communicate with the processor module. The database related events are used to inform any interested parties, like plugins or processor modules, about the changes in the database. 
-        
+    The processor related events are used to communicate with the processor module. The database related events are used to inform any interested parties, like plugins or processor modules, about the changes in the database.
 
 ida_idp.AS2_BRACE
     Use braces for all expressions.
@@ -26421,10 +26481,7 @@ ida_kernwin
     * convenience functions for UI services
     * structures which hold information about the lines (disassembly, structures, enums) generated by the kernel
     * functions to interact with the user (dialog boxes)
-    * some string and conversion functions. 
-    
-    
-        
+    * some string and conversion functions.
 
 ida_kernwin.AA_CHECKABLE
     see update_action_checkable()
@@ -28918,7 +28975,7 @@ ida_kernwin.action_ctx_base_t.chooser
     the underlying chooser_base_t (if 'widget' is a chooser widget)
 
 ida_kernwin.action_ctx_base_t.chooser_selection
-    current chooser selection (0-based)
+    current chooser selection (0-based). For performance reasons, the selection might be limited.
 
 ida_kernwin.action_ctx_base_t.cur_ea
     the current EA of the position in the view
@@ -28946,17 +29003,6 @@ ida_kernwin.action_ctx_base_t.dirtree_selection
 
 ida_kernwin.action_ctx_base_t.focus
     The focused widget in case it is not the 'form' itself (e.g., the 'quick filter' input in choosers.)
-
-ida_kernwin.action_ctx_base_t.get_selection_as_ordinals(self, *args) -> bool
-    Attempt converting the current selection (flat view, tree view, ...) into a set of ordinals & a type info library.
-    Because selections can be large, *this should only be done upon action activation, not update*.
-    A success indicates that the context/widget qualifies for this operation (if passed, `out_til` will be filled), but does not guarantee that any ordinal was retrieved (e.g., in case only folders are selected.)
-    
-    :param out_til: The type info library used by the widget
-    :param out_ordinals: Ordinals storage
-    :param max_count: The maximum number of ordinals to retrieve
-    :param flags: Reserved
-    :returns: success
 
 ida_kernwin.action_ctx_base_t.graph
     the current graph (if in a graph view)
@@ -32168,8 +32214,7 @@ ida_lines
     High level functions that deal with the generation of the disassembled text lines.
     
     This file also contains definitions for the syntax highlighting.
-    Finally there are functions that deal with anterior/posterior user-defined lines. 
-        
+    Finally there are functions that deal with anterior/posterior user-defined lines.
 
 ida_lines.COLOR_ADDR
     Hidden address marks. the address is represented as 16-digit hex number: 01234567ABCDEF00. it doesn't have the COLOR_OFF pair. 
@@ -32628,18 +32673,32 @@ ida_loader
     Definitions of IDP, LDR, PLUGIN module interfaces.
     
     This file also contains:
+    
     * functions to load files into the database
     * functions to generate output files
     * high level functions to work with the database (open, save, close)
     
     
-    The LDR interface consists of one structure: loader_t 
-    The IDP interface consists of one structure: processor_t 
+    The LDR interface consists of one structure: loader_t
+    
+    The IDP interface consists of one structure: processor_t
+    
     The PLUGIN interface consists of one structure: plugin_t
+    
     Modules can't use standard FILE* functions. They must use functions from <fpro.h>
-    Modules can't use standard memory allocation functions. They must use functions from <pro.h>
-    The exported entry #1 in the module should point to the appropriate structure. (loader_t for LDR module, for example) 
-        
+    
+    Modules can't use standard memory allocation functions. They must use functions
+    from <pro.h>
+    
+    The exported entry #1 in the module should point to the the appropriate
+    structure. (loader_t for LDR module, for example)
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For database operations, see :mod:`ida_domain.database`.
 
 ida_loader.ACCEPT_ARCHIVE
     Specify that a file format is served by archive loader See loader_t::accept_file 
@@ -34346,8 +34405,6 @@ ida_moves.navstack_t
 
 ida_moves.navstack_t.__init__(self)
 
-ida_moves.navstack_t.dump(self) -> None
-
 ida_moves.navstack_t.get_all_current(self, out: "navstack_entry_vec_t *") -> None
 
 ida_moves.navstack_t.get_current(self, out: "navstack_entry_t", widget_id: str) -> bool
@@ -34482,10 +34539,9 @@ ida_nalt
     Definitions of various information kept in netnodes.
     
     Each address in the program has a corresponding netnode: netnode(ea).
-    If no information exists for an address, its corresponding netnode is not created. Otherwise we will create a netnode and save information in it. All variable length information (names, comments, offset information, etc) is stored in the netnode.
+    If we have no information about an address, the corresponding netnode is not created. Otherwise we will create a netnode and save information in it. All variable length information (names, comments, offset information, etc) is stored in the netnode.
     Don't forget that some information is already stored in the flags (bytes.hpp)
-    netnode. 
-        
+    netnode.
 
 ida_nalt.AFL_ALIGNFLOW
     the previous insn was created for alignment purposes only
@@ -35926,8 +35982,14 @@ ida_nalt.uses_modsp(ea: ida_idaapi.ea_t) -> bool
 ida_name
     Functions that deal with names.
     
-    A non-tail address of the program may have a name. Tail addresses (i.e. the addresses in the middle of an instruction or data item) cannot have names. 
-        
+    A non-tail address of the program may have a name. Tail addresses (i.e. the addresses in the middle of an instruction or data item) cannot have names.
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For name and symbol operations, see :mod:`ida_domain.names`.
 
 ida_name.CN_KEEP_TRAILING_DIGITS
     do not remove "_\d+" at the end of name
@@ -36493,7 +36555,7 @@ ida_netnode
     
     Initially a new netnode contains no information at all so no disk space is used for it. As you add new information, the netnode grows.
     All arrays that are attached to the netnode behave in the same manner. Initially:
-    * all members of altvals/charvals array are zeros
+    * all members of altvals/charvals array are zeroes
     * all members of supvals/hashvals array are undefined
     
     
@@ -36507,8 +36569,7 @@ ida_netnode
     
     
     Advanced info:
-    In fact a netnode may contain up to 256 arrays of arbitrary sized objects (not only the 4 listed above). Each array has an 8-bit tag. Usually tags are represented by character constants. For example, altvals and supvals are simply 2 of 256 arrays, with the tags 'A' and 'S' respectively. 
-        
+    In fact a netnode may contain up to 256 arrays of arbitrary sized objects (not only the 4 listed above). Each array has an 8-bit tag. Usually tags are represented by character constants. For example, altvals and supvals are simply 2 of 256 arrays, with the tags 'A' and 'S' respectively.
 
 ida_netnode.BADNODE
     A number to represent a bad netnode reference.
@@ -36794,8 +36855,7 @@ ida_offset
     
     "Being an offset" is a characteristic of an operand. This means that operand or its part represent offset from some address in the program. This linear address is called "offset base". Some operands may have 2 offsets simultaneously. Generally, IDA doesn't handle this except for Motorola outer offsets. Thus there may be two offset values in an operand: simple offset and outer offset.
     Outer offsets are handled by specifying special operand number: it should be ORed with OPND_OUTER value.
-    See bytes.hpp for further explanation of operand numbers. 
-        
+    See bytes.hpp for further explanation of operand numbers.
 
 ida_offset.add_refinfo_dref(insn: "insn_t const &", _from: ida_idaapi.ea_t, ri: "refinfo_t", opval: "adiff_t", type: "dref_t", opoff: int) -> ida_idaapi.ea_t
     Add xrefs for a reference from the given instruction ( insn_t::ea). This function creates a cross references to the target and the base. insn_t::add_off_drefs() calls this function to create xrefs for 'offset' operand. 
@@ -36922,15 +36982,14 @@ ida_pro
     It defines the most common types, functions and data. Also, it tries to make system dependent definitions.
     The following preprocessor macros are used in the project (the list may be incomplete)
     Platform must be specified as one of:
-    __NT__ - MS Windows (all platforms) 
-     __LINUX__ - Linux 
+    __NT__ - MS Windows (all platforms)
+     __LINUX__ - Linux
      __MAC__ - MAC OS X
-    __EA64__ - 64-bit address size (sizeof(ea_t)==8) 
-     __X86__ - 32-bit debug servers (sizeof(void*)==4) 
-     __X64__ - x64 processor (sizeof(void*)==8) default 
-     __PPC__ - PowerPC 
-     __ARM__ - ARM 
-        
+    __EA64__ - 64-bit address size (sizeof(ea_t)==8)
+     __X86__ - 32-bit debug servers (sizeof(void*)==4)
+     __X64__ - x64 processor (sizeof(void*)==8) default
+     __PPC__ - PowerPC
+     __ARM__ - ARM
 
 ida_pro.CP_UTF16
     UTF-16 codepage.
@@ -38082,8 +38141,7 @@ ida_problems
     
     There are several problem lists. An address may be inserted to any list. The kernel simply maintains these lists, no additional processing is done.
     The problem lists are accessible for the user from the View->Subviews->Problems menu item.
-    Addresses in the lists are kept sorted. In general IDA just maintains these lists without using them during analysis (except PR_ROLLED). 
-        
+    Addresses in the lists are kept sorted. In general IDA just maintains these lists without using them during analysis (except PR_ROLLED).
 
 ida_problems.PR_ATTN
     Attention! Probably erroneous situation.
@@ -38176,8 +38234,7 @@ ida_range
     Contains the definition of range_t.
     
     A range is a non-empty continuous range of addresses (specified by its start and end addresses, the end address is excluded from the range).
-    Ranges are stored in the Btree part of the IDA database. To learn more about Btrees (Balanced Trees): [http://www.bluerwhite.org/btree/](http://www.bluerwhite.org/btree/) 
-        
+    Ranges are stored in the Btree part of the IDA database. To learn more about Btrees (Balanced Trees): [http://www.bluerwhite.org/btree/](http://www.bluerwhite.org/btree/)
 
 ida_range.RANGE_KIND_FUNC
     func_t
@@ -38542,8 +38599,7 @@ ida_registry
     
     IDA uses the registry to store global configuration options that must persist after IDA has been closed.
     On Windows, IDA uses the Windows registry directly. On Unix systems, the registry is stored in a file (typically ~/.idapro/ida.reg).
-    The root key for accessing IDA settings in the registry is defined by ROOT_KEY_NAME. 
-        
+    The root key for accessing IDA settings in the registry is defined by ROOT_KEY_NAME.
 
 ida_registry.ROOT_KEY_NAME
     Default key used to store IDA settings in registry (Windows version). 
@@ -39109,8 +39165,7 @@ ida_regfinder.reg_value_info_t.vals_union(self, r: "reg_value_info_t") -> "reg_v
 ida_search
     Middle-level search functions.
     
-    They all are controlled by Search flags 
-        
+    They all are controlled by Search flags
 
 ida_search.SEARCH_BRK
     return BADADDR if the search was cancelled.
@@ -39179,12 +39234,39 @@ ida_search.search_down(sflag: int) -> bool
 ida_segment
     Functions that deal with segments.
     
-    IDA requires that all program addresses belong to segments (each address must belong to exactly one segment). The situation when an address doesn't belong to any segment is allowed as a temporary situation only when the user changes program segmentation. Bytes outside a segment can't be converted to instructions, have names, comments, etc. Each segment has its start address, ending address and represents a contiguous range of addresses. There might be unused holes between segments.
-    Each segment has its unique segment selector. This selector is used to distinguish the segment from other segments. For 16-bit programs the selector is equal to the segment base paragraph. For 32-bit programs there is special array to translate the selectors to the segment base paragraphs. A selector is a 32/64 bit value.
-    The segment base paragraph determines the offsets in the segment. If the start address of the segment == (base << 4) then the first offset in the segment will be 0. The start address should be higher or equal to (base << 4). We will call the offsets in the segment 'virtual addresses'. So, the virtual address of the first byte of the segment is
-    (start address of segment - segment base linear address)
-    For IBM PC, the virtual address corresponds to the offset part of the address. For other processors (Z80, for example), virtual addresses correspond to Z80 addresses and linear addresses are used only internally. For MS Windows programs the segment base paragraph is 0 and therefore the segment virtual addresses are equal to linear addresses. 
-        
+    IDA requires that all program addresses belong to segments (each address must
+    belong to exactly one segment). The situation when an address doesn't belong to
+    any segment is allowed as a temporary situation only when the user changes
+    program segmentation. Bytes outside a segment can't be converted to instructions,
+    have names, comments, etc. Each segment has its start address, ending address
+    and represents a contiguous range of addresses. There might be unused holes
+    between segments.
+    
+    Each segment has its unique segment selector. This selector is used to
+    distinguish the segment from other segments. For 16-bit programs the selector
+    is equal to the segment base paragraph. For 32-bit programs there is special
+    array to translate the selectors to the segment base paragraphs. A selector is
+    a 32/64 bit value.
+    
+    The segment base paragraph determines the offsets in the segment. If the start
+    address of the segment == (base << 4) then the first offset in the segment will
+    be 0. The start address should be higher or equal to (base << 4). We will call
+    the offsets in the segment 'virtual addresses'. So, the virtual address of the
+    first byte of the segment is (start address of segment - segment base linear
+    address).
+    
+    For IBM PC, the virtual address corresponds to the offset part of the address.
+    For other processors (Z80, for example), virtual addresses correspond to Z80
+    addresses and linear addresses are used only internally. For MS Windows programs
+    the segment base paragraph is 0 and therefore the segment virtual addresses are
+    equal to linear addresses.
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For segment operations, see :mod:`ida_domain.segments`.
 
 ida_segment.ADDSEG_FILLGAP
     fill gap between new segment and previous one. i.e. if such a gap exists, and this gap is less than 64K, then fill the gap by extending the previous segment and adding .align directive to it. This way we avoid gaps between segments. too many gaps lead to a virtual array failure. it cannot hold more than ~1000 gaps. 
@@ -40009,8 +40091,7 @@ ida_segment.update_segm(s: "segment_t") -> bool
 ida_segregs
     Functions that deal with the segment registers.
     
-    If your processor doesn't use segment registers, then these functions are of no use for you. However, you should define two virtual segment registers - CS and DS (for code segment and data segment) and specify their internal numbers in the LPH structure (processor_t::reg_code_sreg and processor_t::reg_data_sreg). 
-        
+    If your processor doesn't use segment registers, then these functions are of no use for you. However, you should define two virtual segment registers - CS and DS (for code segment and data segment) and specify their internal numbers in the LPH structure (processor_t::reg_code_sreg and processor_t::reg_data_sreg).
 
 ida_segregs.SR_auto
     the value is determined by IDA
@@ -40215,8 +40296,7 @@ ida_strlist
     Functions that deal with the string list.
     
     While the kernel keeps the string list, it does not update it. The string list is not used by the kernel because keeping it up-to-date would slow down IDA without any benefit. If the string list is not cleared using clear_strlist(), the list will be saved to the database and restored on the next startup.
-    The users of this list should call build_strlist() if they need an up-to-date version. 
-        
+    The users of this list should call build_strlist() if they need an up-to-date version.
 
 ida_strlist.build_strlist() -> None
     Rebuild the string list.
@@ -40260,8 +40340,7 @@ ida_tryblks
     * There may be (nested) multiple try blocks starting at the same address.
     
     
-    See examples in tests/input/src/eh_tests. 
-        
+    See examples in tests/input/eh_tests.
 
 ida_tryblks.TBEA_CATCH
     is EA the start of a c++ catch/cleanup block?
@@ -40505,14 +40584,19 @@ ida_typeinf
     Type information in IDA.
     
     In IDA, types are represented by and manipulated through tinfo_t objects.
-    A tinfo_t can represent a simple type (e.g., `int`, `float`), a complex type (a structure, enum, union, typedef), or even an array, or a function prototype.
+    
+    A tinfo_t can represent a simple type (e.g., `int`, `float`), a complex type
+    (a structure, enum, union, typedef), or even an array, or a function prototype.
+    
     The key types in this file are:
     
     * til_t - a type info library. Holds type information in serialized form.
     * tinfo_t - information about a type (simple, complex, ...)
     
     
-    # Glossary
+    Glossary
+    --------
+    
     All throughout this file, there are certain terms that will keep appearing:
     
     * udt: "user-defined type": a structure or union - but not enums. See udt_type_data_t
@@ -40520,29 +40604,68 @@ ida_typeinf
     * edm: "enum member": i.e., an enumeration member - i.e., an enumerator. See edm_t
     
     
-    # Under the hood
-    The tinfo_t type provides a lot of useful methods already, but it's possible to achieve even more by retrieving its contents into the container classes:
+    Under the hood
+    --------------
     
-    * udt_type_data_t - for structures & unions. See tinfo_t::get_udt_details . Essentially, a vector of udm_t
-    * enum_type_data_t - for enumerations. See tinfo_t::get_enum_details . Essentially, a vector of edm_t
+    The tinfo_t type provides a lot of useful methods already, but it's possible to
+    achieve even more by retrieving its contents into the container classes:
+    
+    * udt_type_data_t - for structures & unions. See tinfo_t::get_udt_details.
+      Essentially, a vector of udm_t
+    * enum_type_data_t - for enumerations. See tinfo_t::get_enum_details.
+      Essentially, a vector of edm_t
     * ptr_type_data_t - for pointers. See tinfo_t::get_ptr_details
     * array_type_data_t - for arrays. See tinfo_t::get_array_details
     * func_type_data_t - for function prototypes. See tinfo_t::get_func_details
     * bitfield_type_data_t - for bitfields. See tinfo_t::get_bitfield_details
     
     
-    # Attached & detached tinfo_t objects
-    tinfo_t objects can be attached to a til_t library, or can be created without using any til_t.
-    Here is an example, assigning a function prototype:
-    func_type_data_t func_info;
-    funcarg_t argc; argc.name = "argc"; argc.type = tinfo_t(BT_INT); func_info.push_back(argc);
-    funcarg_t argv; argc.name = "argv"; argc.type = tinfo_t("const char **"); func_info.push_back(argv)
-    tinfo_t tif; if ( tif.create_func(func_info) ) { ea_t ea = // get address of "main" apply_tinfo(ea, tif, TINFO_DEFINITE); }
-    This code manipulates a "detached" tinfo_t object, which does not depend on any til_t file. However, any complex type will require a til_t file. In IDA, there is always a default til_t file for each idb file. This til_t file can be specified by nullptr.
-    On the other hand, the following code manipulates an "attached" tinfo_t object, and any operation that modifies it, will also modify it in the hosting til_t:
-    tinfo_t tif; Load type from the "Local Types" til_t. Note: we could have used `get_idati()` instead of nullptr if ( tif.get_named_type(nullptr, "my_struct_t") ) tif.add_udm("extra_field", "unsigned long long");
-    You can check if a tinfo_t instance is attached to a type in a til_t file by calling tinfo_t::is_typeref 
-        
+    Attached & detached tinfo_t objects
+    ------------------------------------
+    
+    tinfo_t objects can be attached to a til_t library, or can be created without
+    using any til_t.
+    
+    Here is an example, assigning a function prototype::
+    
+        func_type_data_t func_info;
+        funcarg_t argc;
+        argc.name = "argc";
+        argc.type = tinfo_t(BT_INT);
+        func_info.push_back(argc);
+        funcarg_t argv;
+        argc.name = "argv";
+        argc.type = tinfo_t("const char **");
+        func_info.push_back(argv)
+        tinfo_t tif;
+        if ( tif.create_func(func_info) ) {
+            ea_t ea = // get address of "main"
+            apply_tinfo(ea, tif, TINFO_DEFINITE);
+        }
+    
+    This code manipulates a "detached" tinfo_t object, which does not depend on any
+    til_t file. However, any complex type will require a til_t file. In IDA, there
+    is always a default til_t file for each idb file. This til_t file can be
+    specified by nullptr.
+    
+    On the other hand, the following code manipulates an "attached" tinfo_t object,
+    and any operation that modifies it, will also modify it in the hosting til_t::
+    
+        tinfo_t tif;
+        # Load type from the "Local Types" til_t.
+        # Note: we could have used `get_idati()` instead of nullptr
+        if ( tif.get_named_type(nullptr, "my_struct_t") )
+            tif.add_udm("extra_field", "unsigned long long");
+    
+    You can check if a tinfo_t instance is attached to a type in a til_t file by
+    calling tinfo_t::is_typeref.
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For type operations, see :mod:`ida_domain.types`.
 
 ida_typeinf.ADDTIL_ABORTED
     til was not loaded (incompatible til rejected by user)
@@ -46391,20 +46514,45 @@ ida_ua
     Functions that deal with the disassembling of program instructions.
     
     There are 2 kinds of functions:
-    * functions that are called from the kernel to disassemble an instruction. These functions call IDP module for it.
-    * functions that are called from IDP module to disassemble an instruction. We will call them 'helper functions'.
+    
+    * functions that are called from the kernel to disassemble an instruction.
+      These functions call IDP module for it.
+    * functions that are called from IDP module to disassemble an instruction.
+      We will call them 'helper functions'.
     
     
     Disassembly of an instruction is made in three steps:
+    
     0. analysis: ana.cpp
     1. emulation: emu.cpp
     2. conversion to text: out.cpp
     
     
-    The kernel calls the IDP module to perform these steps. At first, the kernel always calls the analysis. The analyzer must decode the instruction and fill the insn_t instance that it receives through its callback. It must not change anything in the database.
-    The second step, the emulation, is called for each instruction. This step must make necessary changes to the database, plan analysis of subsequent instructions, track register values, memory contents, etc. Please keep in mind that the kernel may call the emulation step for any address in the program - there is no ordering of addresses. Usually, the emulation is called for consecutive addresses but this is not guaranteed.
-    The last step, conversion to text, is called each time an instruction is displayed on the screen. The kernel will always call the analysis step before calling the text conversion step. The emulation and the text conversion steps should use the information stored in the insn_t instance they receive. They should not access the bytes of the instruction and decode it again - this should only be done in the analysis step. 
-        
+    The kernel calls the IDP module to perform these steps. At first, the kernel
+    always calls the analysis. The analyzer must decode the instruction and fill
+    the insn_t instance that it receives through its callback. It must not change
+    anything in the database.
+    
+    The second step, the emulation, is called for each instruction. This step must
+    make necessary changes to the database, plan analysis of subsequent instructions,
+    track register values, memory contents, etc. Please keep in mind that the kernel
+    may call the emulation step for any address in the program - there is no ordering
+    of addresses. Usually, the emulation is called for consecutive addresses but
+    this is not guaranteed.
+    
+    The last step, conversion to text, is called each time an instruction is
+    displayed on the screen. The kernel will always call the analysis step before
+    calling the text conversion step. The emulation and the text conversion steps
+    should use the information stored in the insn_t instance they receive. They
+    should not access the bytes of the instruction and decode it again - this
+    should only be done in the analysis step.
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For instruction operations, see :mod:`ida_domain.instructions`.
 
 ida_ua.BINOPSTATE_DONE
     have been generated
@@ -47368,10 +47516,19 @@ ida_xref
     Functions that deal with cross-references (xrefs).
     
     There are 2 groups of xrefs: CODE and DATA references. All xrefs are kept in the bTree except the ordinary execution flow to the next instruction. The ordinary execution flow to the next instruction is kept in flags (see bytes.hpp)
+    
     The source address of an xref must be an item head (is_head) or a structure member id. Even if an xref is generated by an element in the middle of the item, the item head address must be used. There are some exceptions to the rule but they are not worth mentioning here.
+    
     Xrefs are automatically sorted by addresses. However, the flow to the next instruction is always at the beginning of the list.
-    Xrefs are usually created by the processor module, as a reaction to the ev_emu_insn event. Plugins may create xrefs too but please note that upon a reanalysis of an item, all its xrefs, except the ones marked with XREF_USER, are deleted by the kernel. 
-        
+    
+    Xrefs are usually created by the processor module, as a reaction to the ev_emu_insn event. Plugins may create xrefs too but please note that upon a reanalysis of an item, all its xrefs, except the ones marked with XREF_USER, are deleted by the kernel.
+    
+    .. tip::
+       The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+       common tasks and provides better type hints, while remaining fully compatible
+       with IDAPython for advanced use cases.
+    
+       For cross-reference operations, see :mod:`ida_domain.xrefs`.
 
 ida_xref.XREF_BASE
     Reference to the base part of an offset.
@@ -47749,8 +47906,7 @@ ida_mergemod
     helper - a helper class responsible for access to the internal module data for the sources #1-4. It can be used to prepare a pointer to the internal module structure and load/save data before/after merging (example: plugins/mex2). Im most cases the default helper class moddata_diff_helper_t can be used. merge_node_info - array of descriptions for the source #5. Note that the same module node is used for all array elements. If you need this kind of mergers for other netnodes, you should add them manually using the create_nodeval_merge_handler() function (example: plugins/mex3)
     See also module/mergecmn.cpp for procmod-specific functions and macros.
     Glossary:
-    modmerger = module merger moddata = module data moddata_id = module data id 
-        
+    modmerger = module merger moddata = module data moddata_id = module data id
 
 ida_mergemod.create_std_modmerge_handlers(mhp: "merge_handler_params_t &", helper: "moddata_diff_helper_t &", merge_node_info: "merge_node_info2_t const *" = None) -> None
     convinience function to create merge handlers for modules/plugins
@@ -47796,8 +47952,7 @@ ida_merge
     While the kernel can create arbitrary merge handlers, modules can create only the standard ones returned by:
     create_nodeval_merge_handler() create_nodeval_merge_handlers() create_std_modmerge_handlers()
     We do not document merge_handler_t because once a merge handler is created, it is used exclusively by the kernel.
-    See mergemod.hpp for more information about the merge mode for modules. 
-        
+    See mergemod.hpp for more information about the merge mode for modules.
 
 ida_merge.MERGE_KIND_AFLAGS_EA
     merge aflags for mapped EA

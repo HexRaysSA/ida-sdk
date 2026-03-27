@@ -7,13 +7,13 @@ Each function consists of function chunks. At least one function chunk must be p
 A function tail is a continuous range of addresses. It can be used in the definition of one or more functions. One function using the tail is singled out and called the tail owner. This function is considered as 'possessing' the tail. get_func() on a tail address will return the function possessing the tail. You can enumerate the functions using the tail by using func_parent_iterator_t.
 
 Each function chunk in the disassembly is represented as an "range" (a range of addresses, see range.hpp for details) with characteristics.
-A function entry must start with an instruction (code) byte. 
+A function entry must start with an instruction (code) byte.
 
-.. tip:: 
-   The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies 
-   common tasks and provides better type hints, while remaining fully compatible 
+.. tip::
+   The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+   common tasks and provides better type hints, while remaining fully compatible
    with IDAPython for advanced use cases.
-   
+
    For function management and analysis, see :mod:`ida_domain.functions`."""
 # """
 # Possible module replacement text

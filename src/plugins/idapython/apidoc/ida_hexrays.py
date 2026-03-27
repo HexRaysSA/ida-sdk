@@ -36,7 +36,7 @@ Both microcode and ctree use the following class:
 
 
 The above are the most important classes in this header file. There are many auxiliary classes, please see their definitions in the header file.
-See also the description of Virtual Machine used by Microcode. 
+See also the description of Virtual Machine used by Microcode.
 """
 
 class cfunc_t(object):

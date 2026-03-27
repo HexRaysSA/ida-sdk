@@ -38,5 +38,5 @@ To let processor modules and plugins merge their data, we introduce a new event:
 While the kernel can create arbitrary merge handlers, modules can create only the standard ones returned by:
 create_nodeval_merge_handler() create_nodeval_merge_handlers() create_std_modmerge_handlers()
 We do not document merge_handler_t because once a merge handler is created, it is used exclusively by the kernel.
-See mergemod.hpp for more information about the merge mode for modules. 
+See mergemod.hpp for more information about the merge mode for modules.
 """

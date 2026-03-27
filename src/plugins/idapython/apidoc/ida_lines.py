@@ -1,7 +1,7 @@
 """High level functions that deal with the generation of the disassembled text lines.
 
 This file also contains definitions for the syntax highlighting.
-Finally there are functions that deal with anterior/posterior user-defined lines. 
+Finally there are functions that deal with anterior/posterior user-defined lines.
 """
 
 def generate_disassembly(ea, max_lines, as_stack, notag, include_hidden: Boolean=False):

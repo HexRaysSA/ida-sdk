@@ -2,7 +2,7 @@
 
 IDA uses the registry to store global configuration options that must persist after IDA has been closed.
 On Windows, IDA uses the Windows registry directly. On Unix systems, the registry is stored in a file (typically ~/.idapro/ida.reg).
-The root key for accessing IDA settings in the registry is defined by ROOT_KEY_NAME. 
+The root key for accessing IDA settings in the registry is defined by ROOT_KEY_NAME.
 """
 
 def reg_read_strlist(subkey: str) -> List[str]:

@@ -2,7 +2,7 @@
 
 You should not use C standard I/O functions in your modules. The reason: Each module compiled with Borland (and statically linked to Borland's library) will host a copy of the FILE * information.
 So, if you open a file in the plugin and pass the handle to the kernel, the kernel will not be able to use it.
-If you really need to use the standard functions, define USE_STANDARD_FILE_FUNCTIONS. In this case do not mix them with q... functions. 
+If you really need to use the standard functions, define USE_STANDARD_FILE_FUNCTIONS. In this case do not mix them with q... functions.
 """
 
 class qfile_t(pyidc_opaque_object_t):

@@ -3459,6 +3459,7 @@ ida_hexrays.var_ref_t.__le__
 ida_hexrays.var_ref_t.__lt__
 ida_hexrays.var_ref_t.__ne__
 ida_hexrays.var_ref_t.compare
+ida_hexrays.var_ref_t.getv
 ida_hexrays.var_ref_t.idx
 ida_hexrays.var_ref_t.mba
 ida_hexrays.vc_printer_t
@@ -9239,7 +9240,6 @@ ida_kernwin.action_ctx_base_t.cur_sel
 ida_kernwin.action_ctx_base_t.cur_value
 ida_kernwin.action_ctx_base_t.dirtree_selection
 ida_kernwin.action_ctx_base_t.focus
-ida_kernwin.action_ctx_base_t.get_selection_as_ordinals
 ida_kernwin.action_ctx_base_t.graph
 ida_kernwin.action_ctx_base_t.graph_selection
 ida_kernwin.action_ctx_base_t.has_flag

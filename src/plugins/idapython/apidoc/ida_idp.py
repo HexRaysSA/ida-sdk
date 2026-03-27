@@ -11,7 +11,7 @@ It also defines two groups of kernel events:
 * idb_event:event_code_t database related events
 
 
-The processor related events are used to communicate with the processor module. The database related events are used to inform any interested parties, like plugins or processor modules, about the changes in the database. 
+The processor related events are used to communicate with the processor module. The database related events are used to inform any interested parties, like plugins or processor modules, about the changes in the database.
 """
 
 def AssembleLine(ea, cs, ip, use32, line):

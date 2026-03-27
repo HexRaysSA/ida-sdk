@@ -29,7 +29,7 @@ You may use netnodes to store additional information about the program. Limitati
 
 
 Advanced info:
-In fact a netnode may contain up to 256 arrays of arbitrary sized objects (not only the 4 listed above). Each array has an 8-bit tag. Usually tags are represented by character constants. For example, altvals and supvals are simply 2 of 256 arrays, with the tags 'A' and 'S' respectively. 
+In fact a netnode may contain up to 256 arrays of arbitrary sized objects (not only the 4 listed above). Each array has an 8-bit tag. Usually tags are represented by character constants. For example, altvals and supvals are simply 2 of 256 arrays, with the tags 'A' and 'S' respectively.
 """
 
 class netnode(object):

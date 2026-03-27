@@ -357,7 +357,6 @@ void py_debug_hexrays_ctree(int level, const char *msg)
 //      Ctree bindings (from hexrays_ctree.i)
 //=========================================================================
 
-%ignore var_ref_t::getv;
 %ignore vdui_t::vdui_t;
 %ignore cblock_t::find;
 %ignore citem_t::op;

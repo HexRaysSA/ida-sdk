@@ -6,13 +6,13 @@ The source address of an xref must be an item head (is_head) or a structure memb
 
 Xrefs are automatically sorted by addresses. However, the flow to the next instruction is always at the beginning of the list.
 
-Xrefs are usually created by the processor module, as a reaction to the ev_emu_insn event. Plugins may create xrefs too but please note that upon a reanalysis of an item, all its xrefs, except the ones marked with XREF_USER, are deleted by the kernel. 
+Xrefs are usually created by the processor module, as a reaction to the ev_emu_insn event. Plugins may create xrefs too but please note that upon a reanalysis of an item, all its xrefs, except the ones marked with XREF_USER, are deleted by the kernel.
 
-.. tip:: 
-   The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies 
-   common tasks and provides better type hints, while remaining fully compatible 
+.. tip::
+   The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+   common tasks and provides better type hints, while remaining fully compatible
    with IDAPython for advanced use cases.
-   
+
    For cross-reference operations, see :mod:`ida_domain.xrefs`."""
 
 def create_switch_xrefs(ea, si):

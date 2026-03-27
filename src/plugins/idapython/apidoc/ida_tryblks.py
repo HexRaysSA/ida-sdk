@@ -9,5 +9,5 @@ Try blocks have the following general properties:
 * There may be (nested) multiple try blocks starting at the same address.
 
 
-See examples in tests/input/src/eh_tests. 
+See examples in tests/input/eh_tests.
 """

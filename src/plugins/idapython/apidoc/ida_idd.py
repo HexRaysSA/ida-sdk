@@ -1,6 +1,6 @@
 """Contains definition of the interface to IDD modules.
 
-The interface consists of structures describing the target debugged processor and a debugging API. 
+The interface consists of structures describing the target debugged processor and a debugging API.
 """
 
 def dbg_get_registers():

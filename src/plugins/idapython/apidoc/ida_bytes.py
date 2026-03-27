@@ -1,19 +1,19 @@
 """Contains functions that deal with individual byte characteristics.
 
-Each byte of the disassembled program is represented by a 32-bit value. We will 
+Each byte of the disassembled program is represented by a 32-bit value. We will
 call this value 'flags'. The structure of the flags is here.
 
-You are not allowed to inspect individual bits of flags and modify them directly. 
+You are not allowed to inspect individual bits of flags and modify them directly.
 Use special functions to inspect and/or modify flags.
 
-Flags are kept in a virtual array file (*.id1). Addresses (ea) are all 32-bit 
+Flags are kept in a virtual array file (*.id1). Addresses (ea) are all 32-bit
 (or 64-bit) quantities.
 
-.. tip:: 
-   The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies 
-   common tasks and provides better type hints, while remaining fully compatible 
+.. tip::
+   The `IDA Domain API <https://ida-domain.docs.hex-rays.com/>`_ simplifies
+   common tasks and provides better type hints, while remaining fully compatible
    with IDAPython for advanced use cases.
-   
+
    For byte-level operations, see :mod:`ida_domain.bytes`."""
 
 class data_type_t(object):

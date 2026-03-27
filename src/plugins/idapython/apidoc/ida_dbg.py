@@ -1,7 +1,7 @@
 """Contains functions to control the debugging of a process.
 
 See Debugger functions for a complete explanation of these functions.
-These functions are inlined for the kernel. They are not inlined for the user-interfaces. 
+These functions are inlined for the kernel. They are not inlined for the user-interfaces.
 """
 
 def get_manual_regions(*args):

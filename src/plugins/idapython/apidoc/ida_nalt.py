@@ -3,7 +3,7 @@
 Each address in the program has a corresponding netnode: netnode(ea).
 If we have no information about an address, the corresponding netnode is not created. Otherwise we will create a netnode and save information in it. All variable length information (names, comments, offset information, etc) is stored in the netnode.
 Don't forget that some information is already stored in the flags (bytes.hpp)
-netnode. 
+netnode.
 """
 
 def get_import_module_name(mod_index):
