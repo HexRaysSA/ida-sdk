@@ -2,7 +2,7 @@
 #include <diskio.hpp>
 #include <expr.hpp>
 #include <loader.hpp>
-#include "../../../pywraps.hpp"
+#include "pywraps.hpp"
 %}
 
 // TODO: These could be wrapped

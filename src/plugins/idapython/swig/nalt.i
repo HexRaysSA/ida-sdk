@@ -3,7 +3,7 @@
 #include <name.hpp>
 #include <expr.hpp>
 #include <loader.hpp>
-#include "../../../pywraps.hpp"
+#include "pywraps.hpp"
 %}
 
 %ignore get_import_module_name;

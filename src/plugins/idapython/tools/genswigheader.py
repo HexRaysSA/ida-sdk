@@ -10,6 +10,7 @@ parser = ArgumentParser()
 parser.add_argument("-i", "--input", required=True)
 parser.add_argument("-o", "--output", required=True)
 parser.add_argument("-s", "--sdk", required=True)
+parser.add_argument("--pywraps-dir", required=False, default="../../..")
 args = parser.parse_args()
 
 
@@ -40,5 +41,8 @@ with open(args.input) as fin:
         # to use with a file that has many '$' is it.
         template = fin.read()
         result = template.replace("${ALL_IMPORTS}", "\n".join(parts))
+
+        pywraps_path = os.path.join(args.pywraps_dir, "pywraps.hpp").replace("\\", "/")
+        result = result.replace("${PYWRAPS_INCLUDE}", pywraps_path)
 
         fout.write(result)

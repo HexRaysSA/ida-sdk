@@ -19,9 +19,7 @@ add_subdirectory(highlighter)
 add_subdirectory(ht_output)
 add_subdirectory(ht_view)
 
-# IDAPython: Out of scope - work in progress
-# add_subdirectory(idapython)
-message(STATUS "IDAPython plugin: Skipped (work in progress)")
+add_subdirectory(idapython)
 
 add_subdirectory(mex1)
 add_subdirectory(mex2)

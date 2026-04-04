@@ -1863,7 +1863,7 @@ HOOKS_DUMP_STATE();
 #include <expr.hpp>
 #include <idd.hpp>
 #include <ieee.h>
-#include "../../../pywraps.hpp"
+#include "${PYWRAPS_INCLUDE}"
 %}
 
 %{
