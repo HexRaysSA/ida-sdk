@@ -89,6 +89,8 @@ To use the SDK:
 
 ## Getting Started
 
+**CMake is the supported build system for the IDA SDK.** The legacy `make` / `.bat` build is deprecated and will be removed in a future release — please migrate to CMake.
+
 To install the project on your local machine, refer to the instructions in [src/readme.txt](src/readme.txt).
 Additional README files in subdirectories provide more details about:
 
@@ -96,40 +98,9 @@ Additional README files in subdirectories provide more details about:
 - Loaders
 - Other components
 
-If all [requirements](#requirements) are met, you can install the project using the following commands:
-
-Linux/macOS:
-```shell
-cd src/
-make
-```
-
-Windows:
-```cmd
-cd src/
-bin/mo.bat
-```
-
-### Debugger Servers
-
-This SDK does not provide debugger servers for macOS.
-
-Building Debugger Servers on Linux:
-```shell
-cd src/
-BUILD_DBGSRV=1 make
-```
-
-Building Debugger Servers on Windows:
-```cmd
-cd src\
-bin\mso.bat   :: will build win64_remote.exe
-bin\m32x86so.bat :: will build win32_remote32.exe
-```
-
 ### Building with CMake
 
-The SDK supports CMake as an alternative build system. This requires the [ida-cmake](https://github.com/HexRaysSA/ida-cmake) build system (included as a git submodule).
+> **Heads-up:** The CMake build is under active development. Commands, targets, and options may change between releases. If you rely on this build, **watch the [`releases/9.4`](https://github.com/HexRaysSA/ida-sdk/tree/releases/9.4) branch** for upcoming CMake changes and update your scripts accordingly. The branch may not exist yet — it will be published before merging back to `main`. If you are still on the legacy `make` build, switch to CMake now — it will not receive further updates.
 
 **Initialize submodule (first time only):**
 ```shell
@@ -183,6 +154,39 @@ cmake --build build                     # Build with Qt support
 **Note:** All other plugins build without Qt. Qt plugins are skipped gracefully if Qt is not found.
 
 For detailed CMake build options and troubleshooting, see [CLAUDE.md](CLAUDE.md).
+
+### Legacy `make` build (deprecated)
+
+> **Deprecated.** The `make` / `.bat` build is frozen and will be removed in a future release. New features, fixes, and examples are landing in the CMake build only. Please migrate.
+
+Linux/macOS:
+```shell
+cd src/
+make
+```
+
+Windows:
+```cmd
+cd src/
+bin/mo.bat
+```
+
+#### Debugger Servers (legacy build)
+
+This SDK does not provide debugger servers for macOS.
+
+Building Debugger Servers on Linux:
+```shell
+cd src/
+BUILD_DBGSRV=1 make
+```
+
+Building Debugger Servers on Windows:
+```cmd
+cd src\
+bin\mso.bat   :: will build win64_remote.exe
+bin\m32x86so.bat :: will build win32_remote32.exe
+```
 
 ### Run
 
