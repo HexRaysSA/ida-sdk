@@ -1,3 +1,0 @@
-[submodule "src/cmake"]
-	path = src/cmake
-	url = https://github.com/allthingsida/ida-cmake.git
