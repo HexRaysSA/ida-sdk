@@ -1,161 +1,52 @@
-# ============================================================================
-# Debugger Components Build Configuration
-# ============================================================================
-#
-# IMPORTANT: Debugger components that link against network.lib can only be
-# built in Release mode because the SDK only provides Release-built libraries.
-# Debug builds would cause runtime library mismatches (MDd vs MD).
-#
-# For single-config generators (Ninja, Make): Check CMAKE_BUILD_TYPE
-# For multi-config generators (Visual Studio): All configs are generated,
-# but Debug builds will be excluded via EXCLUDE_FROM_ALL.
-#
-# ============================================================================
-
-# Detect if this is a multi-config generator (Visual Studio, Xcode, Ninja Multi-Config)
+# Public debugger SDK build.
+# SDK libs are Release-only -- skip dbg in single-config Debug (CRT mismatch).
 get_property(_is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-
-# For single-config generators, skip entirely if Debug
 if(NOT _is_multi_config AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Debugger components: Skipped in Debug build (SDK libraries are Release-only)")
     return()
 endif()
 
-# ============================================================================
-# Static Library 1: dbg_rpc (RPC communication)
-# ============================================================================
-add_library(dbg_rpc STATIC
-    dbg_rpc_engine.cpp
-    dbg_rpc_hlp.cpp
-)
+# Local helpers for the four dbg core static libs.
+function(_ida_dbg_no_rtti tgt)
+    if(MSVC)
+        target_compile_options(${tgt} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/GR->)
+    else()
+        target_compile_options(${tgt} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
+    endif()
+endfunction()
 
-target_include_directories(dbg_rpc PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${IDASDK}/include
-)
+function(_ida_dbg_setup tgt)
+    target_include_directories(${tgt} PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR} ${IDASDK} ${IDASDK}/include)
+    target_link_libraries(${tgt} PUBLIC ida_platform_settings ida_compiler_settings)
+    _ida_dbg_no_rtti(${tgt})
+endfunction()
 
-target_link_libraries(dbg_rpc PUBLIC
-    ida_platform_settings
-    ida_compiler_settings
-)
+add_library(dbg_rpc STATIC dbg_rpc_engine.cpp dbg_rpc_hlp.cpp)
+_ida_dbg_setup(dbg_rpc)
 
-target_compile_options(dbg_rpc PRIVATE -fno-rtti)
+add_library(dbg_server STATIC bin_search.cpp dbg_rpc_handler.cpp debmod.cpp server.cpp)
+_ida_dbg_setup(dbg_server)
 
-# On Windows/MSVC: Use /MD runtime to match SDK libraries (network.lib)
-if(MSVC)
-    set_target_properties(dbg_rpc PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
-    )
+# pc_debmod.cpp uses x86/x64 CONTEXT structures -- skip on Windows ARM64.
+set(_dbg_proc_sources arm_debmod.cpp arm_regs.cpp pc_regs.cpp
+    arm_local_impl.cpp common_stub_impl.cpp common_local_impl.cpp dbg_pe_hlp.cpp)
+if(NOT (IDA_NT AND IDA_ARM))
+    list(APPEND _dbg_proc_sources pc_debmod.cpp)
 endif()
-
-# ============================================================================
-# Static Library 2: dbg_server (Server-side infrastructure)
-# ============================================================================
-add_library(dbg_server STATIC
-    bin_search.cpp
-    dbg_rpc_handler.cpp
-    debmod.cpp
-    server.cpp
-)
-
-target_include_directories(dbg_server PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${IDASDK}/include
-)
-
-target_link_libraries(dbg_server PUBLIC
-    ida_platform_settings
-    ida_compiler_settings
-)
-
-target_compile_options(dbg_server PRIVATE -fno-rtti)
-
-# On Windows/MSVC: Use /MD runtime to match SDK libraries
-if(MSVC)
-    set_target_properties(dbg_server PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
-    )
-endif()
-
-# ============================================================================
-# Static Library 3: dbg_plugin (Plugin-side infrastructure)
-# ============================================================================
-add_library(dbg_plugin STATIC
-    bin_search.cpp      # Shared with dbg_server
-    dbg_rpc_client.cpp
-    debmod.cpp          # Shared with dbg_server
-    rpc_debmod.cpp
-)
-
-target_include_directories(dbg_plugin PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${IDASDK}/include
-)
-
-target_link_libraries(dbg_plugin PUBLIC
-    ida_platform_settings
-    ida_compiler_settings
-)
-
-target_compile_options(dbg_plugin PRIVATE -fno-rtti)
-
-# On Windows/MSVC: Use /MD runtime to match SDK libraries
-if(MSVC)
-    set_target_properties(dbg_plugin PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
-    )
-endif()
-
-# ============================================================================
-# Static Library 4: dbg_proc (Processor-specific code: ARM + PC)
-# ============================================================================
-add_library(dbg_proc STATIC
-    arm_debmod.cpp
-    arm_regs.cpp
-    pc_debmod.cpp
-    pc_regs.cpp
-
-    # #included files for dependency tracking
-    arm_local_impl.cpp
-    common_stub_impl.cpp
-    common_local_impl.cpp
-    dbg_pe_hlp.cpp
-)
-
-# Mark #included files as HEADER_FILE_ONLY
+add_library(dbg_proc STATIC ${_dbg_proc_sources})
 set_source_files_properties(
-    arm_local_impl.cpp
-    common_stub_impl.cpp
-    common_local_impl.cpp
-    dbg_pe_hlp.cpp
-    PROPERTIES HEADER_FILE_ONLY TRUE
-)
+    arm_local_impl.cpp common_stub_impl.cpp common_local_impl.cpp dbg_pe_hlp.cpp
+    PROPERTIES HEADER_FILE_ONLY TRUE)
+_ida_dbg_setup(dbg_proc)
 
-target_include_directories(dbg_proc PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${IDASDK}/include
-)
-
-target_link_libraries(dbg_proc PUBLIC
-    ida_platform_settings
-    ida_compiler_settings
-)
-
-target_compile_options(dbg_proc PRIVATE -fno-rtti)
-
-# On Windows/MSVC: Use /MD runtime to match SDK libraries
-if(MSVC)
-    set_target_properties(dbg_proc PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
-    )
+# dbg_plugin: stub/user only -- server-only flavors skip it.
+if(NOT IDA_ANDROID AND NOT IDA_ARMLINUX AND NOT IDA_USE_STATIC_RUNTIME)
+    add_library(dbg_plugin STATIC bin_search.cpp dbg_rpc_client.cpp debmod.cpp rpc_debmod.cpp)
+    _ida_dbg_setup(dbg_plugin)
 endif()
 
-# ============================================================================
-# Platform-specific subdirectories
-# ============================================================================
-
-# Linux debugger and stubs (always added - contains cross-platform stubs)
+add_subdirectory(win32)
 add_subdirectory(linux)
 
-# Windows debugger and stub (always added - contains cross-platform stub)
-add_subdirectory(win32)
+ida_dbg_verify_servers()

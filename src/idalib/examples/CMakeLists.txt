@@ -1,4 +1,10 @@
 # IDALib Example: idacli
+# Skip if idalib is not available (Home/Free editions, or libs not packaged)
+if(NOT EXISTS "${IDALIB_PATH}")
+    message(STATUS "idacli: skipping (idalib not available)")
+    return()
+endif()
+
 ida_add_idalib(idacli
     TYPE EXECUTABLE
     SOURCES

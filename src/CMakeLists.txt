@@ -1,19 +1,36 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.25)
+
+# On Windows with Ninja, auto-detect MSVC if not already in environment.
+# Cross-compile toolchain files include find_msvc themselves (after setting
+# CMAKE_SYSTEM_PROCESSOR), so this top-level invocation only fires for the
+# native (no-toolchain) case.
+if(NOT CMAKE_TOOLCHAIN_FILE)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/find_msvc.cmake)
+endif()
+
+# Before project(): shipped SDK libs are Release-only.
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
+endif()
+
 project(idasdk)
 set(CMAKE_CXX_STANDARD 17)
 
+set(IDA_WARNINGS "default" CACHE STRING "Compiler warning level: none, default, all")
+set_property(CACHE IDA_WARNINGS PROPERTY STRINGS "none" "default" "all")
+if(NOT IDA_WARNINGS MATCHES "^(none|default|all)$")
+    message(FATAL_ERROR "IDA_WARNINGS must be one of: none, default, all (got '${IDA_WARNINGS}')")
+endif()
+
 # Auto-detect if building from within the SDK itself (integrated build)
-# Check if we have include/ida.hpp or include/pro.h in current directory
 if(NOT DEFINED ENV{IDASDK} OR "$ENV{IDASDK}" STREQUAL "")
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include/ida.hpp" OR
        EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include/pro.h")
-        # We're building from within the SDK directory structure
         set(ENV{IDASDK} "${CMAKE_CURRENT_SOURCE_DIR}")
         message(STATUS "Auto-detected integrated SDK build: $ENV{IDASDK}")
     endif()
 elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include/ida.hpp" OR
        EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include/pro.h")
-    # IDASDK is set, but we're building from within SDK - prefer local SDK
     get_filename_component(_DETECTED_IDASDK "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
     get_filename_component(_CURRENT_IDASDK "$ENV{IDASDK}" ABSOLUTE)
     if(NOT "${_CURRENT_IDASDK}" STREQUAL "${_DETECTED_IDASDK}")
@@ -22,34 +39,19 @@ elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include/ida.hpp" OR
     endif()
 endif()
 
-# Function to copy a file to the ${IDABIN}/cfg folder if the source is newer
-function(copy_cfg TARGET SRC_FILE)
-    if(EXISTS ${SRC_FILE})
-        # Define the destination directory (same for all files)
-        set(DEST_DIR ${IDABIN}/cfg)
+# Covers ldr/module/plugins/idalib + dbg stubs/user-plugins in this layer.
+option(IDA_BUILD_IDA    "Build SDK extensions and stubs/user-plugins" ON)
+option(IDA_BUILD_DBGSRV "Build debug servers"                         OFF)
 
-        # Ensure the destination directory exists
-        file(MAKE_DIRECTORY ${DEST_DIR})
-        get_filename_component(FILENAME ${SRC_FILE} NAME)
-
-        # Copy the source file to the destination if it's newer, tied to the given target
-        add_custom_command(
-            TARGET ${TARGET} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${SRC_FILE}
-                ${DEST_DIR}/${FILENAME}
-            COMMENT "Copying ${SRC_FILE} to ${DEST_DIR} if newer"
-        )
-    endif()
-endfunction()
-
-
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/bootstrap.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/idasdk_init.cmake)
 find_package(idasdk REQUIRED)
 set(IDA_IDC_DIR "${IDABIN}/idc")
 
-add_subdirectory(ldr)
-add_subdirectory(module)
-add_subdirectory(plugins)
-add_subdirectory(idalib/examples)
+# Plugins/loaders/procmods/idalib need libida (not shipped in EA32 / dbgserver flavors).
+if(IDA_BUILD_IDA AND IDA_EA64 AND EXISTS "${IDA_LIB_PATH}")
+    add_subdirectory(ldr)
+    add_subdirectory(module)
+    add_subdirectory(plugins)
+    add_subdirectory(idalib/examples)
+endif()
 add_subdirectory(dbg)

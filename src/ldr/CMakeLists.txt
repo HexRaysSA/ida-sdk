@@ -1,13 +1,11 @@
-# IDA SDK Loaders
 if(NOT PROJECT_NAME)
-    cmake_minimum_required(VERSION 3.27)
+    cmake_minimum_required(VERSION 3.25)
     project(idasdk_loaders)
     set(CMAKE_CXX_STANDARD 17)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/bootstrap.cmake)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/idasdk_init.cmake)
     find_package(idasdk REQUIRED)
 endif()
 
-# Add all loaders
 add_subdirectory(aif)
 add_subdirectory(amiga)
 add_subdirectory(aof)
@@ -26,8 +24,6 @@ add_subdirectory(pef)
 add_subdirectory(pilot)
 add_subdirectory(qnx)
 add_subdirectory(rt11)
+add_subdirectory(script_ldrs)
 add_subdirectory(snes)
 add_subdirectory(w32run)
-
-# Script loaders (Python/IDC)
-add_subdirectory(script_ldrs)

@@ -1,3 +1,11 @@
+if(NOT PROJECT_NAME)
+    cmake_minimum_required(VERSION 3.25)
+    project(idasdk_plugins)
+    set(CMAKE_CXX_STANDARD 17)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/idasdk_init.cmake)
+    find_package(idasdk REQUIRED)
+endif()
+
 add_subdirectory(callee)
 add_subdirectory(choose)
 add_subdirectory(custdata)
@@ -18,11 +26,6 @@ add_subdirectory(hexview)
 add_subdirectory(highlighter)
 add_subdirectory(ht_output)
 add_subdirectory(ht_view)
-
-# IDAPython: Out of scope - work in progress
-# add_subdirectory(idapython)
-message(STATUS "IDAPython plugin: Skipped (work in progress)")
-
 add_subdirectory(mex1)
 add_subdirectory(mex2)
 add_subdirectory(mex3)
@@ -30,19 +33,11 @@ add_subdirectory(mex4)
 add_subdirectory(mtsample)
 add_subdirectory(navcolor)
 add_subdirectory(openform)
-
-# TODO: PDB plugin excluded - requires SDK source modifications
-# Issue: winerr() function from err.h not properly included
-# The plugin compiles with SDK makefiles but has header issues with CMake
-if(WIN32)
-    message(STATUS "pdb: Skipped (requires SDK source modifications). Windows only")
-else()
-    add_subdirectory(pdb)
-endif()
-
+add_subdirectory(pdb)
 add_subdirectory(procext)
 add_subdirectory(qproject)
 add_subdirectory(qwindow)
+add_subdirectory(script_plg)
 add_subdirectory(snapshots)
 add_subdirectory(tracer)
 add_subdirectory(tracing_api)
@@ -76,6 +71,3 @@ add_subdirectory(vds18)
 add_subdirectory(vds19)
 add_subdirectory(vds20)
 add_subdirectory(z80dbg)
-
-# Script plugins (Python/IDC)
-add_subdirectory(script_plg)
