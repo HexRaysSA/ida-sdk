@@ -1,0 +1,91 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {"major": 3, "minor": 25, "patch": 0},
+    "configurePresets": [
+        {
+            "name": "native",
+            "displayName": "Full SDK build (host arch, 64-bit address space)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/native"
+        },
+        {
+            "name": "dbgserver",
+            "displayName": "Debug server only (host arch, 64-bit address space)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/dbgserver",
+            "cacheVariables": {
+                "IDA_BUILD_IDA": "OFF",
+                "IDA_BUILD_DBGSRV": "ON",
+                "IDA_USE_STATIC_RUNTIME": "ON"
+            },
+            "condition": {"type": "notEquals", "lhs": "${hostSystemName}", "rhs": "Darwin"}
+        },
+        {
+            "name": "dbgserver-ea32",
+            "displayName": "Debug server only (32-bit address space)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/dbgserver-ea32",
+            "cacheVariables": {
+                "IDA_BUILD_IDA": "OFF",
+                "IDA_BUILD_DBGSRV": "ON",
+                "IDA_EA64": "OFF",
+                "IDA_FORCE_X86": "ON",
+                "IDA_USE_STATIC_RUNTIME": "ON",
+                "CMAKE_SYSTEM_PROCESSOR": "x86"
+            },
+            "condition": {"type": "notEquals", "lhs": "${hostSystemName}", "rhs": "Darwin"}
+        },
+        {
+            "name": "arm",
+            "displayName": "Cross-compile to ARM (from x64 Linux/Windows host)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/arm",
+            "toolchainFile": "${sourceDir}/cmake/toolchains/arm-${hostSystemName}.toolchain.cmake",
+            "condition": {
+                "type": "inList",
+                "string": "${hostSystemName}",
+                "list": ["Linux", "Windows"]
+            }
+        },
+        {
+            "name": "x64",
+            "displayName": "Cross-compile to x64 (from ARM macOS host)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/x64",
+            "toolchainFile": "${sourceDir}/cmake/toolchains/x64-${hostSystemName}.toolchain.cmake",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            }
+        },
+        {
+            "name": "arm-dbgserver",
+            "displayName": "Debug server only, ARM target (64-bit address space)",
+            "inherits": ["arm", "dbgserver"],
+            "binaryDir": "${sourceDir}/build/arm-dbgserver"
+        },
+        {
+            "name": "x64-dbgserver",
+            "displayName": "Debug server only, x64 target (64-bit address space)",
+            "inherits": ["x64", "dbgserver"],
+            "binaryDir": "${sourceDir}/build/x64-dbgserver"
+        },
+        {
+            "name": "x64-dbgserver-ea32",
+            "displayName": "Debug server only, x64 target (32-bit address space)",
+            "inherits": ["x64", "dbgserver-ea32"],
+            "binaryDir": "${sourceDir}/build/x64-dbgserver-ea32"
+        }
+    ],
+    "buildPresets": [
+        {"name": "native",             "configurePreset": "native"},
+        {"name": "dbgserver",          "configurePreset": "dbgserver"},
+        {"name": "dbgserver-ea32",     "configurePreset": "dbgserver-ea32"},
+        {"name": "arm",                "configurePreset": "arm"},
+        {"name": "x64",                "configurePreset": "x64"},
+        {"name": "arm-dbgserver",      "configurePreset": "arm-dbgserver"},
+        {"name": "x64-dbgserver",      "configurePreset": "x64-dbgserver"},
+        {"name": "x64-dbgserver-ea32", "configurePreset": "x64-dbgserver-ea32"}
+    ]
+}

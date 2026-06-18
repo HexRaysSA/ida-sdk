@@ -1,185 +1,100 @@
-# ============================================================================
-# Windows Debugger Stub (win32_stub.so)
-# Builds on Windows and Linux (macOS has RTTI linkage issues with SDK libs)
-# ============================================================================
+# Windows debugger SDK build.
 
-if(NOT APPLE)
-ida_add_plugin(win32_stub
-    SOURCES
-        win32_stub.cpp
-        w32sehch.cpp
+set(_win32_hdrs
+    win32_local_impl.cpp ../common_stub_impl.cpp ../common_local_impl.cpp)
+set(_win32_base
+    win32_debmod.cpp win32_util.cpp winbase_debmod.cpp)
 
-        # #included files for dependency tracking
-        win32_local_impl.cpp
-        ../common_stub_impl.cpp
-        ../common_local_impl.cpp
-)
-
-# Mark #included files as HEADER_FILE_ONLY
-set_source_files_properties(
-    win32_local_impl.cpp
-    ../common_stub_impl.cpp
-    ../common_local_impl.cpp
-    PROPERTIES HEADER_FILE_ONLY TRUE
-)
-
-# Link debugger static libraries
-target_link_libraries(win32_stub PRIVATE
-    dbg_plugin
-    dbg_rpc
-    dbg_proc
-)
-
-# Link SDK static library using ida-cmake variables
-target_link_libraries(win32_stub PRIVATE
-    ${IDA_LIB_DIR}/network${IDA_STATIC_EXT}
-)
-
-# On Windows with MSVC, use /MD runtime to match network.lib
-if(MSVC)
-    set_target_properties(win32_stub PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
-    )
-endif()
-endif() # NOT APPLE
-
-# ============================================================================
-# Windows Local Debugger Plugin (win32_user.dll)
-# Only builds on Windows platform
-# ============================================================================
-
-if(WIN32)
-    ida_add_plugin(win32_user
-        SOURCES
-            win32_user.cpp
-            w32sehch.cpp
-            win32_debmod.cpp
-            win32_util.cpp
-            winbase_debmod.cpp
-
-            # #included files for dependency tracking
-            win32_local_impl.cpp
-            ../common_stub_impl.cpp
-            ../common_local_impl.cpp
-    )
-
-    # Mark #included files as HEADER_FILE_ONLY
-    set_source_files_properties(
-        win32_local_impl.cpp
-        ../common_stub_impl.cpp
-        ../common_local_impl.cpp
-        PROPERTIES HEADER_FILE_ONLY TRUE
-    )
-
-    # Link debugger static libraries
-    target_link_libraries(win32_user PRIVATE
-        dbg_plugin
-        dbg_rpc
-        dbg_proc
-    )
-
-    # Link SDK static library
-    target_link_libraries(win32_user PRIVATE
-        ${IDA_LIB_DIR}/network${IDA_STATIC_EXT}
-    )
-
-    # Windows system libraries
-    target_link_libraries(win32_user PRIVATE
-        user32
-    )
-
-    # On Windows with MSVC, use /MD runtime to match network.lib
+# Remote-debugging stub for host IDA (cross-platform, not macOS). Needs libida (EA64).
+if(NOT APPLE AND IDA_BUILD_IDA AND IDA_EA64)
+    ida_add_plugin(win32_stub
+        SOURCES win32_stub.cpp w32sehch.cpp ${_win32_hdrs})
+    set_source_files_properties(${_win32_hdrs} PROPERTIES HEADER_FILE_ONLY TRUE)
+    target_link_libraries(win32_stub PRIVATE
+        dbg_plugin dbg_rpc dbg_proc
+        ${IDA_LIB_DIR}/network${IDA_STATIC_EXT})
     if(MSVC)
-        set_target_properties(win32_user PROPERTIES
-            MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
-        )
+        set_target_properties(win32_stub PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
     endif()
 endif()
 
-# ============================================================================
-# Windows Debugger Server (win32_remote.exe / win64_remote.exe)
-# Only builds on Windows platform
-# ============================================================================
+# win32_user and win32_remote pull in win32_debmod.cpp which uses
+# CONTEXT.Rax/Dr0-7/etc. -- x86/x64-only. ARM Windows targets skip them.
 
-if(WIN32)
-    add_executable(win32_remote
-        # Server entry point and Windows-specific code
-        win32_server.cpp
-        tilfuncs.cpp
-        win32_debmod.cpp
-        win32_util.cpp
-        winbase_debmod.cpp
+# Local Windows debugger plugin (Windows host only).
+if(WIN32 AND IDA_BUILD_IDA AND IDA_EA64 AND NOT IDA_ARM)
+    ida_add_plugin(win32_user
+        SOURCES win32_user.cpp w32sehch.cpp ${_win32_base} ${_win32_hdrs})
+    set_source_files_properties(${_win32_hdrs} PROPERTIES HEADER_FILE_ONLY TRUE)
+    target_link_libraries(win32_user PRIVATE
+        dbg_plugin dbg_rpc dbg_proc
+        ${IDA_LIB_DIR}/network${IDA_STATIC_EXT}
+        user32)
+    if(MSVC)
+        set_target_properties(win32_user PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+    endif()
+endif()
 
-        # Debugger framework sources (dbg_server + dbg_rpc + dbg_proc)
-        # Compiled directly instead of using static libs to avoid /MD vs /MT conflict
-        ../bin_search.cpp
-        ../dbg_rpc_handler.cpp
-        ../debmod.cpp
-        ../server.cpp
-        ../dbg_rpc_engine.cpp
-        ../dbg_rpc_hlp.cpp
-        ../arm_debmod.cpp
-        ../arm_regs.cpp
-        ../pc_debmod.cpp
-        ../pc_regs.cpp
+# Debug server (Windows host only).
+if(WIN32 AND IDA_BUILD_DBGSRV AND NOT IDA_ARM)
+    if(IDA_X64)
+        set(_win32_server_name "win64_remote${IDA_SUFF32}")
+    else()
+        set(_win32_server_name "win32_remote${IDA_SUFF32}")
+    endif()
+    add_executable(${_win32_server_name}
+        win32_server.cpp tilfuncs.cpp ${_win32_base}
+        ${_win32_hdrs} ../dbg_pe_hlp.cpp)
+    set_source_files_properties(${_win32_hdrs} ../dbg_pe_hlp.cpp
+        PROPERTIES HEADER_FILE_ONLY TRUE)
+    target_include_directories(${_win32_server_name} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/.. ${IDASDK} ${IDASDK}/include)
+    target_link_libraries(${_win32_server_name} PRIVATE
+        ida_platform_settings ida_compiler_settings
+        dbg_server dbg_rpc dbg_proc
+        ${IDA_LIB_DIR}/network${IDA_STATIC_EXT}
+        ${IDA_LIB_DIR}/dumb${IDA_OBJ_EXT}
+        ${IDA_LIB_DIR}/unicode${IDA_STATIC_EXT}
+        ${IDA_LIB_DIR}/pro${IDA_STATIC_EXT}
+        ${IDA_LIB_DIR}/int128${IDA_STATIC_EXT}
+        ${IDA_LIB_DIR}/compress${IDA_STATIC_EXT}
+        ole32 oleaut32)
+    if(MSVC)
+        target_compile_options(${_win32_server_name} PRIVATE
+            $<$<COMPILE_LANGUAGE:CXX>:/GR->)
+    else()
+        target_compile_options(${_win32_server_name} PRIVATE
+            $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
+    endif()
+    set_target_properties(${_win32_server_name} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${IDABIN}/dbgsrv")
+    set_property(GLOBAL APPEND PROPERTY IDA_DBG_SERVERS ${_win32_server_name})
 
-        # #included files for dependency tracking
-        ../arm_local_impl.cpp
-        ../common_stub_impl.cpp
-        ../common_local_impl.cpp
-        ../dbg_pe_hlp.cpp
-    )
-
-    # Mark #included files as HEADER_FILE_ONLY
-    set_source_files_properties(
-        ../arm_local_impl.cpp
-        ../common_stub_impl.cpp
-        ../common_local_impl.cpp
-        ../dbg_pe_hlp.cpp
-        PROPERTIES HEADER_FILE_ONLY TRUE
-    )
-
-    # Windows server needs static libraries from the _s directory
-    # Replace x64_win_vc_64 with x64_win_vc_64_s (or x86_win_vc_32_s for 32-bit)
-    string(REPLACE "_64" "_64_s" IDA_STATIC_LIB_DIR "${IDA_LIB_DIR}")
-    string(REPLACE "_32" "_32_s" IDA_STATIC_LIB_DIR "${IDA_STATIC_LIB_DIR}")
-
-    # Link SDK static libraries (using /MT versions from _s directory)
-    target_link_libraries(win32_remote PRIVATE
-        ${IDA_STATIC_LIB_DIR}/network${IDA_STATIC_EXT}
-        ${IDA_STATIC_LIB_DIR}/dumb.obj
-        ${IDA_STATIC_LIB_DIR}/unicode${IDA_STATIC_EXT}
-        ${IDA_STATIC_LIB_DIR}/pro${IDA_STATIC_EXT}
-        ${IDA_STATIC_LIB_DIR}/compress${IDA_STATIC_EXT}
-        ${IDA_STATIC_LIB_DIR}/int128${IDA_STATIC_EXT}
-    )
-
-    # Windows system libraries
-    target_link_libraries(win32_remote PRIVATE
-        ole32
-        oleaut32
-    )
-
-    # Include directories
-    target_include_directories(win32_remote PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/..
-        ${IDASDK}/include
-    )
-
-    # Link to platform and compiler settings for defines
-    target_link_libraries(win32_remote PRIVATE
-        ida_platform_settings
-        ida_compiler_settings
-    )
-
-    # Match makefile: compile with -fno-rtti (MSVC will use /GR-)
-    target_compile_options(win32_remote PRIVATE -fno-rtti)
-
-    # NOTE: Server uses static libraries from x64_win_vc_64_s which are built with /MT
-    # Do NOT override to /MD - use the default /MT from ida-cmake platform.cmake
-
-    # Server output goes to bin/dbgsrv/ NOT bin/plugins/
-    set_target_properties(win32_remote PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${IDABIN}/dbgsrv"
-    )
+    # XP compat: 32-bit static-runtime servers redirect __imp_* symbols to
+    # fallback implementations for Windows XP / 7 compatibility.
+    if(IDA_USE_STATIC_RUNTIME AND IDA_X86 AND IDA_XPCOMPAT)
+        target_sources(${_win32_server_name} PRIVATE crt_oldwin_compat_stubs.cpp)
+        target_compile_definitions(${_win32_server_name} PRIVATE __XPCOMPAT__)
+        # Assemble the .asm via 32-bit ml.exe (Hostx64/x86 cross tools dir).
+        set(_compat_asm "${CMAKE_CURRENT_SOURCE_DIR}/crt_oldwin_compat_stubs.asm")
+        set(_compat_asm_obj "${CMAKE_CURRENT_BINARY_DIR}/crt_oldwin_compat_stubs_asm.obj")
+        get_filename_component(_msvc_bin_dir "${CMAKE_C_COMPILER}" DIRECTORY)
+        get_filename_component(_msvc_host_dir "${_msvc_bin_dir}" DIRECTORY)
+        set(_ml_exe "${_msvc_host_dir}/x86/ml.exe")
+        if(NOT EXISTS "${_ml_exe}")
+            message(FATAL_ERROR "32-bit MASM (ml.exe) not found at ${_ml_exe}")
+        endif()
+        add_custom_command(
+            OUTPUT "${_compat_asm_obj}"
+            COMMAND "${_ml_exe}" /nologo /c "/Fo${_compat_asm_obj}" "${_compat_asm}"
+            DEPENDS "${_compat_asm}"
+            COMMENT "Assembling XP compat stubs (ml.exe)"
+            VERBATIM)
+        target_sources(${_win32_server_name} PRIVATE "${_compat_asm_obj}")
+        set_source_files_properties("${_compat_asm_obj}" PROPERTIES
+            EXTERNAL_OBJECT TRUE GENERATED TRUE)
+        target_link_libraries(${_win32_server_name} PRIVATE shlwapi)
+    endif()
 endif()

@@ -3,5 +3,6 @@ ida_add_plugin(mex1
         merge.cpp
         mex.hpp
         mex1.cpp
-        # Note: mex_impl.cpp is #included by mex1.cpp
+    DEFINES
+        MEX_N=1
 )
