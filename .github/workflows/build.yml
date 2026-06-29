@@ -26,6 +26,18 @@ jobs:
       platform: macos
       os: macos-latest
 
+  # Debug-server-only builds via presets (Linux + Windows, 64- and 32-bit EA).
+  build-dbgserver:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        preset: [dbgserver, dbgserver-ea32]
+    uses: ./.github/workflows/dbgserver-build.yml
+    with:
+      os: ${{ matrix.os }}
+      preset: ${{ matrix.preset }}
+
   # IDAPython build jobs — each platform starts as soon as its SDK build completes.
   idapython-windows:
     needs: build-windows
