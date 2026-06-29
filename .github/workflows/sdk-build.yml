@@ -1,0 +1,85 @@
+name: SDK Build (reusable)
+
+# Build all C++ SDK components against the shipped stub libs in src/lib/,
+# then upload bin/ as an artifact. Qt-based samples (qwindow, qproject) are
+# built only if a Qt6 is discoverable; otherwise skipped silently.
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+      os:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ${{ inputs.os }}
+    env:
+      IDASDK: ${{ github.workspace }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Visual Studio Developer Environment
+      if: runner.os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Install build dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build
+
+    - name: Install build dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: brew install cmake ninja
+
+    # Ninja on all platforms: a single-config generator bakes in the build type
+    # (CMAKE_BUILD_TYPE defaults to Release) and writes outputs straight into
+    # bin/plugins, bin/procs, etc. The multi-config Visual Studio generator
+    # would instead nest a per-config Release/ subfolder, which breaks the stats
+    # and idapython steps. On Windows, msvc-dev-cmd provides cl.exe in the
+    # environment (find_msvc.cmake is the fallback) and ninja is preinstalled.
+    - name: Configure CMake
+      working-directory: src
+      run: cmake -B build -G Ninja
+
+    - name: Build SDK (all components)
+      working-directory: src
+      run: cmake --build build --parallel
+
+    - name: Build Statistics
+      working-directory: src
+      shell: bash
+      run: |
+        case "$RUNNER_OS" in
+          Windows) ext=dll ;;
+          macOS)   ext=dylib ;;
+          *)       ext=so ;;
+        esac
+        echo "=== Build Results ==="
+        echo "Plugins built: $(ls -1 bin/plugins/*.$ext 2>/dev/null | wc -l)"
+        echo "Loaders built: $(ls -1 bin/loaders/*.$ext 2>/dev/null | wc -l)"
+        echo "Processors built: $(ls -1 bin/procs/*.$ext 2>/dev/null | wc -l)"
+        echo ""
+        echo "=== Qt Plugin Status ==="
+        for q in qproject qwindow; do
+          if [ -f "bin/plugins/$q.$ext" ]; then
+            echo "[OK] $q.$ext built successfully"
+          else
+            echo "[SKIP] $q.$ext not built (Qt6 not available)"
+          fi
+        done
+
+    - name: Upload SDK build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: sdk-build-${{ inputs.platform }}
+        path: |
+          src/bin/
+        retention-days: 7
