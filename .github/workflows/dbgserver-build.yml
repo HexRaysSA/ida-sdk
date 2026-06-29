@@ -1,0 +1,55 @@
+name: Debug Server Build (reusable)
+
+# Build the debug server only, via the dbgserver / dbgserver-ea32 CMake presets
+# (Ninja, IDA_BUILD_IDA=OFF, IDA_BUILD_DBGSRV=ON, static runtime). Linux and
+# Windows only -- the presets are conditioned out on macOS.
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      preset:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ${{ inputs.os }}
+    env:
+      IDASDK: ${{ github.workspace }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Visual Studio Developer Environment
+      if: runner.os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Install build dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build
+        # dbgserver-ea32 is a 32-bit x86 build -> needs multilib.
+        if [ "${{ inputs.preset }}" = "dbgserver-ea32" ]; then
+          sudo apt-get install -y gcc-multilib g++-multilib
+        fi
+
+    - name: Configure (preset ${{ inputs.preset }})
+      working-directory: src
+      run: cmake --preset ${{ inputs.preset }}
+
+    - name: Build (preset ${{ inputs.preset }})
+      working-directory: src
+      run: cmake --build --preset ${{ inputs.preset }}
+
+    - name: Build Statistics
+      working-directory: src
+      shell: bash
+      run: |
+        echo "=== Debug server (${{ inputs.preset }}, $RUNNER_OS) ==="
+        ls -la bin/dbgsrv/ 2>/dev/null || echo "  (none found)"
