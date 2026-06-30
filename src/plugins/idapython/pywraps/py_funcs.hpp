@@ -8,14 +8,7 @@
 //-----------------------------------------------------------------------
 static ea_t get_fchunk_referer(ea_t ea, size_t idx)
 {
-  func_t *pfn = get_fchunk(ea);
-  if ( !is_func_tail(pfn) )
-    return BADADDR;
-  func_parent_iterator_t dummy(pfn); // read referer info
-  if ( idx >= pfn->refqty || pfn->referers == nullptr )
-    return BADADDR;
-  else
-    return pfn->referers[idx];
+  return get_tail_referer(ea, idx);
 }
 
 //-----------------------------------------------------------------------

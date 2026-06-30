@@ -11,12 +11,16 @@
 // Author: EiNSTeiN_ <einstein@g3nius.org>
 // Copyright (C) 2013 ESET
 //
-// Integrated into IDAPython project by the IDAPython Team <idapython@googlegroups.com>
+// Integrated into IDAPython project by the IDAPython Team <https://github.com/HexRaysSA/ida-sdk/issues>
 //---------------------------------------------------------------------
 
 #ifdef __NT__
 %include <windows.i>
 #endif
+
+%warnfilter(315) block_chains_t;
+%warnfilter(361) operator!;
+%warnfilter(509) codegen_t;
 
 //=========================================================================
 //      Reused definitions (from hexrays_defs.i)
@@ -265,6 +269,64 @@
           SWIG_NewPointerObj(SWIG_as_voidptr(result != nullptr ? *$1 : nullptr), SWIGTYPE_p_mop_t, 0 | 0));
 }
 
+// minsn_t** parameters are used as in/out cursors by microcode helpers
+%typemap(typecheck, precedence=SWIG_TYPECHECK_POINTER) (minsn_t **parent)
+{
+  if ( $input == Py_None )
+  {
+    $1 = 1;
+  }
+  else
+  {
+    void *argp = nullptr;
+    int res = SWIG_ConvertPtr($input, &argp, SWIGTYPE_p_minsn_t, 0);
+    $1 = SWIG_CheckState(res);
+  }
+}
+%typemap(in) (minsn_t **parent) (minsn_t *tmp_insn)
+{
+  if ( $input == Py_None )
+  {
+    tmp_insn = nullptr;
+  }
+  else
+  {
+    void *argp = nullptr;
+    int res = SWIG_ConvertPtr($input, &argp, SWIGTYPE_p_minsn_t, 0 | 0);
+    if ( !SWIG_IsOK(res) )
+    {
+      SWIG_exception_fail(
+              SWIG_ArgError(res),
+              "in method '" "$symname" "', argument " "$argnum"" of type '" "minsn_t **""'");
+    }
+    tmp_insn = reinterpret_cast<minsn_t *>(argp);
+  }
+  $1 = &tmp_insn;
+}
+%typemap(argout) (minsn_t **parent)
+{
+  $result = Py_BuildValue(
+          "(OO)",
+          $result,
+          SWIG_NewPointerObj(SWIG_as_voidptr($1 != nullptr ? *$1 : nullptr), SWIGTYPE_p_minsn_t, 0 | 0));
+}
+%apply (minsn_t **parent) { (minsn_t **p_i1) };
+
+// outins is output-only (like mop_t **other): hide it from Python,
+// append the result to the return tuple.
+%typemap(in,numinputs=0) (minsn_t **outins=nullptr) (minsn_t *tmp_insn)
+{
+  tmp_insn = nullptr;
+  $1 = &tmp_insn;
+}
+%typemap(argout) (minsn_t **outins=nullptr)
+{
+  $result = Py_BuildValue(
+          "(OO)",
+          $result,
+          SWIG_NewPointerObj(SWIG_as_voidptr($1 != nullptr ? *$1 : nullptr), SWIGTYPE_p_minsn_t, 0 | 0));
+}
+
 %typemap(out) cfuncptr_t {}
 %typemap(ret) cfuncptr_t
 {
@@ -310,6 +372,7 @@
 
 %ignore file_printer_t;
 %ignore mba_ranges_t::range_contains;
+%ignore decomp_ranges_t::range_contains;
 
 %ignore qstring_printer_t::qstring_printer_t(const cfunc_t *, qstring &, bool);
 %ignore qstring_printer_t::~qstring_printer_t();
@@ -349,7 +412,8 @@ void delete_qstring_printer_t(qstring_printer_t *qs)
 %inline %{
 void py_debug_hexrays_ctree(int level, const char *msg)
 {
-  debug_hexrays_ctree(level, msg);
+  if ( msg != nullptr )
+    debug_hexrays_ctree(level, "%s", msg);
 }
 %}
 
@@ -634,8 +698,13 @@ void qswap(cinsn_t &a, cinsn_t &b);
 %ignore decompile_snippet;
 %ignore decompile_func(func_t *,hexrays_failure_t *);
 %ignore decompile_func(func_t *);
-
 %feature("pythonappend") decompile_func %{
+  if val.__deref__() is None:
+      val = None
+%}
+%ignore decompile_function(ea_t,hexrays_failure_t *);
+%ignore decompile_function(ea_t);
+%feature("pythonappend") decompile_function %{
   if val.__deref__() is None:
       val = None
 %}
@@ -699,7 +768,9 @@ void qswap(cinsn_t &a, cinsn_t &b);
 %ignore mba_t::get_mblock(uint) const;
 
 %feature("nodirector") codegen_t;
+// should we ignore all virtual methods?
 %ignore codegen_t::reserved;
+%ignore codegen_t::should_handle_switch;
 
 %feature("nodirector") simple_graph_t;
 %ignore simple_graph_t::simple_graph_t;
@@ -719,6 +790,7 @@ void qswap(cinsn_t &a, cinsn_t &b);
 %ignore minsn_t::find_num_op(const mop_t **) const;
 %ignore minsn_t::find_opcode(mcode_t) const;
 %ignore minsn_t::set_combined;
+%ignore minsn_t::serialize(bytevec_t *b) const;
 
 %ignore mop_t::is_constant(uint64 *) const;
 %ignore mop_t::is_constant() const;
@@ -788,10 +860,14 @@ void qswap(cinsn_t &a, cinsn_t &b);
 %ignore fnumber_t::dstr;
 %ignore range_item_iterator_t;
 %ignore mba_item_iterator_t;
+%ignore decomp_item_iterator_t;
 %ignore range_chunk_iterator_t;
 %ignore hexrays_failure_t::hexrays_failure_t(merror_t,ea_t);
 
+%rename(_gen_microcode_mbr) gen_microcode(const mba_ranges_t &, hexrays_failure_t *, const mlist_t *, int, mba_maturity_t);
+%rename(_create_empty_mba_mbr) create_empty_mba(const mba_ranges_t &, hexrays_failure_t *);
 %newobject gen_microcode;
+%newobject _gen_microcode_mbr;
 %define_hexrays_lifecycle_object(mba_t);
 %const_void_pointer_and_size(void, bytes, _size);
 
@@ -896,6 +972,18 @@ void qswap(cinsn_t &a, cinsn_t &b);
       s.sprnt("%p (opcode=%d)", self, self->opcode);
       return s;
     }
+
+    PyObject *serialize() const
+    {
+      bytevec_t buf;
+      int fmt = $self->serialize(&buf);
+      PyObject *py_bytes = PyBytes_FromStringAndSize(
+              (const char *) buf.begin(), buf.size());
+      PyObject *py_tuple = PyTuple_New(2);
+      PyTuple_SetItem(py_tuple, 0, PyLong_FromLong(fmt));
+      PyTuple_SetItem(py_tuple, 1, py_bytes);
+      return py_tuple;
+    }
 }
 %monitored_lifecycle_object_t(minsn_t);
 
@@ -947,6 +1035,14 @@ static bool remove_udc_filter(udc_filter_t *instance)
 //=========================================================================
 //      Include main header
 //=========================================================================
+
+// Without this, SWIG generates two Python overloads for scif_t's ctor (due
+// to the qstring *n=nullptr default arg), but the Python wrapper always
+// forwards 3 args including n=None. The qstring* typecheck typemap calls
+// PyUnicode_Check which rejects None, so scif_t(mba, tif) fails to dispatch.
+// compactdefaultargs collapses this to a single wrapper that uses the C++
+// default when the Python caller omits the argument.
+%feature("compactdefaultargs") scif_t::scif_t;
 
 %include "hexrays.hpp";
 %template(array_of_ivlsets) qvector<ivlset_t>;

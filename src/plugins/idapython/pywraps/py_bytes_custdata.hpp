@@ -72,7 +72,7 @@ public:
           const char *asm_keyword,
           int props)
   {
-    memset(this, 0, sizeof(data_type_t));
+    memset((void *) (data_type_t *) this, 0, sizeof(data_type_t));
     cbsize = sizeof(data_type_t);
     dt_name = name;
     dt_menu_name = menu_name;
@@ -317,7 +317,7 @@ public:
         const char *hotkey,
         int32 text_width)
   {
-    memset(this, 0, sizeof(data_format_t));
+    memset((void *) (data_format_t *) this, 0, sizeof(data_format_t));
     cbsize = sizeof(data_format_t);
     df_name = name;
     df_menu_name = menu_name;

@@ -11,6 +11,7 @@
 %ignore correct_address;
 %ignore rebase_program;
 %rename (rebase_program) py_rebase_program;
+%ignore segment_info_t__visible_name;
 
 %template (segment_defsr_array) wrapped_array_t<sel_t,SREG_NUM>;
 
@@ -48,12 +49,17 @@
   *($2) = BADADDR;
 }
 
-//<typemaps(py_segment)>
-//</typemaps(py_segment)>
+//<typemaps(segment)>
+//</typemaps(segment)>
 
 %include "segment.hpp"
 
 %inline %{
 //<inline(py_segment)>
 //</inline(py_segment)>
+%}
+
+%pythoncode %{
+#<pycode(py_segment)>
+#</pycode(py_segment)>
 %}

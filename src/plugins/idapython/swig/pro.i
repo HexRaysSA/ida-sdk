@@ -143,6 +143,8 @@
 %ignore qstrlwr;
 %ignore qstrupr;
 
+%warnfilter(509) qlist;
+
 // do not generate operator delete etc.
 %feature("nodirector") qrefcnt_obj_t;
 

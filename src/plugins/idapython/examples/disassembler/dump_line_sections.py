@@ -32,7 +32,7 @@ class dump_line_sections_ah_t(ida_kernwin.action_handler_t):
                     if not op_n:
                         break
                     print("  Operand #%d: (raw text) %s" % (op_tag - ida_lines.COLOR_OPND1, op_n.substr(raw)))
-                    as_reg = tls.nearest_at(op_n.start, ida_lines.COLOR_REG)
+                    as_reg = tls.innermost_at(op_n.start, ida_lines.COLOR_REG)
                     if as_reg:
                         print("    Operand is register: \"%s\"" % as_reg.substr(raw))
 

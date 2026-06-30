@@ -13,11 +13,18 @@
 %immutable reg_value_def_t::LIKE_GOT;
 %ignore reg_value_def_t::val_eq;
 %ignore reg_value_def_t::val_less;
+%ignore reg_value_info_t::set_context(const reg_finder_t *rf);
+%ignore reg_value_info_t::reg_value_info_t(reg_value_base_t &&base, int slotsize, int addrsize);
+// ignore fake-public methods
+%ignore reg_value_base_t::truncate(int width, int slotsize, int addrsize);
+%ignore reg_value_base_t::get_num(uint64 *uval, int slotsize) const;
+%ignore reg_value_base_t::get_addr(ea_t *addr, int addrsize) const;
+%ignore reg_value_base_t::get_spd(sval_t *sval, int addrsize) const;
 
 //-------------------------------------------------------------------------
 // dstr() as str()
-%ignore reg_value_info_t::dstr;
-%extend reg_value_info_t
+%ignore reg_value_base_t::dstr;
+%extend reg_value_base_t
 {
   inline qstring __str__() const { return $self->dstr(); }
 }
@@ -27,26 +34,27 @@
 %ignore reg_finder_invalidate_cache(reg_finder_t *_this, ea_t to, ea_t from, cref_t cref);
 %ignore reg_finder_invalidate_cache(reg_finder_t *_this);
 %ignore reg_finder_invalidate_xrefs_cache(reg_finder_t *_this, ea_t ea, dref_t dref);
-%ignore reg_finder_find(reg_finder_t *_this, reg_value_info_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insns);
-%ignore reg_finder_calc_op_addr(reg_finder_t *_this, reg_value_info_t *addr, const op_t *memop, const insn_t *insn, ea_t ea, ea_t ds, int max_depth);
-%ignore reg_finder_emulate_mem_read(reg_finder_t *_this, reg_value_info_t *value, const reg_value_info_t *addr, int width, bool is_signed, const insn_t *insn);
-%ignore reg_finder_emulate_binary_op(reg_finder_t *_this, reg_value_info_t *value, int aop, const op_t *op1, const op_t *op2, const insn_t *insn, ea_t ea, ea_t ds, reg_finder_binary_ops_adjust_fun adjust, void *ud);
-%ignore reg_finder_emulate_unary_op(reg_finder_t *_this, reg_value_info_t *value, int aop, int reg, const insn_t *insn, ea_t ea, ea_t ds);
-%ignore reg_finder_may_modify_stkvar(reg_finder_t *_this, reg_value_info_t *value, reg_finder_op_t op, const insn_t *insn);
+%ignore reg_finder_find(reg_finder_t *_this, reg_value_base_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insns);
+%ignore reg_finder_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, ea_t func_ea);
+%ignore reg_finder_calc_op_addr(reg_finder_t *_this, reg_value_base_t *addr, const op_t *memop, const insn_t *insn, ea_t ea, ea_t ds, int max_depth);
+%ignore reg_finder_emulate_mem_read(reg_finder_t *_this, reg_value_base_t *value, const reg_value_base_t *addr, int width, bool is_signed, const insn_t *insn);
+%ignore reg_finder_emulate_binary_op(reg_finder_t *_this, reg_value_base_t *value, int aop, const op_t *op1, const op_t *op2, const insn_t *insn, ea_t ea, ea_t ds, reg_finder_binary_ops_adjust_fun adjust, void *ud);
+%ignore reg_finder_emulate_unary_op(reg_finder_t *_this, reg_value_base_t *value, int aop, int reg, const insn_t *insn, ea_t ea, ea_t ds);
+%ignore reg_finder_emulate_binary_op_shifted(reg_finder_t *_this, reg_value_base_t *value, int aop, const op_t *op1, const op_t *op2, int width, bool is_signed, int shift, uint8 shift_count, const insn_t *insn, ea_t ea, ea_t ds);
+%ignore reg_finder_may_modify_stkvar(reg_finder_t *_this, reg_value_base_t *value, reg_finder_op_t op, const insn_t *insn);
 %ignore reg_finder_can_resolve_mem(const reg_finder_t *_this, ea_t ea);
 %ignore reg_finder_ctr(reg_finder_t *_this);
 %ignore reg_finder_dtr(reg_finder_t *_this);
 %ignore reg_value_def_dstr(const reg_value_def_t *_this, qstring *vout, int how, const procmod_t *pm);
-%ignore reg_value_info_dstr(const reg_value_info_t *_this, qstring *vout, const procmod_t *pm);
-%ignore reg_value_info_vals_union(reg_value_info_t *_this, const reg_value_info_t *r);
-%ignore reg_finder_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, func_t *pfn);
+%ignore reg_value_base_vals_union(reg_value_base_t *_this, const reg_value_base_t *r);
+%ignore reg_value_base_dstr(const reg_value_base_t *_this, qstring *vout, const procmod_t *pm);
 
 //-------------------------------------------------------------------------
-// add access to reg_value_info_t::vals
-%ignore reg_value_info_t::vals_begin;
-%ignore reg_value_info_t::vals_end;
-%ignore reg_value_info_t::vals_size;
-%extend reg_value_info_t
+// add access to reg_value_base_t::vals
+%ignore reg_value_base_t::vals_begin;
+%ignore reg_value_base_t::vals_end;
+%ignore reg_value_base_t::vals_size;
+%extend reg_value_base_t
 {
   inline size_t __len__() const { return $self->vals_size(); }
   inline const reg_value_def_t &__getitem__(size_t i) const
@@ -84,10 +92,9 @@
   }
 }
 %enddef
-%val_t_result_as_output(uint32, PyLong_FromUnsignedLong, uval);
 %val_t_result_as_output(uint64, PyLong_FromUnsignedLongLong, uval);
-%val_t_result_as_output(int32, PyLong_FromLong, sval);
-%val_t_result_as_output(int64, PyLong_FromLongLong, sval);
+%val_t_result_as_output(ea_t, PyLong_FromUnsignedLongLong, addr);
+%val_t_result_as_output(sval_t, PyLong_FromLongLong, sval);
 
 //-------------------------------------------------------------------------
 // For 'find_nearest_rvi()'

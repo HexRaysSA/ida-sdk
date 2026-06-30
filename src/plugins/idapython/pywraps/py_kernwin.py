@@ -48,13 +48,35 @@ IWID_CV_LINE_INFOS = 1 << BWN_CV_LINE_INFOS
 IWID_SRCPTHMAP_CSR = 1 << BWN_SRCPTHMAP_CSR
 IWID_SRCPTHUND_CSR = 1 << BWN_SRCPTHUND_CSR
 IWID_UNDOHIST = 1 << BWN_UNDOHIST
-IWID_SNIPPETS_CSR = 1 << BWN_SNIPPETS_CSR
+IWID_SNIPPETS_TREE = 1 << BWN_SNIPPETS_TREE
+IWID_RECENT_SCRIPTS_TREE = 1 << BWN_RECENT_SCRIPTS_TREE
+IWID_EXAMPLE_SCRIPTS_TREE = 1 << BWN_EXAMPLE_SCRIPTS_TREE
+IWID_SEARCH_SCRIPTS_TREE = 1 << BWN_SEARCH_SCRIPTS_TREE
+# Backwards-compat aliases for scripts that still refer to the
+# original chooser-era names.
+BWN_SNIPPETS_CSR = BWN_SNIPPETS_TREE
+IWID_SNIPPETS_CSR = IWID_SNIPPETS_TREE
 IWID_SCRIPTS_CSR = 1 << BWN_SCRIPTS_CSR
 IWID_BOOKMARKS = 1 << BWN_BOOKMARKS
 IWID_TILIST = 1 << BWN_TILIST
 IWID_TIL_VIEW = 1 << BWN_TIL_VIEW
 IWID_TYPE_EDITOR = 1 << BWN_TYPE_EDITOR
 IWID_XREF_TREE = 1 << BWN_XREF_TREE
+IWID_TEAMS_VAULT_FILES = 1 << BWN_TEAMS_VAULT_FILES
+IWID_TEAMS_COMMITS = 1 << BWN_TEAMS_COMMITS
+IWID_TEAMS_LOCAL_FILES = 1 << BWN_TEAMS_LOCAL_FILES
+IWID_TEAMS_WORKLISTS = 1 << BWN_TEAMS_WORKLISTS
+IWID_TEAMS_SITES = 1 << BWN_TEAMS_SITES
+IWID_TEAMS_USERS = 1 << BWN_TEAMS_USERS
+IWID_TEAMS_FILE_HISTORY = 1 << BWN_TEAMS_FILE_HISTORY
+IWID_TEAMS_COMMIT_FILES = 1 << BWN_TEAMS_COMMIT_FILES
+IWID_TEAMS_EXT_ASSOCS = 1 << BWN_TEAMS_EXT_ASSOCS
+IWID_TEAMS_OPENED_FILES = 1 << BWN_TEAMS_OPENED_FILES
+IWID_TEAMS_VAULT_FILE_PICKER = 1 << BWN_TEAMS_VAULT_FILE_PICKER
+IWID_DSC_INDEX = 1 << BWN_DSC_INDEX
+IWID_DSC_SYMBOLS = 1 << BWN_DSC_SYMBOLS
+IWID_DSC_STRINGS = 1 << BWN_DSC_STRINGS
+IWID_XREF_GRAPH = 1 << BWN_XREF_GRAPH
 
 IWID_ANY_LISTING = IWID_DISASM | IWID_HEXVIEW | IWID_TILIST | IWID_FRAME | IWID_PSEUDOCODE | IWID_CUSTVIEW
 IWID_EA_LISTING = IWID_DISASM | IWID_HEXVIEW | IWID_PSEUDOCODE
@@ -97,7 +119,7 @@ def ask_seg(defval: int, prompt: str) -> Union[int, None]:
     return sel if res == 1 else None
 
 # ----------------------------------------------------------------------
-def ask_ident(defval: str, prompt: str) -> bool:
+def ask_ident(defval: str, prompt: str) -> Union[str, None]:
     return ask_str(defval, HIST_IDENT, prompt)
 
 # ----------------------------------------------------------------------
@@ -205,5 +227,16 @@ BWN_CALLS_CALLEES = 48
 IWID_CALLS = 1 << BWN_CALLS
 IWID_CALLS_CALLERS = 1 << BWN_CALLS_CALLERS
 IWID_CALLS_CALLEES = 1 << BWN_CALLS_CALLEES
+
+import ida_idaapi
+import ida_funcs
+choose_stkvar_xref = ida_idaapi._ida_deprecated(choose_stkvar_xref, "choose_stkvar_xref_ea")
+prompt_function_prototype_ex = ida_idaapi._ida_deprecated(
+    prompt_function_prototype_ex, "prompt_function_prototype")
+prompt_function_prototype = ida_idaapi._deprecated_overload(
+    "prompt_function_prototype",
+    prompt_function_prototype, ida_funcs.func_t, _prompt_function_prototype_pfn,
+    "prompt_function_prototype(func_t)",
+    "prompt_function_prototype(ea_t)")
 
 #</pycode(py_kernwin)>

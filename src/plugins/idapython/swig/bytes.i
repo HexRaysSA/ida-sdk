@@ -8,11 +8,7 @@
 %ignore prev_that(ea_t, ea_t, testf_t *);
 
 // Unexported and kernel-only declarations
-%ignore adjust_visea;
 %ignore visit_patched_bytes;
-%ignore is_first_visea;
-%ignore is_last_visea;
-%ignore is_visible_finally;
 %ignore setFlbits;
 %ignore clrFlbits;
 %ignore del_opinfo;
@@ -268,6 +264,8 @@
 %rename (get_bytes) py_get_bytes;
 %rename (get_bytes_and_mask) py_get_bytes_and_mask;
 %rename (get_strlit_contents) py_get_strlit_contents;
+%ignore set_operand_flag;
+%rename (set_operand_flag) py_set_operand_flag;
 
 %inline %{
 //<inline(py_bytes)>

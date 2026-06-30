@@ -137,4 +137,8 @@ class simple_idb_diff_handler_t(func_md_diff_handler_t):
         self.put("- %s" % l)
         self.put("+ %s" % r)
 
+import ida_idaapi
+calc_func_metadata = ida_idaapi._ida_deprecated(calc_func_metadata, "calc_function_metadata")
+insn_site_t.toea = ida_idaapi._ida_deprecated(insn_site_t.toea, "insn_site_t.to_ea")
+
 #</pycode(py_lumina)>

@@ -66,8 +66,10 @@ typedef uval_t diridx_t;
 %ignore _py_getreg;
 %rename (_processor_t) processor_t;
 %ignore processor_t::is_funcarg_off;
+%ignore processor_t::is_funcarg_off_ea;
 %ignore processor_t::ensure_processor;
 %ignore processor_t::lvar_off;
+%ignore processor_t::lvar_off_ea;
 %ignore processor_t::is_lumina_usable;
 %ignore processor_t::get_regfinder();
 // The following are queried by the "scripting" processor module support

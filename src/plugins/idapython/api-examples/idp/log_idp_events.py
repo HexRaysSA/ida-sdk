@@ -137,6 +137,13 @@ class idp_logger_hooks_t(ida_idp.IDP_Hooks):
         """
         return self._log()
 
+    def ev_out_segment_start(self, ctx, seg_start_ea):
+        """
+        Function to produce start of segment
+        Returns: 1-ok, 0-not implemented
+        """
+        return self._log()
+
     def ev_out_insn(self, ctx):
         """
         Generate text representation of an instruction in 'ctx.insn' structure.
@@ -153,7 +160,21 @@ class idp_logger_hooks_t(ida_idp.IDP_Hooks):
         """
         return self._log()
 
+    def ev_out_segment_start(self, ctx, seg_start_ea):
+        """
+        Function to produce start of segment
+        Returns: 1-ok, 0-not implemented
+        """
+        return self._log()
+
     def ev_out_segend(self, ctx, segment):
+        """
+        Function to produce end of segment
+        Returns: 1-ok, 0-not implemented
+        """
+        return self._log()
+
+    def ev_out_segment_end(self, ctx, seg_start_ea):
         """
         Function to produce end of segment
         Returns: 1-ok, 0-not implemented
@@ -238,7 +259,21 @@ class idp_logger_hooks_t(ida_idp.IDP_Hooks):
         """
         return self._log()
 
+    def ev_creating_segment(self, si):
+        """
+        A new segment is about to be created.
+        Returns 1-ok, <0-should not be created
+        """
+        return self._log()
+
     def ev_moving_segm(self, segment, to, flags):
+        """
+        May the kernel move the segment?
+        returns: 0-yes, <0-the kernel should stop
+        """
+        return self._log()
+
+    def ev_moving_segment(self, seg_start_ea, to, flags):
         """
         May the kernel move the segment?
         returns: 0-yes, <0-the kernel should stop
@@ -462,7 +497,22 @@ class idp_logger_hooks_t(ida_idp.IDP_Hooks):
         """
         return self._log()
 
+    def ev_is_jump_function(self, fi, jump_target, func_pointer):
+        """
+        Is the function a trivial "jump" function?
+        Returns: <0-no, 0-don't know, 1-yes
+        """
+        return self._log()
+
     def ev_func_bounds(self, possible_return_code, pfn, max_func_end_ea):
+        """
+        Find_func_bounds() finished its work.
+        The module may fine tune the function bounds.
+        Returns: None
+        """
+        return self._log()
+
+    def ev_function_bounds(self, possible_return_code, fchunk, max_func_end_ea):
         """
         Find_func_bounds() finished its work.
         The module may fine tune the function bounds.
@@ -479,7 +529,23 @@ class idp_logger_hooks_t(ida_idp.IDP_Hooks):
         """
         return self._log()
 
+    def ev_verify_function_sp(self, func_ea):
+        """
+        All function instructions have been analyzed.
+        Now the processor module can analyze the stack pointer
+        for the whole function
+        Returns: 0-ok, <0-bad stack pointer
+        """
+        return self._log()
+
     def ev_verify_noreturn(self, pfn):
+        """
+        The kernel wants to set 'noreturn' flags for a function
+        Returns: 0-ok, <0-do not set 'noreturn' flag
+        """
+        return self._log()
+
+    def ev_verify_function_noreturn(self, func_ea):
         """
         The kernel wants to set 'noreturn' flags for a function
         Returns: 0-ok, <0-do not set 'noreturn' flag
@@ -494,12 +560,30 @@ class idp_logger_hooks_t(ida_idp.IDP_Hooks):
         """
         return self._log()
 
+    def ev_create_function_frame(self, func_ea):
+        """
+        Create a function frame for a newly created function.
+        Set up frame size, its attributes etc.
+        Returns: 1-ok, 0-not implemented
+        """
+        return self._log()
+
     def ev_get_frame_retsize(self, frsize, pfn):
         """
         Get size of function return address in bytes
         If this function is absent, the kernel will assume
         8 bytes for 64-bit function,4 bytes for 32-bit
         function, c2 bytes otherwise.
+        Returns 1-ok, 0-not implemented
+        """
+        return self._log()
+
+    def ev_get_function_retsize(self, frsize, func_ea):
+        """
+        Get size of function return address in bytes.
+        If this function is absent, the kernel will assume
+        8 bytes for 64-bit function, 4 bytes for 32-bit
+        function, 2 bytes otherwise.
         Returns 1-ok, 0-not implemented
         """
         return self._log()

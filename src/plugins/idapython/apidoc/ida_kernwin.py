@@ -434,7 +434,7 @@ class chooser_base_t(object):
         """
         pass
 
-def get_chooser_data(title: str, n: int) -> List[str]:
+def get_chooser_data(title: str, n: int) -> Union[List[str], None]:
     """
     Get the text corresponding to the index N in the chooser data.
     Use -1 to get the header.
@@ -485,7 +485,7 @@ def restore_database_snapshot(snapshot, callback, userdata) -> bool:
     """
     pass
 
-def take_database_snapshot(snapshot) -> Tuple[bool, str]:
+def take_database_snapshot(snapshot) -> Tuple[bool, Union[str, None]]:
     """
     Take a database snapshot.
 

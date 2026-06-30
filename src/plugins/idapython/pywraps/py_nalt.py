@@ -11,4 +11,7 @@ def get_abi_name():
     return ida_typeinf.get_abi_name()
 # for backward compatibility
 get_initial_version = get_initial_idb_version
+REFINFO_NO_ZEROS = REFINFO_IGNZERO
+"""back-compat alias for REFINFO_IGNZERO
+"""
 #</pycode(py_nalt)>

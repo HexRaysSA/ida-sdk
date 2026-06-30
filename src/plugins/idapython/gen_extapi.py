@@ -41,6 +41,8 @@ FUNCTIONS = {
                                                             [ "op",                                                                                                                                                                          ], ],
 "_PyLong_AsByteArray":            [ "int",                  [ "PyLongObject *",   "unsigned char *",    "size_t",             "int",                "int",                "int",                                                             ],
                                                             [ "v",                "bytes",              "n",                  "little_endian",      "is_signed",          "with_exceptions",                                                 ], ],
+"_PyLong_FromByteArray":          [ "PyObject *",           [ "const unsigned char *", "size_t",        "int",                "int",                                                                                                           ],
+                                                            [ "bytes",            "n",                  "little_endian",      "is_signed",                                                                                                     ], ],
 "PyEval_ThreadsInitialized":      [ "int",                  [                                                                                                                                                                                ],
                                                             [                                                                                                                                                                                ], ],
 "PyEval_InitThreads":             [ "void",                 [                                                                                                                                                                                ],
@@ -169,8 +171,6 @@ FUNCTIONS = {
                                                             [ "o",                                                                                                                                                                           ], ],
 "PySys_GetObject":                [ "PyObject *",           [ "const char *",                                                                                                                                                                ],
                                                             [ "name",                                                                                                                                                                        ], ],
-"PySys_SetPath":                  [ "void",                 [                                                                                                                                                                                ],
-                                                            [                                                                                                                                                                                ], ],
 "PySys_SetObject":                [ "int",                  [ "const char *",     "PyObject *",                                                                                                                                              ],
                                                             [ "name",             "v",                                                                                                                                                       ], ],
 "PyThreadState_Get":              [ "PyThreadState *",      [                                                                                                                                                                                ],
@@ -222,13 +222,13 @@ FUNCTIONS = {
 # Not in limited API
 UNSTABLE_SYMS = [
     "PyEval_SetTrace", "PyRun_SimpleStringFlags", "PyRun_StringFlags", "Py_CompileStringExFlags",
-    "PyFunction_New", "PyFunction_GetCode", "_PyLong_AsByteArray", "Py_NoSiteFlag",
+    "PyFunction_New", "PyFunction_GetCode", "_PyLong_AsByteArray", "_PyLong_FromByteArray",
+    "Py_NoSiteFlag",
 ]
 
 DEPRECATIONS = {
     "PyEval_InitThreads": "3.9",
     "PyEval_ThreadsInitialized": "3.9",
-    "PySys_SetPath": "3.11",
     "Py_NoSiteFlag": "3.12",
 }
 
@@ -258,6 +258,7 @@ def type_to_fmt(arg_type: str) -> str:
         'const char *':         "%s",
         'Py_ssize_t *':         "%p",
         'unsigned char *':      "%p",
+        'const unsigned char *': "%p",
         'PyObject **':          "%p",
         'PyTypeObject':         "%p",
         "void":                 "",
@@ -278,7 +279,7 @@ def update_file(file_path: str, what: str, contents: list[str]):
 
     assert start != end and start != 0 and end != 0
     ls = ls[:start + 1] + contents + ls[end:]
-    open(f"{file_path}", "w").write("\n".join(ls))
+    open(f"{file_path}", "w").write("\n".join(ls) + "\n")
 
 def main():
     out_struct = []
@@ -308,9 +309,9 @@ def main():
             out_typedefs.append(x)
     
         if sym in FUNCTIONS:
-            out_struct.append(f"  {sym}_t *{sym}_ptr;")
+            out_struct.append(f"  {sym}_t *{sym}_ptr = nullptr;")
         else:
-            x = f"  {sym}_t *{sym}_ptr;"
+            x = f"  {sym}_t *{sym}_ptr = nullptr;"
             x = x.replace("* *", " **")
             out_struct.append(x)
     

@@ -31,4 +31,6 @@
   }
 }
 
+%immutable DIRTREE_FOLDED_SEP;
+
 %include "dirtree.hpp"

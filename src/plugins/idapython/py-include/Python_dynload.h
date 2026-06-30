@@ -533,12 +533,6 @@ static inline int PySys_SetObject(const char *name, PyObject *v)
     msg("PySys_SetObject(%s, %p) = %d\n", name, v, r);
   return r;
 }
-static inline void PySys_SetPath()
-{
-  if ( TRACE_REDIRECTED_API )
-    msg("PySys_SetPath()\n");
-  PYAPI(PySys_SetPath)();
-}
 static inline PyThreadState *PyThreadState_Get()
 {
   PyThreadState * r = PYAPI(PyThreadState_Get)();
@@ -659,6 +653,13 @@ static inline int _PyLong_AsByteArray(PyLongObject *v, unsigned char *bytes, siz
   int r = PYAPI(_PyLong_AsByteArray)(v, bytes, n, little_endian, is_signed, with_exceptions);
   if ( TRACE_REDIRECTED_API )
     msg("_PyLong_AsByteArray(%p, %p, %" FMT_Z ", %d, %d, %d) = %d\n", v, bytes, n, little_endian, is_signed, with_exceptions, r);
+  return r;
+}
+static inline PyObject *_PyLong_FromByteArray(const unsigned char *bytes, size_t n, int little_endian, int is_signed)
+{
+  PyObject * r = PYAPI(_PyLong_FromByteArray)(bytes, n, little_endian, is_signed);
+  if ( TRACE_REDIRECTED_API )
+    msg("_PyLong_FromByteArray(%p, %" FMT_Z ", %d, %d) = %p\n", bytes, n, little_endian, is_signed, r);
   return r;
 }
 static inline void _Py_Dealloc()

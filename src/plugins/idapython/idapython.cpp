@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------
 // IDAPython - Python plugin for Interactive Disassembler
 //
-// Copyright (c) The IDAPython Team <idapython@googlegroups.com>
+// Copyright (c) The IDAPython Team <https://github.com/HexRaysSA/ida-sdk/issues>
 //
 // All rights reserved.
 //
@@ -754,6 +754,7 @@ extlang_t extlang_python =
   idapython_plugin_t::extlang_call_method,
   idapython_plugin_t::extlang_load_procmod,
   idapython_plugin_t::extlang_unload_procmod,
+  201,                // icon (ui/ida/qt/resources/menu/201.svg)
 };
 
 //-------------------------------------------------------------------------
@@ -775,7 +776,8 @@ static const cli_t cli_python =
   "Enter any Python expression",
   idapython_plugin_t::cli_execute_line,
   nullptr, // keydown
-  idapython_plugin_t::cli_find_completions,
+  nullptr, // find_completions (legacy; superseded by find_completions_ex)
+  idapython_plugin_t::cli_find_completions_ex,
 };
 
 //-------------------------------------------------------------------------
@@ -844,8 +846,9 @@ static void send_modules_lifecycle_notification(module_lifecycle_notification_t 
 //-------------------------------------------------------------------------
 idapython_plugin_t::idapython_plugin_t()
   : initialized(false),
-    owning_interpreter(true),
-    ui_ready(false)
+    owning_interpreter(false), // else dtor calls null Py_Finalize: IDA-7123
+    ui_ready(false),
+    banner_printed(false)
 #ifdef TESTABLE_BUILD
     , user_code_lenient(-1)
 #endif
@@ -894,6 +897,7 @@ idapython_plugin_t::~idapython_plugin_t()
   {
     // Shut the interpreter down if we launched it
     Py_Finalize();
+    owning_interpreter = false;
   }
 
   initialized = false;
@@ -907,8 +911,66 @@ idapython_plugin_t::~idapython_plugin_t()
     const hook_data_t &hd = hook_data_vec[i-1];
     idapython_unhook_from_notification_point(hd.type, hd.cb, hd.ud);
   }
+  ::unhook_event_listener(HT_IDB, &idb_listener);
+  ::unhook_event_listener(HT_UI, this);
 SKIP_CLEANUP:
+  // second check in case of goto bypassing the call above
+  if ( owning_interpreter )
+  {
+    // Shut the interpreter down if we launched it
+    Py_Finalize();
+    owning_interpreter = false;
+  }
   instance = nullptr;
+}
+
+//--------------------------------------------------------------------------
+// Parse the Python version from a pyvenv.cfg file.
+// Handles both standard venv ("version = 3.14.2") and
+// uv venv ("version_info = 3.14.0") formats.
+// Returns true if a version was found.
+static bool parse_pyvenv_version(
+        int *major,
+        int *minor,
+        const char *cfgpath)
+{
+  FILE *fp = qfopen(cfgpath, "r");
+  if ( fp == nullptr )
+    return false;
+  qstring line;
+  bool found = false;
+  while ( qgetline(&line, fp) >= 0 )
+  {
+    // prefer "version_info" (uv), fall back to "version" (stdlib venv)
+    const char *p = nullptr;
+    if ( strstr(line.c_str(), "version_info") != nullptr )
+      p = strchr(line.c_str(), '=');
+    else if ( !found && strstr(line.c_str(), "version") != nullptr )
+      p = strchr(line.c_str(), '=');
+    if ( p != nullptr )
+    {
+      p++;
+      while ( qisspace(*p) )
+        p++;
+      if ( qsscanf(p, "%d.%d", major, minor) == 2 )
+        found = true;
+    }
+  }
+  qfclose(fp);
+  return found;
+}
+
+//--------------------------------------------------------------------------
+// Extract Python major.minor version from a libpython path.
+// e.g. "/path/to/libpython3.14.so.1.0" -> (3, 14)
+// Returns a pointer past the minor version digits (to the ABI tag),
+// or nullptr on failure.
+// Get the version of the loaded Python library via Py_GetVersion().
+// Must be called after extapi.load().
+static bool get_loaded_python_version(int *major, int *minor)
+{
+  const char *ver = Py_GetVersion();
+  return ver != nullptr && qsscanf(ver, "%d.%d", major, minor) == 2;
 }
 
 #ifdef __NT__
@@ -1045,6 +1107,73 @@ bool idapython_plugin_t::init()
     return false;
   }
 
+  // Ensure PYTHONHOME is set so Py_Initialize() can find the stdlib.
+  // When embedding Python, getpath.py's stdlib detection fails for
+  // uv-managed installs: the executable-based search walks up from
+  // IDA's binary dir (no stdlib there), and the library-based search
+  // is either unavailable (Linux <3.14) or mislocates the prefix
+  // (doubled lib/ in the landmark path). We replicate the same
+  // STDLIB_LANDMARKS search from CPython's Modules/getpath.py and
+  // walk upward from the library to find the correct prefix.
+  if ( !qgetenv("PYTHONHOME", nullptr) )
+  {
+    int pymajor, pyminor;
+    if ( get_loaded_python_version(&pymajor, &pyminor) )
+    {
+      // Check if a candidate directory contains the Python stdlib.
+      // On Windows the stdlib lives at {prefix}\Lib\os.py.
+      // On Unix it's {prefix}/lib/python{ver}{abi}/os.py, where
+      // the ABI tag is "d" for debug builds
+      // (Python <= 3.7).
+      // TODO: when we add freethreaded support, include "t" here.
+      auto has_stdlib = [&](const char *prefix) -> bool
+      {
+        char landmark[QMAXPATH];
+#ifdef __NT__
+        qmakepath(landmark, sizeof(landmark),
+                  prefix, "Lib", "os.py", nullptr);
+        return qfileexist(landmark);
+#else
+        static const char *abi_tags[] = { "", "d", };
+        for ( int ai = 0; ai < qnumber(abi_tags); ai++ )
+        {
+          char pydir[32];
+          qsnprintf(pydir, sizeof(pydir), "python%d.%d%s",
+                    pymajor, pyminor, abi_tags[ai]);
+          qmakepath(landmark, sizeof(landmark),
+                    prefix, "lib", pydir, "os.py", nullptr);
+          if ( qfileexist(landmark) )
+            return true;
+        }
+        return false;
+#endif
+      };
+
+      // Walk upward from the library directory to find the prefix.
+      char candidate[QMAXPATH];
+      qdirname(candidate, sizeof(candidate), extapi.lib_path.c_str());
+      bool found = false;
+      for ( int depth = 0; !found && depth < 3; depth++ )
+      {
+        if ( has_stdlib(candidate) )
+        {
+          pdeb(IDA_DEBUG_PLUGIN,
+               "IDAPython: setting PYTHONHOME=%s\n", candidate);
+          qsetenv("PYTHONHOME", candidate);
+          found = true;
+        }
+        else
+        {
+          char parent[QMAXPATH];
+          qdirname(parent, sizeof(parent), candidate);
+          if ( streq(parent, candidate) )
+            break;
+          qstrncpy(candidate, parent, sizeof(candidate));
+        }
+      }
+    }
+  }
+
   if ( config.alert_auto_scripts )
   {
     if ( pywraps_check_autoscripts(path, sizeof(path))
@@ -1073,22 +1202,60 @@ bool idapython_plugin_t::init()
 
   qstring venv_exec_path;
   bool venv_requested = detect_venv(&venv_exec_path);
-  venv_requested = venv_exec_path.size() > 0 && extapi.Py_NoSiteFlag_ptr != nullptr;
+  venv_requested = venv_exec_path.length() > 0 && extapi.Py_NoSiteFlag_ptr != nullptr;
+
+  if ( extapi.Py_NoSiteFlag_ptr == nullptr )
+  {
+    // TODO: NoSiteFlag is removed in Python >= 3.15. We need to switch to
+    // PyConfig-based initialization to bring back support for more recent
+    // python versions.
+    msg("IDAPython: Python library does not provide 'Py_NoSiteFlag'. Virtual environments are currently not supported in this version of python.\n");
+  }
 
   if ( venv_requested )
   {
-    if ( extapi.Py_NoSiteFlag_ptr == nullptr )
+    char venv_dir[QMAXPATH];
+    qdirname(venv_dir, sizeof(venv_dir), venv_exec_path.c_str());
+
+    qstring new_path(venv_dir);
+    qstring current_path;
+
+    qgetenv("PATH", &current_path);
+    new_path.append(DELIMITER);
+    new_path.append(current_path);
+    qsetenv("PATH", new_path.c_str());
+
+    // If the venv's Python version does not match the pinned libpython,
+    // warn and fall back to the pinned version with the venv deactivated.
+    // This catches the case where idapyswitch was pointed at a different
+    // Python than the one used to create the venv.
     {
-      // TODO: NoSiteFlag is removed in Python >= 3.14. We need to switch to
-      // PyConfig-based initialization to bring back support for more recent
-      // python versions.
-      msg("IDAPython: Python library does not provide 'Py_NoSiteFlag'. Virtual environments are currently not supported in this version of python.\n");
+      char cfgpath[QMAXPATH];
+      qdirname(cfgpath, sizeof(cfgpath), venv_dir);  // venv root
+      qmakepath(cfgpath, sizeof(cfgpath), cfgpath, "pyvenv.cfg", nullptr);
+      int venv_major = 0, venv_minor = 0;
+      int lib_major = 0, lib_minor = 0;
+      if ( parse_pyvenv_version(&venv_major, &venv_minor, cfgpath)
+        && get_loaded_python_version(&lib_major, &lib_minor)
+        && (lib_major != venv_major || lib_minor != venv_minor) )
+      {
+        msg("IDAPython: version mismatch between pinned libpython (%d.%d) and virtual environment (%d.%d).\n"
+                 "  Library: %s\n"
+                 "  pyvenv.cfg: %s\n"
+                 "Falling back to %d.%d and deactivating virtual environment.\n"
+                 "Please run idapyswitch to select the correct Python runtime.\n",
+                 lib_major, lib_minor, venv_major, venv_minor,
+                 extapi.lib_path.c_str(), cfgpath, lib_major, lib_minor);
+        venv_requested = false;
+        venv_exec_path.qclear();
+      }
+      else
+      {
+        *extapi.Py_NoSiteFlag_ptr = 1;
+        msg("IDAPython: Requested to use virtual environment interpreter at %s\n", venv_exec_path.c_str());
+      }
     }
-    else
-    {
-      *extapi.Py_NoSiteFlag_ptr = 1;
-      msg("IDAPython: Requested to use virtual environment interpreter at %s\n", venv_exec_path.c_str());
-    }
+
   }
 
   if ( Py_IsInitialized() == 0 )
@@ -1174,8 +1341,12 @@ bool idapython_plugin_t::init()
     if ( venv_requested )
     {
       extapi.PyRun_SimpleStringFlags_ptr(
-        "import sys\n"
+        "import sys, os\n"
         "sys.executable = IDAPYTHON_VENV_EXECUTABLE\n"
+        "_venv_prefix = os.path.dirname(os.path.dirname(sys.executable))\n"
+        "if os.path.isfile(os.path.join(_venv_prefix, 'pyvenv.cfg')):\n"
+        "    sys.prefix = _venv_prefix\n"
+        "    sys.exec_prefix = _venv_prefix\n"
         "import site\n"
         "site.main()\n",
         nullptr
@@ -1220,8 +1391,8 @@ bool idapython_plugin_t::init()
   if ( config.run_script.when == RSW_on_init )
     _run_user_script();
 
-  hook_event_listener(HT_UI, this);
-  hook_event_listener(HT_IDB, &idb_listener);
+  hook_event_listener(HT_UI, this, HKCB_GLOBAL);
+  hook_event_listener(HT_IDB, &idb_listener, HKCB_GLOBAL);
 
   // Enable the CLI by default
   enable_python_cli(true);
@@ -1392,12 +1563,24 @@ ssize_t idaapi idapython_plugin_t::on_event(ssize_t code, va_list)
       }
       break;
 
+    case ui_about_to_exit:
+      {
+        PYW_GIL_GET;
+        // Force-destroy rogue PySide-created top-level widgets while
+        // QApplication is still alive. See _ida_pyside_cleanup() in init.py.
+        extapi.PyRun_SimpleStringFlags_ptr("_ida_pyside_cleanup()", nullptr);
+      }
+      break;
+
     case ui_ready_to_run:
       {
         PYW_GIL_GET; // See above
         ui_ready = true;
-        if ( !is_ida_library(nullptr, 0, nullptr) )
+        if ( !banner_printed && !is_ida_library(nullptr, 0, nullptr) )
+        {
           extapi.PyRun_SimpleStringFlags_ptr("print_banner()", nullptr);
+          banner_printed = true;
+        }
         if ( config.run_script.when == RSW_ui_ready_to_run )
           _run_user_script();
       }
@@ -2133,30 +2316,25 @@ bool idapython_plugin_t::_cli_execute_line(const char *line)
 }
 
 //-------------------------------------------------------------------------
-bool idapython_plugin_t::_cli_find_completions(
-        qstrvec_t *out_completions,
-        qstrvec_t *out_hints,
-        qstrvec_t *out_docs,
-        int *out_match_start,
-        int *out_match_end,
+bool idapython_plugin_t::_cli_find_completions_ex(
+        cli_completions_t *out,
         const char *line,
-        int x)
+        int x,
+        size_t max_count)
 {
   PYW_GIL_GET;
 
   ref_t py_fc(get_idaapi_attr(S_IDAAPI_FINDCOMPLETIONS));
   if ( !py_fc )
     return false;
-  newref_t py_res(get_plugin_instance()->extapi.PyObject_CallFunction_ptr(py_fc.o, "si", line, x)); //lint !e605 !e1776
+  // 'K' (unsigned long long) so size_t(-1) ("unlimited" sentinel from
+  // the console CLI) reaches Python as 2**64-1 rather than wrapping to
+  // -1, which would slice off the last completion.
+  newref_t py_res(get_plugin_instance()->extapi.PyObject_CallFunction_ptr(
+          py_fc.o, "siK", line, x, (unsigned long long)max_count)); //lint !e605 !e1776
   if ( PyErr_Occurred() != nullptr )
     return false;
-  return idapython_convert_cli_completions(
-          out_completions,
-          out_hints,
-          out_docs,
-          out_match_start,
-          out_match_end,
-          py_res);
+  return idapython_convert_cli_completions_ex(out, py_res);
 }
 
 //-------------------------------------------------------------------------
@@ -2181,10 +2359,7 @@ bool idapython_plugin_t::_handle_file(
     return false;
   }
 
-  char script[MAXSTR];
-  qstrncpy(script, path, sizeof(script));
-  strrpl(script, '\\', '/');
-  newref_t py_script(PyUnicode_FromString(script));
+  newref_t py_script(PyUnicode_FromString(path));
 
   if ( globals == nullptr )
     globals = _get_module_globals();

@@ -67,16 +67,23 @@ def process(tree, opts, logger):
     #
     # Then, patch the return types
     #
+    # The `_maybe_*_result` helpers (defined in the generated wrappers) all
+    # return Py_None when the C++ status indicates failure, so the matching
+    # annotation must be `Union[<payload>, None]`. Non-`_maybe_` helpers
+    # always produce a value.
+    def _opt(name):
+        return ast.parse(f"Union[{name}, None]", mode="eval").body
+
     class source_transformer_t(pypasses.base_transformer_t):
 
         PATTERNS = (
-            ("resultobj = _maybe_sized_cstring_result(", ast.Name("str")),
-            ("resultobj = _maybe_cstring_result(", ast.Name("str")),
-            ("resultobj = _maybe_binary_result(", ast.Name("str")),
-            ("resultobj = _maybe_cstring_result_on_charptr_using_allocated_buf(", ast.Name("str")),
-            ("resultobj = _maybe_cstring_result_on_charptr_using_qbuf(", ast.Name("str")),
-            ("resultobj = _maybe_byte_array_as_hex_or_none_result(", ast.Name("str")),
-            ("resultobj = _maybe_byte_array_or_none_result(", ast.Name("bytes")),
+            ("resultobj = _maybe_sized_cstring_result(", _opt("str")),
+            ("resultobj = _maybe_cstring_result(", _opt("str")),
+            ("resultobj = _maybe_binary_result(", _opt("bytes")),
+            ("resultobj = _maybe_cstring_result_on_charptr_using_allocated_buf(", _opt("str")),
+            ("resultobj = _maybe_cstring_result_on_charptr_using_qbuf(", _opt("str")),
+            ("resultobj = _maybe_byte_array_as_hex_or_none_result(", _opt("str")),
+            ("resultobj = _maybe_byte_array_or_none_result(", _opt("bytes")),
             ("resultobj = _sized_cstring_result(", ast.Name("str"))
         )
 
@@ -87,6 +94,12 @@ def process(tree, opts, logger):
         def visit_FunctionDef(self, node):
             path = ".".join(self.current_path + [node.name])
             got = self.cpp_functions.get(path, None)
+            if got is None and len(self.current_path) > 1:
+                # For class methods, SWIG joins class and method
+                # with underscore: "mod.cls_method" not "mod.cls.method"
+                alt = self.current_path[0] + "." \
+                    + "_".join(self.current_path[1:] + [node.name])
+                got = self.cpp_functions.get(alt, None)
             if got is not None:
                 for pattern, ret_type in self.PATTERNS:
                     if got.body.find(pattern) >= 0:

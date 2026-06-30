@@ -18,6 +18,7 @@ import ida_ua
 import ida_ida
 import ida_idp
 import ida_typeinf
+import ida_hexrays
 
 EAX = 0
 EDX = 2
@@ -77,14 +78,12 @@ class delphi_LStrCatN_cc(ida_typeinf.custom_callcnv_t):
     def find_edx_value(self, call_ea, blk):
         # EDX contains the number of stack arguments. Find its value
         # in the current block
-        # NOTE: currently this logic is disabled (see False below)
-        # because the interface of find_def() is broken in IDAPython
-        if False and blk is not None and idaapi.init_hexrays_plugin():
+        if blk is not None and ida_hexrays.init_hexrays_plugin():
             edx = ida_hexrays.mop_t(ida_hexrays.reg2mreg(EDX), 4)
             i1 = blk.tail
             i2 = None
-            mov = blk.find_def(edx, i1, i2, FD_BACKWARD)
-            if mov is not None and mov.opcode == m_mov and mov.d == edx:
+            mov, _ = blk.find_def(edx, i1, i2, ida_hexrays.FD_BACKWARD)
+            if mov is not None and mov.opcode == ida_hexrays.m_mov and mov.d == edx:
                 n = mov.l.is_constant()
                 if n:
                     return n

@@ -2,7 +2,7 @@ from __future__ import print_function
 #---------------------------------------------------------------------
 # IDAPython - Python plugin for Interactive Disassembler
 #
-# (c) The IDAPython Team <idapython@googlegroups.com>
+# (c) The IDAPython Team <https://github.com/HexRaysSA/ida-sdk/issues>
 #
 # All rights reserved.
 #
@@ -19,6 +19,7 @@ import ctypes
 import idaapi
 import ida_idaapi
 import ida_bytes
+import ida_segment
 import idc
 
 uint8  = ctypes.c_ubyte
@@ -152,17 +153,19 @@ class dex_method(ctypes.LittleEndianStructure):
 struct dex_field
 {
   uint32 ctype, name, type;
-  ea_t maddr;   // Address used for xrefs.
+  ea_t maddr;            // Address used for xrefs.
+  uint32 access_flags;   // populated by the loader from class_data_item;
+                         // 0 for fields defined in another classes.dex.
 };
 
 """
 class dex_field(ctypes.LittleEndianStructure):
-    # flags
     _fields_ = [
-        ("ctype",   uint32), #
-        ("name",   uint32), #
-        ("type",   uint32), #
-        ("maddr",   ea_t), # Address used for xrefs.
+        ("ctype",        uint32), #
+        ("name",         uint32), #
+        ("type",         uint32), #
+        ("maddr",        ea_t),   # Address used for xrefs.
+        ("access_flags", uint32), # see dex_access_flags
     ]
 
 """
@@ -198,10 +201,12 @@ class Dex(object):
     DEXCMN_DEBSTR     = ord('B')    # line start ea => human readable debug info string
 
     # var indexes
-    DEXVAR_STRING_IDS = ord('S')    # string_id => ea
-    DEXVAR_TYPE_IDS   = ord('T')    # type_id => descriptor_idx
-    DEXVAR_TYPE_STR   = ord('U')    # type_id => type string (possible user redefined), char data
-    DEXVAR_TYPE_STRO  = ord('V')    # type_id => type string (original), char data
+    DEXVAR_OLD_STRIDS = ord('S')    # string_id => ea (obsolete)
+    DEXVAR_STRING_EAS = ord('s')    # string_id => ea (delta-encoded blob)
+    DEXVAR_OLD_TYPIDS = ord('T')    # type_id => descriptor string_id (obsolete)
+    DEXVAR_OLD_TYPSTR  = ord('U')    # type_id => type string (obsolete per-index)
+    DEXVAR_OLD_TYPSTRO = ord('V')    # type_id => type string original (obsolete per-index)
+    DEXVAR_TYPE_RENS   = ord('v')    # user-renamed type strings (blob)
     DEXVAR_METHOD     = ord('M')    # method_id => struct dex_method, supval
     DEXVAR_METH_STR   = ord('N')    # method_id => method name, char data
     DEXVAR_METH_STRO  = ord('O')    # method_id => method name fromdex file, char data
@@ -212,16 +217,65 @@ class Dex(object):
     DEBINFO_LINEINFO = 1        # Line start EA => dex_lineinfo_t
 
     #---------------------------------------------------------------------------
+    @staticmethod
+    def _load_string_eas(nn_var):
+        """Load delta-encoded string EAs blob from netnode."""
+        packed = nn_var.getblob(0, Dex.DEXVAR_STRING_EAS)
+        if packed is None:
+            return None
+        off = 0
+        (n, off) = unpack_dd(packed, off)
+        eas = []
+        prev = 0
+        for _ in range(n):
+            (delta, off) = unpack_ea(packed, off)
+            prev += delta
+            if __EA64__:
+                prev &= 0xFFFFFFFFFFFFFFFF
+            else:
+                prev &= 0xFFFFFFFF
+            eas.append(prev)
+        return eas
+
+
+    @staticmethod
+    def _unpack_str(packed, off):
+        """Unpack a null-terminated string (matches C++ pack_str/unpack_str)."""
+        end = packed.index(0, off) if 0 in packed[off:] else len(packed)
+        s = packed[off:end].decode('utf-8', errors='replace')
+        return (s, end + 1)  # skip past the null terminator
+
+    @staticmethod
+    def _load_type_renames(nn_var):
+        """Load user-renamed type strings blob from netnode."""
+        packed = nn_var.getblob(0, Dex.DEXVAR_TYPE_RENS)
+        if packed is None:
+            return None
+        off = 0
+        (nrenames, off) = unpack_dd(packed, off)
+        renames = {}
+        for _ in range(nrenames):
+            (tid, off) = unpack_dd(packed, off)
+            (s, off) = Dex._unpack_str(packed, off)
+            renames[tid] = s
+        return renames
+
+    #---------------------------------------------------------------------------
     def __init__(self):
         self.nn_meta = idaapi.netnode("$ dex_meta")
         self.nn_cmn = idaapi.netnode("$ dex_cmn")
         packed = self.nn_meta.getblob(0, Dex.META_BASEADDRS)
         self.baseaddrs = unpack_eavec(packed, 0)
         self.nn_vars = []
+        self.string_eas = []
+        self.type_renames = []
         self.nn_vars.append(idaapi.netnode("$ dex_var"))
         for i in range(2, len(self.baseaddrs) + 1):
             nn_var_name = "$ dex_var%d" % i
             self.nn_vars.append(idaapi.netnode(nn_var_name))
+        for nn_var in self.nn_vars:
+            self.string_eas.append(Dex._load_string_eas(nn_var))
+            self.type_renames.append(Dex._load_type_renames(nn_var))
 
     #---------------------------------------------------------------------------
     def get_dexnum(self, from_ea):
@@ -276,13 +330,20 @@ class Dex(object):
         return s.decode("UTF-8") if sys.version_info.major >= 3 else s
 
     #---------------------------------------------------------------------------
-    def idx_to_ea(self, from_ea, idx, tag):
+    def get_string_ea(self, from_ea, string_idx):
+        idx = self.get_dexnum(from_ea) - 1
+        if idx < len(self.string_eas) and self.string_eas[idx] is not None:
+            eas = self.string_eas[idx]
+            if string_idx < len(eas):
+                return eas[string_idx]
+            return ida_idaapi.BADADDR
+        # fallback for old IDBs
         nn_var = self.get_nn_var(from_ea)
-        return nn_var.eaget_idx(idx, tag)
+        return nn_var.eaget_idx(string_idx, Dex.DEXVAR_OLD_STRIDS)
 
     #---------------------------------------------------------------------------
     def get_string(self, from_ea, string_idx):
-        addr = self.idx_to_ea(from_ea, string_idx, Dex.DEXVAR_STRING_IDS)
+        addr = self.get_string_ea(from_ea, string_idx)
         if addr == ida_idaapi.BADADDR:
             return None
         length = ida_bytes.get_max_strlit_length(addr, idc.STRTYPE_C, ida_bytes.ALOPT_IGNHEADS|ida_bytes.ALOPT_IGNPRINT)
@@ -307,14 +368,23 @@ class Dex(object):
         if idx is None:
             return None
         val = node.supval(idx, tag)
+        if val is None:
+            return None
         # check for long line
         if len(val) == ctypes.sizeof(longname_director_t):
             longname_director = get_struct(val, 0, longname_director_t)
             if longname_director.zero == 0:
                 nn = idaapi.netnode(longname_director.node)
-                return Dex.as_string(nn.getblob(0, tag)[:-1])
+                blob = nn.getblob(0, tag)
+                # strip trailing zero if present (old IDBs)
+                if blob and blob[-1:] == b'\x00':
+                    blob = blob[:-1]
+                return Dex.as_string(blob)
         if len(val) > 0:
-            return Dex.as_string(val[:-1])
+            # strip trailing zero if present (old IDBs)
+            if val[-1:] == b'\x00':
+                val = val[:-1]
+            return Dex.as_string(val)
         return ""
 
     #---------------------------------------------------------------------------
@@ -375,8 +445,24 @@ class Dex(object):
 
     #---------------------------------------------------------------------------
     def get_type_string(self, from_ea, type_idx):
+        idx = self.get_dexnum(from_ea) - 1
+        # check in-memory rename map first
+        if idx < len(self.type_renames) and self.type_renames[idx] is not None:
+            renames = self.type_renames[idx]
+            if type_idx in renames:
+                return renames[type_idx]
+        # read from the TYPES segment: type_id -> string_id -> string
+        dexnum = idx + 1
+        segname = "TYPES" if dexnum == 1 else "TYPES%d" % dexnum
+        seg_ea = ida_segment.get_segment_ea_by_name(segname)
+        if seg_ea != ida_idaapi.BADADDR:
+            type_ea = seg_ea + type_idx * 4
+            if ida_bytes.is_mapped(type_ea):
+                string_id = ida_bytes.get_dword(type_ea)
+                return self.get_string(from_ea, string_id)
+        # fallback for old IDBs
         nn_var = self.get_nn_var(from_ea)
-        return Dex.get_string_by_index(nn_var, type_idx, Dex.DEXVAR_TYPE_STR)
+        return Dex.get_string_by_index(nn_var, type_idx, Dex.DEXVAR_OLD_TYPSTR)
 
     def get_method_name(self, from_ea, method_idx):
         nn_var = self.get_nn_var(from_ea)
@@ -443,10 +529,16 @@ class Dex(object):
     def get_field(self, from_ea, field_idx):
         nn_var = self.get_nn_var(from_ea)
         val = nn_var.supval(field_idx, Dex.DEXVAR_FIELD)
-        if len(val) != ctypes.sizeof(dex_field):
+        # Legacy IDBs (saved before access_flags was appended to dex_field)
+        # store a shorter blob; pad with zeros so access_flags reads as 0.
+        full_size = ctypes.sizeof(dex_field)
+        legacy_size = dex_field.access_flags.offset
+        if val is None or len(val) < legacy_size:
             print("bad data in DEXVAR_FIELD for index 0x%X" % field_idx)
             return None
-        field = get_struct(val,0, dex_field)
+        if len(val) < full_size:
+            val = val + b'\x00' * (full_size - len(val))
+        field = get_struct(val, 0, dex_field)
         return field
 
 

@@ -14,6 +14,9 @@ import datetime
 
 #<pycode(py_idaapi)>
 
+import functools
+import warnings
+
 # Type aliases (we currently still support 3.8, so no `type` statement, or `typing.TypeAlias`es just yet)
 ea_t = int
 
@@ -93,6 +96,202 @@ def _replace_module_function(replacement):
 def replfun(func):
     _replace_module_function(func)
     return func
+
+def _ida_deprecated(func_or_replacement, replacement=None):
+    """Mark a function as deprecated. Emits a DeprecationWarning at most once
+    per process per deprecated function, regardless of how many call-sites
+    hit it (matches `_ida_deprecated_class` / `_ida_deprecated_signature`).
+
+    Two equivalent shapes - pick whichever reads better at the call-site:
+        # post-hoc (the typical pywraps form, since the function comes from SWIG):
+        get_func = ida_idaapi._ida_deprecated(get_func, "get_func_start")
+
+        # decorator (for plain Python functions defined in pywraps):
+        # @ida_idaapi._ida_deprecated("new_func")
+        # def old_func(...): ...
+    """
+    if isinstance(func_or_replacement, str):
+        repl = func_or_replacement
+        return lambda func: _ida_deprecated(func, repl)
+    func = func_or_replacement
+    key = ("function.__call__", func.__name__)
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if key not in _emitted_deprecations:
+            _emitted_deprecations.add(key)
+            warnings.warn(
+                f"{func.__name__}() is deprecated, use {replacement}()",
+                DeprecationWarning,
+                stacklevel=2)
+        return func(*args, **kwargs)
+    return wrapper
+
+
+_emitted_deprecations = set()
+
+def _ida_deprecated_signature(signature, replacement):
+    """Deprecate a specific call signature (e.g. one overload).
+
+    Unlike `_ida_deprecated`, the warning text is taken verbatim from
+    `signature` and `replacement`. Use this when the deprecated form is
+    distinguished by argument types rather than by function name, or when
+    the wrapped callable's __name__ is not the public name (e.g. a
+    `functools.singledispatch` branch).
+
+    The warning is emitted at most once per `signature` per process, so
+    callers bombarding a deprecated API in a loop don't flood the log.
+
+    Note: `stacklevel=3` skips both this wrapper and the `singledispatch`
+    dispatch frame so the warning is attributed to the user's caller, not
+    to `functools`. `init.py`'s filter allows DeprecationWarnings only from
+    `module=r"ida_.*"`, so an incorrect stacklevel silently suppresses the
+    warning.
+    """
+    def deco(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if signature not in _emitted_deprecations:
+                _emitted_deprecations.add(signature)
+                warnings.warn(
+                    f"{signature} is deprecated, use {replacement}",
+                    DeprecationWarning,
+                    stacklevel=3)
+            return func(*args, **kwargs)
+        return wrapper
+    return deco
+
+
+def _deprecated_overload(name, new_impl, old_type, old_impl, old_sig, new_sig):
+    """Build a `functools.singledispatch` dispatcher for a function whose
+    C++ overload has been split into two Python bindings via SWIG `%rename`,
+    where one of the two overloads is deprecated.
+
+    Calls whose first positional argument is an instance of `old_type` route
+    to `old_impl` and emit a once-per-process DeprecationWarning; everything
+    else routes to `new_impl` directly with no warning.
+
+    :param name:     public function name (used for __name__/__qualname__)
+    :param new_impl: the non-deprecated implementation
+    :param old_type: first-arg type that selects the deprecated impl
+    :param old_impl: the deprecated implementation
+    :param old_sig:  human-readable deprecated call form, e.g.
+                     "gen_microcode(mba_ranges_t)"
+    :param new_sig:  human-readable replacement call form, e.g.
+                     "gen_microcode(decomp_ranges_t)"
+
+    Example:
+        gen_microcode = ida_idaapi._deprecated_overload(
+            "gen_microcode",
+            gen_microcode, mba_ranges_t, _gen_microcode_mbr,
+            "gen_microcode(mba_ranges_t)",
+            "gen_microcode(decomp_ranges_t)")
+    """
+    decorated_old = _ida_deprecated_signature(old_sig, new_sig)(old_impl)
+
+    @functools.singledispatch
+    def dispatcher(*args, **kwargs):
+        return new_impl(*args, **kwargs)
+
+    dispatcher.register(old_type)(decorated_old)
+    # None used to be accepted by the deprecated pointer overload; preserve that.
+    dispatcher.register(type(None))(decorated_old)
+    dispatcher.__name__ = name
+    dispatcher.__qualname__ = name
+    dispatcher.__doc__ = getattr(new_impl, "__doc__", None)
+    return dispatcher
+
+
+def _ida_deprecated_class(cls_or_replacement, replacement=None):
+    """Mark a class as deprecated. Emits a DeprecationWarning when the class
+    is instantiated directly, and another when it is subclassed.
+
+    Two equivalent shapes:
+        # post-hoc (typical for SWIG-generated bindings):
+        old_t = ida_idaapi._ida_deprecated_class(old_t, "new_t")
+
+        # decorator (for plain Python classes):
+        # @ida_idaapi._ida_deprecated_class("new_t")
+        # class old_t: ...
+
+    Both warnings dedup via `_emitted_deprecations`: instantiation fires at
+    most once per process, and each distinct subclass fires at most once.
+    `super().__init__()` from a subclass does *not* re-warn - only a
+    `cls(...)` whose runtime type is exactly `cls` triggers the
+    instantiation warning.
+
+    Note: `stacklevel=2` lands attribution on the user's `cls(...)` call or
+    `class X(cls): ...` statement. CPython invokes `__init__` and
+    `__init_subclass__` from C code with no intermediate Python frame, so
+    one frame up from the wrapper is the user's caller. `init.py`'s filter
+    allows DeprecationWarnings only from `module=r"ida_.*"`, so an incorrect
+    stacklevel silently suppresses the warning.
+    """
+    if isinstance(cls_or_replacement, str):
+        repl = cls_or_replacement
+        return lambda cls: _ida_deprecated_class(cls, repl)
+    cls = cls_or_replacement
+    name = cls.__name__
+    inst_key = ("class.__init__", name)
+
+    orig_init = cls.__init__
+
+    @functools.wraps(orig_init)
+    def deprecated_init(self, *args, **kwargs):
+        if type(self) is cls and inst_key not in _emitted_deprecations:
+            _emitted_deprecations.add(inst_key)
+            warnings.warn(
+                f"{name} is deprecated, use {replacement}",
+                DeprecationWarning,
+                stacklevel=2)
+        return orig_init(self, *args, **kwargs)
+    cls.__init__ = deprecated_init
+
+    def deprecated_init_subclass(sub, **kwargs):
+        sub_key = ("class.__init_subclass__", name, sub.__module__, sub.__qualname__)
+        if sub_key not in _emitted_deprecations:
+            _emitted_deprecations.add(sub_key)
+            warnings.warn(
+                f"subclassing {name} is deprecated, derive from {replacement} instead",
+                DeprecationWarning,
+                stacklevel=2)
+        super(cls, sub).__init_subclass__(**kwargs)
+    cls.__init_subclass__ = classmethod(deprecated_init_subclass)
+
+    return cls
+
+
+def _ida_deprecated_init_overload(cls, old_type, old_sig, new_sig):
+    """Mark one `__init__` overload as deprecated, selected by first-arg type.
+
+    Use when a class has multiple constructor forms in C++ (merged by SWIG into
+    a single Python `__init__(*args)`) and only one form - distinguished by its
+    first argument's type - is `DEPRECATED`. `_deprecated_overload` would
+    dispatch on `self`, so it can't be used here; this helper inspects the
+    user-supplied first positional arg instead.
+
+    Example:
+        ida_idaapi._ida_deprecated_init_overload(
+            lock_func_with_tails_t, func_t,
+            "lock_func_with_tails_t(func_t)",
+            "lock_func_with_tails_t(ea_t)")
+
+    The warning fires once per process (deduped via `_emitted_deprecations`,
+    keyed by `old_sig`).
+    """
+    orig_init = cls.__init__
+    key = ("class.__init__.overload", cls.__name__, old_sig)
+
+    @functools.wraps(orig_init)
+    def wrapper(self, *args, **kwargs):
+        if args and isinstance(args[0], old_type) and key not in _emitted_deprecations:
+            _emitted_deprecations.add(key)
+            warnings.warn(
+                f"{old_sig} is deprecated, use {new_sig}",
+                DeprecationWarning,
+                stacklevel=2)
+        return orig_init(self, *args, **kwargs)
+    cls.__init__ = wrapper
+    return cls
 
 
 # -----------------------------------------------------------------------
@@ -1187,8 +1386,12 @@ class __IDAPython_Completion_Util(object):
             name += to_add
         return name
 
-    def get_candidates(self, qname, line, match_syntax_char):
+    def get_candidates(self, qname, line, match_syntax_char, max_count):
         # self.debug("get_candidates(qname=%s, line=%s, match_syntax_char=%s)", qname, line, match_syntax_char)
+        # The "unlimited" sentinel from the console CLI is size_t(-1)
+        # ~= 2**64-1, which sails past sys.maxsize and would make
+        # itertools.islice() below reject the bound. Clamp.
+        max_count = min(max_count, sys.maxsize - 16)
         results = []
         MAGIC_METHODS = [ f"__{m}__" for m in [
             # as per https://docs.python.org/3/reference/datamodel.html (v3.12.3)
@@ -1232,6 +1435,11 @@ class __IDAPython_Completion_Util(object):
             "cvar", "_real_cvar", "_wrap_cvar",
             "SWIG_PYTHON_LEGACY_BOOL",
         ])
+        # frozenset so the per-entry `r in MAGIC_METHODS` below is
+        # O(1) rather than O(|MAGIC_METHODS|): with a `idaapi.`
+        # prefix the filter walks ~30k names, and a list lookup
+        # turns into a measurable chunk of keypress latency.
+        MAGIC_METHODS = frozenset(MAGIC_METHODS)
 
         try:
             ns = sys.modules['__main__']
@@ -1245,23 +1453,32 @@ class __IDAPython_Completion_Util(object):
         else:
             # search in the namespace
             last_token = parts[-1]
-            results = self.dir_namespace(ns, last_token)
-            # self.debug("get_candidates() completions for %s in %s: %s", last_token, ns, results)
+            from itertools import islice
+            # Source = dir(ns). dir() is eager; we can't lazily build
+            # it. But the per-name filter pass *is* short-circuitable
+            # via filter() + islice(): we stop walking dir() as soon
+            # as max_count survivors are collected.
+            apply_magic_filter = last_token not in [ "_", "__" ]
+            def _allowed(r):
+                if not r.startswith(last_token):
+                    return False
+                if apply_magic_filter:
+                    if r in MAGIC_METHODS:
+                        return False
+                    if r.startswith("_ida_") and r in sys.modules:
+                        return False
+                    if r.startswith("__get") or r.startswith("__set"):
+                        return False
+                    if r.endswith("__from_ptrval__"):
+                        return False
+                return True
+            # Over-fetch a few so build_hints()'s is_typing-drop can't
+            # leave us under the cap.
+            results = list(islice(filter(_allowed, dir(ns)), max_count + 16))
 
             # no completion found? looking from the global scope? then try the builtins
             if not results and len(parts) == 1:
-                results = self.dir_namespace(builtins, last_token)
-                # self.debug("get_candidates() completions for %s in %s: %s", last_token, builtins, results)
-            if last_token not in [ "_", "__" ]:
-                # only filter out __magic_methods__ if user doesn't explicitly
-                # look for something with a "_" or "__" prefix.
-                results = [ r for r in results if
-                    not (r in MAGIC_METHODS) and # magic methods
-                    not (r.startswith(f"_ida_") and r in sys.modules) and # low-level module
-                    not (r.startswith(f"__get")) and # property getters
-                    not (r.startswith(f"__set")) and # property setters
-                    not (r.endswith(f"__from_ptrval__")) # swig
-                ]
+                results = list(islice(filter(_allowed, dir(builtins)), max_count + 16))
 
             results, hints, docs = self.build_hints(results, ns)
 
@@ -1276,9 +1493,9 @@ class __IDAPython_Completion_Util(object):
 
     QNAME_PAT = re.compile(r"([a-zA-Z_]([a-zA-Z0-9_\.]*)?)")
 
-    def __call__(self, line, x):
+    def __call__(self, line, x, max_count):
         try:
-            # self.debug("__call__(line=%s, x=%s)", line, x)
+            # self.debug("__call__(line=%s, x=%s, max_count=%s)", line, x, max_count)
             uline = line.decode("UTF-8") if sys.version_info.major < 3 else line
             result = None
 
@@ -1299,7 +1516,7 @@ class __IDAPython_Completion_Util(object):
                 if sys.version_info.major < 3:
                     qname = qname.encode("UTF-8")
                 if x >= start and x <= end:
-                    matches, hints, docs = self.get_candidates(qname, line, match_syntax_char)
+                    matches, hints, docs = self.get_candidates(qname, line, match_syntax_char, max_count)
                     rep_x, end = start, end + (1 if match_syntax_char else 0)
                     result = matches, hints, docs, rep_x, end
 

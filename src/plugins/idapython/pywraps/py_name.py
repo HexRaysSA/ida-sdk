@@ -69,4 +69,6 @@ def calc_gtn_flags(fromaddr, ea):
             gtn_flags = GN_LOCAL
     return gtn_flags
 
+is_name_defined_locally = ida_idaapi._ida_deprecated(is_name_defined_locally, "is_name_defined_locally_ea")
+
 #</pycode(py_name)>

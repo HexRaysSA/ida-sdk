@@ -36,7 +36,7 @@ class idp_logger_hooks_t(ida_idp.IDP_Hooks):
                 print(">>> idp_logger_hooks_t.%s: %s" % (method_name, ", ".join(argstrs)))
         return 0
 
-    def get_abi_info(self, comp):
+    def ev_get_abi_info(self, comp):
         self._log()
         return None, None
 

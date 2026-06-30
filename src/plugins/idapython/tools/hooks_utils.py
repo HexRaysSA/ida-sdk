@@ -95,8 +95,9 @@ def _parse_enumerator(enumval_el, name, enum_name, hooks_info):
     plist_el = enumval_el.find(".//parameterlist[@kind='param']")
     if plist_el is not None:
         for pitem_el in plist_el.findall("./parameteritem"):
-            pname = pitem_el.find(".//parametername").text
-            if pname != "none" and pname != "...":
+            pname_el = pitem_el.find(".//parametername")
+            pname = doxygen_utils.extract_parametername(pname_el)
+            if pname and pname != "none" and pname != "...":
                 pdesc = doxygen_utils.join_all_element_text(pitem_el.find(".//parameterdescription/para"))
                 ptype, notype_pdesc = _parse_param_type(pdesc)
                 if ptype is None:

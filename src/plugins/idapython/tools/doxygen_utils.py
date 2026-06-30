@@ -1,8 +1,58 @@
 from __future__ import print_function
 
 import os
+import re
 import textwrap
 import xml.etree.ElementTree as ET
+
+def extract_parametername(pname_el):
+    """
+    Extract the actual parameter name from a <parametername> element.
+
+    Doxygen 1.16+ may wrap parameter names in <ref> elements when they match
+    documented symbols, replacing the actual identifier with a human-readable
+    title (e.g., "argloc" becomes "Argument locations").
+
+    This function handles both formats:
+    - Old: <parametername>argloc</parametername>
+    - New: <parametername><ref refid="group__argloc">Argument locations</ref></parametername>
+    """
+    if pname_el is None:
+        return None
+
+    # Check for direct text first (old doxygen format)
+    if pname_el.text and pname_el.text.strip():
+        return pname_el.text.strip()
+
+    # Check for <ref> child element (new doxygen 1.16+ format)
+    ref_el = pname_el.find("ref")
+    if ref_el is not None:
+        refid = ref_el.get("refid", "")
+        ref_text = "".join(ref_el.itertext()).strip()
+
+        # Handle simple group__xxx pattern (e.g., "group__seg" -> "seg")
+        # But NOT patterns with member hashes like "group__seg__type_1ga67..."
+        # where the displayed text (e.g., "segtype") is the actual parameter name
+        if refid.startswith("group__") and "_1g" not in refid:
+            return refid[7:]  # Remove "group__" prefix
+
+        # If it's a valid C identifier, use it directly
+        if ref_text and re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', ref_text):
+            return ref_text
+
+        # For complex refids, try to extract from simple group pattern
+        if refid.startswith("group__"):
+            # Extract just the group name part before any hash
+            match = re.match(r'^group__([a-zA-Z_][a-zA-Z0-9_]*)(?:_1|$)', refid)
+            if match:
+                return match.group(1)
+
+        # Fall back to the displayed text
+        return ref_text if ref_text else None
+
+    # Fallback: use itertext() to get all text content
+    text = "".join(pname_el.itertext()).strip()
+    return text if text else None
 
 def join_all_element_text(el, sep=""):
     bits = []
@@ -195,7 +245,8 @@ def for_each_retval(detaileddescription_node, callback):
                 parametername_els = parameternamelist_el.findall("parametername")
                 if parametername_els:
                     parametername_el = parametername_els[0]
-                    retval_value = parametername_el.text
+                    # Use itertext() to handle doxygen 1.16+ which wraps names in <ref> elements
+                    retval_value = "".join(parametername_el.itertext()).strip()
                     retval_desc_els = parameteritem_el.findall("parameterdescription")
                     if retval_desc_els:
                         retval_desc = " ".join(retval_desc_els[0].itertext()).strip()

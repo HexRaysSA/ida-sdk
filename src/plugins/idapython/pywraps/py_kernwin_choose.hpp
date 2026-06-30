@@ -14,22 +14,23 @@ static void py_get_int(PyObject *self, T *prm, const char *name)
 
 enum feature_t
 {
-  CFEAT_INIT          = 0x0001,
-  CFEAT_GETICON       = 0x0002,
-  CFEAT_GETATTR       = 0x0004,
-  CFEAT_INS           = 0x0008,
-  CFEAT_DEL           = 0x0010,
-  CFEAT_EDIT          = 0x0020,
-  CFEAT_ENTER         = 0x0040,
-  CFEAT_REFRESH       = 0x0080,
-  CFEAT_SELECT        = 0x0100,
-  CFEAT_ONCLOSE       = 0x0200,
-  CFEAT_EMBEDDED      = 0x0400,
-  CFEAT_GETEA         = 0x0800,
-  CFEAT_GETDIRTREE    = 0x1000,
-  CFEAT_INDEX2INODE   = 0x2000,
-  CFEAT_INDEX2DIFFPOS = 0x4000,
-  CFEAT_LAZYLOADDIR   = 0x8000,
+  CFEAT_INIT          =  0x0001,
+  CFEAT_GETICON       =  0x0002,
+  CFEAT_GETATTR       =  0x0004,
+  CFEAT_INS           =  0x0008,
+  CFEAT_DEL           =  0x0010,
+  CFEAT_EDIT          =  0x0020,
+  CFEAT_ENTER         =  0x0040,
+  CFEAT_REFRESH       =  0x0080,
+  CFEAT_SELECT        =  0x0100,
+  CFEAT_ONCLOSE       =  0x0200,
+  CFEAT_EMBEDDED      =  0x0400,
+  CFEAT_GETEA         =  0x0800,
+  CFEAT_GETDIRTREE    =  0x1000,
+  CFEAT_INDEX2INODE   =  0x2000,
+  CFEAT_INDEX2DIFFPOS =  0x4000,
+  CFEAT_LAZYLOADDIR   =  0x8000,
+  CFEAT_CHECKED       = 0x10000,
 };
 
 //------------------------------------------------------------------------
@@ -293,6 +294,7 @@ bool py_chooser_props_t::do_extract_from_pyobject(
     { S_ON_DELETE_LINE,      CFEAT_DEL,     CH_CAN_DEL, 0 },
     { S_ON_EDIT_LINE,        CFEAT_EDIT,    CH_CAN_EDIT, 0 },
     { S_ON_SELECT_LINE,      CFEAT_ENTER,   0, 0 },
+    { S_ON_CHECKED_LINE,     CFEAT_CHECKED, 0, 0 },
     { S_ON_REFRESH,          CFEAT_REFRESH, CH_CAN_REFRESH, 0 },
     { S_ON_SELECTION_CHANGE, CFEAT_SELECT,  0, 0 },
     { S_ON_CLOSE,            CFEAT_ONCLOSE, 0, 0 },
@@ -639,12 +641,15 @@ bool py_chooser_mixin_t::mixin_lazy_load_dir(
 // chooser class without multi-selection
 class py_chooser_t : public chooser_t, public py_chooser_mixin_t
 {
-  bool _call(cbret_t *out, feature_t feature, const char *name, int n) const
+  bool _call(cbret_t *out, feature_t feature, const char *name, int n, int *arg=nullptr) const
   {
     if ( !has_feature(feature) )
       return false;
     PYW_GIL_GET;
-    pycall_res_t pyres(PyObject_CallMethod(self.o, (char *) name, "i", n));
+    pycall_res_t pyres(
+            arg != nullptr
+          ? PyObject_CallMethod(self.o, (char *) name, "ii", n, *arg)
+          : PyObject_CallMethod(self.o, (char *) name, "i", n));
     if ( pyres.result == nullptr || pyres.result.o == Py_None )
       return false;
     if ( out != nullptr )
@@ -710,6 +715,12 @@ public:
     return _call(&res, CFEAT_ENTER, S_ON_SELECT_LINE, int(n)) ? res : chooser_t::enter(n);
   }
 
+  virtual cbret_t idaapi checked(size_t n, int state) override
+  {
+    cbret_t res;
+    return _call(&res, CFEAT_CHECKED, S_ON_CHECKED_LINE, int(n), &state) ? res : chooser_t::checked(n, state);
+  }
+
   virtual cbret_t idaapi refresh(ssize_t n) override
   {
     cbret_t res;
@@ -761,6 +772,32 @@ class py_chooser_multi_t : public chooser_multi_t, public py_chooser_mixin_t
     return true;
   }
 
+  bool _call(cbres_t *out, feature_t feature, const char *name, int n, int arg) const
+  {
+    if ( !has_feature(feature) )
+      return false;
+    PYW_GIL_GET;
+    pycall_res_t pyres(PyObject_CallMethod(self.o, (char *) name, "ii", n, arg));
+    if ( pyres.result == nullptr || pyres.result.o == Py_None )
+      return false;
+    // [ changed, idx, ... ]
+    cbres_t res;
+    // this is an easy but not an optimal way of converting
+    sizevec_t sel;
+    if ( !PySequence_Check(pyres.result.o)
+      || PyW_PySeqToSizeVec(&sel, pyres.result.o) <= 0 )
+    {
+      res = NOTHING_CHANGED;
+    }
+    else
+    {
+      res = cbres_t(sel.front());
+    }
+    if ( out != nullptr )
+      *out = res;
+    return true;
+  }
+
 public:
   py_chooser_multi_t(PyObject *self_, py_chooser_props_t &props_)
     : chooser_multi_t(
@@ -799,6 +836,12 @@ public:
   {
     cbres_t res = NOTHING_CHANGED;
     return _call(&res, CFEAT_ENTER, S_ON_SELECT_LINE, sel) ? res : chooser_multi_t::enter(sel);
+  }
+
+  virtual cbres_t idaapi checked(size_t n, int state) override
+  {
+    cbres_t res = NOTHING_CHANGED;
+    return _call(&res, CFEAT_CHECKED, S_ON_CHECKED_LINE, int(n), state) ? res : chooser_multi_t::checked(n, state);
   }
 
   virtual cbres_t idaapi refresh(sizevec_t *sel) override

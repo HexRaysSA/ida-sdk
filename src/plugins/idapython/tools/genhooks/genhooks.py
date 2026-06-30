@@ -85,7 +85,7 @@ def gen_methods(out):
                     pdata = all_pdata[pname]
                     if "type" in pdata:
                         ptype = pdata["type"]
-                    if "suppress_for_call" in pdata:
+                    if "suppress_for_call" in pdata and not pdata.get("genhooks_ignore"):
                         suppress_for_call = pdata["suppress_for_call"]
                     if "rename" in pdata:
                         final_name = pdata["rename"]
@@ -176,7 +176,7 @@ def gen_notifications(out):
                         param_convertor = pdata["convertor"]
                     if "deref" in pdata:
                         deref = pdata["deref"]
-                    if "suppress_for_call" in pdata:
+                    if "suppress_for_call" in pdata and not pdata.get("genhooks_ignore"):
                         suppress_for_call = pdata["suppress_for_call"]
                     if "qnotused" in pdata:
                         qnotused = pdata["qnotused"]

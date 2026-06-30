@@ -85,7 +85,7 @@ class qfile_t(pyidc_opaque_object_t):
         """
         pass
 
-    def writebytes(self, size, big_endian):
+    def writebytes(self, buf, big_endian):
         """
         Similar to write() but it respect the endianness
 

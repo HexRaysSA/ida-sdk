@@ -80,6 +80,17 @@ static ref_t get_idaapi_attr_by_id(const int class_id);
 static ref_t get_idaapi_attr(const char *attr);
 
 //---------------------------------------------------------------------------
+ref_t ida_export PyW_IntVecToPyList(const intvec_t &vec)
+{
+  size_t n = vec.size();
+  PYW_GIL_CHECK_LOCKED_SCOPE();
+  newref_t py_list(PyList_New(n));
+  for ( size_t i = 0; i < n; ++i )
+    PyList_SetItem(py_list.o, i, PyLong_FromLong(vec[i]));
+  return ref_t(py_list);
+}
+
+//---------------------------------------------------------------------------
 ref_t ida_export PyW_SizeVecToPyList(const sizevec_t &vec)
 {
   size_t n = vec.size();
@@ -183,6 +194,25 @@ Py_ssize_t ida_export pyvar_walk_seq(
 {
   borref_t r(py_list);
   return pyvar_walk_seq(r, cb, ud, maxsize);
+}
+
+//---------------------------------------------------------------------------
+Py_ssize_t ida_export PyW_PySeqToIntVec(intvec_t *out, PyObject *py_list, size_t maxsize)
+{
+  out->clear();
+  struct ida_local lambda_t
+  {
+    static int idaapi cvt(const ref_t &py_item, Py_ssize_t /*i*/, void *ud)
+    {
+      intvec_t &vec = *static_cast<intvec_t *>(ud);
+      uint64 num;
+      if ( !PyW_GetNumber(py_item.o, &num) )
+        return CIP_FAILED;
+      vec.push_back(int(num));
+      return CIP_OK;
+    }
+  };
+  return pyvar_walk_seq(py_list, lambda_t::cvt, out, maxsize);
 }
 
 //---------------------------------------------------------------------------
@@ -2034,52 +2064,58 @@ bool ida_export idapython_unhook_from_notification_point(
 }
 
 //-------------------------------------------------------------------------
-bool ida_export idapython_convert_cli_completions(
-        qstrvec_t *out_completions,
-        qstrvec_t *out_hints,
-        qstrvec_t *out_docs,
-        int *out_match_start,
-        int *out_match_end,
+// Parse the 5-tuple (matches, hints, docs, match_start, match_end)
+// produced by IDAPython_Completion / cli_t.OnFindCompletions into a
+// cli_completions_t. hints and docs may be None or empty -- we keep
+// the completion list either way and skip the per-row labels.
+bool ida_export idapython_convert_cli_completions_ex(
+        cli_completions_t *out,
         ref_t py_res)
 {
-  bool ok = py_res != nullptr
-         && PyTuple_Check(py_res.o)
-         && PyTuple_Size(py_res.o) == 5;
-  if ( ok )
+  if ( py_res == nullptr
+    || !PyTuple_Check(py_res.o)
+    || PyTuple_Size(py_res.o) != 5 )
   {
-    borref_t i0(PyTuple_GetItem(py_res.o, 0));
-    borref_t i1(PyTuple_GetItem(py_res.o, 1));
-    borref_t i2(PyTuple_GetItem(py_res.o, 2));
-    borref_t i3(PyTuple_GetItem(py_res.o, 3));
-    borref_t i4(PyTuple_GetItem(py_res.o, 4));
-    // NB: Invalid i1.o and i2.o will fail the PySeqToStrVec conversion below,
-    // we don't enforce them as valid lists here to allow the Python code to
-    // return None for hints and docs.
-    ok = PyList_Check(i0.o) && PyLong_Check(i3.o) && PyLong_Check(i4.o);
-    if ( ok )
-    {
-      ssize_t num_comps = PyW_PySeqToStrVec(out_completions, i0.o);
-      ssize_t num_hints = PyW_PySeqToStrVec(out_hints, i1.o);
-      ssize_t num_docs = PyW_PySeqToStrVec(out_docs, i2.o);
-      // Clear the error that was set by PyW_PySeqToStrVec()
-      PyErr_Clear();
-      // We accept the generated result if num_comps yielded at least 1 item,
-      // and we find a matching number of elements in hints and docs. Optionally,
-      // hints and docs can be zero-element lists, or None, which means we will only
-      // display completions.
-      ok = (num_comps > 0)
-        && ((num_comps == num_hints && num_hints == num_docs)
-         || (num_hints == num_docs && num_docs == 0)
-         || (num_hints == CIP_FAILED && num_docs == CIP_FAILED));
-      if ( ok )
-      {
-        *out_match_start = PyLong_AsLong(i3.o);
-        *out_match_end = PyLong_AsLong(i4.o);
-        ok = PyErr_Occurred() == nullptr;
-      }
-    }
+    return false;
   }
-  return ok;
+  borref_t i0(PyTuple_GetItem(py_res.o, 0));
+  borref_t i1(PyTuple_GetItem(py_res.o, 1));
+  borref_t i2(PyTuple_GetItem(py_res.o, 2));
+  borref_t i3(PyTuple_GetItem(py_res.o, 3));
+  borref_t i4(PyTuple_GetItem(py_res.o, 4));
+  if ( !PyList_Check(i0.o) || !PyLong_Check(i3.o) || !PyLong_Check(i4.o) )
+    return false;
+  qstrvec_t completions, hints, docs;
+  const ssize_t num_comps = PyW_PySeqToStrVec(&completions, i0.o);
+  const ssize_t num_hints = PyW_PySeqToStrVec(&hints, i1.o);
+  const ssize_t num_docs  = PyW_PySeqToStrVec(&docs, i2.o);
+  // Clear the error PyW_PySeqToStrVec sets on a None/non-sequence.
+  PyErr_Clear();
+  // Accept iff completions is non-empty and (hints, docs) either
+  // line up 1:1 with completions or are absent.
+  const bool ok = num_comps > 0
+    && ((num_comps == num_hints && num_hints == num_docs)
+     || (num_hints == num_docs && num_docs == 0)
+     || (num_hints == CIP_FAILED && num_docs == CIP_FAILED));
+  if ( !ok )
+    return false;
+  cli_completions_t tmp;
+  tmp.entries.resize(completions.size());
+  for ( size_t i = 0; i < completions.size(); ++i )
+  {
+    auto &e = tmp.entries[i];
+    e.text.swap(completions[i]);
+    if ( i < hints.size() )
+      e.hint.swap(hints[i]);
+    if ( i < docs.size() )
+      e.doc.swap(docs[i]);
+  }
+  tmp.match_start = PyLong_AsLong(i3.o);
+  tmp.match_end = PyLong_AsLong(i4.o);
+  if ( PyErr_Occurred() != nullptr )
+    return false;
+  out->swap(tmp);
+  return true;
 }
 
 //-------------------------------------------------------------------------

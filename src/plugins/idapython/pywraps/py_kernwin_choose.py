@@ -372,6 +372,16 @@ class Choose(object):
         """
         pass
 
+    def OnCheckedLine(self, n, state):
+        """
+        User changed the checkbox state
+
+        :param n: element number (0-based)
+        :param state: the new state: 0-unchecked, 1-partially checked, 2-checked
+        :returns: a tuple (changed, selection)
+        """
+        pass
+
     def OnRefresh(self, sel):
         """
         The chooser needs to be refreshed.

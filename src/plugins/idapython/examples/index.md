@@ -74,7 +74,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 </tr>
 <tr>
   <td>Intermediate</td>
-  <td><ul><li><a href='#actions'>Custom actions, with icons & tooltips</a></li><li><a href='#choose'>Show tabular data</a></li><li><a href='#choose_multi'>Show tabular data, with multiple selection</a></li><li><a href='#custom_viewer'>Create custom listings in IDA</a></li><li><a href='#func_chooser'>Implement an alternative "Functions" window</a></li><li><a href='#jump_next_comment'>Implement a "jump to next comment" action within IDA's listing</a></li><li><a href='#lines_rendering'>Dynamically colorize [parts of] lines</a></li><li><a href='#log_misc_events'>React to UI events/notifications</a></li><li><a href='#paint_over_navbar'>Paint on top of the navigation band</a></li><li><a href='#save_and_restore_listing_pos'>Save, and then restore, positions in a listing</a></li><li><a href='#show_selected_strings'>Retrieve the selection from the "Strings" window</a></li><li><a href='#sync_two_graphs'>Follow the movements of one graph, in another</a></li><li><a href='#trigger_actions_programmatically'>Trigger actions programmatically</a></li></ul></td>
+  <td><ul><li><a href='#actions'>Custom actions, with icons & tooltips</a></li><li><a href='#choose'>Show tabular data</a></li><li><a href='#choose_multi'>Show tabular data, with multiple selection</a></li><li><a href='#choose_with_checkboxes'>A flat list, with checkboxes</a></li><li><a href='#custom_viewer'>Create custom listings in IDA</a></li><li><a href='#func_chooser'>Implement an alternative "Functions" window</a></li><li><a href='#jump_next_comment'>Implement a "jump to next comment" action within IDA's listing</a></li><li><a href='#lines_rendering'>Dynamically colorize [parts of] lines</a></li><li><a href='#log_misc_events'>React to UI events/notifications</a></li><li><a href='#open_ida_link'>Navigate to entities using ida:// links</a></li><li><a href='#paint_over_navbar'>Paint on top of the navigation band</a></li><li><a href='#save_and_restore_listing_pos'>Save, and then restore, positions in a listing</a></li><li><a href='#show_selected_strings'>Retrieve the selection from the "Strings" window</a></li><li><a href='#sync_two_graphs'>Follow the movements of one graph, in another</a></li><li><a href='#trigger_actions_programmatically'>Trigger actions programmatically</a></li></ul></td>
 </tr>
 <tr>
   <td>Advanced</td>
@@ -98,7 +98,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 
 <tr>
   <td>Beginner</td>
-  <td><ul><li><a href='#dump_flowchart'>Dump function flowchart</a></li><li><a href='#install_user_defined_prefix'>Insert information into listing prefixes</a></li><li><a href='#list_imports'>Enumerate file imports</a></li><li><a href='#list_patched_bytes'>Enumerate patched bytes</a></li><li><a href='#list_problems'>Enumerate known problems</a></li><li><a href='#list_segment_functions'>List segment functions (and cross-references to them)</a></li><li><a href='#list_segment_functions_using_idautils'>List all functions (and cross-references) in segment</a></li><li><a href='#list_strings'>Dump the strings that are present in the file</a></li><li><a href='#produce_lst_file'>Produce disassembly listing for the entire file</a></li></ul></td>
+  <td><ul><li><a href='#dump_flowchart'>Dump function flowchart</a></li><li><a href='#dump_flowchart_ea'>Dump function flowchart, new API</a></li><li><a href='#install_user_defined_prefix'>Insert information into listing prefixes</a></li><li><a href='#indexer_substring_search'>Search the IDA indexer (substring match)</a></li><li><a href='#list_imports'>Enumerate file imports</a></li><li><a href='#list_patched_bytes'>Enumerate patched bytes</a></li><li><a href='#list_problems'>Enumerate known problems</a></li><li><a href='#list_segment_functions'>List segment functions (and cross-references to them)</a></li><li><a href='#list_segment_functions_using_idautils'>List all functions (and cross-references) in segment</a></li><li><a href='#list_strings'>Dump the strings that are present in the file</a></li><li><a href='#produce_lst_file'>Produce disassembly listing for the entire file</a></li></ul></td>
 </tr>
 <tr>
   <td>Intermediate</td>
@@ -126,7 +126,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 
 <tr>
   <td>Beginner</td>
-  <td><ul><li><a href='#produce_c_file'>Produce C listing for the entire file</a></li><li><a href='#serialize'>Serialize and deserialize the decompilation output</a></li><li><a href='#vds1'>Decompile & print current function</a></li><li><a href='#vds13'>Generate microcode for the selected range of instructions</a></li><li><a href='#vds7'>Dump statement blocks</a></li><li><a href='#vds_create_hint'>Provide custom decompiler hints</a></li></ul></td>
+  <td><ul><li><a href='#produce_c_file'>Produce C listing for the entire file</a></li><li><a href='#serialize'>Serialize and deserialize the decompilation output</a></li><li><a href='#serialize_minsn'>Serialize and deserialize a microcode instruction (minsn_t)</a></li><li><a href='#vds1'>Decompile & print current function</a></li><li><a href='#vds13'>Generate microcode for the selected range of instructions</a></li><li><a href='#vds7'>Dump statement blocks</a></li><li><a href='#vds_create_hint'>Provide custom decompiler hints</a></li></ul></td>
 </tr>
 <tr>
   <td>Intermediate</td>
@@ -463,6 +463,30 @@ Similar to <a class="ex_link" href="#choose">choose</a>, but with multiple selec
 ***
 
 
+### A flat list, with checkboxes {#choose_with_checkboxes}
+Shows how to subclass the ida_kernwin.Choose class to
+show data organized in a simple table, and react to
+"checked state" events.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [choose_with_checkboxes.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/tabular_views/custom/choose_with_checkboxes.py) | actions chooser | Intermediate |
+
+**APIs Used:**
+* `Choose`
+* `Choose.ALL_CHANGED`
+* `Choose.NOTHING_CHANGED`
+* `ida_kernwin.CHCOL_CHECKBOX`
+* `ida_kernwin.CHITEM_CHKST_CHECKED`
+* `ida_kernwin.CH_CAN_DEL`
+* `ida_kernwin.CH_CAN_INS`
+* `ida_kernwin.CH_CAN_REFRESH`
+* `ida_kernwin.CH_RESTORE`
+* `ida_kernwin.ask_str`
+
+***
+
+
 ### Create custom listings in IDA {#custom_viewer}
 How to create simple listings, that will share many of the features
 as the built-in IDA widgets (highlighting, copy & paste,
@@ -619,6 +643,41 @@ dump their information to the "Output" window
 ***
 
 
+### Navigate to entities using ida:// links {#open_ida_link}
+Demonstrates ``ida_kernwin.open_ida_link()`` which provides URL-style
+navigation within the current IDB. The function accepts URIs of the
+form ``ida:///resource?params`` and navigates to the matching entity,
+optionally opening a specific view.
+
+Nine resource types are supported: functions, addresses, strings,
+segments, names, imports, exports, types, and bookmarks.
+
+Most resources use ``rva=`` or ``ea=`` to specify the target address.
+The ``types`` resource uses ``name=`` instead. An optional ``view=``
+parameter selects which view to open (e.g., ``view=pseudocode``).
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [open_ida_link.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/open_ida_link.py) | links navigation | Intermediate |
+
+**APIs Used:**
+* `ida_entry.get_entry`
+* `ida_entry.get_entry_ordinal`
+* `ida_entry.get_entry_qty`
+* `ida_funcs.get_next_func`
+* `ida_idaapi.BADADDR`
+* `ida_kernwin.open_ida_link`
+* `ida_nalt.enum_import_names`
+* `ida_nalt.get_imagebase`
+* `ida_nalt.get_import_module_qty`
+* `ida_name.get_nlist_ea`
+* `ida_segment.get_first_seg`
+* `ida_strlist.get_strlist_item`
+* `ida_strlist.string_info_t`
+
+***
+
+
 ### Paint on top of the navigation band {#paint_over_navbar}
 Using an "event filter", we will intercept paint events
 targeted at the navigation band widget, let it paint itself,
@@ -633,7 +692,8 @@ and then add our own markers on top.
 * `ida_kernwin.get_navband_pixel`
 * `ida_kernwin.open_navband_window`
 * `ida_segment.get_segm_qty`
-* `ida_segment.getnseg`
+* `ida_segment.get_segment_info_by_num`
+* `ida_segment.segment_info_t`
 * `idc.here`
 
 ***
@@ -1060,6 +1120,23 @@ Dumps the current function's flowchart, using 2 methods:
 ***
 
 
+### Dump function flowchart, new API {#dump_flowchart_ea}
+Dumps the current function's flowchart, using 2 methods:
+
+  * the low-level `ida_gdl.qflow_chart_ea_t` type
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [dump_flowchart_ea.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/dump_flowchart_ea.py) |  | Beginner |
+
+**APIs Used:**
+* `ida_funcs.get_func_start`
+* `ida_gdl.qflow_chart_ea_t`
+* `ida_kernwin.get_screen_ea`
+
+***
+
+
 ### Insert information into listing prefixes {#install_user_defined_prefix}
 By default, disassembly line prefixes contain segment + address
 information (e.g., '.text:08047718'), but it is possible to
@@ -1075,6 +1152,35 @@ information (e.g., '.text:08047718'), but it is possible to
 * `ida_idaapi.plugin_t`
 * `ida_lines.SCOLOR_INV`
 * `ida_lines.user_defined_prefix_t`
+
+***
+
+
+### Search the IDA indexer (substring match) {#indexer_substring_search}
+Search for functions, named locations, local types, segments, and
+function comments using the IDA indexer. The indexer performs fast
+substring matching across all indexed data simultaneously, or can be
+narrowed to a single sub-index (e.g. `SUBIDX_FUNCTIONS`).
+
+The indexer must be enabled when the database is opened:
+`idat -dENABLE_INDEXER=YES <binary>`.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [indexer_substring_search.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/indexer_substring_search.py) | indexer, search, functions, names, segments, types, comments | Beginner |
+
+**APIs Used:**
+* `ida_indexer.indexer_is_enabled`
+* `ida_indexer.indexer_match_all`
+* `ida_indexer.indexer_match`
+* `ida_indexer.match_config_t`
+* `ida_indexer.STR_MATCH`
+* `ida_indexer.SUBIDX_FUNCTIONS`
+* `ida_indexer.SUBIDX_LTYPES`
+* `ida_indexer.SUBIDX_NAMES`
+* `ida_indexer.SUBIDX_SEGMENTS`
+* `ida_indexer.SUBIDX_FUNCTION_COMMENTS`
+* `ida_indexer.SUBIDX_REPEATABLE_FUNCTION_COMMENTS`
 
 ***
 
@@ -1155,7 +1261,8 @@ all the cross-references to them.
 * `ida_funcs.get_func_name`
 * `ida_funcs.get_next_func`
 * `ida_kernwin.get_screen_ea`
-* `ida_segment.getseg`
+* `ida_segment.get_segment_info`
+* `ida_segment.segment_info_t`
 * `ida_xref.xrefblk_t`
 
 ***
@@ -1176,7 +1283,8 @@ higher-level `idautils` module.
 * `ida_funcs.get_func_name`
 * `ida_idaapi.BADADDR`
 * `ida_kernwin.get_screen_ea`
-* `ida_segment.getseg`
+* `ida_segment.get_segment_info`
+* `ida_segment.segment_info_t`
 * `idautils.CodeRefsTo`
 * `idautils.Functions`
 
@@ -1760,6 +1868,28 @@ a pair of strings that can later be stored somewhere.
 * `ida_hexrays.decompile`
 * `ida_hexrays.hexrays_failure_t`
 * `ida_hexrays.mba_t.deserialize`
+* `ida_kernwin.get_screen_ea`
+
+***
+
+
+### Serialize and deserialize a microcode instruction (minsn_t) {#serialize_minsn}
+Generates microcode for the current function, takes its first
+instruction, serializes it to a byte string, and then deserializes
+those bytes back into a fresh minsn_t. equal_insns() is used to
+confirm the round trip preserves the structure.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [serialize_minsn.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/serialize_minsn.py) |  | Beginner |
+
+**APIs Used:**
+* `ida_funcs.get_func_start`
+* `ida_hexrays.decomp_ranges_t`
+* `ida_hexrays.gen_microcode`
+* `ida_hexrays.hexrays_failure_t`
+* `ida_hexrays.init_hexrays_plugin`
+* `ida_hexrays.minsn_t`
 * `ida_kernwin.get_screen_ea`
 
 ***
@@ -3103,10 +3233,10 @@ a user shared data region in an ntdll IDB:
 
 **APIs Used:**
 * `ida_name.set_name`
-* `ida_segment.add_segm_ex`
+* `ida_segment.add_segment_ex`
 * `ida_segment.saRelPara`
 * `ida_segment.scPub`
-* `ida_segment.segment_t`
+* `ida_segment.segment_info_t`
 * `ida_segment.setup_selector`
 * `ida_typeinf.TINFO_DEFINITE`
 * `ida_typeinf.apply_tinfo`
@@ -3129,6 +3259,9 @@ You can test this example with the IDB at `../idbs/delphi6_lstrcatn.i64`
 | [custom_calling_convention.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/custom_calling_convention.py) | types | Intermediate |
 
 **APIs Used:**
+* `ida_hexrays.FD_BACKWARD`
+* `ida_hexrays.init_hexrays_plugin`
+* `ida_hexrays.m_mov`
 * `ida_hexrays.mop_t`
 * `ida_hexrays.reg2mreg`
 * `ida_ida.ABI_STACK_VARARGS`

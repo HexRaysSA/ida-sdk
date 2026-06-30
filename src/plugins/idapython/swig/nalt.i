@@ -124,6 +124,13 @@
   }
 }
 
+// Back-compat: refinfo_t::is_no_zeros() was renamed to is_ignore_zero().
+%extend refinfo_t {
+  %pythoncode {
+    def is_no_zeros(self): return self.is_ignore_zero()
+  }
+}
+
 %ignore switch_info_t::version;
 
 %apply uchar { op_dtype_t regdtype };

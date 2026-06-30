@@ -2,6 +2,8 @@
 #include <dbg.hpp>
 #include <loader.hpp>
 %}
+// Warning 503: Can't wrap 'operator source_item_t*' unless renamed to a valid identifier.
+%ignore operator source_item_t*;
 
 %ignore dbg;
 %ignore register_srcinfo_provider;
@@ -13,7 +15,9 @@
 %ignore unlock_dbgmem_config;
 
 %ignore source_file_t;
-%ignore source_item_t;
+%ignore source_item_t::release;
+%ignore source_item_t::get_source_files;
+%ignore source_item_t::create_children_iterator;
 %ignore srcinfo_provider_t;
 %ignore bpt_location_t::print;
 %ignore bpt_t::set_cond;
@@ -126,6 +130,53 @@ bool request_run_to(ea_t ea, pid_t pid = NO_PROCESS, thid_t tid = NO_THREAD);
 %ignore get_insn_tev_reg_val(int, const char *, uint64 *);
 %ignore get_insn_tev_reg_result(int, const char *, uint64 *);
 
+//-------------------------------------------------------------------------
+// source_item_t: expose for use via source_item_ptr smart pointer.
+// No director: abstract class, instances come only from C++.
+%feature("nodirector") source_item_t;
+%apply qstring *result { qstring *hint };
+%apply int *OUTPUT { int *nlines };
+// There should be an easier way to do this, goddamnit. All I need is to have the `int` initialized...
+%typemap(in,numinputs=0,noblock=1) int *nlines (int temp = 0, int res = SWIG_TMPOBJ)
+{
+  // %typemap(in,numinputs=0) int *nlines (int temp = 0)
+  $1 = &temp;
+};
+
+// Accept both source_item_t * and source_item_ptr for source_item_t * params
+%fragment("cvt_source_item_t", "header")
+{
+  int cvt_source_item_t(source_item_t **out, PyObject *obj)
+  {
+    source_item_t *si = nullptr;
+    int res = SWIG_ConvertPtr(obj, (void **) &si, SWIGTYPE_p_source_item_t, 0 | 0);
+    if ( SWIG_IsOK(res) )
+    {
+      *out = si;
+    }
+    else
+    {
+      source_item_ptr *sip = nullptr;
+      res = SWIG_ConvertPtr(obj, (void **) &sip, SWIGTYPE_p_qrefcnt_tT_source_item_t_t, 0 | 0);
+      if ( SWIG_IsOK(res) )
+        *out = *sip;
+    }
+    return res;
+  }
+}
+
+%typemap(typecheck, fragment="cvt_source_item_t", precedence=SWIG_TYPECHECK_POINTER) source_item_t * {
+  source_item_t *si = nullptr;
+  const int res$argnum = cvt_source_item_t(&si, $input);
+  _v = SWIG_CheckState(res$argnum);
+}
+
+%typemap(in, fragment="cvt_source_item_t") source_item_t * {
+  int res$argnum = cvt_source_item_t(&$1, $input);
+  if ( !SWIG_IsOK(res$argnum) )
+    SWIG_exception_fail(SWIG_ArgError(res$argnum), "in method '$symname', argument $argnum of type $1_type");
+}
+
 %thread;
 
 // We want ALL wrappers around what is declared in dbg.hpp
@@ -135,6 +186,16 @@ bool request_run_to(ea_t ea, pid_t pid = NO_PROCESS, thid_t tid = NO_THREAD);
 %include "dbg.hpp"
 %nothread;
 %define_Hooks_class(DBG);
+
+//-------------------------------------------------------------------------
+//                       source_item_t / source_items_t
+//-------------------------------------------------------------------------
+%template(source_item_ptr) qrefcnt_t<source_item_t>;
+// qrefcnt_t has no default ctor; ignore methods that need T()
+%ignore qvector<source_item_ptr>::push_back();
+%ignore qvector<source_item_ptr>::grow;
+%ignore qvector<source_item_ptr>::resize(size_t);
+%uncomparable_elements_qvector(source_item_ptr, source_items_t);
 
 //-------------------------------------------------------------------------
 //                                 bpt_t

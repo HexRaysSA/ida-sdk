@@ -273,9 +273,9 @@ def Segments():
     :returns: List of segment start addresses.
     """
     for n in range(ida_segment.get_segm_qty()):
-        seg = ida_segment.getnseg(n)
-        if seg:
-            yield seg.start_ea
+        si = ida_segment.segment_info_t()
+        if ida_segment.get_segment_info_by_num(si, n):
+            yield si.start_ea
 
 
 def Entries():
@@ -460,11 +460,23 @@ class Strings(object):
             """string type (STRTYPE_xxxxx)"""
             self.length = si.length
             """string length"""
+            self.decompiler_string = si.decompiler_string
+            """decompiler-generated string"""
+
+        def is_decompiler_string(self):
+            return self.strtype == ida_nalt.STRTYPE_DECOMP and bool(self.decompiler_string)
 
         def is_1_byte_encoding(self):
             return ida_nalt.get_strtype_bpu(self.strtype) == 1
 
         def _toseq(self, as_unicode):
+            if self.is_decompiler_string():
+                # decompiler-generated string: text is in the following field
+                s = self.decompiler_string
+                if sys.version_info.major >= 3:
+                    return s if as_unicode else s.encode("UTF-8")
+                else:
+                    return unicode(s, "UTF-8", "replace") if as_unicode else s
             strbytes = ida_bytes.get_strlit_contents(self.ea, self.length, self.strtype)
             if sys.version_info.major >= 3:
                 return strbytes.decode("UTF-8", "replace") if as_unicode else strbytes
@@ -572,11 +584,11 @@ def Assemble(ea, line):
         lines = line
     ret = []
     for line in lines:
-        seg = ida_segment.getseg(ea)
-        if not seg:
+        si = ida_segment.segment_info_t()
+        if not ida_segment.get_segment_info(si, ea):
             return (False, "No segment at ea")
-        ip  = ea - (ida_segment.sel2para(seg.sel) << 4)
-        buf = ida_idp.AssembleLine(ea, seg.sel, ip, seg.bitness, line)
+        ip  = ea - (ida_segment.sel2para(si.get_sel()) << 4)
+        buf = ida_idp.AssembleLine(ea, si.get_sel(), ip, si.get_bitness(), line)
         if not buf:
             return (False, "Assembler failed: " + line)
         ea += len(buf)

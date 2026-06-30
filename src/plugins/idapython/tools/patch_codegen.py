@@ -158,6 +158,29 @@ with open(args.input) as f:
             all_lines.append(line.replace("static", "SWIG_NORETURN static"))
             continue
 
+        # https://github.com/swig/swig/issues/2638
+        # In multi-module setups, only the first module to call
+        # SWIG_Python_SetModule gets Swig_Capsule_global set.
+        # All other modules leave it NULL, so their owned
+        # SwigPyObjects don't INCREF the capsule, which can then
+        # be destroyed (clearing all clientdata) while those
+        # objects are still alive, causing "no destructor found".
+        # Fix: set Swig_Capsule_global in SWIG_Python_GetModule
+        if line.rstrip() == "  return (swig_module_info *) type_pointer;":
+            all_lines.append("""\
+  if (type_pointer != NULL && Swig_Capsule_global == NULL) { %s
+    PyObject *_cm = PyImport_ImportModule("swig_runtime_data" SWIG_RUNTIME_VERSION);
+    if (_cm != NULL) {
+      Swig_Capsule_global = PyObject_GetAttrString(_cm, SWIGPY_CAPSULE_ATTR_NAME);
+      if (Swig_Capsule_global == NULL)
+        PyErr_Clear();
+      Py_DECREF(_cm);
+    } else { PyErr_Clear(); }
+  }
+""" % patched_cmt)
+            all_lines.append(line)
+            continue
+
         subst = None
         m = wrap_regex.match(line)
         is_simple_wrapper = m

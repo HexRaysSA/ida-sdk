@@ -122,9 +122,43 @@ def set_reg_val(*args) -> bool:
     """
     pass
 
-def list_bptgrps() -> List[str]:
+def list_bptgrps() -> Union[List[str], None]:
     """
     Retrieve the list of absolute path of all folders of bpt dirtree.
     Synchronous function, Notification, none (synchronous function)
     """
     pass
+
+
+class source_item_t(object):
+    def get_hint(self, ctx: 'eval_ctx_t') -> Tuple[Union[str, None], int]:
+        """
+        Calculate a string to display as a hint.
+
+        :param ctx: execution context, or None if no context is available
+        :returns: a tuple `(hint, nlines)` where:
+
+                  * `hint` is the hint text (may be multiline & with colors),
+                    or None if no hint is available
+                  * `nlines` is the number of important lines in the hint;
+                    only meaningful when `hint` is not None - otherwise the
+                    value is unspecified
+        """
+        pass
+
+
+class source_item_ptr(object):
+    def get_hint(self, ctx: 'eval_ctx_t') -> Tuple[Union[str, None], int]:
+        """
+        Calculate a string to display as a hint.
+
+        :param ctx: execution context, or None if no context is available
+        :returns: a tuple `(hint, nlines)` where:
+
+                  * `hint` is the hint text (may be multiline & with colors),
+                    or None if no hint is available
+                  * `nlines` is the number of important lines in the hint;
+                    only meaningful when `hint` is not None - otherwise the
+                    value is unspecified
+        """
+        pass

@@ -70,6 +70,7 @@ extern plugin_t PLUGIN;
 %feature("nodirector") simpleline_place_t;
 %feature("nodirector") structplace_t;
 %feature("nodirector") qflow_chart_t;
+%feature("nodirector") qflow_chart_ea_t;
 %feature("nodirector") lowertype_helper_t;
 %feature("nodirector") ida_lowertype_helper_t;
 %warnfilter(473) user_lvar_visitor_t::get_info_mapping_for_saving; // Returning a pointer or reference in a director method is not recommended
@@ -435,12 +436,13 @@ static PyObject *type##_get_clink_ptr(PyObject *self)
 //  while (size && (<name-of-variable>[size - 1] == '\0')) --size;
 // -------------------------
 //
-%typemap(out) char [ANY], const char[ANY]
+
+%typemap(out, fragment="SWIG_FromCharPtrAndSize") char [ANY], const char[ANY]
 {
   %set_output(SWIG_FromCharPtrAndSize($1, strnlen($1, $1_dim0)));
 }
 
-%typemap(varout) char [ANY], const char[ANY]
+%typemap(varout, fragment="SWIG_FromCharPtrAndSize") char [ANY], const char[ANY]
 {
   %set_output(SWIG_FromCharPtrAndSize($1, strnlen($1, $1_dim0)));
 }
@@ -1457,7 +1459,11 @@ struct dynamic_wrapped_array_t {
   delete $1;
 }
 
-// Specialization for member `tinfo_t`'s, which we want to return as-is
+// Specialization for member `tinfo_t`'s, which we want to return as-is.
+// We store a reference to the parent object on the returned wrapper to
+// prevent the parent from being garbage collected while the non-owning
+// tinfo_t pointer is still alive. Without this, accessing a tinfo_t member
+// on a temporary (e.g., get_udm().type) would return a dangling pointer.
 %typemap(out) tinfo_t *type,
   tinfo_t *tif,
   tinfo_t *obj_type,
@@ -1473,6 +1479,9 @@ struct dynamic_wrapped_array_t {
 {
   // %typemap(out) tinfo_t *type (specialization for member tinfo_t)
   $result = SWIG_NewPointerObj($1, $1_descriptor, 0);
+  // prevent parent GC while this non-owning pointer is alive
+  if ( $result != nullptr && $result != Py_None )
+    PyObject_SetAttrString($result, "__swig_parent__", $self);
 }
 
 //-------------------------------------------------------------------------
@@ -2068,6 +2077,23 @@ inline void _kludge_force_declare_##NAME(const NAME *) {}
             SWIG_TypeError,
             "in method '" "$symname" "', argument " "$argnum"" of type 'printer_t *'");
     }
+  }
+}
+
+// importer_t * is loader.hpp's IDS-file callback; not useful from Python
+// loaders (they already parsed the file). Accept only None for now.
+%typemap(in) (importer_t *importer)
+{
+  // %typemap(in) (importer_t *importer)
+  if ( $input == Py_None )
+  {
+    $1 = nullptr;
+  }
+  else
+  {
+    SWIG_exception_fail(
+          SWIG_TypeError,
+          "in method '" "$symname" "', argument " "$argnum"" of type 'importer_t *' (only None is supported)");
   }
 }
 

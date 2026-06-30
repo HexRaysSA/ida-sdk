@@ -43,4 +43,8 @@ enum_member_t = edm_t
 udt_member_t = udm_t
 tinfo_t.find_udt_member = tinfo_t.find_udm
 
+tinfo_t.set_declalign = ida_idaapi._ida_deprecated(tinfo_t.set_declalign, "tinfo_t.set_type_alignment")
+tinfo_t.get_func_frame = ida_idaapi._ida_deprecated(tinfo_t.get_func_frame, "tinfo_t.get_function_frame")
+resolve_typedef = ida_idaapi._ida_deprecated(resolve_typedef, "get_realtype")
+
 #</pycode(py_typeinf)>

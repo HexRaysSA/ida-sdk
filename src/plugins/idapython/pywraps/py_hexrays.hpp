@@ -54,7 +54,11 @@ static ssize_t idaapi ida_hexrays_ui_notification(void *, int code, va_list va)
 }
 
 //-------------------------------------------------------------------------
-static void ida_hexrays_init(void) {}
+static void ida_hexrays_init(void)
+{
+  idapython_hook_to_notification_point(
+          HT_UI, ida_hexrays_ui_notification, nullptr, /*is_hooks_base=*/ false);
+}
 
 //-------------------------------------------------------------------------
 static void ida_hexrays_term(void)
@@ -110,7 +114,3 @@ inline boundaries_iterator_t py_boundaries_insert(
 
 void py_term_hexrays_plugin(void) {}
 //</inline(py_hexrays)>
-
-//<init(py_hexrays)>
-idapython_hook_to_notification_point(HT_UI, ida_hexrays_ui_notification, nullptr, /*is_hooks_base=*/ false);
-//</init(py_hexrays)>

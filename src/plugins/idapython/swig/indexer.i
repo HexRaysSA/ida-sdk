@@ -1,14 +1,16 @@
+%include "std_string_view.i"
 
 %{
 #include <indexer.hpp>
 %}
 
-%ignore init_indexer;
-%ignore term_indexer;
-%ignore indexer_register_subindex;
-%ignore indexer_unregister_subindex;
-%ignore indexer_get_subindex;
+// Python owns the returned search_result_data_t* and will call delete on it.
+%newobject indexer_match_all;
+%newobject indexer_match;
 
-%include "indexer.hpp"
+// Warning 473: Returning a reference, pointer or pointer wrapper in a director method is not recommended.
+%warnfilter(473) search_result_data_t::get_name;
 
-%template(search_result_vec_t) qvector<search_result_t*>;
+%ignore search_result_data_t::get_name_str;
+
+%include <indexer.hpp>

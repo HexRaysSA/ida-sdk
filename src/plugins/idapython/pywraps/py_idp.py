@@ -28,6 +28,7 @@ IDPOPT_BADVALUE   =  3    # illegal value (bad range, for example)
 # ----------------------------------------------------------------------
 import ida_pro
 import ida_funcs
+import ida_name
 import ida_segment
 import ida_ua
 class processor_t(IDP_Hooks):
@@ -148,8 +149,14 @@ class processor_t(IDP_Hooks):
     def ev_out_segstart(self, ctx, s):
         return self._get_notify("out_segstart", imp_forced_val=1)(ctx, s.start_ea)
 
+    def ev_out_segment_start(self, ctx, seg_start_ea):
+        return self._get_notify("out_segment_start", imp_forced_val=1)(ctx, seg_start_ea)
+
     def ev_out_segend(self, ctx, s):
         return self._get_notify("out_segend", imp_forced_val=1)(ctx, s.end_ea)
+
+    def ev_out_segment_end(self, ctx, seg_start_ea):
+        return self._get_notify("out_segment_end", imp_forced_val=1)(ctx, seg_start_ea)
 
     def ev_out_assumes(self, *args):
         return self._get_notify("out_assumes", imp_forced_val=1)(*args)
@@ -184,10 +191,21 @@ class processor_t(IDP_Hooks):
         sclass = ida_segment.get_segm_class(s)
         return self._get_notify("creating_segm")(s.start_ea, sname, sclass)
 
+    def ev_creating_segment(self, si):
+        sname = ida_segment.get_segment_name(si.start_ea, ida_name.GN_VISIBLE)
+        sclass = ida_segment.get_segment_class(si.start_ea)
+        return self._get_notify("creating_segm")(si.start_ea, sname, sclass)
+
     def ev_moving_segm(self, s, to_ea, flags):
         sname = ida_segment.get_visible_segm_name(s)
         sclass = ida_segment.get_segm_class(s)
         return self._get_notify("moving_segm")(s.start_ea, sname, sclass, to_ea, flags)
+
+    def ev_moving_segment(self, seg_start_ea, to_ea, flags):
+        s = ida_segment.getseg(seg_start_ea)
+        sname = ida_segment.get_visible_segm_name(s) if s else ""
+        sclass = ida_segment.get_segm_class(s) if s else ""
+        return self._get_notify("moving_segment")(seg_start_ea, sname, sclass, to_ea, flags)
 
     def ev_coagulate(self, *args):
         return self._get_notify("coagulate")(*args)
@@ -287,11 +305,27 @@ class processor_t(IDP_Hooks):
             possible_return_code.assign(rc)
         return 0
 
+    def ev_function_bounds(self, _possible_return_code, fchunk, max_func_end_ea):
+        possible_return_code = ida_pro.int_pointer.frompointer(_possible_return_code)
+        rc = self._get_notify("function_bounds", unimp_val=None)(
+            possible_return_code.value(),
+            fchunk.start_ea,
+            max_func_end_ea)
+        if type(rc) == int:
+            possible_return_code.assign(rc)
+        return 0
+
     def ev_verify_sp(self, pfn):
         return self._get_notify("verify_sp")(pfn.start_ea)
 
+    def ev_verify_function_sp(self, func_ea):
+        return self._get_notify("verify_function_sp")(func_ea)
+
     def ev_verify_noreturn(self, pfn):
         return self._get_notify("verify_noreturn")(pfn.start_ea)
+
+    def ev_verify_function_noreturn(self, func_ea):
+        return self._get_notify("verify_function_noreturn")(func_ea)
 
     def ev_create_func_frame(self, pfn):
         rc = self._get_notify("create_func_frame", imp_forced_val=1)(pfn.start_ea)
@@ -302,8 +336,24 @@ class processor_t(IDP_Hooks):
         else:
             return rc
 
+    def ev_create_function_frame(self, func_ea):
+        rc = self._get_notify("create_function_frame", imp_forced_val=1)(func_ea)
+        if rc is True:
+            return 1
+        elif rc is False:
+            return -1
+        else:
+            return rc
+
     def ev_get_frame_retsize(self, frsize, pfn):
         rc = self._get_notify("get_frame_retsize", unimp_val=None)(pfn.start_ea)
+        if type(rc) == int:
+            ida_pro.int_pointer.frompointer(frsize).assign(rc)
+            return 1
+        return 0
+
+    def ev_get_function_retsize(self, frsize, func_ea):
+        rc = self._get_notify("get_function_retsize", unimp_val=None)(func_ea)
         if type(rc) == int:
             ida_pro.int_pointer.frompointer(frsize).assign(rc)
             return 1
@@ -382,14 +432,26 @@ class processor_t(IDP_Hooks):
     def func_added(self, pfn):
         self._get_notify("add_func")(pfn.start_ea)
 
+    def function_added(self, func_ea):
+        self._get_notify("function_added")(func_ea)
+
     def set_func_start(self, *args):
         self._get_notify("set_func_start")(*args)
+
+    def set_function_start(self, *args):
+        self._get_notify("set_function_start")(*args)
 
     def set_func_end(self, *args):
         self._get_notify("set_func_end")(*args)
 
+    def set_function_end(self, *args):
+        self._get_notify("set_function_end")(*args)
+
     def deleting_func(self, pfn):
         self._get_notify("del_func")(pfn.start_ea)
+
+    def deleting_function(self, func_ea):
+        self._get_notify("deleting_function")(func_ea)
 
     def sgr_changed(self, *args):
         self._get_notify("setsgr")(*args)

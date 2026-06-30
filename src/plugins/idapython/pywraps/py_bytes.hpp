@@ -182,6 +182,13 @@ static PyObject *py_get_strlit_contents(
   return py_buf.o;
 }
 
+//------------------------------------------------------------------------
+static PyObject *py_set_operand_flag(flags64_t F, uint8 typebits, int n)
+{
+  set_operand_flag(F, typebits, n);
+  return PyLong_FromLongLong(F);
+}
+
 //-------------------------------------------------------------------------
 static PyObject *py_print_strlit_type(int32 strtype, int flags=0)
 {

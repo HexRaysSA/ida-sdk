@@ -98,27 +98,35 @@ bool ext_api_t::load_libpython()
       if ( !utf8_utf16(&wdll_dir, dll_dir) )
         return false;
 
+      // Save and set the DLL directory before loading, so that
+      // dependencies like zlib.dll (conda) are found in the
+      // Python installation directory.
+      DWORD nchars = GetDllDirectoryW(0, nullptr);
+      if ( nchars > 0 )
+      {
+        prev_dll_directory.resize(nchars);
+        GetDllDirectoryW(prev_dll_directory.length(), prev_dll_directory.begin());
+      }
+      SetDllDirectoryW(wdll_dir.begin());
+
       lib_handle = LoadLibraryW(wlib_path.c_str());
       pdeb(IDA_DEBUG_PLUGIN, "IDAPython preload: python3Y.dll handle: %p\n", lib_handle);
 
       if ( lib_handle != nullptr )
       {
-        // Add the directory to the list of loader directories, so
-        // python3.dll will be found.
-        DWORD nchars = GetDllDirectoryW(0, nullptr);
-        if ( nchars > 0 )
-        {
-          prev_dll_directory.resize(nchars);
-          GetDllDirectoryW(prev_dll_directory.length(), prev_dll_directory.begin());
-        }
-        SetDllDirectoryW(wdll_dir.begin());
         return true;
       }
       else
       {
         pdeb(IDA_DEBUG_PLUGIN,
-            "IDAPython preload: failed to load python3Y.dll handle: %s\n",
-            winerr(GetLastError()));
+            "IDAPython preload: failed to load \"%s\": %s\n",
+            lib_path.c_str(), winerr(GetLastError()));
+        // Restore previous DLL directory on failure
+        if ( !prev_dll_directory.empty() )
+          SetDllDirectoryW(prev_dll_directory.c_str());
+        else
+          SetDllDirectoryW(nullptr);
+        prev_dll_directory.clear();
         return false;
       }
     }
@@ -227,24 +235,39 @@ bool ext_api_t::find_libpython_registry()
 //-------------------------------------------------------------------------
 bool ext_api_t::locate_libpython(qstring *errbuf)
 {
-  if ( find_libpython_preloaded() )
+  // used by ktests, but honored in release too so can check the IDA-7123 release builds
+  const bool forced = qgetenv("IDAPYTHON_FORCE_UNCONFIGURED", nullptr);
+  if ( !forced && find_libpython_preloaded() )
   {
     pdeb(IDA_DEBUG_PLUGIN, "IDAPython: found preloaded Python library: \"%s\"\n", lib_path.c_str());
     return true;
   }
 
-  if ( find_libpython_registry() )
+  qstring reg_path;
+  if ( !forced && reg_read_string(&reg_path, "Python3TargetDLL") )
   {
-    pdeb(IDA_DEBUG_PLUGIN, "IDAPython: loaded registry-specified Python library: \"%s\"\n", lib_path.c_str());
-    return true;
+    if ( find_libpython_registry() )
+    {
+      pdeb(IDA_DEBUG_PLUGIN, "IDAPython: loaded registry-specified Python library: \"%s\"\n", lib_path.c_str());
+      return true;
+    }
+    qstring str;
+    str.sprnt("Failed to load Python library \"%s\".\n"
+              "Please run idapyswitch to select a different Python 3 install.",
+              reg_path.c_str());
+    if ( errbuf != nullptr )
+      *errbuf = str;
+    msg("WARNING: %s\n", str.c_str());
   }
-
-  static const char str[] =
-    "Python 3 is not configured (Python3TargetDLL value is not set).\n"
-    "Please run idapyswitch to select a Python 3 install.";
-  if ( errbuf != nullptr )
-    *errbuf = str;
-  msg("WARNING: %s\n", str);
+  else
+  {
+    static const char str[] =
+      "Python 3 is not configured (Python3TargetDLL value is not set).\n"
+      "Please run idapyswitch to select a Python 3 install.";
+    if ( errbuf != nullptr )
+      *errbuf = str;
+    msg("WARNING: %s\n", str);
+  }
 
   return false;
 }
@@ -378,7 +401,6 @@ bool ext_api_t::load(qstring *errbuf)
   BIND_SYMBOL_WEAK("PySequence_Size", PySequence_Size_t, PySequence_Size_ptr);
   BIND_SYMBOL_WEAK("PySys_GetObject", PySys_GetObject_t, PySys_GetObject_ptr);
   BIND_SYMBOL_WEAK("PySys_SetObject", PySys_SetObject_t, PySys_SetObject_ptr);
-  BIND_SYMBOL_WEAK("PySys_SetPath", PySys_SetPath_t, PySys_SetPath_ptr); /* deprecated in 3.11 */
   BIND_SYMBOL_WEAK("PyThreadState_Get", PyThreadState_Get_t, PyThreadState_Get_ptr);
   BIND_SYMBOL_WEAK("PyTuple_GetItem", PyTuple_GetItem_t, PyTuple_GetItem_ptr);
   BIND_SYMBOL_WEAK("PyTuple_New", PyTuple_New_t, PyTuple_New_ptr);

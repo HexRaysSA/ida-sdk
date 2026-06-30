@@ -43,25 +43,25 @@ class mycli_t(ida_kernwin.cli_t):
         "bongiorno",
     ]
 
-    def OnFindCompletions(self, line, x):
+    def OnFindCompletions(self, line, x, max_count):
         """
-        The user pressed Tab. Return a list of completions
+        The user pressed Tab. Return a list of completions, bounded
+        to max_count results.
 
         This callback is optional.
 
         :param line: the current line (string)
         :param x: the index where the cursor is (int)
+        :param max_count: do not return more than this many results
 
         :returns: None if no completion could be generated, otherwise a tuple:
-            (completions : Sequence[str], hints : Sequence[str], docs: Sequence[str], 
+            (completions : Sequence[str], hints : Sequence[str], docs: Sequence[str],
               match_start: int, match_end: int)
         """
         try:
-            print("OnFindCompletions: line=%s x=%d" % (line, x))
-            # self.debug("__call__(line=%s, x=%s)", line, x)
-            uline = line
+            print("OnFindCompletions: line=%s x=%d max_count=%d" % (line, x, max_count))
             if line[x-3:x]=="bon":
-                return (self.completions, [], [], x-3, x)
+                return (self.completions[:max_count], [], [], x-3, x)
         except:
             print("OnFindCompletions got exception:\n%s", traceback.format_exc())
             pass
