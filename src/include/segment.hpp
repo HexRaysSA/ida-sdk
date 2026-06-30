@@ -8,6 +8,7 @@
 #ifndef _SEGMENT_HPP
 #define _SEGMENT_HPP
 
+#include <functional>
 #include <ida.hpp>
 #include <range.hpp>            // segments are range of addresses
                                 // with characteristics
@@ -743,6 +744,8 @@ idaman int ida_export enumerate_selectors(int (idaapi *func)(sel_t sel,ea_t para
 
 
 /// Enumerate all segments with the specified selector.
+/// \deprecated Use enumerate_segments_with_selector_ea() for safer access
+/// without pointer lifetime issues.
 /// This function will call the callback function 'func' for each
 /// segment that has the specified selector. Enumeration starts
 /// from the last segment and stops at the first segment (reverse order).
@@ -756,10 +759,33 @@ idaman int ida_export enumerate_selectors(int (idaapi *func)(sel_t sel,ea_t para
 ///                  to the callback function
 /// \return #BADADDR or the value returned by the callback function 'func'
 
-idaman ea_t ida_export enumerate_segments_with_selector(
+idaman DEPRECATED ea_t ida_export enumerate_segments_with_selector(
         sel_t selector,
         ea_t (idaapi *func)(segment_t *s, void *ud),
         void *ud=nullptr);
+
+
+/// Callback type for enumerate_segments_with_selector_ea().
+/// \param seg_start_ea  start address of a segment with the requested selector
+/// \return #BADADDR to continue enumeration, or any other value to stop the
+///         enumeration (that value is then returned to the caller)
+typedef std::function<ea_t(ea_t seg_start_ea)> segment_selector_visitor_t;
+
+
+/// Enumerate all segments with the specified selector.
+/// This function will call 'visitor' for each segment that has the specified
+/// selector. Enumeration starts from the last segment and stops at the first
+/// segment (reverse order). If the visitor returns a value != #BADADDR, the
+/// enumeration is stopped and this value is returned to the caller.
+/// Unlike enumerate_segments_with_selector(), the visitor receives the
+/// segment's start address (a stable handle) instead of a segment_t pointer.
+/// \param selector  segments that have this selector are enumerated
+/// \param visitor   callback invoked with each matching segment's start_ea
+/// \return #BADADDR or the value returned by 'visitor'
+
+idaman ea_t ida_export enumerate_segments_with_selector_ea(
+        sel_t selector,
+        const segment_selector_visitor_t &visitor);
 
 
 /// Get pointer to segment structure.
@@ -988,10 +1014,11 @@ idaman bool ida_export get_segment_info(segment_info_t *out, ea_t ea, int flags=
 
 /// Apply segment_info_t modifications to the database.
 /// Uses start_ea as the segment handle.
-/// \param si  segment_info_t with modifications (set via set_* methods)
+/// \param si     segment_info_t with modifications (set via set_* methods)
+/// \param flags  combination of \ref ADDSEG_ flags (default: 0)
 /// \return true on success, false if segment not found
 
-idaman bool ida_export set_segment_info(segment_info_t *si);
+idaman bool ida_export set_segment_info(segment_info_t *si, int flags=0);
 
 
 /// Get segment start address.
@@ -1019,6 +1046,14 @@ idaman DEPRECATED segment_t *ida_export getnseg(int n);
 /// \return true if segment found, false otherwise
 
 idaman bool ida_export get_segment_info_by_num(segment_info_t *out, int n, int flags=0);
+
+
+/// Get segment start address by its number.
+/// The returned address can be used as a handle for other segment_* functions.
+/// \param n  segment number in the range (0..get_segm_qty()-1)
+/// \return segment start_ea, or BADADDR if not found
+
+idaman ea_t ida_export get_segment_ea_by_num(int n);
 
 
 /// Get number of segment by address.

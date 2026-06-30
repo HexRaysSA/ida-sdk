@@ -8074,14 +8074,14 @@ public:
   /// or changing 'if' statements.
   void hexapi recalc_item_addresses();
 
-  bool hexapi gather_derefs(const ctree_item_t &ci, udt_type_data_t *udm=nullptr) const;
-  bool hexapi find_item_coords(const citem_t *item, int *px, int *py);
-
   /// Find the closest addressable ancestor of an item.
   /// Try to locate the closest address to the citem_t \p i walking the tree and
   /// taking the most immediate parent with an address.
   /// \return the closest addressable item, or \p i itself if none was found
   const citem_t *hexapi find_addressable_item(const citem_t *i) const;
+
+  bool hexapi gather_derefs(const ctree_item_t &ci, udt_type_data_t *udm=nullptr) const;
+  bool hexapi find_item_coords(const citem_t *item, int *px, int *py);
   bool locked() const { return (statebits & CFS_LOCKED) != 0; }
   /// Serialize cfunc into a sequence of bytes.
   bool hexapi serialize(bytevec_t *vout);
@@ -8922,7 +8922,7 @@ struct vdui_t
   /// \return false if failed or cancelled
   /// \param udt_type structure/union type
   /// \param udm_idx index of the structure/union member
-  bool hexapi set_udm_type(tinfo_t &udt_type, int udm_idx);
+  bool hexapi set_udm_type(const tinfo_t &udt_type, int udm_idx);
 
   /// Rename structure field.
   /// This function displays a dialog box and allows the user to rename
@@ -8930,7 +8930,7 @@ struct vdui_t
   /// \return false if failed or cancelled
   /// \param udt_type structure/union type
   /// \param udm_idx index of the structure/union member
-  bool hexapi rename_udm(tinfo_t &udt_type, int udm_idx);
+  bool hexapi rename_udm(const tinfo_t &udt_type, int udm_idx);
 
   /// Set global item type.
   /// This function displays a dialog box and allows the user to change
@@ -13759,6 +13759,12 @@ inline void cfunc_t::recalc_item_addresses()
 }
 
 //--------------------------------------------------------------------------
+inline const citem_t *cfunc_t::find_addressable_item(const citem_t *i) const
+{
+  return (const citem_t *)HEXDSP(hx_cfunc_t_find_addressable_item, this, i);
+}
+
+//--------------------------------------------------------------------------
 inline bool cfunc_t::gather_derefs(const ctree_item_t &ci, udt_type_data_t *udm) const
 {
   return (uchar)(size_t)HEXDSP(hx_cfunc_t_gather_derefs, this, &ci, udm) != 0;
@@ -13768,12 +13774,6 @@ inline bool cfunc_t::gather_derefs(const ctree_item_t &ci, udt_type_data_t *udm)
 inline bool cfunc_t::find_item_coords(const citem_t *item, int *px, int *py)
 {
   return (uchar)(size_t)HEXDSP(hx_cfunc_t_find_item_coords, this, item, px, py) != 0;
-}
-
-//--------------------------------------------------------------------------
-inline const citem_t *cfunc_t::find_addressable_item(const citem_t *i) const
-{
-  return (const citem_t *)HEXDSP(hx_cfunc_t_find_addressable_item, this, i);
 }
 
 //--------------------------------------------------------------------------
@@ -14014,13 +14014,13 @@ inline bool vdui_t::map_lvar(lvar_t *from, lvar_t *to)
 }
 
 //--------------------------------------------------------------------------
-inline bool vdui_t::set_udm_type(tinfo_t &udt_type, int udm_idx)
+inline bool vdui_t::set_udm_type(const tinfo_t &udt_type, int udm_idx)
 {
   return (uchar)(size_t)HEXDSP(hx_vdui_t_set_udm_type, this, &udt_type, udm_idx) != 0;
 }
 
 //--------------------------------------------------------------------------
-inline bool vdui_t::rename_udm(tinfo_t &udt_type, int udm_idx)
+inline bool vdui_t::rename_udm(const tinfo_t &udt_type, int udm_idx)
 {
   return (uchar)(size_t)HEXDSP(hx_vdui_t_rename_udm, this, &udt_type, udm_idx) != 0;
 }

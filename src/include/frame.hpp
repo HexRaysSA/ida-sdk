@@ -494,8 +494,27 @@ idaman DEPRECATED int ida_export add_regvar(
 idaman DEPRECATED regvar_t *ida_export find_regvar(func_t *pfn, ea_t ea1, ea_t ea2, const char *canon, const char *user);
 
 
+/// Find a register variable definition.
+/// \deprecated Use find_func_regvar() for safer access.
+/// \param pfn    function in question
+/// \param ea     current address
+/// \param canon  name of a general register
+/// \return nullptr-not found, otherwise ptr to regvar_t
+
+DEPRECATED inline regvar_t *find_regvar(func_t *pfn, ea_t ea, const char *canon)
+{
+  if ( pfn == nullptr )
+    return nullptr;
+GCC_DIAG_OFF(deprecated-declarations)
+MSC_DIAG_OFF(4996)
+  return find_regvar(pfn, ea, ea+1, canon, nullptr);
+MSC_DIAG_ON(4996)
+GCC_DIAG_ON(deprecated-declarations)
+}
+
+
 /// Rename a register variable.
-/// \deprecated Use rename_regvar_ea() for safer access.
+/// \deprecated Use rename_func_regvar() for safer access.
 /// \param pfn   function in question
 /// \param v     variable to rename
 /// \param user  new user-defined name for the register
@@ -505,7 +524,7 @@ idaman DEPRECATED int ida_export rename_regvar(func_t *pfn, regvar_t *v, const c
 
 
 /// Set comment for a register variable.
-/// \deprecated Use set_regvar_cmt_ea() for safer access.
+/// \deprecated Use set_func_regvar_cmt() for safer access.
 /// \param pfn  function in question
 /// \param v    variable to rename
 /// \param cmt  new comment
@@ -1086,14 +1105,16 @@ idaman int ida_export add_func_regvar(
 /// One of 'canon' and 'user' should be nullptr.
 /// If both 'canon' and 'user' are nullptr it returns the first regvar
 /// definition in the range.
+/// \param rv       if not nullptr, a copy of the found regvar is stored here
 /// \param func_ea  any address of the function
 /// \param ea1,ea2  range of addresses to search.
 ///                 ea1==BADADDR means the entire function
 /// \param canon    name of a general register
 /// \param user     user-defined name for the register
-/// \return nullptr-not found, otherwise ptr to regvar_t
+/// \return index of the register variable, or -1 if not found
 
-idaman regvar_t *ida_export find_func_regvar(
+idaman ssize_t ida_export find_func_regvar(
+        regvar_t *rv,
         ea_t func_ea,
         ea_t ea1,
         ea_t ea2,
@@ -1102,14 +1123,15 @@ idaman regvar_t *ida_export find_func_regvar(
 
 
 /// Find a register variable definition.
+/// \param rv       if not nullptr, a copy of the found regvar is stored here
 /// \param func_ea  any address of the function
 /// \param ea       current address
 /// \param canon    name of a general register
-/// \return nullptr-not found, otherwise ptr to regvar_t
+/// \return index of the register variable, or -1 if not found
 
-inline regvar_t *find_func_regvar(ea_t func_ea, ea_t ea, const char *canon)
+inline ssize_t find_func_regvar(regvar_t *rv, ea_t func_ea, ea_t ea, const char *canon)
 {
-  return find_func_regvar(func_ea, ea, ea+1, canon, nullptr);
+  return find_func_regvar(rv, func_ea, ea, ea+1, canon, nullptr);
 }
 
 
@@ -1119,18 +1141,8 @@ inline regvar_t *find_func_regvar(ea_t func_ea, ea_t ea, const char *canon)
 
 inline bool has_func_regvar(ea_t func_ea, ea_t ea)
 {
-  return find_func_regvar(func_ea, ea, ea+1, nullptr, nullptr) != nullptr;
+  return find_func_regvar(nullptr, func_ea, ea, ea+1, nullptr, nullptr) != -1;
 }
-
-
-/// Find a register variable definition.
-/// \deprecated Use find_func_regvar(ea_t, ea_t, const char*) for safer access.
-/// \param pfn    function in question
-/// \param ea     current address
-/// \param canon  name of a general register
-/// \return nullptr-not found, otherwise ptr to regvar_t
-
-DEPRECATED inline regvar_t *find_regvar(func_t *pfn, ea_t ea, const char *canon) { return pfn != nullptr ? find_func_regvar(pfn->start_ea, ea, canon) : nullptr; }
 
 
 /// Is there a register variable definition?
@@ -1143,20 +1155,33 @@ DEPRECATED inline bool has_regvar(func_t *pfn, ea_t ea) { return pfn != nullptr 
 
 /// Rename a register variable.
 /// \param func_ea  any address of the function
-/// \param v        variable to rename
+/// \param index    index of the register variable (see find_func_regvar())
 /// \param user     new user-defined name for the register
 /// \return \ref REGVAR_ERROR_
 
-idaman int ida_export rename_regvar_ea(ea_t func_ea, regvar_t *v, const char *user);
+idaman int ida_export rename_func_regvar(ea_t func_ea, ssize_t index, const char *user);
 
 
 /// Set comment for a register variable.
 /// \param func_ea  any address of the function
-/// \param v        variable to rename
+/// \param index    index of the register variable (see find_func_regvar())
 /// \param cmt      new comment
 /// \return \ref REGVAR_ERROR_
 
-idaman int ida_export set_regvar_cmt_ea(ea_t func_ea, regvar_t *v, const char *cmt);
+idaman int ida_export set_func_regvar_cmt(ea_t func_ea, ssize_t index, const char *cmt);
+
+
+/// Update the address range of a register variable by index.
+/// Only the range is changed; to rename a regvar or change its comment use
+/// rename_func_regvar()/set_func_regvar_cmt(). The new range must be well-formed
+/// (start_ea < end_ea) and must keep the function's register variables sorted
+/// by start_ea.
+/// \param func_ea  any address of the function
+/// \param index    index of the register variable (see find_func_regvar())
+/// \param range    new address range for the register variable
+/// \return \ref REGVAR_ERROR_
+
+idaman int ida_export set_func_regvar_range(ea_t func_ea, ssize_t index, const range_t &range);
 
 
 /// Delete a register variable definition.
@@ -1181,6 +1206,16 @@ idaman size_t ida_export get_func_regvar_qty(ea_t func_ea);
 /// \return success
 
 idaman bool ida_export get_func_regvars(regvars_t *out, ea_t func_ea);
+
+
+/// Get a copy of a register variable by index.
+/// \param out      output regvar_t (deep copy)
+/// \param func_ea  any address of the function
+/// \param index    index of the register variable (see find_func_regvar())
+/// \return false if the index is out of range
+
+idaman bool ida_export get_func_regvar(regvar_t *out, ea_t func_ea, ssize_t index);
+
 
 ///@} ea_frame_regvar
 

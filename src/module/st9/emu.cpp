@@ -108,15 +108,15 @@ void st9_t::handle_operand(const insn_t &insn, const op_t &op, bool lwrite)
               op_stkvar(insn.ea, op.n);
               if ( insn.Op2.type == o_reg )
               {
-                regvar_t *r = find_func_regvar(func_ea, insn.ea, ph.reg_names[insn.Op2.reg]);
-                if ( r != nullptr )
+                regvar_t r;
+                if ( find_func_regvar(&r, func_ea, insn.ea, ph.reg_names[insn.Op2.reg]) != -1 )
                 {
                   tinfo_t frame;
                   ssize_t stkvar_idx = frame.get_stkvar(nullptr, insn, &op, displ);
                   if ( !frame.empty() && stkvar_idx != -1 )
                   {
                     char b[20];
-                    qsnprintf(b, sizeof b, "%scopy", r->user);
+                    qsnprintf(b, sizeof b, "%scopy", r.user);
                     frame.rename_udm(stkvar_idx, b);
                   }
                 }

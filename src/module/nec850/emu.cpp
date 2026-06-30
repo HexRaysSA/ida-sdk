@@ -622,7 +622,7 @@ static bool create_offset_for_add(
     if ( rvi.is_num() )
     {
       if ( !pm.find_rvi(&rvi, movhi.ea, movhi.Op2.reg) )
-        INTERR(0);
+        INTERR(3479);
       fix_localpic_label(&flags, rvi);
     }
     base = pm.trunc_uval(base - (movhi.Op1.value << 16));

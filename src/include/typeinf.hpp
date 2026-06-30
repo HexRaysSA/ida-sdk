@@ -2428,9 +2428,10 @@ idaman const char *ida_export next_named_type(
 /// Copy a named type from one til to another.
 /// This function will copy the specified type and all dependent types
 /// from the source type library to the destination library.
-/// \param dsttil Destination til. It must have original types enabled
+/// \param dsttil Destination til. It must have ordinal types enabled
 /// \param srctil Source til.
-/// \param name   name of the type to copy
+/// \param name   name of the type to copy,
+///               can not be an ordinal name \ref is_ordinal_name()
 /// \return ordinal number of the copied type. 0 means error
 idaman uint32 ida_export copy_named_type(
         til_t *dsttil,

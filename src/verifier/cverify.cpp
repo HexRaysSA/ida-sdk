@@ -453,9 +453,12 @@ void cfunc_t::verify_expr(const citem_t *parent, const cexpr_t *e) const
         case cot_preinc:   // ++x
         case cot_predec:   // --x
         case cot_call:     // x(...)
-        case cot_obj:      // obj_ea
         case cot_var:      // v
         case cot_sizeof:   // sizeof(x)
+          break;
+        case cot_obj:      // obj_ea
+          if ( e->obj_ea == BADADDR || !hv.fits_ea_space(e->obj_ea) )
+            CFAIL_QASSERT(53091, e);
           break;
         case cot_asg:      // x = y
           if ( !py && !y->is_zero_const() && !y->type.is_func() )

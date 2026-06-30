@@ -2832,6 +2832,7 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define BWN_RECENT_SCRIPTS_TREE         80 ///< Recent scripts dirtree (Scripts window)
 #define BWN_EXAMPLE_SCRIPTS_TREE        81 ///< IDAPython examples dirtree (Scripts window)
 #define BWN_SEARCH_SCRIPTS_TREE         82 ///< Search results dirtree (Scripts window)
+#define BWN_PATHFINDER                  83 ///< Pathfinder (waypoints/exclusions)
 
 #define BWN_SNIPPETS_CSR BWN_SNIPPETS_TREE // bw-compat
 
@@ -2919,6 +2920,7 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define IWID_RECENT_SCRIPTS_TREE        builtin_widget_mask_from_id(BWN_RECENT_SCRIPTS_TREE)       ///< Recent scripts dirtree
 #define IWID_EXAMPLE_SCRIPTS_TREE       builtin_widget_mask_from_id(BWN_EXAMPLE_SCRIPTS_TREE)      ///< IDAPython examples dirtree
 #define IWID_SEARCH_SCRIPTS_TREE        builtin_widget_mask_from_id(BWN_SEARCH_SCRIPTS_TREE)       ///< Search results dirtree
+#define IWID_PATHFINDER                 builtin_widget_mask_from_id(BWN_PATHFINDER)               ///< Pathfinder
 /// the host form_widget_t plus the four trees inside it -- "the cursor
 /// is anywhere within the Scripts window".
 #define IWID_ANY_SCRIPTS_PART (IWID_SNIPPETS                  \
@@ -5281,8 +5283,6 @@ inline void remove_command_interpreter(const cli_t *cp) { callui(ui_install_cli,
 
 
 /// Generate disassembly text for a range.
-/// GUI-only. For headless use, call generate_disasm_line() per address
-/// instead.
 /// \param[out] text  result
 /// \param ea1        start address
 /// \param ea2        end address

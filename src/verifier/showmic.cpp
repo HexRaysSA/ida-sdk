@@ -901,7 +901,19 @@ void mba_t::init_dump() const
   sv.dumpnum = 0;
   sv.cdumpnum = 0;
   sv.prev_emu = mblock_emulator_t();
-  if ( qgetenv("IDA_DUMPDIR", &sv.dumpdir) && !sv.dumpdir.empty() )
+  if ( !qgetenv("IDA_DUMPDIR", &sv.dumpdir) )
+    sv.dumpdir.clear();
+  if ( sv.dumpdir.empty() && (hv.force_dump() || hv.dump_ctree_full()) )
+  {
+    // IDA_DUMPDIR is not set but dumps were explicitly requested with the
+    // -dump or -cdump2 options. Fall back to the directory with the idb so
+    // that the requested dump files are still created somewhere.
+    const char *idb = get_path(PATH_TYPE_IDB);
+    char dir[QMAXPATH];
+    if ( idb != nullptr && idb[0] != '\0' && qdirname(dir, sizeof(dir), idb) )
+      sv.dumpdir = dir;
+  }
+  if ( !sv.dumpdir.empty() )
   {
     const char *dir = sv.dumpdir.begin();
     qmkdir(dir, 0777);

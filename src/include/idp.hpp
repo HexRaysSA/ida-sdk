@@ -1587,6 +1587,12 @@ struct processor_t
                                 ///< \retval 1 handled (name may have been modified)
                                 ///< \retval 0 not implemented
 
+    ev_is_outlined_function,    ///< The kernel is creating a function and wants to know
+                                ///< whether it is an outlined helper (sets #FUNC_OUTLINE).
+                                ///< \param func_ea  (::ea_t) function entry start address
+                                ///< \retval 1 the function is outlined
+                                ///< \retval 0 not implemented / not outlined
+
     ev_last_cb_before_debugger, ///< START OF DEBUGGER CALLBACKS
 
     ev_next_exec_insn = 1000,   ///< Get next address to be executed
@@ -1957,6 +1963,7 @@ struct processor_t
   inline static ssize_t gen_src_file_lnnum(outctx_t &ctx, const char *file, size_t lnnum);
   inline static ssize_t rename(ea_t ea, const char *new_name, int flags);
   inline static ssize_t sanitize_name(qstring *name, callcnv_t cc);
+  inline static ssize_t is_outlined_function(ea_t func_ea);
   inline static ssize_t may_show_sreg(ea_t current_ea);
   inline static ssize_t coagulate(ea_t start_ea);
   inline static void auto_queue_empty(/*atype_t*/ int type);
@@ -2455,6 +2462,10 @@ inline ssize_t processor_t::rename(ea_t ea, const char *new_name, int flags)
 inline ssize_t processor_t::sanitize_name(qstring *name, callcnv_t cc)
 {
   return notify(ev_sanitize_name, name, cc);
+}
+inline ssize_t processor_t::is_outlined_function(ea_t func_ea)
+{
+  return notify(ev_is_outlined_function, func_ea);
 }
 inline ssize_t processor_t::may_show_sreg(ea_t current_ea)
 {

@@ -2073,6 +2073,7 @@ struct arm_t : public procmod_t
         size_t *thunk_len,
         const insn_t &insn);
   bool handle_thumb_arm_thunk(const insn_t &insn);
+  bool recognize_objc_selector_stub(const insn_t &insn);
   int is_jump_func(func_entry_info_t *fi, ea_t *jump_target, ea_t *function_pointer);
   bool is_arm_sane_insn(const insn_t &insn, int asn_flags);
 #define ASN_STRICT_CHECK  0x01 // forbid conditional non-branch insns

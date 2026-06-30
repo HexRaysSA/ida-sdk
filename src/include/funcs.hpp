@@ -1608,6 +1608,9 @@ public:
   /// Function flags \ref FUNC_
   void set_flags(uint64 v) { flags_ = v; updated_ |= FEI_FLAGS; }
 
+  /// Set or clear function flag \ref FUNC_
+  void set_flag(uint64 v, bool cnd=true) { setflag(flags_, v, cnd); updated_ |= FEI_FLAGS; }
+
   /// Netnode id of frame structure
   uval_t get_frame_id() const { return frame_; }
 

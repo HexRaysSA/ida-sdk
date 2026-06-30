@@ -240,7 +240,8 @@ struct idainfo
 #define AF2_MACRO       0x00000004      ///< Try to combine several instructions
                                         ///< into a macro instruction
 #define AF2_MERGESTR    0x00000008      ///< Merge string literals created using data xrefs
-/// remaining 28 bits are reserved
+#define AF2_HFOUTLINE   0x00000010      ///< Automatically hide outlined functions
+/// remaining 27 bits are reserved
 ///@}
   uval_t baseaddr;                      ///< base address of the program (in paragraphs)
   sel_t start_ss;                       ///< selector of the initial stack segment
@@ -782,6 +783,8 @@ inline bool inf_macros_enabled(void) { return getinf_flag(INF_AF2, AF2_MACRO); }
 inline bool inf_set_macros_enabled(bool _v=true) { return setinf_flag(INF_AF2, AF2_MACRO, _v); }
 inline bool inf_merge_strlits(void) { return getinf_flag(INF_AF2, AF2_MERGESTR); }
 inline bool inf_set_merge_strlits(bool _v=true) { return setinf_flag(INF_AF2, AF2_MERGESTR, _v); }
+inline bool inf_hide_outlined(void) { return getinf_flag(INF_AF2, AF2_HFOUTLINE); }
+inline bool inf_set_hide_outlined(bool _v=true) { return setinf_flag(INF_AF2, AF2_HFOUTLINE, _v); }
 
 inline uval_t inf_get_baseaddr() { return uval_t(getinf(INF_BASEADDR)); }
 inline bool inf_set_baseaddr(uval_t _v) { return setinf(INF_BASEADDR, ssize_t(_v)); }

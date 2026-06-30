@@ -21,8 +21,8 @@
     regions whose purpose is to "link" the various images together.
     Those regions are known as "branch mappings" (older caches used
     "branch islands".)
-  * occasionally, you will also find some GOT's (and possibly gaps)
-    in the address space of a DSC
+  * occasionally, you will also find some GOT's (and possibly
+    "unknown regions") in the address space of a DSC
   * DSC's can grow very large in size, and will then be split
     into multiple _files_ (e.g., iPhone 16 DSC's have north of 80 files)
 
@@ -38,9 +38,10 @@
   # Key concepts/entities
 
   * images: the `dylib` files, packed in the DSC
-  * gaps: portions of the address-space that are supposedly
-        covered by the DSC's mappings, but somehow not referred
-        to by any of the known entities
+  * unknown regions: portions of the address space that ARE covered
+        by the DSC's mappings, but are not referred to by any of the
+        known entities. The address space is not missing -- it's our
+        understanding of the content that has a gap.
   * branch islands/branch mappings: stubs, that help stitch
         together calls between images
   * files: the file(s) that compose the DSC. When a DSC is composed
@@ -53,7 +54,7 @@
         high-level representation of "portions" of a file. Typically
         files have somewhere between 1...5 mappings
   * `region_info_t`: a "range": either a section of an image, or a branch
-        mapping, GOT, gap... Typically, an image will have dozens of
+        mapping, GOT, unknown region... Typically, an image will have dozens of
         regions. See below for more info
 
   # API
@@ -171,12 +172,12 @@ inline dscu_svc_t *get_dscu_svc()
 /// Available region types. See the region_info_t documentation for more info.
 enum region_type_t : uint32
 {
-  rt_unknown = uint32(-1), ///< Invalid
+  rt_invalid = uint32(-1), ///< Invalid
   rt_image_entity = 0,   ///< A subset of an image (segment, section, ...)
   rt_island = 1,         ///< A branch island
   rt_header = 2,         ///< The dyld header
   rt_mapping = 3,        ///< A subcache branch mapping
-  rt_gap = 4,            ///< An unkown gap in the dyldcache address space
+  rt_unknown = 4,        ///< A covered cache region whose content we don't (yet) identify
   rt_got = 5,            ///< A Global Offset Table
   rt_cache_data = 6,     ///< Cache-wide named data (e.g. a linkedit subcache mapping)
 };
@@ -217,8 +218,8 @@ typedef qvector<mapping_coords_t> mapping_coords_vec_t;
 ///
 /// Regions have the following properties:
 ///
-/// * regions that don't belong to an image (i.e., islands, mappings, gap's, got's),
-///   can be loaded individually
+/// * regions that don't belong to an image (i.e., islands, mappings,
+///   unknown regions, GOTs), can be loaded individually
 /// * regions belonging to an image, can _not_ be loaded individually: they have/
 ///   relationships with one another, and loading them individually would prevent
 ///   the right scaffolding/plumbing to be put into place
@@ -234,7 +235,7 @@ struct region_info_t
   ea_t start = BADADDR;            /// Coordinates in address space
   asize_t size = 0;                /// Size in bytes
 
-  region_type_t type = rt_unknown; /// Region type
+  region_type_t type = rt_invalid; /// Region type
 
   /// image number or branch island number
   union
@@ -277,7 +278,7 @@ typedef qvector<region_info_t> region_info_vec_t;
 /// mapping's on-disk file.
 struct address_info_t
 {
-  region_info_t region;                                            ///< Region containing the address (type=rt_unknown if not found)
+  region_info_t region;                                            ///< Region containing the address (type=rt_invalid if not found)
   mapping_coords_t mapping = mapping_coords_t::make_invalid();     ///< Mapping that backs the address
   uint64 file_offset = 0;                                          ///< Offset within the on-disk file backing #mapping
 
@@ -298,7 +299,7 @@ struct dscu_load_request_t
   intvec_t islands;               ///< branch island numbers
   eavec_t mappings;               ///< branch mappings
   eavec_t gots;                   ///< global offset table ranges
-  eavec_t gaps;                   ///< gap ranges
+  eavec_t unknown_regions;        ///< unknown-region ranges (covered, but unidentified)
   eavec_t cache_data;             ///< cache-wide data ranges (e.g. linkedit subcache mappings)
 
 #define DLRF_UNDO_ON_FAILURE   0x1                          ///< failure to satisfy any part of the request, will revert everything
@@ -336,8 +337,8 @@ struct dscu_load_request_t
         gots.add_unique(ri.start);
         break;
 
-      case rt_gap:
-        gaps.add_unique(ri.start);
+      case rt_unknown:
+        unknown_regions.add_unique(ri.start);
         break;
 
       case rt_cache_data:
@@ -361,7 +362,7 @@ struct dscu_load_request_t
     islands.clear();
     mappings.clear();
     gots.clear();
-    gaps.clear();
+    unknown_regions.clear();
     cache_data.clear();
     flags = DLRF_DEFAULT;
   }
@@ -372,7 +373,7 @@ struct dscu_load_request_t
         && islands.empty()
         && mappings.empty()
         && gots.empty()
-        && gaps.empty()
+        && unknown_regions.empty()
         && cache_data.empty();
   }
 };
@@ -714,17 +715,17 @@ struct dscu_svc_t
   /// \param got_addr  start address of the GOT region
   virtual bool is_got_loaded(ea_t got_addr) const = 0;
 
-  /// Load a gap region into the database.
-  /// Reads bytes from the cache file, creates a segment, and untags
-  /// pointers if the region is non-executable.
-  /// \param ea  start address of the gap region
+  /// Load an unknown region (a covered-but-unidentified range of a mapping)
+  /// into the database. Reads bytes from the cache file, creates a segment,
+  /// and untags pointers if the region is non-executable.
+  /// \param ea  start address of the unknown region
   /// \param flags a combination of DLRF_ flags
   /// \return success
-  virtual bool load_gap(ea_t ea, uint32 flags=DLRF_DEFAULT) = 0;
+  virtual bool load_unknown_region(ea_t ea, uint32 flags=DLRF_DEFAULT) = 0;
 
-  /// Check whether a gap region has been loaded.
-  /// \param gap_addr  start address of the gap region
-  virtual bool is_gap_loaded(ea_t gap_addr) const = 0;
+  /// Check whether an unknown region has been loaded.
+  /// \param ea  start address of the unknown region
+  virtual bool is_unknown_region_loaded(ea_t ea) const = 0;
 
   /// Load a cache-wide data region (e.g. a `.dyldlinkedit` subcache
   /// mapping) into the database. Reads bytes from the cache file and
@@ -739,7 +740,7 @@ struct dscu_svc_t
   virtual bool is_cache_data_loaded(ea_t cache_data_addr) const = 0;
 
   /// Load all regions described by the request (images, islands,
-  /// mappings, GOTs, gaps, cache_data) in a single batch.
+  /// mappings, GOTs, unknown_regions, cache_data) in a single batch.
   /// \param regions  the load request
   /// \return true on success
   virtual bool load_regions(const dscu_load_request_t &regions) = 0;
@@ -755,7 +756,7 @@ struct dscu_svc_t
 
   /// Return the type of the region at \p region_index.
   /// \param region_index  index into the global region list
-  /// \return the region type, or #rt_unknown on failure
+  /// \return the region type, or #rt_invalid on failure
   virtual region_type_t get_region_type(size_t region_index) const = 0;
 
   /// Find symbols from the cache's local symbol table that fall
@@ -886,7 +887,7 @@ struct dscu_svc_t
 #define DLF_ISLANDS              (1 << 9)                    ///< Dump information about branch islands
 #define DLF_ISLANDS_REGIONS      (DLF_ISLANDS | (1 << 10))   ///< Dump information about each branch island's known regions
 #define DLF_GOTS                 (1 << 11)                   ///< Dump information about known GOT's in this DSC
-#define DLF_GAPS                 (1 << 12)                   ///< Dump information about known gaps in address space of this DSC
+#define DLF_UNKNOWN_REGIONS      (1 << 12)                   ///< Dump information about the unknown (covered but unidentified) regions of this DSC
 #define DLF_CACHE_DATA           (1 << 13)                   ///< Dump information about known cache-wide data regions
 
 #define DLF_ALL 0xFFFFFFFF
