@@ -23,6 +23,7 @@
 // forward declarations:
 class node_iterator;
 class qflow_chart_t;
+class qflow_chart_ea_t;
 class gdl_graph_t;
 
 /// Flow chart block types
@@ -45,11 +46,19 @@ decl void ida_export create_qflow_chart(qflow_chart_t &);           \
 decl bool ida_export append_to_flowchart(qflow_chart_t &, ea_t, ea_t); \
 decl fc_block_type_t ida_export fc_calc_block_type(const qflow_chart_t &, size_t); \
 decl bool ida_export create_multirange_qflow_chart(qflow_chart_t &, const rangevec_t &);
+
+#define DECLARE_FC_HELPER(decl)                                                        \
+decl void ida_export create_func_flow_chart(qflow_chart_ea_t &);                      \
+decl bool ida_export append_to_func_flow_chart(qflow_chart_ea_t &, ea_t, ea_t);       \
+decl fc_block_type_t ida_export fc_calc_func_block_type(const qflow_chart_ea_t &, size_t); \
+decl bool ida_export create_multirange_func_flow_chart(qflow_chart_ea_t &, const rangevec_t &);
 #else
 #define DECLARE_HELPER(decl)
+#define DECLARE_FC_HELPER(decl)
 #endif // SWIG
 
 DECLARE_HELPER(idaman)
+DECLARE_FC_HELPER(idaman)
 
 //-------------------------------------------------------------------------
 /// Set of integer constants
@@ -99,6 +108,7 @@ DECLARE_TYPE_AS_MOVABLE(edge_t);
 struct edgevec_t : public qvector<edge_t>
 {
 };
+
 
 struct edgeset_t;
 struct edge_segs_vec_t;
@@ -153,7 +163,7 @@ class node_ordering_t
       {
         int idx = node_by_order[i];
         if ( idx != -1 )
-          order_by_node[idx] = i;
+          order_by_node[idx] = int(i);
       }
     }
   }
@@ -206,7 +216,7 @@ public:
     for ( size_t i = 0; i < n; i++ )
       if ( order_by_node[i] > old )
         order_by_node[i]--;
-    int rest = n - old - 1;
+    int rest = int(n - old - 1);
     if ( rest > 0 )
       memmove(&node_by_order[old], &node_by_order[old+1], rest*sizeof(int));
     return true;
@@ -230,6 +240,7 @@ class node_iterator
 {
   DECLARE_HELPER(friend)
   friend class gdl_graph_t;
+  friend struct kdata_t;
   const gdl_graph_t *g;
   int i;
   node_iterator &_goup(void);
@@ -310,8 +321,9 @@ idaman int ida_export display_gdl(const char *fname);
 ///                  if none of #CHART_GEN_DOT, #CHART_GEN_GDL, #CHART_WINGRAPH
 ///                  is specified, the function will return false
 /// \return success. if fails, a warning message is displayed on the screen
+/// \deprecated Use gen_flow_graph_ea() for safer access.
 
-idaman bool ida_export gen_flow_graph(
+idaman DEPRECATED bool ida_export gen_flow_graph(
         const char *filename,
         const char *title,
         func_t *pfn,
@@ -319,9 +331,28 @@ idaman bool ida_export gen_flow_graph(
         ea_t ea2,
         int gflags);
 
+/// Build and display a flow graph (ea-based).
+/// \param filename  output file name. the file extension is not used. maybe nullptr.
+/// \param title     graph title
+/// \param func_ea   function start address, or BADADDR
+/// \param ea1, ea2  if func_ea == BADADDR, then the address range
+/// \param gflags    combination of \ref CHART_1.
+///                  if none of #CHART_GEN_DOT, #CHART_GEN_GDL, #CHART_WINGRAPH
+///                  is specified, the function will return false
+/// \return success. if fails, a warning message is displayed on the screen
+
+idaman bool ida_export gen_flow_graph_ea(
+        const char *filename,
+        const char *title,
+        ea_t func_ea,
+        ea_t ea1,
+        ea_t ea2,
+        int gflags);
+
 /// \defgroup CHART_1 Flow graph building flags
 /// Passed as flags parameter to:
 ///   - gen_flow_graph()
+///   - gen_flow_graph_ea()
 ///   - gen_simple_call_chart()
 ///   - gen_complex_call_chart()
 ///@{
@@ -438,7 +469,7 @@ inline THREAD_SAFE bool is_ret_block(fc_block_type_t btype)
 #define FC_OUTLINES  0x0080 ///< include outlined code (with FUNC_OUTLINE)
 ///@}
 
-/// A flow chart for a function, or a set of address ranges
+/// \deprecated Use qflow_chart_ea_t for safer ea-based access.
 class qflow_chart_t : public cancellable_graph_t
 {
 public:
@@ -476,6 +507,70 @@ public:
   void idaapi refresh(void) { create_qflow_chart(*this); }
   fc_block_type_t calc_block_type(size_t blknum) const
     { return fc_calc_block_type(*this, blknum); }
+  bool is_ret_block(size_t blknum) const { return ::is_ret_block(calc_block_type(blknum)); }
+  bool is_noret_block(size_t blknum) const { return ::is_noret_block(calc_block_type(blknum)); }
+  virtual void idaapi print_node_attributes(FILE *fp, int n) const override { qnotused(fp); qnotused(n);  }
+  virtual int  idaapi nsucc(int node) const override { return int(blocks[node].succ.size()); }
+  virtual int  idaapi npred(int node) const override { return int(blocks[node].pred.size()); }
+  virtual int  idaapi succ(int node, int i) const override { return blocks[node].succ[i]; }
+  virtual int  idaapi pred(int node, int i) const override { return blocks[node].pred[i]; }
+  virtual char *idaapi get_node_label(char *iobuf, int iobufsize, int n) const override { qnotused(iobuf); qnotused(iobufsize); qnotused(n); return nullptr; }
+  virtual int  idaapi size(void) const override { return int(blocks.size()); }
+  bool idaapi print_names(void) const { return (flags & FC_PRINT) != 0; }
+};
+
+/// A flow chart for a function (ea-based, no func_t pointers).
+/// This is the ea-based replacement for \ref qflow_chart_t.
+/// Instead of storing a func_t pointer (which can be invalidated),
+/// it stores the function's start address as a stable handle.
+class qflow_chart_ea_t : public cancellable_graph_t
+{
+public:
+  typedef qvector<qbasic_block_t> blocks_t;
+  DECLARE_FC_HELPER(friend)
+  qstring title;
+  range_t bounds;          ///< overall bounds of the qflow_chart_ea_t instance
+  ea_t func_ea = BADADDR;  ///< start address of the function (BADADDR for range-based charts)
+  int flags = 0;           ///< flags. See \ref FC_
+  blocks_t blocks;         ///< basic blocks
+  int nproper = 0;         ///< number of basic blocks belonging to the specified range
+
+  idaapi qflow_chart_ea_t(void) {}
+  idaapi qflow_chart_ea_t(
+        const char *_title,
+        ea_t _func_ea,
+        ea_t _ea1,
+        ea_t _ea2,
+        int _flags)
+    : title(_title), bounds(_ea1, _ea2), func_ea(_func_ea), flags(_flags)
+  {
+    refresh();
+  }
+  virtual ~qflow_chart_ea_t() {}
+  void idaapi create(
+        const char *_title,
+        ea_t _func_ea,
+        ea_t _ea1,
+        ea_t _ea2,
+        int _flags)
+  {
+    title   = _title;
+    func_ea = _func_ea;
+    bounds  = range_t(_ea1, _ea2);
+    flags   = _flags;
+    refresh();
+  }
+  void idaapi create(const char *_title, const rangevec_t &ranges, int _flags)
+  {
+    title   = _title;
+    func_ea = BADADDR;
+    flags   = _flags;
+    create_multirange_func_flow_chart(*this, ranges);
+  }
+  void idaapi append_to_flowchart(ea_t ea1, ea_t ea2) { ::append_to_func_flow_chart(*this, ea1, ea2); }
+  void idaapi refresh(void) { create_func_flow_chart(*this); }
+  fc_block_type_t calc_block_type(size_t blknum) const
+    { return fc_calc_func_block_type(*this, blknum); }
   bool is_ret_block(size_t blknum) const { return ::is_ret_block(calc_block_type(blknum)); }
   bool is_noret_block(size_t blknum) const { return ::is_noret_block(calc_block_type(blknum)); }
   virtual void idaapi print_node_attributes(FILE *fp, int n) const override { qnotused(fp); qnotused(n);  }

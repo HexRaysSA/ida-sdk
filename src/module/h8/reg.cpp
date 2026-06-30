@@ -310,8 +310,8 @@ ssize_t idaapi h8_t::on_event(ssize_t msgid, va_list va)
         ioh.set_device_name(ioh.device.c_str(), IORESP_NONE);
       if ( is_h8sx() )
       {
-        set_default_sreg_value(nullptr, VBR, 0);
-        set_default_sreg_value(nullptr, SBR, 0xFFFFFF00);
+        set_default_sreg_value_ea(BADADDR, VBR, 0);
+        set_default_sreg_value_ea(BADADDR, SBR, 0xFFFFFF00);
       }
       break;
 
@@ -325,14 +325,6 @@ ssize_t idaapi h8_t::on_event(ssize_t msgid, va_list va)
 
     case processor_t::ev_newprc:    // new processor type
       set_cpu(va_arg(va, int));
-      break;
-
-    case processor_t::ev_is_jump_func:
-      {
-        const func_t *pfn = va_arg(va, const func_t *);
-        ea_t *jump_target = va_arg(va, ea_t *);
-        ret = is_jump_func(pfn, jump_target);
-      }
       break;
 
     case processor_t::ev_is_sane_insn:
@@ -400,21 +392,16 @@ ssize_t idaapi h8_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        h8_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        h8_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
-      {
-        outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        h8_segend(*ctx, seg);
-        return 1;
-      }
+    case processor_t::ev_out_segment_end:
+      return 1;
 
     case processor_t::ev_out_assumes:
       {
@@ -465,18 +452,18 @@ ssize_t idaapi h8_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 
-    case processor_t::ev_get_frame_retsize:
+    case processor_t::ev_get_function_retsize:
       {
         int *frsize = va_arg(va, int *);
-        const func_t *pfn = va_arg(va, const func_t *);
-        *frsize = h8_get_frame_retsize(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        *frsize = h8_get_frame_retsize(func_ea);
         return 1;
       }
 

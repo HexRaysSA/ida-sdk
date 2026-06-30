@@ -870,6 +870,12 @@ typedef qvector<bptaddrs_t> bpteas_t;
 
 
 
+#ifdef __UI__
+// use direct call to compare_bpt_locs() in case of UI (otherwise will have
+// "Bad event detected during undo" for ui_dbg_compare_bpt_locs)
+idaman int ida_export compare_bpt_locs(const bpt_location_t &a, const bpt_location_t &b);
+#endif
+
 /// Breakpoint location types
 enum bpt_loctype_t
 {
@@ -877,6 +883,7 @@ enum bpt_loctype_t
   BPLT_REL,           ///< relative address: module_path, offset
   BPLT_SYM,           ///< symbolic: symbol_name, offset
   BPLT_SRC,           ///< source level: filename, lineno
+  BPLT_LAST,
 };
 
 /// Describes a breakpoint location
@@ -936,7 +943,11 @@ struct bpt_location_t
   /// ::BPLT_ABS locations are compared based on their ea values.
   /// For all other location types, locations are first compared based on their
   /// string (path/filename/symbol), then their offset/lineno.
+#ifdef __UI__
+  int compare(const bpt_location_t &r) const { return compare_bpt_locs(*this, r); }
+#else
   int compare(const bpt_location_t &r) const { return callui(ui_dbg_compare_bpt_locs, this, &r).i; }
+#endif
   bool operator==(const bpt_location_t &r) const { return compare(r) == 0; }
   bool operator!=(const bpt_location_t &r) const { return compare(r) != 0; }
   bool operator< (const bpt_location_t &r) const { return compare(r) <  0; }
@@ -2727,6 +2738,7 @@ inline bool idaapi srcdbg_request_step_until_ret(void)                          
 ///@} dbg_funcs_conv
 #endif // !__UI__ && !__KERNEL__
 
+// These are needed by the kernel, and need to go through the UI
 #ifndef __UI__
 inline int  idaapi internal_cleanup_appcall(thid_t tid)                                       { return callui(ui_dbg_internal_cleanup_appcall, tid).i; }
 inline int  idaapi hide_all_bpts(void)                                                        { return callui(ui_dbg_hide_all_bpts).i; }
@@ -2762,11 +2774,6 @@ inline const char *bpt_t::get_cnd_elang() const                                 
 inline bool bpt_t::set_cnd_elang(const char *name)                                            { return callui(ui_dbg_internal_set_elang, this, name).cnd; }
 #endif // !__UI__
 
-#ifdef __KERNEL__
-inline bool idaapi set_bpt_group(bpt_t &bpt, const char *grp_name)                            { return get_bpt_kernel_interface()->set_bpt_dir(&bpt, grp_name); }
-inline int  idaapi set_bptloc_string(const char *s)                                           { return get_bpt_kernel_interface()->add_bptloc_string(s); }
-inline const char *idaapi get_bptloc_string(int i)                                            { return get_bpt_kernel_interface()->get_bptloc_string(i); }
-#endif
 
 // internal kernel functions to lock the debugger memory configuration updates
 // Do not use these functions! They will be removed!

@@ -309,16 +309,16 @@ void out_dsp56k_t::out_insn(void)
 }
 
 //--------------------------------------------------------------------------
-//lint -e{818} seg could be made const
-void dsp56k_t::segstart(outctx_t &ctx, segment_t *seg) const
+void dsp56k_t::segstart(outctx_t &ctx, ea_t seg_ea) const
 {
-  if ( is_spec_segm(seg->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME|GSI_SCLASS) )
+    return;
+  if ( is_spec_segm(si.get_type()) )
     return;
 
-  qstring sname;
-  qstring sclas;
-  get_segm_name(&sname, seg);
-  get_segm_class(&sclas, seg);
+  qstring sname = si.get_name();
+  qstring sclas = si.get_sclass();
 
   if ( ash.uflag & UAS_GNU )
   {
@@ -342,7 +342,7 @@ void dsp56k_t::segstart(outctx_t &ctx, segment_t *seg) const
     if ( sname == "XMEM" || sname == "YMEM" )
     {
       char buf[MAX_NUMBUF];
-      btoa(buf, sizeof(buf), seg->start_ea-get_segm_base(seg));
+      btoa(buf, sizeof(buf), si.start_ea - si.base());
       ctx.gen_printf(DEFAULT_INDENT,
                      COLSTR("%s %c:%s", SCOLOR_ASMDIR),
                      ash.origin,
@@ -361,16 +361,17 @@ void dsp56k_t::segstart(outctx_t &ctx, segment_t *seg) const
 }
 
 //--------------------------------------------------------------------------
-//lint -e{818} seg could be made const
-void dsp56k_t::segend(outctx_t &ctx, segment_t *seg) const
+void dsp56k_t::segend(outctx_t &ctx, ea_t seg_ea) const
 {
-  if ( is_spec_segm(seg->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
+  if ( is_spec_segm(si.get_type()) )
     return;
 
   if ( (ash.uflag & UAS_GNU) == 0 )
   {
-    qstring sname;
-    get_segm_name(&sname, seg);
+    qstring sname = si.get_name();
     if ( sname != "XMEM" && sname != "YMEM" )
       ctx.gen_printf(DEFAULT_INDENT, "endsec");
   }

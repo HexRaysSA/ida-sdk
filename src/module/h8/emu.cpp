@@ -62,14 +62,14 @@ int idaapi is_sp_based(const insn_t &, const op_t &x)
 //----------------------------------------------------------------------
 static void add_stkpnt(const insn_t &insn, ssize_t value)
 {
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(insn.ea);
+  if ( func_ea == BADADDR )
     return;
 
   if ( value & 1 )
     value++;
 
-  add_auto_stkpnt(pfn, insn.ea+insn.size, value);
+  add_func_auto_stkpnt(func_ea, insn.ea+insn.size, value);
 }
 
 //----------------------------------------------------------------------
@@ -484,10 +484,10 @@ void h8_t::handle_operand(const insn_t &insn, const op_t &x, bool is_forced, boo
       // create stack variables if required
       if ( may_create_stkvars() && !is_defarg(F, x.n) )
       {
-        func_t *pfn = get_func(insn.ea);
-        if ( pfn != nullptr
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( func_ea != BADADDR
           && (issp(x.phrase)
-           || isbp(x.phrase) && (pfn->flags & FUNC_FRAME) != 0) )
+           || isbp(x.phrase) && (get_func_flags(func_ea) & FUNC_FRAME) != 0) )
         {
           if ( insn.create_stkvar(x, x.addr, STKVAR_VALID_SIZE) )
             op_stkvar(insn.ea, x.n);
@@ -607,13 +607,6 @@ int h8_t::emu(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
-int is_jump_func(const func_t * /*pfn*/, ea_t *jump_target)
-{
-  *jump_target = BADADDR;
-  return 0; // means "don't know"
-}
-
-//----------------------------------------------------------------------
 int may_be_func(const insn_t &insn) // can a function start here?
                                     // returns: probability 0..100
                                     // 'insn' structure is filled upon the entrace
@@ -671,17 +664,21 @@ bool idaapi is_return_insn(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
-bool idaapi create_func_frame(func_t *pfn)
+bool idaapi create_func_frame(ea_t func_ea)
 {
-  if ( pfn->frame == BADNODE )
+  func_entry_info_t fi;
+  if ( !get_func_entry_info(&fi, func_ea) )
+    return false;
+
+  if ( fi.get_frame_id() == BADNODE )
   {
     size_t regs = 0;
-    ea_t ea = pfn->start_ea;
+    ea_t ea = fi.start_ea;
     bool bpused = false;
     insn_t insn;
-    while ( ea < pfn->end_ea )                 // skip all pushregs
+    while ( ea < fi.end_ea )                   // skip all pushregs
     {                                         // (must test that ea is lower
-                                              // than pfn->end_ea)
+                                              // than end_ea)
       decode_insn(&insn, ea);
       ea += insn.size;
       switch ( insn.itype )
@@ -710,15 +707,15 @@ bool idaapi create_func_frame(func_t *pfn)
     }
     if ( regs != 0 || bpused )
     {
-      setflag((uint32 &)pfn->flags, FUNC_FRAME, bpused);
-      return add_frame(pfn, 0, (ushort)regs, 0);
+      set_func_flag(func_ea, FUNC_FRAME, bpused);
+      return add_frame_ea(func_ea, 0, (ushort)regs, 0);
     }
   }
   return false;
 }
 
 //----------------------------------------------------------------------
-int h8_t::h8_get_frame_retsize(const func_t *)
+int h8_t::h8_get_frame_retsize(ea_t /*func_ea*/)
 {
   return advanced() ? 4 : 2;
 }

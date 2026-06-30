@@ -10,6 +10,7 @@
 
 #include <nalt.hpp>
 #include <segment.hpp>
+struct kdata_t;
 
 /*! \file fixup.hpp
 
@@ -82,36 +83,26 @@ struct fixup_handler_t;
 struct fixup_data_t
 {
 protected:
-  fixup_type_t type;    // fixup type
-  uint32 flags;         // FIXUPF_... bits
-  uval_t base;          // base for relative fixups
+  fixup_type_t type = 0;    // fixup type
+  uint32 flags = 0;         // FIXUPF_... bits
+  uval_t base = 0;          // base for relative fixups
 
 public:
-  sel_t sel;            ///< selector of the target segment.
-                        ///< BADSEL means an absolute (zero based) target.
-                        ///< \sa FIXUPF_REL
+  sel_t sel = BADSEL;       ///< selector of the target segment.
+                            ///< BADSEL means an absolute (zero based) target.
+                            ///< \sa FIXUPF_REL
 
-  ea_t off;             ///< target offset
-                        ///< \note The target is calculated as
-                        ///< `get_base() + off`.
+  ea_t off = 0;             ///< target offset
+                            ///< \note The target is calculated as
+                            ///< `get_base() + off`.
 
-  adiff_t displacement; ///< displacement (offset from the target)
+  adiff_t displacement = 0; ///< displacement (offset from the target)
 
 public:
-  fixup_data_t()
-    : type(0),
-      flags(0),
-      base(0),
-      sel(BADSEL),
-      off(0),
-      displacement(0) {}
+  fixup_data_t() {}
   fixup_data_t(fixup_type_t type_, uint32 flags_ = 0)
     : type(type_),
-      flags(flags_),
-      base(0),
-      sel(BADSEL),
-      off(0),
-      displacement(0) {}
+      flags(flags_) {}
 
   /// Fixup type \ref fixup_type_t
   fixup_type_t get_type(void) const { return type; }
@@ -159,9 +150,9 @@ public:
     off = target - base;
   }
 
-  void set_sel(const segment_t *seg)
+  void set_sel(sel_t _sel)
   {
-    sel = seg == nullptr ? BADSEL : seg->sel;
+    sel = _sel;
   }
 
   /// Set selector of fixup to the target.
@@ -169,7 +160,11 @@ public:
   void set_target_sel()
   {
     ea_t target = get_base() + off;
-    set_sel(getseg(target));
+    segment_info_t seg;
+    if ( get_segment_info(&seg, target) )
+      set_sel(seg.get_sel());
+    else
+      set_sel(BADSEL);
     flags &= ~FIXUPF_REL;
     base = 0; // just in case
     off = target - get_base();
@@ -190,6 +185,23 @@ public:
   uval_t get_value(ea_t ea) const;  ///< \ref get_fixup_value()
   bool patch_value(ea_t ea) const;  ///< \ref patch_fixup_value()
 
+#ifndef SWIG
+  friend kdata_t;
+  friend void unpack_fixup_ub(fixup_data_t *fd, memory_deserializer_t &mmdsr);
+  friend size_t pack_fixup(uchar *buf, size_t bufsize, const fixup_data_t &fd);
+  friend void convert_fixups_to_700(dbctx_t &db);
+  fixup_data_t(const fixup_data_t &) = default;
+  fixup_data_t &operator=(const fixup_data_t &) = default;
+  bool operator==(const fixup_data_t &r) const
+  {
+    return type == r.type
+        && flags == r.flags
+        && base == r.base
+        && sel == r.sel
+        && off == r.off
+        && displacement == r.displacement;
+  }
+#endif // SWIG
 };
 
 /// Get fixup information

@@ -117,11 +117,17 @@ idaman THREAD_SAFE bool ida_export get_special_folder(char *buf, size_t bufsize,
 /// \defgroup CSIDL Common CSIDLs
 /// Passed as 'csidl' parameter to get_special_folder()
 ///@{
+#ifndef CSIDL_PERSONAL
+#define CSIDL_PERSONAL                0x0005
+#endif
 #ifndef CSIDL_APPDATA
 #define CSIDL_APPDATA                 0x001a
 #endif
 #ifndef CSIDL_LOCAL_APPDATA
 #define CSIDL_LOCAL_APPDATA           0x001c
+#endif
+#ifndef CSIDL_PROFILE
+#define CSIDL_PROFILE                 0x0028
 #endif
 #ifndef CSIDL_PROGRAM_FILES
 #define CSIDL_PROGRAM_FILES           0x0026
@@ -424,9 +430,6 @@ enum linput_type_t
 /// This function may be called only from loaders!
 
 idaman void ida_export lread(linput_t *li, void *buf, size_t size);
-
-#ifdef TESTABLE_BUILD
-#endif
 
 
 /// Read the input source.

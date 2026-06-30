@@ -264,6 +264,7 @@ typedef int mreg_t;     ///< Micro register
 
 // Ctree level forward definitions:
 struct cfunc_t;         // result of decompilation, the highest level object
+struct cfunc_parentee_t;// ctree visitor with parent access
 struct citem_t;         // base class for cexpr_t and cinsn_t
 struct cexpr_t;         // C expression
 struct cinsn_t;         // C statement
@@ -1035,7 +1036,7 @@ int hexapi partial_type_num(const tinfo_t &type);
 /// \return type info object
 /// \param width width of the desired type
 
-tinfo_t hexapi get_float_type(int width);
+tinfo_t hexapi get_float_type(size_t width);
 
 
 /// Create a type info by width and sign.
@@ -1043,7 +1044,7 @@ tinfo_t hexapi get_float_type(int width);
 /// \param srcwidth size of the type in bytes
 /// \param sign sign of the type
 
-tinfo_t hexapi get_int_type_by_width_and_sign(int srcwidth, type_sign_t sign);
+tinfo_t hexapi get_int_type_by_width_and_sign(size_t srcwidth, type_sign_t sign);
 
 
 /// Create a partial type info by width.
@@ -1052,14 +1053,14 @@ tinfo_t hexapi get_int_type_by_width_and_sign(int srcwidth, type_sign_t sign);
 ///             For non-power-of-2 sizes, returns an empty tinfo_t.
 ///             Use make_valid_size() to round up arbitrary sizes before calling.
 
-tinfo_t hexapi get_unk_type(int size);
+tinfo_t hexapi get_unk_type(size_t size);
 
 
 /// Generate a dummy pointer type
 ///  \param ptrsize size of pointed object
 ///  \param isfp is floating point object?
 
-tinfo_t hexapi dummy_ptrtype(int ptrsize, bool isfp);
+tinfo_t hexapi dummy_ptrtype(size_t ptrsize, bool isfp);
 
 
 /// Create a pointer type.
@@ -1160,7 +1161,7 @@ public:
   // It is much easier than to inspect the memory contents byte by byte.
   const char *hexapi dstr(int width=0) const;
   DECLARE_COMPARISONS(vdloc_t);
-  bool hexapi is_aliasable(const mba_t *mb, int size) const;
+  bool hexapi is_aliasable(const mba_t *mb, size_t size) const;
 };
 
 /// Print vdloc.
@@ -1259,6 +1260,7 @@ class lvar_t : public lvar_locator_t
 #define CVAR_SCARG   0x04000000 ///< variable is a stack argument that was
                                 ///< transformed from a scattered one
 #define CVAR_NOPROP  0x08000000 ///< forbidden to propagate the variable
+#define CVAR_CATCH   0x10000000 ///< declared in a catch clause, no separate decl
 ///@}
 
 public:
@@ -1467,14 +1469,14 @@ public:
   /// \param argloc variable location
   /// \param _size variable size in bytes
   /// \return -1 if failed, otherwise an index into 'vars'
-  int find_input_lvar(const vdloc_t &argloc, int _size) { return find_lvar(argloc, _size, 0); }
+  int find_input_lvar(const vdloc_t &argloc, size_t _size) { return find_lvar(argloc, _size, 0); }
 
 
   /// Find an input register variable.
   /// \param reg   register to find
   /// \param _size variable size in bytes
   /// \return -1 if failed, otherwise an index into 'vars'
-  int find_input_reg(int reg, int _size=1)
+  int find_input_reg(int reg, size_t _size=1)
   {
     vdloc_t rloc;
     rloc._set_reg1(reg);
@@ -1500,7 +1502,7 @@ public:
   /// \param width variable size in bytes
   /// \param defblk definition block of the lvar. -1 means any block
   /// \return -1 if failed, otherwise an index into 'vars'
-  int hexapi find_lvar(const vdloc_t &location, int width, int defblk=-1) const;
+  int hexapi find_lvar(const vdloc_t &location, size_t width, int defblk=-1) const;
 };
 
 /// Saved user settings for local variables: name, type, comment.
@@ -2179,7 +2181,7 @@ mreg_t hexapi reg2mreg(int reg);
 /// \param reg   microregister number
 /// \param width size of microregister in bytes
 /// \return processor register id or -1
-int hexapi mreg2reg(mreg_t reg, int width);
+int hexapi mreg2reg(mreg_t reg, size_t width);
 
 /// Get the microregister name.
 /// \param out   output buffer, may be nullptr
@@ -2574,6 +2576,7 @@ struct fnumber_t
 #define SHINS_VALNUM  0x02 ///< display value numbers
 #define SHINS_SHORT   0x04 ///< do not display use-def chains and other attrs
 #define SHINS_LDXEA   0x08 ///< display address of ldx expressions (not used)
+#define SHINS_NOEA    0x10 ///< do not display the ea
 ///@}
 
 //-------------------------------------------------------------------------
@@ -2936,6 +2939,16 @@ public:
   /// the result of 'set' insns, etc.
   bool hexapi is01() const;
 
+  /// Get the effective bitwidth of the operand.
+  /// Returns the number of significant bits needed to represent the value
+  /// (0 for zero, size*8 for unknown operands).
+  /// For example, for a constant 7 returns 3, for xdu(x.1) returns 8.
+  /// If BLK and TOP are specified, the method also looks up the defining
+  /// instruction in this block.
+  int hexapi get_bitwidth(
+        const mblock_t *blk,
+        const minsn_t *top) const;
+
   /// Does the high part of the operand consist of the sign bytes?
   /// \param nbytes number of bytes that were sign extended.
   ///               the remaining size-nbytes high bytes must be sign bytes
@@ -3267,7 +3280,63 @@ enum funcrole_t
   ROLE_WCSCAT,               ///< wchar_t *wcscat(wchar_t *dst, const wchar_t *src)
   ROLE_SSE_CMP4,             ///< e.g. _mm_cmpgt_ss
   ROLE_SSE_CMP8,             ///< e.g. _mm_cmpgt_sd
+  // EH exception handling helper roles
+  ROLE_EH_TRY,                 ///< __eh_try() try block start
+  ROLE_EH_WIND,                ///< __eh_wind() wind state (C++ destructors)
+  ROLE_EH_CATCH,               ///< __eh_catch() catch block start
+  ROLE_EH_CATCH_TYPE,          ///< __eh_catch_type() typed catch clause
+  ROLE_EH_CATCH_ELLIPSIS,      ///< __eh_catch_ellipsis() catch-all
+  ROLE_EH_UNWIND,              ///< __eh_unwind() destructor handler
+  ROLE_EH_THROW,               ///< __eh_throw() throw statement
+  ROLE_EH_TRY_CONTINUATION,    ///< __eh_try_continuation() internal
+  ROLE_EH_SCOPE_STRUT,         ///< __eh_scope_strut() internal
+  ROLE_EH_DEAD_END_TRY,        ///< __eh_dead_end_try() internal
+  ROLE_EH_DEAD_END_WIND,       ///< __eh_dead_end_wind() internal
+  ROLE_EH_PROPAGATE,           ///< __eh_propagate_exception_into_caller()
+  ROLE_EH_CONTINUE_UNWINDING,  ///< __eh_continue_unwinding()
+  ROLE_EH_ENTER_WIND_STATE,    ///< __eh_enter_wind_state() internal
+  ROLE_EH_ENTER_TRY_STATE,     ///< __eh_enter_try_state() internal
+  ROLE_EH_EXIT_WIND_STATE,     ///< __eh_exit_wind_state() internal
+  ROLE_EH_EXIT_TRY_STATE,      ///< __eh_exit_try_state() internal
+  ROLE_EH_NO_UNWIND_HANDLER,   ///< __eh_no_unwind_handler() internal
+  ROLE_EH_CAUGHT_TYPE,         ///< __eh_caught_type() paired with catch_type
+  ROLE_EH_CAUGHT_ELLIPSIS,     ///< __eh_caught_ellipsis() paired with catch_ellipsis
+  ROLE_EH_CAUGHT,              ///< __eh_caught() internal
+  ROLE_EH_RETHROW,             ///< __eh_rethrow_uncaught_exception() internal
+  ROLE_EH_UNWIND_ABSENT,       ///< __eh_unwind_handler_absent() internal
+  ROLE_EH_CATCH_ABSENT,        ///< __eh_catch_handler_absent() internal
+  // Dalvik/Java helper function roles
+  ROLE_NEW_OBJ,              ///< allocate new object instance
+  ROLE_NEW_ARRAY,            ///< allocate new array
+  ROLE_FILL_ARRAY,           ///< allocate and fill new array
+  ROLE_ARRLEN,               ///< get array length
+  ROLE_CHKCAST,              ///< check and cast object type
+  ROLE_INSTANCEOF,           ///< test object type (returns 0/1)
+  ROLE_LOCK,                 ///< acquire lock (monitor enter)
+  ROLE_UNLOCK,               ///< release lock (monitor exit)
+  ROLE_IGET,                 ///< get instance field
+  ROLE_IPUT,                 ///< set instance field
+  ROLE_SGET,                 ///< get static field
+  ROLE_SPUT,                 ///< set static field
+  ROLE_AGET,                 ///< get array element
+  ROLE_APUT,                 ///< set array element
+  ROLE_FMOD,                 ///< floating-point remainder (fmod)
+  ROLE_INVOKE_VIRTUAL,       ///< instance method call (obj.method)
+  ROLE_INVOKE_SUPER,         ///< parent class method call (super.method)
+  ROLE_INVOKE_INIT,          ///< constructor call on new object (merged with new)
+  ROLE_INVOKE_INIT_SUPER,    ///< constructor chain to parent (super(args))
+  ROLE_INVOKE_INIT_THIS,     ///< constructor chain to self (this(args))
+  ROLE_CATCH_EXCEPTION,      ///< get caught exception object (Dalvik MOVE_EXCEPTION)
+  ROLE_CONST_CLASS,          ///< get class reference (Dalvik CONST_CLASS)
+  ROLE_FILL_ARRAY_DATA,      ///< fill existing array with constant data
+                             ///< (Dalvik FILL_ARRAY_DATA, no allocation)
 };
+
+/// Is this an EH exception handling role?
+inline bool is_eh_role(funcrole_t r)
+{
+  return r >= ROLE_EH_TRY && r <= ROLE_EH_CATCH_ABSENT;
+}
 
 /// \defgroup FUNC_NAME_ Well known function names
 ///@{
@@ -3683,6 +3752,7 @@ public:
                                 ///< (instructions accessing memory may not be reordered past it)
 #define IPROP_UNMERGED 0x100000 ///< 'goto' instruction was transformed info 'call'
 #define IPROP_UNPAIRED 0x200000 ///< instruction is a result of del_dest_pairs() transformation
+#define IPROP_WAS_FUNC 0x400000 ///< mov-instruction was initially a memcpy call
   //@}
 
   bool is_optional()     const { return (iprops & IPROP_OPTIONAL)  != 0; }
@@ -3705,6 +3775,7 @@ public:
   bool is_mbarrier()     const { return (iprops & IPROP_MBARRIER)  != 0; }
   bool was_unmerged()    const { return (iprops & IPROP_UNMERGED)  != 0; }
   bool was_unpaired()    const { return (iprops & IPROP_UNPAIRED)  != 0; }
+  bool was_memfunc()     const { return (iprops & IPROP_WAS_FUNC)  != 0; }
 
   void set_optional() { iprops |= IPROP_OPTIONAL; }
   void hexapi set_combined();
@@ -3891,20 +3962,44 @@ public:
   const minsn_t *find_opcode(mcode_t mcode) const { return (CONST_CAST(minsn_t*)(this))->find_opcode(mcode); }
   minsn_t *hexapi find_opcode(mcode_t mcode);
 
-  /// Find an operand that is a subinsruction with the specified opcode.
+  /// Find an operand that is a subinstruction with the specified opcode.
   /// This function checks only the 'l' and 'r' operands of the current insn.
-  /// \param[out] other pointer to the other operand
-  ///             (&r if we return &l and vice versa)
-  /// \param op   opcode to search for
-  /// \return &l or &r or nullptr
+  /// It replaces the common pattern:
+  /// \code
+  ///   for ( int side = 0; side < 2; side++ )
+  ///   {
+  ///     mop_t *op = side == 0 ? &m->l : &m->r;
+  ///     if ( op->is_insn(opcode) )
+  ///     {
+  ///       other = side == 0 ? &m->r : &m->l;
+  ///       ...
+  ///     }
+  ///   }
+  /// \endcode
+  /// \param[out] other pointer to the other operand. May be nullptr if not needed.
+  ///             (&r if we return l.d and vice versa)
+  /// \param op   opcode to search for (m_nop matches any subinstruction)
+  /// \return pointer to the found subinstruction (l.d or r.d), or nullptr
   const minsn_t *hexapi find_ins_op(const mop_t **other, mcode_t op=m_nop) const;
   minsn_t *find_ins_op(mop_t **other, mcode_t op=m_nop) { return CONST_CAST(minsn_t*)((CONST_CAST(const minsn_t*)(this))->find_ins_op((const mop_t**)other, op)); }
 
-  /// Find a numeric operand of the current instruction.
+  /// Find a numeric operand of the current instruction (operand with t == mop_n).
   /// This function checks only the 'l' and 'r' operands of the current insn.
-  /// \param[out] other pointer to the other operand
+  /// It replaces the common pattern:
+  /// \code
+  ///   for ( int side = 0; side < 2; side++ )
+  ///   {
+  ///     mop_t *op = side == 0 ? &m->l : &m->r;
+  ///     if ( op->t == mop_n )
+  ///     {
+  ///       other = side == 0 ? &m->r : &m->l;
+  ///       ...
+  ///     }
+  ///   }
+  /// \endcode
+  /// \param[out] other pointer to the other operand. May be nullptr if not needed.
   ///             (&r if we return &l and vice versa)
-  /// \return &l or &r or nullptr
+  /// \return &l or &r, or nullptr if neither operand is numeric
   const mop_t *hexapi find_num_op(const mop_t **other) const;
   mop_t *find_num_op(mop_t **other) { return CONST_CAST(mop_t*)((CONST_CAST(const minsn_t*)(this))->find_num_op((const mop_t**)other)); }
 
@@ -4176,6 +4271,10 @@ public:
   // Retrieve the value assigned to an operand.
   // This function is called for mop_r, mop_S, mop_v, mop_l
   virtual intval64_t get_mop_value(const mop_t &mop) = 0;
+
+  // Handle memory reads and writes
+  virtual intval64_t read_glbmem(ea_t, int) { return {}; }
+  virtual void write_glbmem(ea_t, int, const intval64_t &) {}
 
   // Calculate the operand value.
   // For register/stack/memory/lvar operands get_mop_value() will be called.
@@ -4675,6 +4774,11 @@ public:
         && get_reginsn_qty() == 1
         && is_mcode_convertible_to_set(tail->opcode);
   }
+
+  /// Undefine registers spoiled by the instruction m (insert new 'und' instruction for them, after 'm').
+  /// This is useful after replacing a call instruction with a different instruction.
+  void hexapi undef_spoiled_regs(minsn_t *m);
+
 };
 //-------------------------------------------------------------------------
 /// Warning ids
@@ -4738,6 +4842,9 @@ enum warnid_t
   WARN_SUBFRAME_OVERFLOW, ///< 55 call arguments overflow the function chunk frame
   WARN_OPT_VALRNG4,   ///< 56 the cases %s were optimized away because %s
   WARN_FRAME_ACCESS,  ///< 57 illegal frame access
+  WARN_BAD_EHINFO,    ///< 58 inconsistent exception info
+  WARN_INCOMPAT_TYPE, ///< 59 incompatible types for '%s': expected %s but encountered %s
+  WARN_DALVIK_ENUM,   ///< 60 could not fully analyze enum <clinit>; constant order or bodies may be incomplete
   WARN_MAX,           ///< may be used in notes as a placeholder when the
                       ///< warning id is not available
 };
@@ -4780,6 +4887,75 @@ enum mba_maturity_t
   MMAT_LVARS,        ///< allocated local variables
 };
 
+/// Microinstruction locator.
+/// Identifies a specific microinstruction in the microcode.
+struct minsn_locator_t
+{
+public:
+  ea_t ea;                      ///< address of the minsn
+  mcode_t mcode;                ///< opcode of the minsn
+  int serial;                   ///< serial number, in case the ea/mcode are ambiguous
+  int blknum;                   ///< block number of the minsn
+  minsn_locator_t(ea_t _ea=BADADDR, mcode_t _mcode=m_nop, int _serial=0, int _blknum=-1)
+    : ea(_ea), mcode(_mcode), serial(_serial), blknum(_blknum) {}
+  DECLARE_COMPARISONS(minsn_locator_t)
+  {
+    COMPARE_FIELDS(ea);
+    COMPARE_FIELDS(mcode);
+    COMPARE_FIELDS(serial);
+    COMPARE_FIELDS(blknum);
+    return 0;
+  }
+  HEXRAYS_MEMORY_ALLOCATION_FUNCS()
+};
+DECLARE_TYPE_AS_MOVABLE(minsn_locator_t);
+
+/// User microinstruction action types
+enum user_minsn_action_t
+{
+  UMA_DEL, ///< delete the instruction
+  UMA_INS, ///< insert the instruction before the current
+  UMA_APP, ///< insert the instruction after the current
+  UMA_MAX,
+};
+
+/// User-defined microinstruction action.
+/// Represents a user modification to the microcode: deletion, insertion,
+/// or appending of a microinstruction at a specific location.
+struct user_minsn_t
+{
+  minsn_locator_t loc;                    ///< location of the target microinstruction
+  minsn_t ins = minsn_t(BADADDR);        ///< instruction to insert (for UMA_INS/UMA_APP)
+  user_minsn_action_t action = UMA_DEL;  ///< action type
+  /// Does this action add a new instruction?
+  bool marked_for_addition() const { return action != UMA_DEL; }
+  DECLARE_COMPARISONS(user_minsn_t);
+};
+DECLARE_TYPE_AS_MOVABLE(user_minsn_t);
+
+//-------------------------------------------------------------------------
+/// Add a user-defined microinstruction action.
+/// This is a standalone version that loads user minsns from the database,
+/// adds the action, and saves back. Use it when an mba_t is not available.
+/// \param entry_ea entry address of the function
+/// \param uins user minsn to add (includes location, action, and instruction)
+/// \param mmat maturity level to add the action to
+void hexapi add_user_minsn(ea_t entry_ea, const user_minsn_t &uins, mba_maturity_t mmat);
+
+/// Delete a user-defined microinstruction action.
+/// This is a standalone version that loads user minsns from the database,
+/// deletes the action, and saves back. Use it when an mba_t is not available.
+/// \param entry_ea entry address of the function
+/// \param loc location of the target microinstruction
+/// \param action action type to delete (UMA_DEL, UMA_INS, or UMA_APP)
+/// \param mmat maturity level to delete the action from
+/// \return true if the action was found and deleted
+bool hexapi del_user_minsn(
+        ea_t entry_ea,
+        const minsn_locator_t &loc,
+        user_minsn_action_t action,
+        mba_maturity_t mmat);
+
 //-------------------------------------------------------------------------
 enum memreg_index_t  ///< memory region types
 {
@@ -4793,6 +4969,7 @@ enum memreg_index_t  ///< memory region types
 
 //-------------------------------------------------------------------------
 /// Ranges to decompile. Either a function or an explicit vector of ranges.
+/// \deprecated Use decomp_ranges_t for safer access.
 struct mba_ranges_t
 {
   func_t *pfn = nullptr; ///< function to decompile. if not null, then function mode.
@@ -4807,9 +4984,32 @@ struct mba_ranges_t
   bool hexapi range_contains(ea_t ea) const;
   bool is_fragmented() const
   {
-    int n_frags = ranges.size();
+    size_t n_frags = ranges.size();
     if ( pfn != nullptr )
       n_frags += pfn->tailqty + 1;
+    return n_frags > 1;
+  }
+};
+
+//-------------------------------------------------------------------------
+/// Ranges to decompile. Either a function or an explicit vector of ranges.
+struct decomp_ranges_t
+{
+  ea_t func_ea = BADADDR; ///< function to decompile. if not BADADDR, then function mode.
+  rangevec_t ranges;      ///< snippet mode: ranges to decompile.
+                          ///< function mode: list of outlined ranges
+  decomp_ranges_t(ea_t _func_ea=BADADDR) : func_ea(get_func_start(_func_ea)) {}
+  decomp_ranges_t(const rangevec_t &r) : ranges(r) {}
+  ea_t start() const { return (func_ea != BADADDR ? func_ea : ranges[0]).start_ea; }
+  bool empty() const { return func_ea == BADADDR && ranges.empty(); }
+  void clear() { func_ea = BADADDR; ranges.clear(); }
+  bool is_snippet() const { return func_ea == BADADDR; }
+  bool hexapi range_contains(ea_t ea) const;
+  bool is_fragmented() const
+  {
+    size_t n_frags = ranges.size();
+    if ( func_ea != BADADDR )
+      n_frags += get_func_tail_qty(func_ea) + 1;
     return n_frags > 1;
   }
 };
@@ -4826,6 +5026,9 @@ struct range_item_iterator_t
 };
 
 /// Item iterator for mba_ranges_t
+/// \deprecated Use decomp_item_iterator_t for safer access.
+GCC_DIAG_OFF(deprecated-declarations)
+MSC_DIAG_OFF(4996)  // uses deprecated func_item_iterator_t
 struct mba_item_iterator_t
 {
   range_item_iterator_t rii;
@@ -4862,6 +5065,46 @@ struct mba_item_iterator_t
     return func_items_done ? rii.current() : fii.current();
   }
 };
+MSC_DIAG_ON(4996)
+GCC_DIAG_ON(deprecated-declarations)
+
+/// Item iterator for decomp_ranges_t
+struct decomp_item_iterator_t
+{
+  range_item_iterator_t rii;
+  function_item_iterator_t fii;
+  bool func_items_done = true;
+  bool set(const decomp_ranges_t &dcr)
+  {
+    bool ok = false;
+    if ( dcr.func_ea != BADADDR )
+    {
+      ok = fii.set(dcr.func_ea);
+      if ( ok )
+        func_items_done = false;
+    }
+    if ( rii.set(dcr.ranges) )
+      ok = true;
+    return ok;
+  }
+  bool next_code()
+  {
+    bool ok = false;
+    if ( !func_items_done )
+    {
+      ok = fii.next_code();
+      if ( !ok )
+        func_items_done = true;
+    }
+    if ( !ok )
+      ok = rii.next_code();
+    return ok;
+  }
+  ea_t current() const
+  {
+    return func_items_done ? rii.current() : fii.current();
+  }
+};
 
 /// Chunk iterator of arbitrary rangevec items
 struct range_chunk_iterator_t
@@ -4874,6 +5117,9 @@ struct range_chunk_iterator_t
 };
 
 /// Chunk iterator for mba_ranges_t
+/// \deprecated Use decomp_range_iterator_t for safer access.
+GCC_DIAG_OFF(deprecated-declarations)
+MSC_DIAG_OFF(4996)  // uses deprecated func_tail_iterator_t
 struct mba_range_iterator_t
 {
   range_chunk_iterator_t rii;
@@ -4896,6 +5142,37 @@ struct mba_range_iterator_t
   const range_t &chunk() const
   {
     return is_snippet() ? rii.chunk() : fii.chunk();
+  }
+};
+MSC_DIAG_ON(4996)
+GCC_DIAG_ON(deprecated-declarations)
+
+/// Chunk iterator for decomp_ranges_t
+struct decomp_range_iterator_t
+{
+  range_chunk_iterator_t rii;
+  function_tail_iterator_t fii;     // this is used if rii.rptr==nullptr
+  bool is_snippet() const { return rii.rptr != nullptr; }
+  bool set(const decomp_ranges_t &dcr)
+  {
+    if ( dcr.is_snippet() )
+      return rii.set(dcr.ranges);
+    else
+      return fii.set(dcr.func_ea);
+  }
+  bool next()
+  {
+    if ( is_snippet() )
+      return rii.next();
+    else
+      return fii.next();
+  }
+  void chunk(range_t *out) const
+  {
+    if ( is_snippet() )
+      *out = rii.chunk();
+    else
+      fii.chunk(out);
   }
 };
 
@@ -5085,8 +5362,8 @@ public:
   static vdloc_t hexapi idaloc2vd(const argloc_t &loc, int width, sval_t spd);
   vdloc_t hexapi idaloc2vd(const argloc_t &loc, int width) const;
 
-  static argloc_t hexapi vd2idaloc(const vdloc_t &loc, int width, sval_t spd);
-  argloc_t hexapi vd2idaloc(const vdloc_t &loc, int width) const;
+  static argloc_t hexapi vd2idaloc(const vdloc_t &loc, size_t width, sval_t spd);
+  argloc_t hexapi vd2idaloc(const vdloc_t &loc, size_t width) const;
 
   bool is_stkarg(const lvar_t &v) const
   {
@@ -5188,10 +5465,12 @@ public:
   ~mba_t() { term(); }
   HEXRAYS_MEMORY_ALLOCATION_FUNCS()
   void hexapi term();
+  /// \deprecated
   func_t *hexapi get_curfunc() const;
+  const decomp_ranges_t &hexapi get_decomp_ranges() const;
   bool use_frame() const { return get_curfunc() != nullptr; }
-  bool range_contains(ea_t ea) const { return mbr.range_contains(map_fict_ea(ea)); }
-  bool is_snippet() const { return mbr.is_snippet(); }
+  bool range_contains(ea_t ea) const { return get_decomp_ranges().range_contains(map_fict_ea(ea)); }
+  bool is_snippet() const { return get_decomp_ranges().is_snippet(); }
 
   /// Set maturity level.
   /// \param mat new maturity level
@@ -5400,8 +5679,8 @@ public:
 
   /// Get input argument of the decompiled function.
   /// \param n argument number (0..nargs-1)
-  lvar_t &hexapi arg(int n);
-  const lvar_t &arg(int n) const { return CONST_CAST(mba_t*)(this)->arg(n); }
+  lvar_t &hexapi arg(size_t n);
+  const lvar_t &arg(size_t n) const { return CONST_CAST(mba_t*)(this)->arg(n); }
 
   /// Allocate a fictional address.
   /// This function can be used to allocate a new unique address for a new
@@ -5440,6 +5719,22 @@ public:
   const ivl_t &get_args_region() const;
   ivl_t get_stack_region() const; // get entire stack region
 
+  /// Get the user-defined number format for an operand.
+  /// \param nf  output: receives the number format if one is set
+  /// \param loc operand locator (insn ea + opnum)
+  /// \return true if a format was set and was copied to nf
+  bool hexapi get_numform(number_format_t *nf, const operand_locator_t &loc) const;
+
+  /// Set the user-defined number format for an operand.
+  /// \param loc operand locator
+  /// \param nf  new format
+  void hexapi set_numform(const operand_locator_t &loc, const number_format_t &nf);
+
+  /// Clear the user-defined number format for an operand.
+  /// \param loc operand locator
+  /// \return true if a format was present and removed
+  bool hexapi clr_numform(const operand_locator_t &loc);
+
   /// Serialize mbl array into a sequence of bytes.
   void hexapi serialize(bytevec_t *vout) const;
 
@@ -5469,8 +5764,13 @@ public:
 ///@{
 #define INLINE_EXTFRAME 0x0001 ///< Inlined function has its own (external) frame
 #define INLINE_DONTCOPY 0x0002 ///< Do not reuse old inlined copy even if it exists
+#define INLINE_NORETADDR 0x0004 ///< The inlining call does not push/consume a
+                                ///< return address (e.g. an exception funclet
+                                ///< spliced into the CFG). Do not reserve a
+                                ///< return slot in the external subframe.
 ///@}
-  /// Inline a range.
+  /// Inline a range. \deprecated Use #inline_function(), which takes
+  /// \ref decomp_ranges_t instead of the deprecated \ref mba_ranges_t.
   /// This function may be called only during the initial microcode generation phase.
   /// \param cdg the codegenerator object
   /// \param blknum the block contaning the call/jump instruction to inline
@@ -5481,16 +5781,50 @@ public:
   /// \param decomp_flags combination of \ref DECOMP_ bits
   /// \param inline_flags combination of \ref INLINE_ bits
   /// \return error code
-  merror_t hexapi inline_func(
+  DEPRECATED merror_t hexapi inline_func(
         codegen_t &cdg,
         int blknum,
         mba_ranges_t &ranges,
         int decomp_flags=0,
         int inline_flags=0);
 
+  /// Inline a range (ea-based variant). Replaces the deprecated
+  /// #inline_func() which accepts the legacy \ref mba_ranges_t.
+  /// This function may be called only during the initial microcode generation phase.
+  /// \param cdg the codegenerator object
+  /// \param blknum the block contaning the call/jump instruction to inline
+  /// \param ranges the set of ranges to inline. in the case of multiple calls
+  ///               to inline_function(), ranges will be compared using their start
+  ///               addresses. if two ranges have the same address, they will be
+  ///               considered the same.
+  /// \param decomp_flags combination of \ref DECOMP_ bits
+  /// \param inline_flags combination of \ref INLINE_ bits
+  /// \return error code
+  merror_t hexapi inline_function(
+        codegen_t &cdg,
+        int blknum,
+        decomp_ranges_t &ranges,
+        int decomp_flags=0,
+        int inline_flags=0);
+
   // Find a sp change point.
   // returns stkpnt p, where p->ea <= ea
   const stkpnt_t *hexapi locate_stkpnt(ea_t ea) const;
+
+  /// Add a user-defined microinstruction action.
+  /// \param uins user minsn to add (includes location, action, and instruction)
+  /// \param mmat maturity level
+  void hexapi add_user_minsn(const user_minsn_t &uins, mba_maturity_t mmat);
+
+  /// Delete a user-defined microinstruction action.
+  /// \param loc location of the target microinstruction
+  /// \param action action type to delete (UMA_DEL, UMA_INS, or UMA_APP)
+  /// \param mmat maturity level;
+  /// \return true if the action was found and deleted
+  bool hexapi del_user_minsn(
+        const minsn_locator_t &loc,
+        user_minsn_action_t action,
+        mba_maturity_t mmat);
 
   bool hexapi set_lvar_name(lvar_t &v, const char *name, int flagbits);
   bool set_nice_lvar_name(lvar_t &v, const char *name) { return set_lvar_name(v, name, CVAR_NAME); }
@@ -5537,6 +5871,13 @@ class mbl_graph_t : public simple_graph_t
   int dirty = GC_DIRTY_ALL; ///< what kinds of use-def chains are dirty?
   int chain_stamp = 0; ///< we increment this counter each time chains are recalculated
   graph_chains_t gcs[2*GC_END]; ///< cached use-def chains
+
+  /// Initially, for data flow analysis, we ignore never jumping edges.
+  /// For example, the ROLE_EH_TRY and ROLE_EH_WIND functions always return
+  /// true, so the 'false' edge is never taken (in fact, all ROLE_EH_...
+  /// functions return true).
+  /// Later, for structural analysis, we stop ignoring these edges, in order
+  /// to form nice "try {} catch {}" blocks.
   bool exclude_never_jumping_edges = true;
 
   /// Is LIST accessed between two instructions?
@@ -5655,7 +5996,7 @@ public:
   /// \param reachable bitmap of reachable blocks
   /// \return error code
   virtual merror_t idaapi analyze_prolog(
-        const class qflow_chart_t &fc,
+        const class qflow_chart_ea_t &fc,
         const class bitset_t &reachable) = 0;
 
   /// Generate microcode for one instruction.
@@ -5701,6 +6042,15 @@ public:
   //                  (nullptr if no instruction was generated)
   /// \return success
   virtual bool idaapi store_operand(int n, const mop_t &mop, int flags=0, minsn_t **outins=nullptr);
+
+  /// \retval true   the switch will be handled in the standard way
+  /// \retval false  the switch will be handled by the processor submodule
+  virtual bool idaapi should_handle_switch(
+        [[maybe_unused]] ea_t ea,
+        [[maybe_unused]] const switch_info_t &si) const
+  {
+    return true;
+  }
 
   /// Emit one microinstruction.
   /// The L, R, D arguments usually mean the register number. However, they depend
@@ -6192,7 +6542,7 @@ struct cnumber_t
   /// \param v new value
   /// \param nbytes size of the new value in bytes
   /// \param sign sign of the value
-  void hexapi assign(uint64 v, int nbytes, type_sign_t sign);
+  void hexapi assign(uint64 v, size_t nbytes, type_sign_t sign);
 
   HEXRAYS_MEMORY_ALLOCATION_FUNCS()
   DECLARE_COMPARISONS(cnumber_t);
@@ -6324,6 +6674,9 @@ public:
 // citem_t::iflags are attached to (ea,op) pairs
 typedef qmap<citem_locator_t, int32> user_iflags_t;
 
+// user-defined casts
+typedef qmap<citem_locator_t, tinfo_t> user_casts_t;
+
 // union field selections
 // they are represented as a vector of integers. each integer represents the
 // number of union field (0 means the first union field, etc)
@@ -6443,7 +6796,8 @@ struct cexpr_t : public citem_t
 #define EXFL_UNDEF   0x0040 ///< expression uses undefined value
 #define EXFL_JUMPOUT 0x0080 ///< jump out-of-function
 #define EXFL_VFTABLE 0x0100 ///< is ptr to vftable (used for \ref cot_memptr, \ref cot_memref)
-#define EXFL_ALL     0x01FF ///< all currently defined bits
+#define EXFL_UCAST   0x0200 ///< user-defined cast, not to be removed by CPA
+#define EXFL_ALL     0x03FF ///< all currently defined bits
 ///@}
   /// Pointer arithmetic correction done for this expression?
   bool cpadone() const         { return (exflags & EXFL_CPADONE) != 0; }
@@ -6454,10 +6808,12 @@ struct cexpr_t : public citem_t
   bool is_undef_val() const    { return (exflags & EXFL_UNDEF) != 0; }
   bool is_jumpout() const      { return (exflags & EXFL_JUMPOUT) != 0; }
   bool is_vftable() const      { return (exflags & EXFL_VFTABLE) != 0; }
+  bool is_user_cast() const    { return (exflags & EXFL_UCAST) != 0; }
 
 
   void set_cpadone()      { exflags |= EXFL_CPADONE; }
   void set_vftable()      { exflags |= EXFL_VFTABLE; }
+  void set_user_cast()    { exflags |= EXFL_UCAST; }
   void set_type_partial(bool val = true)
   {
     if ( val )
@@ -6501,7 +6857,7 @@ struct cexpr_t : public citem_t
   /// \param value number value
   /// \param nbytes size of the number in bytes
   /// \param sign number sign
-  void hexapi put_number(cfunc_t *func, uint64 value, int nbytes, type_sign_t sign=no_sign);
+  void hexapi put_number(cfunc_t *func, uint64 value, size_t nbytes, type_sign_t sign=no_sign);
 
   /// Print expression into one line.
   /// \param vout output buffer
@@ -6865,6 +7221,7 @@ typedef qlist<cinsn_t> cinsn_list_t;
 struct cblock_t : public cinsn_list_t // we need list to be able to manipulate
 {                                     // its elements freely
   DECLARE_COMPARISONS(cblock_t);
+  bool is_ordinary_flow() const;
 };
 
 /// Function argument
@@ -6892,6 +7249,7 @@ struct carglist_t : public qvector<carg_t>
 #define CFL_FINAL   0x0001  ///< call type is final, should not be changed
 #define CFL_HELPER  0x0002  ///< created from a decompiler helper function
 #define CFL_NORET   0x0004  ///< call does not return
+  funcrole_t role = ROLE_UNK; ///< function role (propagated from microcode)
   carglist_t() {}
   carglist_t(const tinfo_t &ftype, int fl = 0) : functype(ftype), flags(fl) {}
   DECLARE_COMPARISONS(carglist_t);
@@ -6940,7 +7298,10 @@ struct catchexpr_t
     obj.swap(r.obj);
     fake_type.swap(r.fake_type);
   }
-  bool is_catch_all() const { return obj.op == cot_empty && fake_type.empty(); }
+  bool is_finally() const { return obj.op == cot_empty && fake_type.empty(); }
+  bool is_catch_all() const { return fake_type == "..."; }
+  void convert_to_catch_all() { obj.cleanup(); fake_type = "..."; }
+  void convert_to_finally() { obj.cleanup(); fake_type.clear(); }
 };
 DECLARE_TYPE_AS_MOVABLE(catchexpr_t);
 typedef qvector<catchexpr_t> catchexprs_t;
@@ -6950,7 +7311,10 @@ struct ccatch_t : public cblock_t
 {
   catchexprs_t exprs;
   DECLARE_COMPARISONS(ccatch_t);
-  bool is_catch_all() const { return exprs.empty(); }
+  bool is_catch_all() const { return exprs.size() == 1 && exprs.front().is_catch_all(); }
+  bool is_finally() const { return exprs.size() == 1 && exprs.front().is_finally(); }
+  void convert_to_catch_all() { exprs.resize(1); exprs.front().convert_to_catch_all(); }
+  void convert_to_finally() { exprs.resize(1); exprs.front().convert_to_finally(); }
   void swap(ccatch_t &r)
   {
     exprs.swap(r.exprs);
@@ -6964,10 +7328,14 @@ typedef qvector<ccatch_t> ccatchvec_t;
 /// This structure is also used to represent wind statements.
 struct ctry_t : public cblock_t
 {
-  ccatchvec_t catchs;   ///< "catch all", if present, must be the last element.
-                        ///< wind-statements must have "catch all" and nothing else.
+  ccatchvec_t catchs;   ///< "catch all" or "finally" if present, must be the last element.
+                        ///< wind-statements must have "finally" and nothing else.
   size_t old_state = 0; ///< old state number (internal, MSVC related)
   size_t new_state = 0; ///< new state number (internal, MSVC related)
+
+  int flags = 0;
+#define CTRY_WIND 0x0001 // is a wind statement? otherwise try/catch
+#define CTRY_SYNC 0x0002 // is a synchronized block (dalvik)
 
   /// Is C++ wind statement? (not part of the C++ language)
   /// MSVC generates code like the following to keep track of constructed
@@ -6987,7 +7355,20 @@ struct ctry_t : public cblock_t
   /// }
   /// // regular logic continues here, if there were no exceptions
   /// // also the object's destructor is called
-  bool is_wind = false; // if false, then try/catch
+  bool is_wind() const { return (flags & CTRY_WIND) != 0; }
+
+  /// Is a synchronized block?
+  /// Such a block matches this pattern:
+  /// __monitor_enter__(obj);
+  /// try
+  /// {
+  ///   ...
+  /// }
+  /// finally
+  /// {
+  ///   __monitor_exit__(obj);
+  /// }
+  bool is_synchronized_block() const { return (flags & CTRY_SYNC) != 0; }
 
   DECLARE_COMPARISONS(ctry_t);
   void print(const citem_t *parent, int indent, vc_printer_t &vp) const;
@@ -7382,7 +7763,7 @@ cexpr_t *hexapi make_ref(cexpr_t *e);
 /// \param is_flt dereferencing for floating point access?
 /// \return dereferenced expression
 
-cexpr_t *hexapi dereference(cexpr_t *e, int ptrsize, bool is_flt=false);
+cexpr_t *hexapi dereference(cexpr_t *e, size_t ptrsize, bool is_flt=false);
 
 
 /// Save user defined labels into the database.
@@ -7422,6 +7803,21 @@ void hexapi save_user_iflags(ea_t func_ea, const user_iflags_t *iflags);
 /// \param unions collection of union field selections
 
 void hexapi save_user_unions(ea_t func_ea, const user_unions_t *unions);
+
+
+/// Save user defined casts into the database.
+/// \param func_ea the entry address of the function
+/// \param casts collection of user defined casts
+
+void hexapi save_user_casts(ea_t func_ea, const user_casts_t *casts);
+
+
+/// Restore user defined casts from the database.
+/// \param func_ea the entry address of the function
+/// \return collection of user defined casts.
+///         The returned object must be deleted by the caller using delete
+
+user_casts_t *hexapi restore_user_casts(ea_t func_ea);
 
 
 /// Restore user defined labels from the database.
@@ -7490,7 +7886,10 @@ struct cfunc_t
   user_unions_t *user_unions;///< user-defined union field selections.
 /// \defgroup CIT_ ctree item iflags bits
 ///@{
-#define CIT_COLLAPSED 0x0001 ///< display ctree item in collapsed form
+#define CIT_COLLAPSED      0x0001 ///< display ctree item in collapsed form
+#define CIT_INVERTED       0x0002 ///< if-statement condition is inverted (then/else swapped)
+#define CIT_THEN_COLLAPSED 0x0004 ///< display then-branch in collapsed form
+#define CIT_ELSE_COLLAPSED 0x0008 ///< display else-branch in collapsed form
 ///@}
   int refcnt;                ///< reference count to this object. use cfuncptr_t
   int statebits;             ///< current cfunc_t state. see \ref CFS_
@@ -7504,6 +7903,7 @@ struct cfunc_t
   strvec_t sv;               ///< decompilation output: function text. use \ref get_pseudocode
   int hdrlines;              ///< number of lines in the declaration area
   mutable citem_pointers_t treeitems; ///< vector of pointers to citem_t objects (nodes constituting the ctree)
+  user_casts_t *user_casts;     ///< user-defined casts.
 
   // the exact size of this class is not documented, there may be more fields
   char reserved[];
@@ -7562,6 +7962,13 @@ public:
   /// removes the unused ones. You must call it after deleting a goto statement.
   void hexapi remove_unused_labels();
 
+  /// Redirect all gotos targeting one label to another.
+  /// This function walks the entire ctree and changes all goto statements
+  /// that target \p from to target \p to instead.
+  /// \param from source label number
+  /// \param to target label number
+  void hexapi redirect_gotos(int from, int to);
+
   /// Retrieve a user defined comment.
   /// \param loc ctree location
   /// \param rt should already retrieved comments retrieved again?
@@ -7614,6 +8021,13 @@ public:
   void hexapi save_user_iflags() const;
   /// Save user-defined union field selections into the database
   void hexapi save_user_unions() const;
+  /// Save user-defined casts into the database
+  void hexapi save_user_casts() const;
+
+  /// Retrieve a user-defined cast.
+  tinfo_t hexapi get_user_cast(const citem_locator_t &loc) const;
+  /// Set a user-defined cast.
+  void hexapi set_user_cast(const citem_locator_t &loc, const tinfo_t &type);
 
   /// Get ctree item for the specified cursor position.
   /// \return false if failed to get the current item
@@ -7662,6 +8076,12 @@ public:
 
   bool hexapi gather_derefs(const ctree_item_t &ci, udt_type_data_t *udm=nullptr) const;
   bool hexapi find_item_coords(const citem_t *item, int *px, int *py);
+
+  /// Find the closest addressable ancestor of an item.
+  /// Try to locate the closest address to the citem_t \p i walking the tree and
+  /// taking the most immediate parent with an address.
+  /// \return the closest addressable item, or \p i itself if none was found
+  const citem_t *hexapi find_addressable_item(const citem_t *i) const;
   bool locked() const { return (statebits & CFS_LOCKED) != 0; }
   /// Serialize cfunc into a sequence of bytes.
   bool hexapi serialize(bytevec_t *vout);
@@ -7714,9 +8134,24 @@ void hexapi close_hexrays_waitbox();
 /// \param decomp_flags bitwise combination of \ref DECOMP_... bits
 /// \return pointer to the decompilation result (a reference counted pointer).
 ///         nullptr if failed.
+/// \deprecated Use the decompile() overload that takes \ref decomp_ranges_t.
+
+DEPRECATED cfuncptr_t hexapi decompile(
+        const mba_ranges_t &mbr,
+        hexrays_failure_t *hf=nullptr,
+        int decomp_flags=0);
+
+
+/// Decompile a snippet or a function (ea-based variant).
+/// Replaces the deprecated decompile() which takes \ref mba_ranges_t.
+/// \param dcr          what to decompile
+/// \param hf           extended error information (if failed)
+/// \param decomp_flags bitwise combination of \ref DECOMP_... bits
+/// \return pointer to the decompilation result (a reference counted pointer).
+///         nullptr if failed.
 
 cfuncptr_t hexapi decompile(
-        const mba_ranges_t &mbr,
+        const decomp_ranges_t &dcr,
         hexrays_failure_t *hf=nullptr,
         int decomp_flags=0);
 
@@ -7728,14 +8163,19 @@ cfuncptr_t hexapi decompile(
 /// \param decomp_flags bitwise combination of \ref DECOMP_... bits
 /// \return pointer to the decompilation result (a reference counted pointer).
 ///         nullptr if failed.
+/// \deprecated Use decompile_function(), which takes the function's start ea.
 
-inline cfuncptr_t decompile_func(
+DEPRECATED inline cfuncptr_t decompile_func(
         func_t *pfn,
         hexrays_failure_t *hf=nullptr,
         int decomp_flags=0)
 {
+  GCC_DIAG_OFF(deprecated-declarations)
+  MSC_DIAG_OFF(4996)  // was declared deprecated
   mba_ranges_t mbr(pfn);
   return decompile(mbr, hf, decomp_flags);
+  MSC_DIAG_ON(4996)
+  GCC_DIAG_ON(deprecated-declarations)
 }
 
 
@@ -7751,8 +8191,29 @@ inline cfuncptr_t decompile_snippet(
         hexrays_failure_t *hf=nullptr,
         int decomp_flags=0)
 {
-  mba_ranges_t mbr(ranges);
-  return decompile(mbr, hf, decomp_flags);
+  decomp_ranges_t dcr(ranges);
+  return decompile(dcr, hf, decomp_flags);
+}
+
+
+
+
+/// Decompile a function (ea-based variant).
+/// Multiple decompilations of the same function return the same object.
+/// Replaces the deprecated decompile_func(func_t *).
+/// \param func_ea start address of the function to decompile
+/// \param hf      extended error information (if failed)
+/// \param decomp_flags bitwise combination of \ref DECOMP_... bits
+/// \return pointer to the decompilation result (a reference counted pointer).
+///         nullptr if failed.
+
+inline cfuncptr_t decompile_function(
+        ea_t func_ea,
+        hexrays_failure_t *hf=nullptr,
+        int decomp_flags=0)
+{
+  decomp_ranges_t dcr(func_ea);
+  return decompile(dcr, hf, decomp_flags);
 }
 
 
@@ -7763,20 +8224,51 @@ inline cfuncptr_t decompile_snippet(
 /// \param decomp_flags bitwise combination of \ref DECOMP_... bits
 /// \param reqmat       required microcode maturity
 /// \return pointer to  the microcode, nullptr if failed.
+/// \deprecated Use the gen_microcode() overload that takes \ref decomp_ranges_t.
 
-mba_t *hexapi gen_microcode(
+DEPRECATED mba_t *hexapi gen_microcode(
         const mba_ranges_t &mbr,
         hexrays_failure_t *hf=nullptr,
         const mlist_t *retlist=nullptr,
         int decomp_flags=0,
         mba_maturity_t reqmat=MMAT_GLBOPT3);
 
+/// Generate microcode of an arbitrary code snippet (ea-based variant).
+/// Replaces the deprecated gen_microcode() which takes \ref mba_ranges_t.
+/// \param dcr          snippet ranges
+/// \param hf           extended error information (if failed)
+/// \param retlist      list of registers the snippet returns
+/// \param decomp_flags bitwise combination of \ref DECOMP_... bits
+/// \param reqmat       required microcode maturity
+/// \return pointer to  the microcode, nullptr if failed.
+
+mba_t *hexapi gen_microcode(
+        const decomp_ranges_t &dcr,
+        hexrays_failure_t *hf=nullptr,
+        const mlist_t *retlist=nullptr,
+        int decomp_flags=0,
+        mba_maturity_t reqmat=MMAT_GLBOPT3);
+
 /// Create an empty microcode object
-inline mba_t *create_empty_mba(
+/// \deprecated Use the create_empty_mba() overload that takes \ref decomp_ranges_t.
+DEPRECATED inline mba_t *create_empty_mba(
         const mba_ranges_t &mbr,
         hexrays_failure_t *hf=nullptr)
 {
+  GCC_DIAG_OFF(deprecated-declarations)
+  MSC_DIAG_OFF(4996)  // was declared deprecated
   return gen_microcode(mbr, hf, nullptr, DECOMP_VOID_MBA);
+  MSC_DIAG_ON(4996)
+  GCC_DIAG_ON(deprecated-declarations)
+}
+
+/// Create an empty microcode object (ea-based variant).
+/// Replaces the deprecated create_empty_mba() which takes \ref mba_ranges_t.
+inline mba_t *create_empty_mba(
+        const decomp_ranges_t &dcr,
+        hexrays_failure_t *hf=nullptr)
+{
+  return gen_microcode(dcr, hf, nullptr, DECOMP_VOID_MBA);
 }
 
 
@@ -7804,6 +8296,12 @@ void hexapi clear_cached_cfuncs();
 /// Do we have a cached decompilation result for 'ea'?
 
 bool hexapi has_cached_cfunc(ea_t ea);
+
+
+/// Return the start EAs of all cached cfunc_t objects.
+/// \param out  receives one EA per cached cfunc_t
+
+void hexapi get_cached_cfunc_eas(eavec_t *out);
 
 //--------------------------------------------------------------------------
 // Now cinsn_t class is defined, define the cleanup functions:
@@ -7856,6 +8354,11 @@ inline citem_locator_t::citem_locator_t(const citem_t *i)
 {
 }
 
+inline bool cblock_t::is_ordinary_flow() const
+{
+  return empty() || back().is_ordinary_flow();
+}
+
 const char *hexapi get_ctype_name(ctype_t op);
 qstring hexapi create_field_name(const tinfo_t &type, uval_t offset=BADADDR);
 typedef void *hexdsp_t(int code, ...);
@@ -7869,8 +8372,9 @@ enum hexrays_event_t ENUM_SIZE(int)
 {
   // When a function is decompiled, the following events occur:
 
-  hxe_flowchart,        ///< Flowchart has been generated.
-                        ///< \param fc (qflow_chart_t *)
+  hxe_flowchart,        ///< Flowchart has been generated. \deprecated Use
+                        ///< #hxe_flowchart_ea (ea-based, no func_t*).
+                        ///< \param fc (const qflow_chart_t *)
                         ///< \param mba (mba_t *)
                         ///< \param reachable_blocks (bitset_t *)
                         ///< \param decomp_flags (int)
@@ -7882,9 +8386,10 @@ enum hexrays_event_t ENUM_SIZE(int)
                         ///< \return \ref MERR_
                         ///< This event is generated for each inlined range as well.
 
-  hxe_prolog,           ///< Prolog analysis has been finished.
+  hxe_prolog,           ///< Prolog analysis has been finished. \deprecated Use
+                        ///< #hxe_prolog_ea (ea-based, no func_t*).
                         ///< \param mba (mba_t *)
-                        ///< \param fc (qflow_chart_t *)
+                        ///< \param fc (const qflow_chart_t *)
                         ///< \param reachable_blocks (const bitset_t *)
                         ///< \param decomp_flags (int)
                         ///< \return \ref MERR_
@@ -7975,12 +8480,14 @@ enum hexrays_event_t ENUM_SIZE(int)
                         ///< \return \ref MERR_
                         ///< This is an opportunity to inline other ranges.
 
-  hxe_inlining_func,    ///< A set of ranges is going to be inlined.
+  hxe_inlining_func,    ///< A set of ranges is going to be inlined. \deprecated
+                        ///< Use #hxe_inlining_function (ea-based, no mba_ranges_t).
                         ///< \param cdg (codegen_t *)
                         ///< \param blk (int) the block containing call/jump to inline
                         ///< \param mbr (mba_ranges_t *) the range to inline
 
-  hxe_inlined_func,     ///< A set of ranges got inlined.
+  hxe_inlined_func,     ///< A set of ranges got inlined. \deprecated
+                        ///< Use #hxe_inlined_function (ea-based, no mba_ranges_t).
                         ///< \param cdg (codegen_t *)
                         ///< \param blk (int) the block containing call/jump to inline
                         ///< \param mbr (mba_ranges_t *) the range to inline
@@ -7992,6 +8499,41 @@ enum hexrays_event_t ENUM_SIZE(int)
                         ///< after the user-defined comments.
                         ///< \param warnings (qstrvec_t *)
                         ///< \param cfunc (cfunc_t *)
+
+  hxe_flowchart_ea,     ///< Flowchart has been generated (ea-based variant).
+                        ///< Replaces the deprecated #hxe_flowchart which passes
+                        ///< a qflow_chart_t* with a raw func_t* inside.
+                        ///< \param fc (const qflow_chart_ea_t *)
+                        ///< \param mba (mba_t *)
+                        ///< \param reachable_blocks (bitset_t *)
+                        ///< \param decomp_flags (int)
+                        ///< \return \ref MERR_
+
+  hxe_prolog_ea,        ///< Prolog analysis has been finished (ea-based variant).
+                        ///< Replaces the deprecated #hxe_prolog which passes
+                        ///< a qflow_chart_t* with a raw func_t* inside.
+                        ///< \param mba (mba_t *)
+                        ///< \param fc (const qflow_chart_ea_t *)
+                        ///< \param reachable_blocks (const bitset_t *)
+                        ///< \param decomp_flags (int)
+                        ///< \return \ref MERR_
+                        ///< This event is generated for each inlined range as well.
+
+  hxe_inlining_function,///< A set of ranges is going to be inlined (ea-based variant).
+                        ///< Replaces the deprecated #hxe_inlining_func which passes
+                        ///< an mba_ranges_t* with a raw func_t* inside.
+                        ///< \param cdg (codegen_t *)
+                        ///< \param blk (int) the block containing call/jump to inline
+                        ///< \param dcr (const decomp_ranges_t *) the range to inline
+
+  hxe_inlined_function, ///< A set of ranges got inlined (ea-based variant).
+                        ///< Replaces the deprecated #hxe_inlined_func which passes
+                        ///< an mba_ranges_t* with a raw func_t* inside.
+                        ///< \param cdg (codegen_t *)
+                        ///< \param blk (int) the block containing call/jump to inline
+                        ///< \param dcr (const decomp_ranges_t *) the range to inline
+                        ///< \param i1  (int) blknum of the first inlined block
+                        ///< \param i2  (int) blknum of the last inlined block (excluded)
 
   // User interface related events:
 
@@ -8037,7 +8579,6 @@ enum hexrays_event_t ENUM_SIZE(int)
                         ///< \param vu (vdui_t *)
                         ///< \param hint (qstring *)
                         ///< \param important_lines (int *)
-                        ///< Possible return values:
                         ///< \retval 0 continue collecting hints with other subscribers
                         ///< \retval 1 stop collecting hints
 
@@ -8355,6 +8896,12 @@ struct vdui_t
   /// \return false if failed or cancelled
   /// \param v pointer to local variable
   bool hexapi ui_unmap_lvar(lvar_t *v);
+
+  /// Add a user-defined cast on the current expression.
+  /// This function displays a dialog box and allows the user to enter
+  /// a pointer type for the current expression.
+  /// \return false if failed or cancelled
+  bool hexapi ui_add_cast(cexpr_t *e);
 
   /// Forbid variable propagation.
   /// \return false if failed or cancelled
@@ -9175,6 +9722,43 @@ enum hexcall_t
   hx_cfunc_t_deserialize,
   hx_mblock_t_verify_insn,
   hx_vdui_t_ui_noprop_lvar,
+  hx_save_user_casts,
+  hx_restore_user_casts,
+  hx_user_casts_begin,
+  hx_user_casts_end,
+  hx_user_casts_next,
+  hx_user_casts_prev,
+  hx_user_casts_first,
+  hx_user_casts_second,
+  hx_user_casts_find,
+  hx_user_casts_insert,
+  hx_user_casts_erase,
+  hx_user_casts_clear,
+  hx_user_casts_size,
+  hx_user_casts_free,
+  hx_user_casts_new,
+  hx_cfunc_t_save_user_casts,
+  hx_cfunc_t_set_user_cast,
+  hx_cfunc_t_get_user_cast,
+  hx_vdui_t_ui_add_cast,
+  hx_cfunc_t_redirect_gotos,
+  hx_mba_t_add_user_minsn,
+  hx_mba_t_del_user_minsn,
+  hx_add_user_minsn,
+  hx_del_user_minsn,
+  hx_user_minsn_t_compare,
+  hx_decomp_ranges_t_range_contains,
+  hx_mba_t_get_decomp_ranges,
+  hx_mba_t_inline_function,
+  hx_decompile_,
+  hx_gen_microcode_,
+  hx_mop_t_get_bitwidth,
+  hx_mblock_t_undef_spoiled_regs,
+  hx_mba_t_get_numform,
+  hx_mba_t_set_numform,
+  hx_mba_t_clr_numform,
+  hx_get_cached_cfunc_eas,
+  hx_cfunc_t_find_addressable_item,
 };
 
 typedef size_t iterator_word;
@@ -9740,6 +10324,115 @@ inline void user_iflags_free(user_iflags_t *map)
 inline user_iflags_t *user_iflags_new()
 {
   return (user_iflags_t *)HEXDSP(hx_user_iflags_new);
+}
+
+//-------------------------------------------------------------------------
+struct user_casts_iterator_t
+{
+  iterator_word x;
+  bool operator==(const user_casts_iterator_t &p) const { return x == p.x; }
+  bool operator!=(const user_casts_iterator_t &p) const { return x != p.x; }
+};
+
+//-------------------------------------------------------------------------
+/// Get reference to the current map key
+inline citem_locator_t const &user_casts_first(user_casts_iterator_t p)
+{
+  return *(citem_locator_t *)HEXDSP(hx_user_casts_first, &p);
+}
+
+//-------------------------------------------------------------------------
+/// Get reference to the current map value
+inline tinfo_t &user_casts_second(user_casts_iterator_t p)
+{
+  return *(tinfo_t *)HEXDSP(hx_user_casts_second, &p);
+}
+
+//-------------------------------------------------------------------------
+/// Find the specified key in user_casts_t
+inline user_casts_iterator_t user_casts_find(const user_casts_t *map, const citem_locator_t &key)
+{
+  user_casts_iterator_t p;
+  HEXDSP(hx_user_casts_find, &p, map, &key);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Insert new (citem_locator_t, tinfo_t) pair into user_casts_t
+inline user_casts_iterator_t user_casts_insert(user_casts_t *map, const citem_locator_t &key, const tinfo_t &val)
+{
+  user_casts_iterator_t p;
+  HEXDSP(hx_user_casts_insert, &p, map, &key, &val);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Get iterator pointing to the beginning of user_casts_t
+inline user_casts_iterator_t user_casts_begin(const user_casts_t *map)
+{
+  user_casts_iterator_t p;
+  HEXDSP(hx_user_casts_begin, &p, map);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Get iterator pointing to the end of user_casts_t
+inline user_casts_iterator_t user_casts_end(const user_casts_t *map)
+{
+  user_casts_iterator_t p;
+  HEXDSP(hx_user_casts_end, &p, map);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Move to the next element
+inline user_casts_iterator_t user_casts_next(user_casts_iterator_t p)
+{
+  HEXDSP(hx_user_casts_next, &p);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Move to the previous element
+inline user_casts_iterator_t user_casts_prev(user_casts_iterator_t p)
+{
+  HEXDSP(hx_user_casts_prev, &p);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Erase current element from user_casts_t
+inline void user_casts_erase(user_casts_t *map, user_casts_iterator_t p)
+{
+  HEXDSP(hx_user_casts_erase, map, &p);
+}
+
+//-------------------------------------------------------------------------
+/// Clear user_casts_t
+inline void user_casts_clear(user_casts_t *map)
+{
+  HEXDSP(hx_user_casts_clear, map);
+}
+
+//-------------------------------------------------------------------------
+/// Get size of user_casts_t
+inline size_t user_casts_size(user_casts_t *map)
+{
+  return (size_t)HEXDSP(hx_user_casts_size, map);
+}
+
+//-------------------------------------------------------------------------
+/// Delete user_casts_t instance
+inline void user_casts_free(user_casts_t *map)
+{
+  HEXDSP(hx_user_casts_free, map);
+}
+
+//-------------------------------------------------------------------------
+/// Create a new user_casts_t instance
+inline user_casts_t *user_casts_new()
+{
+  return (user_casts_t *)HEXDSP(hx_user_casts_new);
 }
 
 //-------------------------------------------------------------------------
@@ -10513,7 +11206,7 @@ inline int partial_type_num(const tinfo_t &type)
 }
 
 //--------------------------------------------------------------------------
-inline tinfo_t get_float_type(int width)
+inline tinfo_t get_float_type(size_t width)
 {
   tinfo_t retval;
   HEXDSP(hx_get_float_type, &retval, width);
@@ -10521,7 +11214,7 @@ inline tinfo_t get_float_type(int width)
 }
 
 //--------------------------------------------------------------------------
-inline tinfo_t get_int_type_by_width_and_sign(int srcwidth, type_sign_t sign)
+inline tinfo_t get_int_type_by_width_and_sign(size_t srcwidth, type_sign_t sign)
 {
   tinfo_t retval;
   HEXDSP(hx_get_int_type_by_width_and_sign, &retval, srcwidth, sign);
@@ -10529,7 +11222,7 @@ inline tinfo_t get_int_type_by_width_and_sign(int srcwidth, type_sign_t sign)
 }
 
 //--------------------------------------------------------------------------
-inline tinfo_t get_unk_type(int size)
+inline tinfo_t get_unk_type(size_t size)
 {
   tinfo_t retval;
   HEXDSP(hx_get_unk_type, &retval, size);
@@ -10537,7 +11230,7 @@ inline tinfo_t get_unk_type(int size)
 }
 
 //--------------------------------------------------------------------------
-inline tinfo_t dummy_ptrtype(int ptrsize, bool isfp)
+inline tinfo_t dummy_ptrtype(size_t ptrsize, bool isfp)
 {
   tinfo_t retval;
   HEXDSP(hx_dummy_ptrtype, &retval, ptrsize, isfp);
@@ -10585,7 +11278,7 @@ inline int vdloc_t::compare(const vdloc_t &r) const
 }
 
 //--------------------------------------------------------------------------
-inline bool vdloc_t::is_aliasable(const mba_t *mb, int size) const
+inline bool vdloc_t::is_aliasable(const mba_t *mb, size_t size) const
 {
   return (uchar)(size_t)HEXDSP(hx_vdloc_t_is_aliasable, this, mb, size) != 0;
 }
@@ -10663,7 +11356,7 @@ inline lvar_t *lvars_t::find(const lvar_locator_t &ll)
 }
 
 //--------------------------------------------------------------------------
-inline int lvars_t::find_lvar(const vdloc_t &location, int width, int defblk) const
+inline int lvars_t::find_lvar(const vdloc_t &location, size_t width, int defblk) const
 {
   return (int)(size_t)HEXDSP(hx_lvars_t_find_lvar, this, &location, width, defblk);
 }
@@ -11050,7 +11743,7 @@ inline mreg_t reg2mreg(int reg)
 }
 
 //--------------------------------------------------------------------------
-inline int mreg2reg(mreg_t reg, int width)
+inline int mreg2reg(mreg_t reg, size_t width)
 {
   return (int)(size_t)HEXDSP(hx_mreg2reg, reg, width);
 }
@@ -11271,6 +11964,12 @@ inline bool mop_t::may_use_aliased_memory() const
 inline bool mop_t::is01() const
 {
   return (uchar)(size_t)HEXDSP(hx_mop_t_is01, this) != 0;
+}
+
+//--------------------------------------------------------------------------
+inline int mop_t::get_bitwidth(const mblock_t *blk, const minsn_t *top) const
+{
+  return (int)(size_t)HEXDSP(hx_mop_t_get_bitwidth, this, blk, top);
 }
 
 //--------------------------------------------------------------------------
@@ -11840,9 +12539,39 @@ inline size_t mblock_t::get_reginsn_qty() const
 }
 
 //--------------------------------------------------------------------------
+inline void mblock_t::undef_spoiled_regs(minsn_t *m)
+{
+  HEXDSP(hx_mblock_t_undef_spoiled_regs, this, m);
+}
+
+//--------------------------------------------------------------------------
+inline int user_minsn_t::compare(const user_minsn_t &r) const
+{
+  return (int)(size_t)HEXDSP(hx_user_minsn_t_compare, this, &r);
+}
+
+//--------------------------------------------------------------------------
+inline void add_user_minsn(ea_t entry_ea, const user_minsn_t &uins, mba_maturity_t mmat)
+{
+  HEXDSP(hx_add_user_minsn, entry_ea, &uins, mmat);
+}
+
+//--------------------------------------------------------------------------
+inline bool del_user_minsn(ea_t entry_ea, const minsn_locator_t &loc, user_minsn_action_t action, mba_maturity_t mmat)
+{
+  return (uchar)(size_t)HEXDSP(hx_del_user_minsn, entry_ea, &loc, action, mmat) != 0;
+}
+
+//--------------------------------------------------------------------------
 inline bool mba_ranges_t::range_contains(ea_t ea) const
 {
   return (uchar)(size_t)HEXDSP(hx_mba_ranges_t_range_contains, this, ea) != 0;
+}
+
+//--------------------------------------------------------------------------
+inline bool decomp_ranges_t::range_contains(ea_t ea) const
+{
+  return (uchar)(size_t)HEXDSP(hx_decomp_ranges_t_range_contains, this, ea) != 0;
 }
 
 //--------------------------------------------------------------------------
@@ -11878,7 +12607,7 @@ inline vdloc_t mba_t::idaloc2vd(const argloc_t &loc, int width) const
 }
 
 //--------------------------------------------------------------------------
-inline argloc_t mba_t::vd2idaloc(const vdloc_t &loc, int width, sval_t spd)
+inline argloc_t mba_t::vd2idaloc(const vdloc_t &loc, size_t width, sval_t spd)
 {
   argloc_t retval;
   HEXDSP(hx_mba_t_vd2idaloc, &retval, &loc, width, spd);
@@ -11886,7 +12615,7 @@ inline argloc_t mba_t::vd2idaloc(const vdloc_t &loc, int width, sval_t spd)
 }
 
 //--------------------------------------------------------------------------
-inline argloc_t mba_t::vd2idaloc(const vdloc_t &loc, int width) const
+inline argloc_t mba_t::vd2idaloc(const vdloc_t &loc, size_t width) const
 {
   argloc_t retval;
   HEXDSP(hx_mba_t_vd2idaloc_, &retval, this, &loc, width);
@@ -11903,6 +12632,12 @@ inline void mba_t::term()
 inline func_t *mba_t::get_curfunc() const
 {
   return (func_t *)HEXDSP(hx_mba_t_get_curfunc, this);
+}
+
+//--------------------------------------------------------------------------
+inline const decomp_ranges_t &mba_t::get_decomp_ranges() const
+{
+  return *(const decomp_ranges_t *)HEXDSP(hx_mba_t_get_decomp_ranges, this);
 }
 
 //--------------------------------------------------------------------------
@@ -12056,7 +12791,7 @@ inline void mba_t::get_func_output_lists(mlist_t *return_regs, mlist_t *spoiled,
 }
 
 //--------------------------------------------------------------------------
-inline lvar_t &mba_t::arg(int n)
+inline lvar_t &mba_t::arg(size_t n)
 {
   return *(lvar_t *)HEXDSP(hx_mba_t_arg, this, n);
 }
@@ -12075,6 +12810,24 @@ inline ea_t mba_t::map_fict_ea(ea_t fict_ea) const
   ea_t retval;
   HEXDSP(hx_mba_t_map_fict_ea, &retval, this, fict_ea);
   return retval;
+}
+
+//--------------------------------------------------------------------------
+inline bool mba_t::get_numform(number_format_t *nf, const operand_locator_t &loc) const
+{
+  return (uchar)(size_t)HEXDSP(hx_mba_t_get_numform, this, nf, &loc) != 0;
+}
+
+//--------------------------------------------------------------------------
+inline void mba_t::set_numform(const operand_locator_t &loc, const number_format_t &nf)
+{
+  HEXDSP(hx_mba_t_set_numform, this, &loc, &nf);
+}
+
+//--------------------------------------------------------------------------
+inline bool mba_t::clr_numform(const operand_locator_t &loc)
+{
+  return (uchar)(size_t)HEXDSP(hx_mba_t_clr_numform, this, &loc) != 0;
 }
 
 //--------------------------------------------------------------------------
@@ -12114,9 +12867,27 @@ inline merror_t mba_t::inline_func(codegen_t &cdg, int blknum, mba_ranges_t &ran
 }
 
 //--------------------------------------------------------------------------
+inline merror_t mba_t::inline_function(codegen_t &cdg, int blknum, decomp_ranges_t &ranges, int decomp_flags, int inline_flags)
+{
+  return (merror_t)(size_t)HEXDSP(hx_mba_t_inline_function, this, &cdg, blknum, &ranges, decomp_flags, inline_flags);
+}
+
+//--------------------------------------------------------------------------
 inline const stkpnt_t *mba_t::locate_stkpnt(ea_t ea) const
 {
   return (const stkpnt_t *)HEXDSP(hx_mba_t_locate_stkpnt, this, ea);
+}
+
+//--------------------------------------------------------------------------
+inline void mba_t::add_user_minsn(const user_minsn_t &uins, mba_maturity_t mmat)
+{
+  HEXDSP(hx_mba_t_add_user_minsn, this, &uins, mmat);
+}
+
+//--------------------------------------------------------------------------
+inline bool mba_t::del_user_minsn(const minsn_locator_t &loc, user_minsn_action_t action, mba_maturity_t mmat)
+{
+  return (uchar)(size_t)HEXDSP(hx_mba_t_del_user_minsn, this, &loc, action, mmat) != 0;
 }
 
 //--------------------------------------------------------------------------
@@ -12272,7 +13043,7 @@ inline uint64 cnumber_t::value(const tinfo_t &type) const
 }
 
 //--------------------------------------------------------------------------
-inline void cnumber_t::assign(uint64 v, int nbytes, type_sign_t sign)
+inline void cnumber_t::assign(uint64 v, size_t nbytes, type_sign_t sign)
 {
   HEXDSP(hx_cnumber_t_assign, this, v, nbytes, sign);
 }
@@ -12344,7 +13115,7 @@ inline void cexpr_t::cleanup()
 }
 
 //--------------------------------------------------------------------------
-inline void cexpr_t::put_number(cfunc_t *func, uint64 value, int nbytes, type_sign_t sign)
+inline void cexpr_t::put_number(cfunc_t *func, uint64 value, size_t nbytes, type_sign_t sign)
 {
   HEXDSP(hx_cexpr_t_put_number, this, func, value, nbytes, sign);
 }
@@ -12708,7 +13479,7 @@ inline cexpr_t *make_ref(cexpr_t *e)
 }
 
 //--------------------------------------------------------------------------
-inline cexpr_t *dereference(cexpr_t *e, int ptrsize, bool is_flt)
+inline cexpr_t *dereference(cexpr_t *e, size_t ptrsize, bool is_flt)
 {
   return (cexpr_t *)HEXDSP(hx_dereference, e, ptrsize, is_flt);
 }
@@ -12741,6 +13512,18 @@ inline void save_user_iflags(ea_t func_ea, const user_iflags_t *iflags)
 inline void save_user_unions(ea_t func_ea, const user_unions_t *unions)
 {
   HEXDSP(hx_save_user_unions, func_ea, unions);
+}
+
+//--------------------------------------------------------------------------
+inline void save_user_casts(ea_t func_ea, const user_casts_t *casts)
+{
+  HEXDSP(hx_save_user_casts, func_ea, casts);
+}
+
+//--------------------------------------------------------------------------
+inline user_casts_t *restore_user_casts(ea_t func_ea)
+{
+  return (user_casts_t *)HEXDSP(hx_restore_user_casts, func_ea);
 }
 
 //--------------------------------------------------------------------------
@@ -12830,6 +13613,12 @@ inline void cfunc_t::remove_unused_labels()
 }
 
 //--------------------------------------------------------------------------
+inline void cfunc_t::redirect_gotos(int from, int to)
+{
+  HEXDSP(hx_cfunc_t_redirect_gotos, this, from, to);
+}
+
+//--------------------------------------------------------------------------
 inline const char *cfunc_t::get_user_cmt(const treeloc_t &loc, cmt_retrieval_type_t rt) const
 {
   return (const char *)HEXDSP(hx_cfunc_t_get_user_cmt, this, &loc, rt);
@@ -12908,6 +13697,26 @@ inline void cfunc_t::save_user_unions() const
 }
 
 //--------------------------------------------------------------------------
+inline void cfunc_t::save_user_casts() const
+{
+  HEXDSP(hx_cfunc_t_save_user_casts, this);
+}
+
+//--------------------------------------------------------------------------
+inline tinfo_t cfunc_t::get_user_cast(const citem_locator_t &loc) const
+{
+  tinfo_t retval;
+  HEXDSP(hx_cfunc_t_get_user_cast, &retval, this, &loc);
+  return retval;
+}
+
+//--------------------------------------------------------------------------
+inline void cfunc_t::set_user_cast(const citem_locator_t &loc, const tinfo_t &type)
+{
+  HEXDSP(hx_cfunc_t_set_user_cast, this, &loc, &type);
+}
+
+//--------------------------------------------------------------------------
 inline bool cfunc_t::get_line_item(const char *line, int x, bool is_ctree_line, ctree_item_t *phead, ctree_item_t *pitem, ctree_item_t *ptail)
 {
   return (uchar)(size_t)HEXDSP(hx_cfunc_t_get_line_item, this, line, x, is_ctree_line, phead, pitem, ptail) != 0;
@@ -12962,6 +13771,12 @@ inline bool cfunc_t::find_item_coords(const citem_t *item, int *px, int *py)
 }
 
 //--------------------------------------------------------------------------
+inline const citem_t *cfunc_t::find_addressable_item(const citem_t *i) const
+{
+  return (const citem_t *)HEXDSP(hx_cfunc_t_find_addressable_item, this, i);
+}
+
+//--------------------------------------------------------------------------
 inline bool cfunc_t::serialize(bytevec_t *vout)
 {
   return (uchar)(size_t)HEXDSP(hx_cfunc_t_serialize, this, vout) != 0;
@@ -12992,9 +13807,21 @@ inline cfuncptr_t decompile(const mba_ranges_t &mbr, hexrays_failure_t *hf, int 
 }
 
 //--------------------------------------------------------------------------
+inline cfuncptr_t decompile(const decomp_ranges_t &dcr, hexrays_failure_t *hf, int decomp_flags)
+{
+  return cfuncptr_t((cfunc_t *)HEXDSP(hx_decompile_, &dcr, hf, decomp_flags));
+}
+
+//--------------------------------------------------------------------------
 inline mba_t *gen_microcode(const mba_ranges_t &mbr, hexrays_failure_t *hf, const mlist_t *retlist, int decomp_flags, mba_maturity_t reqmat)
 {
   return (mba_t *)HEXDSP(hx_gen_microcode, &mbr, hf, retlist, decomp_flags, reqmat);
+}
+
+//--------------------------------------------------------------------------
+inline mba_t *gen_microcode(const decomp_ranges_t &dcr, hexrays_failure_t *hf, const mlist_t *retlist, int decomp_flags, mba_maturity_t reqmat)
+{
+  return (mba_t *)HEXDSP(hx_gen_microcode_, &dcr, hf, retlist, decomp_flags, reqmat);
 }
 
 //--------------------------------------------------------------------------
@@ -13019,6 +13846,12 @@ inline void clear_cached_cfuncs()
 inline bool has_cached_cfunc(ea_t ea)
 {
   return (uchar)(size_t)HEXDSP(hx_has_cached_cfunc, ea) != 0;
+}
+
+//--------------------------------------------------------------------------
+inline void get_cached_cfunc_eas(eavec_t *out)
+{
+  HEXDSP(hx_get_cached_cfunc_eas, out);
 }
 
 //--------------------------------------------------------------------------
@@ -13160,6 +13993,12 @@ inline bool vdui_t::ui_map_lvar(lvar_t *v)
 inline bool vdui_t::ui_unmap_lvar(lvar_t *v)
 {
   return (uchar)(size_t)HEXDSP(hx_vdui_t_ui_unmap_lvar, this, v) != 0;
+}
+
+//--------------------------------------------------------------------------
+inline bool vdui_t::ui_add_cast(cexpr_t *e)
+{
+  return (uchar)(size_t)HEXDSP(hx_vdui_t_ui_add_cast, this, e) != 0;
 }
 
 //--------------------------------------------------------------------------

@@ -23,7 +23,7 @@
 //-------------------------------------------------------------------------
 // Conversion of 32-bit databases to 64-bit is performed by ida64,
 // only in IDA Pro and IDA Teams
-#if !defined(IDAFREE) && !defined(IDAHOME)
+#if !defined(IDAFREE) && !defined(IDAHOME) && !defined(CVT64) && !defined(UPG32)
 #  if defined(__EA64__)
 #    define CVT64
 #  else
@@ -39,7 +39,7 @@ struct range32_t
   ea32_t end_ea = 0;
 
   range32_t() {}
-  range32_t(ea_t ea1, ea_t ea2) : start_ea(ea1), end_ea(ea2) {}
+  range32_t(ea_t ea1, ea_t ea2) : start_ea(ea32_t(ea1)), end_ea(ea32_t(ea2)) {}
 };
 
 //------------------------------------------------------------------------

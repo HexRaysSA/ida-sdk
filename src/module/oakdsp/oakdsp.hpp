@@ -125,11 +125,10 @@ enum cc_t
 void interr(const insn_t &insn, const char *module);
 
 int  idaapi is_align_insn(ea_t ea);
-bool idaapi create_func_frame(func_t *pfn);
+bool idaapi create_func_frame(ea_t func_ea);
 int  idaapi is_sp_based(const insn_t &insn, const op_t &x);
-int  idaapi OAK_get_frame_retsize(const func_t *pfn);
+int  idaapi OAK_get_frame_retsize(ea_t func_ea);
 
-int is_jump_func(const func_t *pfn, ea_t *jump_target);
 int may_be_func(const insn_t &insn); // can a function start here?
 
 //------------------------------------------------------------------
@@ -217,8 +216,8 @@ struct oakdsp_t : public procmod_t
   void oakdsp_header(outctx_t &ctx);
   void oakdsp_assumes(outctx_t &ctx);
   void print_segment_register(outctx_t &ctx, int reg, sel_t value);
-  void oakdsp_segstart(outctx_t &ctx, segment_t *Srange) const;
-  void oakdsp_segend(outctx_t &ctx, segment_t *Srange) const;
+  void oakdsp_segstart(outctx_t &ctx, ea_t seg_ea) const;
+  void oakdsp_segend(outctx_t &ctx, ea_t seg_ea) const;
   void oakdsp_footer(outctx_t &ctx) const;
   void gen_stkvar_def(outctx_t &ctx, const udm_t *stkvar, sval_t v) const;
 

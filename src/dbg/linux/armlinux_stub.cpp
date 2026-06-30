@@ -26,15 +26,15 @@ static const char wanted_name[] = "Remote ARM Linux/Android debugger";
 #include <kernwin.hpp>
 #include <segregs.hpp>
 #include <network.hpp>
-#include "dbg_plugmod.hpp"
-#include "deb_arm.hpp"
+#include <dbg/dbg_plugmod.hpp>
+#include <dbg/deb_arm.hpp>
 
-#include "dbg_rpc_client.h"
-#include "rpc_debmod.h"
+#include <dbg/dbg_rpc_client.h>
+#include <dbg/rpc_debmod.h>
 #include "stack_unwind.hpp"
 #undef HAVE_UPDATE_CALL_STACK   // not implemented for ARM
 
-#include "common_stub_impl.cpp"
+#include <dbg/common_stub_impl.cpp>
 #include "linux_local_impl.cpp"
 
 //--------------------------------------------------------------------------
@@ -120,5 +120,5 @@ struct dbg_plugmod_t : public dbg_plugmod_stub_t
     return drc;
   }
 };
-#include "arm_local_impl.cpp"
-#include "common_local_impl.cpp"
+#include <dbg/arm_local_impl.cpp>
+#include <dbg/common_local_impl.cpp>

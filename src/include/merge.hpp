@@ -303,6 +303,7 @@ public:
         diff_source_idx_t diffidx2) const;
 };
 
+
 //------------------------------------------------------------------------
 /// Merge handler parameters.
 /// They describe the handler label, its kind (which is usually automatically
@@ -454,7 +455,7 @@ enum nds_flags_t
   NDS_SUPVAL      = 0x0010,   ///< stored as netnode supvals (not scalar)
   NDS_BLOB        = 0x0020,   ///< stored as netnode blobs
   NDS_EV_RANGE    = 0x0040,   ///< enable default handling of mev_modified_ranges, mev_deleting_segm
-  NDS_EV_FUNC     = 0x0080,   ///< enable default handling of mev_added_func/mev_deleting_func
+  NDS_EV_FUNC     = 0x0080,   ///< enable default handling of mev_added_func/mev_deleting_func/mev_added_function/mev_deleting_function
   NDS_MAP_IDX     = 0x0100,   ///< apply ea2node() to index (==NETMAP_IDX)
   NDS_MAP_VAL     = 0x0200,   ///< apply ea2node() to value. Along with NDS_INC
                               ///< it gives effect of NETMAP_VAL, examples:

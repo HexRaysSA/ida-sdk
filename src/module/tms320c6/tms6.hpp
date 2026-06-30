@@ -332,8 +332,7 @@ inline int fph_layout_pos(uint32 fph, ea_t ea)
 //------------------------------------------------------------------
 void idaapi header(outctx_t &ctx);
 
-void idaapi segstart(outctx_t &ctx, segment_t *seg);
-void idaapi segend(outctx_t &ctx, segment_t *seg);
+void idaapi segstart(outctx_t &ctx, ea_t seg_ea);
 
 void idaapi data(outctx_t &ctx, bool analyze_only);
 

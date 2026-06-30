@@ -4,13 +4,13 @@
 #include <fpro.h>
 #include <kernwin.hpp>
 #include <diskio.hpp>
-#include "../../ldr/elf/elfbase.h"
-#include "../../ldr/elf/elf.h"
-#include "debmod.h"
+#include <ldr/elf/elfbase.h>
+#include <ldr/elf/elf.h>
+#include <dbg/debmod.h>
 #include "symelf.hpp"
 
 #include "../../ldr/elf/common.cpp"
-#include "../../ldr/elf/reader.cpp"
+#include <ldr/elf/reader.cpp>
 
 inline uint32 low(uint32 x) { return x; }
 

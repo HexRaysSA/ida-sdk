@@ -114,10 +114,9 @@ void interr(const insn_t &insn, const char *module);
 
 void idaapi hppa_header(outctx_t &ctx);
 
-void idaapi hppa_segend(outctx_t &ctx, segment_t *seg);
 
 int  idaapi is_align_insn(ea_t ea);
-int  idaapi hppa_get_frame_retsize(const func_t *);
+int  idaapi hppa_get_frame_retsize(ea_t func_ea);
 
 int idaapi is_sp_based(const insn_t &insn, const op_t &x);
 int is_sane_insn(const insn_t &insn, int nocrefs);
@@ -222,14 +221,14 @@ struct hppa_t : public procmod_t
   bool is_frreg(const insn_t &insn, int reg);
   void process_operand(const insn_t &insn, const op_t &x, bool isAlt, bool isload);
   void trace_sp(const insn_t &insn);
-  bool create_func_frame(func_t *pfn);
+  bool create_func_frame(ea_t func_ea);
   void add_near_ref(const insn_t &insn, const op_t &x, ea_t ea);
   ea_t get_dp(const insn_t &insn) const;
   ea_t calc_possible_memref(const insn_t &insn, const op_t &x);
   uval_t idaapi r11_get_value(const fixup_handler_t * /*fh*/, ea_t ea);
   char *build_insn_completer(const insn_t &insn, uint32 code, char *buf, size_t bufsize);
   void hppa_assumes(outctx_t &ctx);   // function to produce assume directives
-  void hppa_segstart(outctx_t &ctx, segment_t *Srange) const;
+  void hppa_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void hppa_footer(outctx_t &ctx) const;
   void use_hppa_arg_types(ea_t ea, func_type_data_t *fti, funcargvec_t *rargs);
 

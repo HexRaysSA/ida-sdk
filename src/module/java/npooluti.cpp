@@ -435,36 +435,34 @@ void make_NameChars(bool on_load)
 }
 
 //----------------------------------------------------------------------
-segment_t *java_t::getMySeg(ea_t ea, segment_t *seg)
+bool java_t::getMySeg(segment_info_t *si, ea_t ea)
 {
-  segment_t *s = seg != nullptr ? seg : getseg(ea);
-
-  if ( s == nullptr )
+  if ( !get_segment_info(si, ea) )
     goto compat_err;
 
-  if ( curSeg.start_ea != s->start_ea )
+  if ( curSeg.start_ea != si->start_ea )
   {
     if ( sm_node > smn_ok )
       sm_node = smn_ok;
-    if ( !s->orgbase )
+    if ( !si->get_orgbase() )
     {
-      if ( s->type != SEG_IMP && s->type != SEG_XTRN )
+      if ( si->get_type() != SEG_IMP && si->get_type() != SEG_XTRN )
         goto compat_err;
-      curSeg.start_ea = s->start_ea;
+      curSeg.start_ea = si->start_ea;
     }
     else
     {
-      if ( ClassNode.supval(s->orgbase, &curSeg, sizeof(curSeg) ) != sizeof(curSeg) )
+      if ( ClassNode.supval(si->get_orgbase(), &curSeg, sizeof(curSeg) ) != sizeof(curSeg) )
         DESTROYED("getMySeg");
-      if ( 0-s->orgbase != curSeg.id.Number
-        || s->start_ea != (s->type == SEG_BSS ? curSeg.DataBase : curSeg.start_ea) )
+      if ( 0-si->get_orgbase() != curSeg.id.Number
+        || si->start_ea != (si->get_type() == SEG_BSS ? curSeg.DataBase : curSeg.start_ea) )
       {
 compat_err:
         UNCOMPAT("getMySeg");
       }
     }
   }
-  return s;
+  return true;
 }
 
 //-----------------------------------------------------------------------
@@ -792,6 +790,7 @@ void java_t::rename_uninames(int32 mode)
       default:  // change table and renaming needed
         break;
     }
+    segment_info_t si;
     do
     {
       adiff_t dif;
@@ -802,7 +801,8 @@ void java_t::rename_uninames(int32 mode)
         goto BADIDB;
       if ( !(type & 2) && mode == -1 )
         continue;
-      switch ( getMySeg(ea)->type )
+      getMySeg(&si, ea);
+      switch ( si.get_type() )
       {
         default:
 BADIDB:
@@ -955,7 +955,7 @@ void java_t::deltry(uint bg, uint ic, uint ui, const const_desc_t &pco)
 
 //-----------------------------------------------------------------------
 GCC_DIAG_OFF(format-nonliteral);
-segment_t *java_t::_add_seg(int caller)
+bool java_t::_add_seg(segment_info_t *si, int caller)
 {
   static const char *const _cls[4] = { "xtrn",   "met_",    "_var",    "head" };
   static const char *const fm[4]   = { "import", "met%03u", "var%03u", "_Class" };
@@ -992,7 +992,7 @@ segment_t *java_t::_add_seg(int caller)
     case 0: // header
       curClass.xtrnEA = start_ea = to_ea(inf_get_baseaddr(), 0);
       if ( !curClass.xtrnCnt )
-        return nullptr;
+        return false;
       size = curClass.xtrnCnt;
       type = SEG_XTRN;
       break;
@@ -1002,11 +1002,12 @@ segment_t *java_t::_add_seg(int caller)
   if ( top < start_ea )
     loader_failure("Our of addressing space");
 
-  segment_t *S;
+  ea_t seg_ea = start_ea;
   if ( caller < 0 )
   {
-    S = getseg(start_ea);
-    if ( S == nullptr || !set_segm_end(curSeg.start_ea, end, SEGMOD_KILL) )
+    segment_info_t tmp_si;
+    if ( !get_segment_info(&tmp_si, start_ea)
+      || !set_segm_end(curSeg.start_ea, end, SEGMOD_KILL) )
       qexit(1);
     qoff64_t pos = qftell(myFile);
     linput_t *li = make_linput(myFile);
@@ -1028,14 +1029,16 @@ segment_t *java_t::_add_seg(int caller)
     }
     if ( !add_segm(sel, start_ea, end, nullptr, _cls[caller]) )
       qexit(1);
-    S = getseg(start_ea);
-    S->orgbase = 0-(uval_t)curSeg.id.Number;
-    S->type = type;
+    segment_info_t new_si;
+    get_segment_info(&new_si, start_ea);
+    new_si.set_orgbase(0-(uval_t)curSeg.id.Number);
+    new_si.set_type(type);
     if ( caller != 1 )
-      S->set_hidden_segtype(true);  // no out comment of segment type
+      new_si.set_hidden_segtype(true);  // no out comment of segment type
     char sname[32];
     qsnprintf(sname, sizeof(sname), fm[caller], curSeg.id.Number);
-    set_segm_name(S, sname);
+    new_si.set_name(sname);
+    set_segment_info(&new_si);
     if ( caller <= 1 )
       goto end_create;  // method/header
     for ( uval_t i = 0; start_ea < top; start_ea++, i++ ) // data & class
@@ -1056,7 +1059,9 @@ segment_t *java_t::_add_seg(int caller)
   create_byte(top, end - top);  // !header && !method
 end_create:
   start_ea = end;
-  return S;
+  if ( si != nullptr )
+    get_segment_info(si, seg_ea);
+  return true;
 }
 GCC_DIAG_ON(format-nonliteral);
 
@@ -1252,14 +1257,17 @@ static bool is_get_ref_addr_visible_cp(wchar32_t cp)
 ea_t java_t::get_ref_addr(ea_t ea, const char *name, size_t pos)
 {
   const size_t name_len = qstrlen(name);
-  if ( name_len <= pos || getseg(ea) == nullptr )
+  segment_info_t tmp_si;
+  if ( name_len <= pos || !get_segment_info(&tmp_si, ea) )
   {
 NOT_FOUND:
     return BADADDR;
   }
 
-  uchar clv = getMySeg(ea)->type;
-  switch ( clv ) // also set curSeg
+  segment_info_t si;
+  getMySeg(&si, ea); // also set curSeg
+  uchar clv = si.get_type();
+  switch ( clv )
   {
     case SEG_XTRN:
       if ( !jasmin() )

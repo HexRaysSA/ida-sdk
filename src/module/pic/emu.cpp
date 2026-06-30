@@ -105,7 +105,12 @@ void pic_t::destroy_if_unnamed_array(ea_t ea) const
       create_byte(head, ea-head);
       ea_t end = next_that(ea, inf_get_max_ea(), f_is_head);
       if ( end == BADADDR )
-        end = getseg(ea)->end_ea;
+      {
+        segment_info_t si;
+        if ( !get_segment_info(&si, ea) )
+          return;
+        end = si.end_ea;
+      }
       create_byte(ea+1, end-ea-1);
     }
   }
@@ -163,8 +168,8 @@ void pic_t::handle_operand(const insn_t &insn, const op_t &x, int, bool isload)
         {
           if ( x.addr == PIC16_INDF2 )
           {
-            func_t *pfn = get_func(insn.ea);
-            if ( pfn != nullptr && (pfn->flags & FUNC_FRAME) != 0 )
+            ea_t func_ea = get_func_start(insn.ea);
+            if ( func_ea != BADADDR && (get_func_flags(func_ea) & FUNC_FRAME) != 0 )
             {
               insn.create_stkvar(insn.Op1, 0, STKVAR_VALID_SIZE);
             }
@@ -175,8 +180,8 @@ void pic_t::handle_operand(const insn_t &insn, const op_t &x, int, bool isload)
             if ( decode_prev_insn(&l, l.ea) != BADADDR
               && l.itype == PIC_movlw )
             {
-              func_t *pfn = get_func(l.ea);
-              if ( pfn != nullptr && (pfn->flags & FUNC_FRAME) != 0 )
+              ea_t func_ea = get_func_start(l.ea);
+              if ( func_ea != BADADDR && (get_func_flags(func_ea) & FUNC_FRAME) != 0 )
               {
                 if ( l.create_stkvar(l.Op1, l.Op1.value, STKVAR_VALID_SIZE) )
                   op_stkvar(l.ea, l.Op1.n);
@@ -470,32 +475,30 @@ int pic_t::emu(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
-bool pic_t::create_func_frame(func_t *pfn) const
+bool pic_t::create_func_frame(ea_t func_ea) const
 {
-  if ( pfn != nullptr )
+  func_entry_info_t fi;
+  if ( get_func_entry_info(&fi, func_ea) && fi.get_frame_id() == BADNODE )
   {
-    if ( pfn->frame == BADNODE )
+    ea_t ea = func_ea;
+    if ( ea + 12 < fi.end_ea ) // minimum 4 + 4 + 2 + 2 bytes needed
     {
-      ea_t ea = pfn->start_ea;
-      if ( ea + 12 < pfn->end_ea ) // minimum 4 + 4 + 2 + 2 bytes needed
+      insn_t insn[4];
+      for ( int i=0; i < 4; i++ )
       {
-        insn_t insn[4];
-        for ( int i=0; i < 4; i++ )
-        {
-          int len = decode_insn(&insn[i], ea);
-          ea += len > 0 ? len : 0;
-        }
-        if ( insn[0].itype == PIC_movff2 // movff FSR2L,POSTINC1
-          && insn[0].Op1.addr == PIC16_FSR2L && insn[0].Op2.addr == PIC16_POSTINC1
-          && insn[1].itype == PIC_movff2 // movff FSR1L,FSR2L
-          && insn[1].Op1.addr == PIC16_FSR1L && insn[1].Op2.addr == PIC16_FSR2L
-          && insn[2].itype == PIC_movlw  // movlw <size>
-          && insn[3].itype == PIC_addwf3 // addwf FSR1L,f
-          && insn[3].Op1.addr == PIC16_FSR1L && insn[3].Op2.reg == F )
-        {
-          pfn->flags |= FUNC_FRAME;
-          return add_frame(pfn, insn[2].Op1.value, 0, 0);
-        }
+        int len = decode_insn(&insn[i], ea);
+        ea += len > 0 ? len : 0;
+      }
+      if ( insn[0].itype == PIC_movff2 // movff FSR2L,POSTINC1
+        && insn[0].Op1.addr == PIC16_FSR2L && insn[0].Op2.addr == PIC16_POSTINC1
+        && insn[1].itype == PIC_movff2 // movff FSR1L,FSR2L
+        && insn[1].Op1.addr == PIC16_FSR1L && insn[1].Op2.addr == PIC16_FSR2L
+        && insn[2].itype == PIC_movlw  // movlw <size>
+        && insn[3].itype == PIC_addwf3 // addwf FSR1L,f
+        && insn[3].Op1.addr == PIC16_FSR1L && insn[3].Op2.reg == F )
+      {
+        set_func_flag(func_ea, FUNC_FRAME);
+        return add_frame_ea(func_ea, insn[2].Op1.value, 0, 0);
       }
     }
   }

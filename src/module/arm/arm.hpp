@@ -16,7 +16,10 @@
 #include <fixup.hpp>
 #include <regfinder.hpp>
 #include <cvt64.hpp>
+#include "../spcfuncs.hpp"
+#ifndef __ARM_PRIVATE_BUILD
 #include <allins.hpp>
+#endif
 struct arm_t;
 
 #define PROCMOD_NAME            arm
@@ -75,10 +78,8 @@ struct fptr_info_t
 #define pac_flags       insnpref        // PAC instruction suffix flags
 
 // dtype used for SVE/SME registers which have implementation-defined size
-#define dt_sve_p        dt_byte32       // predicate registers (actually multiple of  16 bits)
-                                        // when used with XPC, denotes ZT0
-#define dt_sve_z        dt_byte64       // SVE vector registers Zx (multiple of 128 bits, up to 2048)
-                                        // when used with XPC, denotes ZA
+constexpr op_dtype_t dt_sve_p = dt_byte32;  // predicate registers (actually multiple of 16 bits, up to 256)
+constexpr op_dtype_t dt_sve_z = dt_byte64;  // SVE vector registers Zx (multiple of 128 bits, up to 2048)
 
 
 // data type of NEON and vector VFP instructions (for the suffix)
@@ -195,14 +196,40 @@ CASSERT(PROC_MAXOP <= UA_MAXOP);
 #define ralign        specflag3            // o_phrase, o_displ: NEON alignment (power-of-two bytes, i.e. 8*(1<<a))
                                            // minimal alignment is 16 (a==1)
 
-#define simd_sz       specflag1            // o_reg: SIMD vector element size
+#define simd_sz       specflag1            // o_reg, o_fpreglist: SIMD vector element size
                                            // 0=scalar, 1=8 bits, 2=16 bits, 3=32 bits, 4=64 bits, 5=128 bits)
+constexpr uint8 simd_scalar = 0;
+constexpr uint8 simd_B      = 1;
+constexpr uint8 simd_H      = 2;
+constexpr uint8 simd_S      = 3;
+constexpr uint8 simd_D      = 4;
+constexpr uint8 simd_Q      = 5;
                                            // number of lanes is derived from the vector size (dtype)
 #define simd_idx      specflag3            // o_reg: SIMD scalar index plus 1 (Vn.H[i])
+
+#define sve_pmode     specflag2            // o_reg: predication mode
+constexpr uint8 sve_pcount    = 0x80;      // the predicate-as-counter encoding bit
+                                           // if (sve_pmode & sve_pcount) == 0
+                                           // the register has predicate-as-mask encoding.
+constexpr uint8 sve_pmode_m   = 0x40;      // /M (merging predication)
+constexpr uint8 sve_pmode_z   = 0x20;      // /Z (zeroing predication)
+                                           // e.g. P6 is decoded as 0, P7/M as 0x40
+                                           // also used for PN with /Z: PN8/Z is 0x80|0x20=0xA0
+constexpr uint8 sve_pidx_mask = 0x0F;      // the mask to extract the portion index
+                                           // the masked value is the index + 1.
+                                           // e.g. PN8 is decoded as 0x80, PN9[0] as 0x81
+
+#define sme_tile      specflag2            // o_reg (ZA), o_za_phrase: SME tile info
+                                           // bits[3:0]: tile number (0-15)
+                                           // bits[7:6]: direction/mode flags
+constexpr uint8 sme_htile  = 0x40;         // horizontal tile slice direction
+constexpr uint8 sme_vtile  = 0x80;         // vertical tile slice direction
+constexpr uint8 sme_notile = 0xC0;         // no tile number (ZA.S, not ZA0.S)
 
 // o_phrase: the second register is held in secreg (specflag1)
 //           the shift type is in shtype (specflag2)
 //           the shift counter is in shcnt (value)
+#define phrase_esz    specflag4            // o_phrase, o_displ: SVE Z register element size
 
 #define o_reglist     o_idpspec1           // Register list (for LDM/STM)
 #define reglist       specval              // The list is in op.specval
@@ -217,18 +244,40 @@ CASSERT(PROC_MAXOP <= UA_MAXOP);
                                            // System register number (MSR/MRS)
 
 #define o_fpreglist   o_idpspec4           // Floating point register list
+                                           // SIMD register list (including SVE)
 #define fpregstart    reg                  // First register
 #define fpregcnt      value                // number of registers; 0: single register (NEON scalar)
-#define fpregstep     specflag2            // register spacing (0: {Dd, Dd+1,... }, 1: {Dd, Dd+2, ...} etc)
-#define fpregindex    specflag3            // NEON scalar index plus 1 (Dd[x])
+#define fpregstep     specflag2            // NEON only: register spacing (0: {Dd, Dd+1,... }, 1: {Dd, Dd+2, ...} etc)
+#define fpregindex    specflag3            // NEON/SIMD: scalar index plus 1 (Dd[x])
 #define NOINDEX       (char)254            // no index - all lanes (Dd[])
-#define vpr_reg       specflag1            // include VPR register (for VSCCLRM)
+#define vpr_reg       specflag1            // NEON: include VPR register (for VSCCLRM)
+                                           // SIMD: SIMD vector element size (.simd_sz)
 
 #define o_text        o_idpspec5           // Arbitrary text stored in the operand
                                            // structure starting at the 'value' field
                                            // up to 16 bytes (with terminating zero)
 #define o_cond        o_idpspec5+1         // ARM condition as an operand
                                            // condition is stored in 'value' field
+
+#define o_sve_patt    o_idpspec5+2         // SVE named predicate constraint
+                                           // the pattern is stored in .value
+constexpr uint8 sve_patt_all = 0b11111;    // the ALL pattern
+
+#define o_zareglist   o_idpspec5+3         // SME ZA tile list for ZERO instruction
+                                           // 8-bit mask in .value (bit N = ZA_N_.D)
+#define o_zt0reglist  o_idpspec5+4         // SME ZT0 register list for ZERO instruction
+
+#define o_za_phrase   o_idpspec5+5         // SME ZA array/tile slice or predicate with index
+                                           // .reg       = ZA or P0-P15
+                                           // .dtype     = dt_sve_z (ZA) or dt_sve_p (predicate)
+                                           // .value     = immediate offset/index
+                                           // .simd_sz   = element size (0=none, simd_B..simd_Q)
+                                           // .sme_tile  = tile_num | sme_htile/sme_vtile (ZA only)
+                                           // .specflag3 = Wv register (W12-W15)
+                                           // .specflag4 = range (0=single, 1=x2, 2=x4) (ZA only)
+#define za_secreg     specflag3            // o_za_phrase: index register (Wv)
+inline int get_za_secreg(const op_t &x) { return uchar(x.za_secreg); }
+#define za_range      specflag4            // o_za_phrase: range count
 
 // The processor number of coprocessor instructions is held in cmd.Op1.specflag1:
 #define procnum       specflag1
@@ -335,6 +384,17 @@ enum shift_t
 
 // extract one bit
 #define BIT(val, bit) ( ((val)>>(bit)) & 1 )
+
+// sign extension helper (from "Bit Twiddling Hacks")
+inline sval_t SIGNEXT(sval_t x, int b)
+{
+  uint32 m = 1 << (b - 1);
+  x &= ((sval_t(1) << b) - 1);
+  return (x ^ m) - m;
+}
+
+// extract bitfield with sign extension
+#define SBITS(val, high, low) SIGNEXT(BITS(val, high, low), high-low+1)
 
 // return if mask matches the value
 // mask has 1s for important bits and 0s for don't-care bits
@@ -513,12 +573,20 @@ enum RegNo
   V16, V17, V18, V19, V20, V21, V22, V23,
   V24, V25, V26, V27, V28, V29, V30, V31,
 
+  // SVE predicate registers
+  P0,  P1,  P2,   P3,  P4,  P5,  P6,  P7,
+  P8,  P9,  P10, P11, P12, P13, P14, P15,
+
+  // SME registers
+  ZA,                    // ZA matrix array storage
+  ZT0,                   // ZT0 lookup table register
+
   ARM_MAXREG,            // must be the last entry
 };
 
-// we use specflag1 to store register values
+// we use specflag1 to store the second register for o_phrase
 // so they must fit into a byte
-CASSERT(ARM_MAXREG < 0x100);
+CASSERT(V31 < 0x100);
 
 extern const char *const arm_regnames[];
 
@@ -566,17 +634,26 @@ inline bool is_stmfd_wback(const insn_t &insn)
 inline bool issp(int reg) { return reg == SP || reg == XSP; }
 inline bool issp(const op_t &x) { return x.type == o_reg && issp(x.reg); }
 
-#define is_a64reg(reg) ((reg) >= X0 && (reg) < ARM_MAXREG)
+inline bool is_a64_gpreg(int reg)
+{
+  return reg >= X0 && reg <= XPC;
+}
+inline bool is_simd_reg(int reg)
+{
+  return reg >= V0 && reg <= V31;
+}
+inline bool is_sve_pred_reg(int reg)
+{
+  return reg >= P0 && reg <= P15;
+}
 
 inline bool is_gpreg(int reg)
 {
-  return reg >= R0 && reg <= R15
-      || reg >= X0 && reg <= X30 || reg == XSP;
+  return reg >= R0 && reg <= R15 || is_a64_gpreg(reg);
 }
 inline bool is_fpreg(int reg)
 {
-  return reg >= FIRST_FPREG && reg <= LAST_FPREG
-      || reg >= V0 && reg <= V31;
+  return reg >= FIRST_FPREG && reg <= LAST_FPREG || is_simd_reg(reg);
 }
 
 // map double or quad fp regs to single precision register intervals
@@ -987,6 +1064,15 @@ enum mve_arch_t
   mve_arch_f    = 2, // Use of the Integer and Floating Point M-profile Vector Extension was permitted
 };
 
+enum sve_arch_t
+{
+  sve_arch_none   = 0, // No SVE/SME support
+  sve_arch_v1     = 1, // SVE (ARMv8.2+)
+  sve_arch_v2     = 2, // SVE2 (ARMv9+)
+  sve_arch_sme_v1 = 3, // SVE2 + SME (ARMv9.2+)
+  sve_arch_sme_v2 = 4, // SVE2 + SME2 (ARMv9.4+)
+};
+
 struct arm_arch_t
 {
   arm_base_arch_t base_arch = arch_ARM_old;
@@ -994,6 +1080,7 @@ struct arm_arch_t
   fp_arch_t fp_arch = fp_arch_none;
   adv_simd_arch_t neon_arch = adv_simd_arch_none;
   mve_arch_t mve_arch;
+  sve_arch_t sve_arch = sve_arch_none;
 
   int arm_isa_use = 0;   // 0 = no ARM instructions (e.g. v7-M)
                          // 1 = allow ARM instructions
@@ -1085,14 +1172,19 @@ void mark_arm_codeseqs();
 int arm_calc_switch_cases(casevec_t *casevec, eavec_t *targets, ea_t insn_ea, const switch_info_t &si);
 #endif
 
-bool create_func_frame64(func_t *pfn, bool reanalyze);
-int  arm_get_frame_retsize(const func_t *pfn);
+bool create_func_frame64(ea_t func_ea, bool reanalyze);
+int  arm_get_frame_retsize(ea_t func_ea);
 bool get_insn_op_literal(const insn_t &insn, const op_t &x, ea_t ea, void *value, bool force=false);
 
 void use_arm_arg_types(
         ea_t ea,
         func_type_data_t *fti,
         funcargvec_t *rargs);
+
+int arm_get_stkarg_parts(
+        const insn_t &insn,
+        struct stkarg_part_t *parts,
+        int max_parts);
 
 //----------------------------------------------------------------------
 typedef const regval_t &idaapi getreg_t(const char *name, const regval_t *regvalues);
@@ -1102,18 +1194,102 @@ ea_t arm_get_macro_insn_head(ea_t ip);
 int arm_get_dbr_opnum(const insn_t &insn);
 ssize_t arm_get_reg_name(qstring *buf, int _reg, size_t width, int reghi);
 ssize_t arm_get_one_reg_name(qstring *buf, int _reg, size_t width);
-bool ana_neon(insn_t &insn, uint32 code, bool thumb);
 void opimm_vfp(op_t &x, uint32 imm8, int sz);
 void ana_hint(insn_t &insn, int hint);
-int arm_get_reg_index(const char *name, bool as_mainreg, bitrange_t *pbitrange, bool is_a64);
+enum reg_arch_t { A32, A64, SVE };
+int arm_get_reg_index(
+        const char *name,
+        bool as_mainreg,
+        bitrange_t *pbitrange,
+        reg_arch_t arch);
+
+//----------------------------------------------------------------------
+// A64 operand helpers
+//----------------------------------------------------------------------
+// interpret r == 31 as XSP, or a GPR otherwise
+#define XNSP(r) ((r)==31 ? XSP : (X0+(r)))
+// interpret r == 31 as XZR, or a GPR otherwise
+#define XNZR(r) ((r)==31 ? XZR : (X0+(r)))
+
+//----------------------------------------------------------------------
+// Create an operand of register type
+inline void a64_reg(op_t &x, int reg, op_dtype_t dtype)
+{
+  x.reg  = reg;
+  x.type = o_reg;
+  x.dtype = dtype;
+}
+
+//----------------------------------------------------------------------
+// Create operand of immediate type
+inline void a64_op_imm(op_t &x, uval_t value, int sht = LSL, int cnt = 0)
+{
+  x.type = o_imm;
+  x.dtype = dt_qword;
+  x.value = value;
+  x.ishtype = sht;
+  x.ishcnt = cnt;
+}
+
+//----------------------------------------------------------------------
+inline int decode_regextend(int op)
+{
+  if ( op < 0 || op > 7 )
+    return -1;
+  return UXTB + op;
+}
+
+//----------------------------------------------------------------------
+// Create phrase operand: [rbase, reg2 {, <extend> {<amount>}}]
+inline bool a64_phrase(op_t &x, int rbase, int reg2, op_dtype_t dtype, int option = 3, int count = 0)
+{
+  if ( (option & 2) == 0 ) // allow only x1x
+    return 0;
+  x.shtype = option == 3 ? LSL : decode_regextend(option);
+  x.reg   = rbase;
+  x.type  = o_phrase;
+  x.specflag1 = reg2;
+  x.dtype = dtype;
+  x.shcnt = count;
+  return true;
+}
+
+//----------------------------------------------------------------------
+// Create an operand of displacement type
+inline void a64_displ(
+        insn_t &insn,
+        op_t &x,
+        int reg,
+        op_dtype_t dtype,
+        sval_t displ,
+        bool wback = false,
+        bool postidx = false)
+{
+  x.type = o_displ;
+  x.reg  = reg;
+  x.dtype = dtype;
+  x.addr = displ;
+  if ( wback )
+    insn.auxpref |= aux_wback;
+  if ( postidx )
+    insn.auxpref |= aux_postidx;
+}
 
 //-------------------------------------------------------------------------
 // the list of registers
 struct reglist_t : public reglist_base_t<reglist_t>
 {
-  bool a64;
+  enum mode_t : uint8
+  {
+    RL_ARM32 = 0,  // arm32 register encoding
+    RL_A64   = 1,  // aarch64 X/V register encoding
+    RL_ZA    = 2,  // SME ZA tile mask (bits 0-7 = ZA0.D-ZA7.D)
+    RL_ZT0   = 3,  // SME ZT0 lookup table register
+  };
+  mode_t mode;
 
-  reglist_t(bool _a64) : a64(_a64) {}
+  reglist_t(bool _a64) : mode(_a64 ? RL_A64 : RL_ARM32) {}
+  reglist_t(mode_t _mode) : mode(_mode) {}
   template<typename... Args>
   static reglist_t make(bool _a64, Args... args)
   {
@@ -1127,17 +1303,24 @@ struct reglist_t : public reglist_base_t<reglist_t>
     res.add_raw(_regs);
     return res;
   }
+  static reglist_t make_raw(mode_t _mode, uint64 _regs)
+  {
+    reglist_t res(_mode);
+    res.add_raw(_regs);
+    return res;
+  }
+  bool a64() const { return mode == RL_A64; }
   void add_raw(uint64 _regs) { regs |= _regs; }
   void add_reglist(const op_t &x) // x.type == o_reglist
   {
-    if ( !a64 )
+    if ( mode == RL_ARM32 )
       add_raw(uint16(x.reglist));
   }
   void add_fpreglist(const op_t &x);
 
   DECLARE_COMPARISONS(reglist_t)
   {
-    COMPARE_FIELDS(a64);
+    COMPARE_FIELDS(mode);
     return reglist_base_t<reglist_t>::compare(r);
   }
 
@@ -1147,42 +1330,54 @@ protected:
   // 0-15  R0-R15                   0-31  X0-X31
   // 16-47 S0-S31 (D0-D15, Q0-Q7)   32-63 V0-V31
   // 48-63 D16-D31 (Q8-Q15)
+  //
+  // RL_ZA:  0-7  ZA0.D-ZA7.D
+  // RL_ZT0: 0    ZT0
   uint64 encode(int r) const
   {
-    if ( a64 )
+    switch ( mode )
     {
-      return r >= X0 && r <= X30 ? 1ull << (r - X0)
-           : r == XSP            ? 1ull << 31
-           : r >= V0 && r <= V31 ? 1ull << (r - V0 + 32)
-           : 0ull;
+      case RL_ARM32:
+        return r >= 0   && r <= R15 ? 1ull   << r
+             : r >= S0  && r <= S31 ? 1ull   << (r - S0 + 16)
+             : r >= D0  && r <= D15 ? 3ull   << ((r - D0) * 2 + 16)
+             : r >= Q0  && r <= Q7  ? 0xFull << ((r - Q0) * 4 + 16)
+             : r >= D16 && r <= D31 ? 1ull   << (r - D16 + 48)
+             : r >= Q8  && r <= Q15 ? 3ull   << ((r - Q8) * 2 + 48)
+             : 0ull;
+      case RL_A64:
+        return r >= X0 && r <= X30 ? 1ull << (r - X0)
+             : r == XSP            ? 1ull << 31
+             : r >= V0 && r <= V31 ? 1ull << (r - V0 + 32)
+             : 0ull;
+      case RL_ZA:
+        return r >= 0 && r <= 7 ? 1ull << r : 0ull;
+      case RL_ZT0:
+        return r == ZT0 ? 1ull : 0ull;
+      default:
+        return 0ull;
     }
-    else
-    {
-      return r >= 0   && r <= R15 ? 1ull   << r
-           : r >= S0  && r <= S31 ? 1ull   << (r - S0 + 16)
-           : r >= D0  && r <= D15 ? 3ull   << ((r - D0) * 2 + 16)
-           : r >= Q0  && r <= Q7  ? 0xFull << ((r - Q0) * 4 + 16)
-           : r >= D16 && r <= D31 ? 1ull   << (r - D16 + 48)
-           : r >= Q8  && r <= Q15 ? 3ull   << ((r - Q8) * 2 + 48)
-           : 0ull;
-    }
-
   }
   int decode(int b) const
   {
-    if ( a64 )
+    switch ( mode )
     {
-      return b >= 0 && b <= 30  ? b + X0
-           : b == 31            ? XSP
-           : b >= 32 && b <= 63 ? b - 32 + V0
-           : -1;
-    }
-    else
-    {
-      return b >= 0 && b <= 15  ? b + R0
-           : b >= 16 && b <= 47 ? b - 16 + S0   // as "singleword" register
-           : b >= 48 && b <= 63 ? b - 48 + D16  // as "doubleword" register
-           : -1;
+      case RL_ARM32:
+        return b >= 0 && b <= 15  ? b + R0
+             : b >= 16 && b <= 47 ? b - 16 + S0   // as "singleword" register
+             : b >= 48 && b <= 63 ? b - 48 + D16  // as "doubleword" register
+             : -1;
+      case RL_A64:
+        return b >= 0 && b <= 30  ? b + X0
+             : b == 31            ? XSP
+             : b >= 32 && b <= 63 ? b - 32 + V0
+             : -1;
+      case RL_ZA:
+        return b >= 0 && b <= 7 ? b : -1;
+      case RL_ZT0:
+        return b == 0 ? ZT0 : -1;
+      default:
+        return -1;
     }
   }
 };
@@ -1559,6 +1754,10 @@ struct arm_t : public procmod_t
   inline bool has_neon()   const { return arch.neon_arch != adv_simd_arch_none; }
   inline bool has_mve_i()  const { return arch.mve_arch != mve_arch_none; }
   inline bool has_mve_f()  const { return arch.mve_arch == mve_arch_f; }
+  inline bool has_sve()    const { return arch.sve_arch >= sve_arch_v1; }
+  inline bool has_sve2()   const { return arch.sve_arch >= sve_arch_v2; }
+  inline bool has_sme()    const { return arch.sve_arch >= sve_arch_sme_v1; }
+  inline bool has_sme2()   const { return arch.sve_arch >= sve_arch_sme_v2; }
 #ifndef ENABLE_LOWCNDS
   inline bool has_armv5()  const { return arch.base_arch >= arch_ARMv5T; }
   inline bool has_armv7a() const { return arch.base_arch == arch_ARMv7 || arch.base_arch > arch_ARMv7EM; }
@@ -1573,6 +1772,10 @@ struct arm_t : public procmod_t
       return true;
     sel_t t = get_sreg(ea, T);
     return t != BADSEL && t != 0;
+  }
+  inline reg_arch_t get_regarch() const
+  {
+    return !is_arm64() ? A32 : has_sve() ? SVE : A64;
   }
 
   // "In ARMv8-A, the mapping of instruction memory is always little-endian"
@@ -1675,9 +1878,9 @@ struct arm_t : public procmod_t
   void arm_set_compiler(bool init_abibits);
   void header(outctx_t &ctx);
   void assumes(outctx_t &ctx);
-  void segstart(outctx_t &ctx, segment_t *seg);
-  void segend(outctx_t &ctx, segment_t *seg);
-  void del_function_marks(const func_t *pfn);
+  void segstart(outctx_t &ctx, ea_t seg_ea);
+  void segend(outctx_t &ctx, ea_t seg_ea);
+  void del_function_marks(const range_t &fchunk);
   const char *get_regname(int rn);
 
   void init_ana();
@@ -1688,6 +1891,7 @@ struct arm_t : public procmod_t
   bool ana_coproc(insn_t &insn, uint32 code);
   bool ana_vfp_insns(insn_t &insn, uint32 code);
   bool ana_neon(insn_t &insn, uint32 code, bool thumb);
+  int ana_a64_sve_sme(insn_t &insn, uint32 code) const;
   inline bool is_undef_vfp(uint32 code, bool thumb) const;
   inline bool supported_vfp_neon_insn(uint32 code) const;
   void check_displ(const insn_t &insn, op_t &x, bool alignPC=false) const;
@@ -1726,10 +1930,10 @@ struct arm_t : public procmod_t
   void del_it_block(ea_t ea);
   void del_insn_info(ea_t ea);
   bool copy_insn_optype(const insn_t &insn, const op_t &x, ea_t ea, bool force=false);
-  inline void add_stkpnt(func_t *pfn, const insn_t &insn, sval_t v) const;
-  void trace_sp(func_t *pfn, const insn_t &insn);
-  bool verify_sp(func_t *pfn);
-  bool recalc_spd_after_cond_jump(func_t *pfn, const insn_t &insn);
+  inline void add_stkpnt(ea_t func_ea, const insn_t &insn, sval_t v) const;
+  void trace_sp(ea_t func_ea, const insn_t &insn);
+  bool verify_sp(ea_t func_ea);
+  bool recalc_spd_after_cond_jump(ea_t func_ea, const insn_t &insn);
   inline void save_idpflags() { helper.altset(-1, idpflags); }
   void add_dxref(ea_t from, ea_t target);
   ea_t find_callee(const insn_t &insn, const op_t &x);
@@ -1830,13 +2034,13 @@ struct arm_t : public procmod_t
   }
   void set_fptr_info(ea_t func_ea, ushort reg, ea_t addr);
 
-  bool is_add_rn_fp(const func_t *pfn, const insn_t &insn) const;
+  bool is_add_rn_fp(ea_t func_ea, const insn_t &insn) const;
   sval_t calc_sp_delta(
-        func_t *pfn,
+        ea_t func_ea,
         const insn_t &insn,
         bool can_use_regfinder = true);
   bool arm_calc_spdelta(sval_t *spdelta, const insn_t &insn);
-  bool isfp(const func_t *pfn, int reg) const;
+  bool isfp(ea_t func_ea, int reg) const;
   bool is_sp_based(const insn_t &insn, const op_t &x);
   sval_t special_func_spd(const insn_t &insn) const;
   static bool is_start_func_hint(const insn_t &_insn);
@@ -1869,7 +2073,7 @@ struct arm_t : public procmod_t
         size_t *thunk_len,
         const insn_t &insn);
   bool handle_thumb_arm_thunk(const insn_t &insn);
-  int is_jump_func(func_t *pfn, ea_t *jump_target, ea_t *function_pointer);
+  int is_jump_func(func_entry_info_t *fi, ea_t *jump_target, ea_t *function_pointer);
   bool is_arm_sane_insn(const insn_t &insn, int asn_flags);
 #define ASN_STRICT_CHECK  0x01 // forbid conditional non-branch insns
                                // should we also forbid SVN?
@@ -1943,12 +2147,12 @@ struct arm_t : public procmod_t
   bool alloc_args64(func_type_data_t *fti, int nfixed);
   void arm_lower_func_arg_types(intvec_t *argnums, const func_type_data_t &fti);
   bool arm_get_reg_info(const char **main_name, bitrange_t *pbitrange, const char *name);
-  bool create_func_frame32(func_t *pfn, bool reanalyze);
-  bool create_func_frame64(func_t *pfn, bool reanalyze);
-  bool create_func_frame(func_t *pfn, bool reanalyze = false);
+  bool create_func_frame32(ea_t func_ea, bool reanalyze);
+  bool create_func_frame64(ea_t func_ea, bool reanalyze);
+  bool create_func_frame(ea_t func_ea, bool reanalyze = false);
   sval_t check_fp_changes(int *finalreg, const insn_t &strt, int fpreg) const;
   bool adjust_frame_size(
-        func_t *pfn,
+        ea_t func_ea,
         const insn_t &insn,
         int reg,
         sval_t spoff) const;
@@ -1957,7 +2161,7 @@ struct arm_t : public procmod_t
   bool is_chkstk_darwin(ea_t ea) const;
   special_func_t get_spec_func_type(ea_t ea) const;
 
-  void arm_move_segm(ea_t from, const segment_t *s, bool changed_netmap);
+  void arm_move_segm(ea_t from, ea_t seg_ea, bool changed_netmap);
   void arm_erase_info(ea_t ea1, ea_t ea2);
   const char *set_idp_options(
         const char *keyword,
@@ -1981,7 +2185,7 @@ struct arm_t : public procmod_t
   bool find_sys_reg(qstring *name, const insn_t &ins) const;
 
   // regfinder.cpp
-  void set_regfinder_debug(bool flag) const;
+  void set_regfinder_debug(bool flag);
   bool find_regval(
         uval_t *value,
         ea_t ea,
@@ -1991,6 +2195,11 @@ struct arm_t : public procmod_t
         uval_t *value,
         const insn_t &insn,
         const op_t &op, // o_imm, o_reg, o_shreg, o_mem, o_displ, o_phrase
+        int max_depth = 0) const;
+  bool find_addr(
+        ea_t *addr,
+        const insn_t &insn,
+        const op_t &op,
         int max_depth = 0) const;
   bool find_rvi(
         reg_value_info_t *rvi,
@@ -2006,7 +2215,7 @@ struct arm_t : public procmod_t
   bool find_sp_value(sval_t *spval, ea_t ea, int reg = -1) const;
   bool find_sp_value(
         sval_t *spval,
-        func_t *pfn, // non-nullptr
+        ea_t func_ea, // != BADADDR
         const insn_t &insn,
         const op_t &op) const;
   // it returns the index of the found register or -1
@@ -2027,6 +2236,9 @@ struct arm_t : public procmod_t
         int max_depth = 0) const;
   void get_rvi_eas(eavec_t *value_eas, const reg_value_info_t &rvi);
   bool can_resolve_mem(ea_t ea) const;
+  void update_reg_finder_sizes();
+
+  bool is_mapped_or_mappable(ea_t ea) const;
 
 #ifdef CVT64
   // convert ARM-related supvals/blobs to 64bit database
@@ -2052,7 +2264,7 @@ class reg_formatter_t
 
 public:
   reg_formatter_t(const processor_t &_ph) : ph(_ph) {}
-  void format_a64(int regnum, char dtype, int elsize = 0, int index = -1);
+  void format_a64(int regnum, char dtype, int elsize = 0, int index = 0);
   void format_with_index(int rn, int index=-1);
   void format_any_reg(int rn, const op_t &x, bool ignore_suffix=false);
   op_dtype_t format_phreg(const op_t &x, int regidx);
@@ -2098,5 +2310,18 @@ struct arm_saver_t
 //------------------------------------------------------------------
 cfh_t *alloc_cfh();
 void free_cfh(cfh_t *ptr);
+
+//------------------------------------------------------------------
+// Decode AArch64/SVE logical bitmask immediate (N:immr:imms encoding).
+// Computes the 64-bit bit pattern described by the bitmask fields and
+// returns the element size exponent (len, 1..6, where esize = 1<<len),
+// or 0 if the encoding is invalid.
+// Out: mask - decoded 64-bit bitmask
+// In:  N, imms, immr - bitmask encoding fields
+int decode_bitmask(uint64 *mask, int N, int imms, int immr);
+
+// Encode an 8-bit ARM VFP/SIMD floating-point immediate into an operand.
+// size: 1=half, 2=single, 3=double
+void opimm_vfp(op_t &x, uint32 imm8, int size);
 
 #endif // _ARM_HPP

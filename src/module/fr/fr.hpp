@@ -107,7 +107,7 @@ inline bool op_displ_imm_r15(const op_t &op) { return (op.specflag1 & OP_DISPL_I
 
 // exporting our routines
 int  idaapi ana(insn_t *_insn);
-bool idaapi create_func_frame(func_t *pfn);
+bool idaapi create_func_frame(ea_t func_ea);
 int idaapi is_sp_based(const insn_t &, const op_t &x);
 int idaapi is_align_insn(ea_t ea);
 
@@ -132,7 +132,7 @@ struct fr_t : public procmod_t
   bool is_stop(const insn_t &insn) const;
 
   void fr_footer(outctx_t &ctx) const;
-  void fr_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void fr_segstart(outctx_t &ctx, ea_t seg_ea) const;
 
   void load_from_idb();
 };

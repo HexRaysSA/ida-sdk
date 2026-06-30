@@ -182,18 +182,20 @@ void out_m740_t::out_insn(void)
 //--------------------------------------------------------------------------
 // generate segment header
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void m740_t::m740_segstart(outctx_t &ctx, segment_t *Sarea) const
+void m740_t::m740_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
   qstring sname;
-  get_visible_segm_name(&sname, Sarea);
+  si.visible_name(&sname);
 
   if ( ash.uflag & UAS_SEGM )
     ctx.gen_printf(DEFAULT_INDENT, COLSTR("SEGMENT %s", SCOLOR_ASMDIR), sname.c_str());
   else if ( ash.uflag & UAS_RSEG )
     ctx.gen_printf(DEFAULT_INDENT, COLSTR("RSEG %s", SCOLOR_ASMDIR), sname.c_str());
 
-  ea_t orgbase = ctx.insn_ea - get_segm_para(Sarea);
+  ea_t orgbase = ctx.insn_ea - si.para();
   if ( orgbase != 0 )
   {
     char buf[MAX_NUMBUF];

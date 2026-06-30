@@ -131,14 +131,16 @@ void idaapi load_file(linput_t *li, ushort /*_neflags*/, const char * /*fileform
               loader_failure("Too big segment %a..%a", start, end);
             file2base(li, qltell(li), start, end, FILEREG_PATCHABLE);
           }
-          segment_t s;
-          s.sel     = setup_selector(sel);
-          s.start_ea = start;
-          s.end_ea   = end;
-          s.align   = saRelByte;
-          s.comb    = scPub;
-          s.bitness = 1; // 32-bit
-          add_segm_ex(&s, sname, sname, ADDSEG_NOSREG|ADDSEG_SPARSE);
+          segment_info_t si;
+          si.start_ea = start;
+          si.end_ea   = end;
+          si.set_sel(setup_selector(sel));
+          si.set_align(saRelByte);
+          si.set_comb(scPub);
+          si.set_bitness(1); // 32-bit
+          si.set_name(sname);
+          si.set_sclass(sname);
+          add_segment_ex(&si, ADDSEG_NOSREG|ADDSEG_SPARSE);
         }
         break;
       case HUNK_RELOC32SHORT:
@@ -329,22 +331,16 @@ TRUNCATED_INPUT:
         while ( (Data=(shortreloc ? mf_readshort(li) : mf_readlong(li))) != 0 )
         {
           uint32 dat2 = shortreloc ? mf_readshort(li) : mf_readlong(li);
-          segment_t *s = get_segm_by_sel(dat2+1);
-          segment_t *ssrc = get_segm_by_sel(nseg);
-          ea_t base = BADADDR;
-          if ( ssrc != nullptr )
-            base = ssrc->start_ea;
-          else
-            s = nullptr;
+          ea_t dst = get_segment_ea_by_sel(dat2+1);
+          ea_t base = get_segment_ea_by_sel(nseg);
           int elsize = shortreloc ? 2 : 4;
           validate_array_count_or_die(li, Data, elsize, "Number of relocations");
           for ( uint32 dat3 = Data; dat3; --dat3 )
           {
             uint32 off = shortreloc ? mf_readshort(li) : mf_readlong(li);
-            if ( s != nullptr )
+            if ( base != BADADDR && dst != BADADDR )
             {
               ea_t src = base + off;
-              ea_t dst = s->start_ea;
               ea_t target = BADADDR;
               fixup_type_t fd_type = 0;
               switch ( Type & 0xFFFF )
@@ -471,11 +467,11 @@ TRUNCATED_INPUT:
           /* Display value. */
           Data = mf_readlong(li);
 
-          segment_t *ssrc = get_segm_by_sel(nseg);
-          if ( ssrc == nullptr )
+          ea_t seg_base = get_segment_ea_by_sel(nseg);
+          if ( seg_base == BADADDR )
             ask_for_help();
           else
-            set_name(ssrc->start_ea+Data, NameString, SN_NOCHECK | SN_NOWARN | SN_IDBENC);
+            set_name(seg_base+Data, NameString, SN_NOCHECK | SN_NOWARN | SN_IDBENC);
         }
         break;
       case HUNK_DEBUG:

@@ -489,7 +489,7 @@ inline qstring idaapi get_colored_demangled_name(
 #ifdef FUNCS_HPP
 inline int calc_gtn_flags(ea_t from, ea_t ea)
 {
-  return func_contains(get_func(from), ea) ? GN_LOCAL : 0;
+  return function_contains(from, ea) ? GN_LOCAL : 0;
 }
 #endif
 
@@ -764,13 +764,29 @@ const ignore_name_def_t
   ignore_glabel = 4;
 
 /// Is the name defined locally in the specified function?
+/// \param func_ea  function start address
+/// \param name     name to check
+/// \param ignore_name_def  which names to ignore when checking
+/// \param ea1    the starting address of the range inside the function (optional)
+/// \param ea2    the ending address of the range inside the function (optional)
+/// \return true if the name has been defined
+
+idaman bool ida_export is_name_defined_locally_ea(
+        ea_t func_ea,
+        const char *name,
+        ignore_name_def_t ignore_name_def,
+        ea_t ea1=BADADDR,
+        ea_t ea2=BADADDR);
+
+/// Is the name defined locally in the specified function?
+/// \deprecated Use is_name_defined_locally_ea() for safer access.
 /// \param pfn    pointer to function
 /// \param name   name to check
 /// \param ignore_name_def  which names to ignore when checking
 /// \param ea1    the starting address of the range inside the function (optional)
 /// \param ea2    the ending address of the range inside the function (optional)
 /// \return true if the name has been defined
-idaman bool ida_export is_name_defined_locally(
+idaman DEPRECATED bool ida_export is_name_defined_locally(
         func_t *pfn,
         const char *name,
         ignore_name_def_t ignore_name_def,
@@ -797,6 +813,6 @@ idaman bool ida_export cleanup_name(
 #define CN_KEEP_TRAILING_DIGITS 0x01 ///< do not remove "_\d+" at the end of name
 #define CN_KEEP_UNDERSCORES     0x02 ///< do not remove leading underscores.
                                      ///< but it is ok to remove __imp_.
-
+#define CN_REMOVE_ALL_TRAILING_DIGITS 0x04 ///< remove trailing _N digits many times
 
 #endif // _NAME_HPP

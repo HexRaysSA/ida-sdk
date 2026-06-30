@@ -115,15 +115,15 @@ static minsn_t *create_mov(const fixed_regval_info_t &fri)
 //--------------------------------------------------------------------------
 void plugin_ctx_t::insert_assertions(mba_t *mba) const
 {
-  func_t *pfn = mba->get_curfunc();
-  if ( pfn == nullptr )
+  if ( mba->mbr.is_snippet() )
     return; // currently only functions are supported, not snippets
 
   // filter out the addresses outside of the decompiled function
+  ea_t func_ea = mba->entry_ea;
   fixed_regvals_t regvals;
   for ( const auto &rv : user_regvals )
   {
-    if ( func_contains(pfn, rv.ea) )
+    if ( function_contains(func_ea, rv.ea) )
       regvals.push_back(rv);
   }
   if ( regvals.empty() )

@@ -67,7 +67,4 @@ inline int ask_yn(int deflt, help_t format, ...)
 GCC_DIAG_ON(format-nonliteral);
 #endif
 
-#ifndef NO_OBSOLETE_FUNCS
-#endif
-
 #endif /* _HELP_H */

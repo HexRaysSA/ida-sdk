@@ -123,11 +123,14 @@ void fr_t::fr_footer(outctx_t &ctx) const
 //----------------------------------------------------------------------
 // Generate a segment header
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void fr_t::fr_segstart(outctx_t &ctx, segment_t *Sarea) const
+void fr_t::fr_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
+
   qstring sname;
-  if ( get_visible_segm_name(&sname, Sarea) <= 0 )
+  if ( !si.visible_name(&sname) )
     return;
 
   const char *segname = sname.c_str();
@@ -136,7 +139,7 @@ void fr_t::fr_segstart(outctx_t &ctx, segment_t *Sarea) const
 
   ctx.gen_printf(DEFAULT_INDENT, COLSTR(".section .%s", SCOLOR_ASMDIR), segname);
 
-  ea_t orgbase = ctx.insn_ea - get_segm_para(Sarea);
+  ea_t orgbase = ctx.insn_ea - si.para();
 
   if ( orgbase != 0 )
   {

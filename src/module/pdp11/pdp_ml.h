@@ -7,7 +7,7 @@ struct pdp_ml_t
   uint16 ovrcallbeg, ovrcallend, asect_top;
 };
 
-#define ovrname orgbase         // for compatibily with old version
+#define ovrname get_orgbase     // for compatibily with old version
                                 // in Segment structure
 
 enum store_mode_values

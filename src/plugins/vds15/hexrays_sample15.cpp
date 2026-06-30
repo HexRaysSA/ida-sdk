@@ -88,8 +88,8 @@ static bool find_insn_with_list(
 bool idaapi plugin_ctx_t::run(size_t)
 {
   ea_t ea = get_screen_ea();
-  func_t *pfn = get_func(ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(ea);
+  if ( func_ea == BADADDR )
   {
     msg("Please position the cursor within a function\n");
     return true;
@@ -111,8 +111,8 @@ bool idaapi plugin_ctx_t::run(size_t)
 
   // generate microcode
   hexrays_failure_t hf;
-  mba_ranges_t mbr(pfn);
-  mba_t *mba = gen_microcode(mbr, &hf, nullptr, DECOMP_WARNINGS);
+  decomp_ranges_t dcr(func_ea);
+  mba_t *mba = gen_microcode(dcr, &hf, nullptr, DECOMP_WARNINGS);
   if ( mba == nullptr )
   {
     msg("%a: %s\n", hf.errea, hf.desc().c_str());

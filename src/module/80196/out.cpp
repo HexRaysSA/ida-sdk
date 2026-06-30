@@ -121,14 +121,13 @@ void idaapi i196_footer(outctx_t &ctx)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void i196_t::i196_segstart(outctx_t &ctx, segment_t *Sarea) const
+void i196_t::i196_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
   qstring name;
-  get_visible_segm_name(&name, Sarea);
+  get_segment_name(&name, seg_ea, 1);
   ctx.gen_cmt_line(COLSTR("segment %s", SCOLOR_AUTOCMT), name.c_str());
 
-  ea_t org = ctx.insn_ea - get_segm_base(Sarea);
+  ea_t org = ctx.insn_ea - get_segment_base(seg_ea);
   if ( org != 0 )
   {
     char buf[MAX_NUMBUF];
@@ -138,11 +137,10 @@ void i196_t::i196_segstart(outctx_t &ctx, segment_t *Sarea) const
 }
 
 //--------------------------------------------------------------------------
-//lint -esym(818, seg) could be made const
-void idaapi i196_segend(outctx_t &ctx, segment_t *seg)
+void idaapi i196_segend(outctx_t &ctx, ea_t seg_ea)
 {
   qstring name;
-  get_visible_segm_name(&name, seg);
+  get_segment_name(&name, seg_ea, 1);
   ctx.gen_cmt_line("end of '%s'", name.c_str());
 }
 
@@ -186,24 +184,6 @@ void out_i196_t::out_insn(bool use_alternative_mnem)
 
   out_immchar_cmts();
   flush_outbuf();
-}
-
-//----------------------------------------------------------------------
-static bool is_ext_insn(const insn_t &insn)
-{
-  switch ( insn.itype )
-  {
-    case I196_ebmovi:      // Extended interruptable block move
-    case I196_ebr:         // Extended branch indirect
-    case I196_ecall:       // Extended call
-    case I196_ejmp:        // Extended jump
-    case I196_eld:         // Extended load word
-    case I196_eldb:        // Extended load byte
-    case I196_est:         // Extended store word
-    case I196_estb:        // Extended store byte
-      return true;
-  }
-  return false;
 }
 
 //----------------------------------------------------------------------

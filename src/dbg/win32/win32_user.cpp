@@ -26,13 +26,13 @@ static const char wanted_name[] = "Local Windows debugger";
 #include <idd.hpp>
 #include <loader.hpp>
 #include <dbg.hpp>
-#include "dbg_plugmod.hpp"
+#include <dbg/dbg_plugmod.hpp>
 #include "win32_debmod.h"
 #include "w32sehch.h"
-#include "pc_regs.hpp"
-#include "deb_pc.hpp"
+#include <dbg/pc_regs.hpp>
+#include <dbg/deb_pc.hpp>
 
-#include "common_stub_impl.cpp"
+#include <dbg/common_stub_impl.cpp>
 #include "win32_local_impl.cpp"
 
 struct dbg_plugmod_t : public dbg_plugmod_user_t
@@ -103,5 +103,5 @@ static bool register_idc_funcs(bool reg)
   return add_idc_funcs(idcfuncs, qnumber(idcfuncs), reg);
 }
 
-#include "common_local_impl.cpp"
+#include <dbg/common_local_impl.cpp>
 #include "win32_server_stub.cpp"

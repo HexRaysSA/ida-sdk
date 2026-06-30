@@ -59,7 +59,7 @@ struct c39_t : public procmod_t
         bool isload);
   int C39_emu(const insn_t &insn);
 
-  void C39_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void C39_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void C39_footer(outctx_t &ctx) const;
 
   void load_from_idb();

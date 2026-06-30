@@ -68,21 +68,18 @@ void out_st20_t::out_insn(void)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void idaapi st20_segstart(outctx_t &ctx, segment_t *Sarea)
+void idaapi st20_segstart(outctx_t &ctx, ea_t seg_ea)
 {
-  if ( is_spec_segm(Sarea->type) )
+  segment_info_t seg;
+  if ( !get_segment_info(&seg, seg_ea, GSI_NAME) )
+    return;
+  if ( is_spec_segm(seg.get_type()) )
     return;
 
   qstring sname;
-  get_visible_segm_name(&sname, Sarea);
+  seg.visible_name(&sname);
 
   ctx.gen_cmt_line("section %s", sname.c_str());
-}
-
-//--------------------------------------------------------------------------
-void idaapi st20_segend(outctx_t &, segment_t *)
-{
 }
 
 //--------------------------------------------------------------------------

@@ -117,6 +117,9 @@ static ssize_t idaapi notify(void *, int msgid, va_list)
   return 0;
 }
 
+static void mits_func_header(outctx_t &ctx, ea_t func_ea);
+static void mits_func_footer(outctx_t &ctx, ea_t func_ea);
+
 ssize_t idaapi m7700_t::on_event(ssize_t msgid, va_list va)
 {
   int code = 0;
@@ -140,11 +143,11 @@ ssize_t idaapi m7700_t::on_event(ssize_t msgid, va_list va)
       //  Set the default segment register values :
       //      -1 (badsel) for DR
       //      0 for fM and fX
-      for ( segment_t *s=get_first_seg(); s != nullptr; s=get_next_seg(s->start_ea) )
+      for ( ea_t sea = get_first_segment_ea(); sea != BADADDR; sea = get_next_segment_ea(sea) )
       {
-        set_default_sreg_value(s, rDR, BADSEL);
-        set_default_sreg_value(s, rfM, 0);
-        set_default_sreg_value(s, rfX, 0);
+        set_default_sreg_value_ea(sea, rDR, BADSEL);
+        set_default_sreg_value_ea(sea, rfM, 0);
+        set_default_sreg_value_ea(sea, rfX, 0);
       }
       info(m7700_help_message);
       break;
@@ -182,11 +185,11 @@ ssize_t idaapi m7700_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        m7700_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        m7700_segstart(*ctx, ea);
         return 1;
       }
 
@@ -196,6 +199,30 @@ ssize_t idaapi m7700_t::on_event(ssize_t msgid, va_list va)
         m7700_assumes(*ctx);
         return 1;
       }
+
+    case processor_t::ev_out_function_header:
+      {
+        outctx_t *ctx = va_arg(va, outctx_t *);
+        ea_t func_ea = va_arg(va, ea_t);
+        if ( streq(ASH.name, "Mitsubishi Macro Assembler for 7700 Family") )
+        {
+          mits_func_header(*ctx, func_ea);
+          return 1;
+        }
+      }
+      break;
+
+    case processor_t::ev_out_function_footer:
+      {
+        outctx_t *ctx = va_arg(va, outctx_t *);
+        ea_t func_ea = va_arg(va, ea_t);
+        if ( streq(ASH.name, "Mitsubishi Macro Assembler for 7700 Family") )
+        {
+          mits_func_footer(*ctx, func_ea);
+          return 1;
+        }
+      }
+      break;
 
     case processor_t::ev_ana_insn:
       {
@@ -223,18 +250,18 @@ ssize_t idaapi m7700_t::on_event(ssize_t msgid, va_list va)
         return out_opnd(*ctx, *op) ? 1 : -1;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 
-    case processor_t::ev_get_frame_retsize:
+    case processor_t::ev_get_function_retsize:
       {
         int *frsize = va_arg(va, int *);
-        const func_t *pfn = va_arg(va, const func_t *);
-        *frsize = idp_get_frame_retsize(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        *frsize = idp_get_frame_retsize(func_ea);
         return 1;
       }
 
@@ -343,25 +370,23 @@ static const asm_t as_asm =
 
 //--------------------------------------------------------------------------
 // gets a function name
-//lint -e{818} could be declared const
-static bool mits_get_func_name(qstring *name, func_t *pfn)
+static bool mits_get_func_name(qstring *name, ea_t func_ea)
 {
-  ea_t ea = pfn->start_ea;
-  if ( get_demangled_name(name, ea, inf_get_long_demnames(), DEMNAM_NAME) <= 0 )
+  if ( get_demangled_name(name, func_ea, inf_get_long_demnames(), DEMNAM_NAME) <= 0 )
     return false;
 
-  tag_addr(name, ea, true);
+  tag_addr(name, func_ea, true);
   return true;
 }
 
 //--------------------------------------------------------------------------
 // prints function header
-static void idaapi mits_func_header(outctx_t &ctx, func_t *pfn)
+static void mits_func_header(outctx_t &ctx, ea_t func_ea)
 {
-  ctx.gen_func_header(pfn);
+  ctx.gen_function_header(func_ea);
 
   qstring name;
-  if ( mits_get_func_name(&name, pfn) )
+  if ( mits_get_func_name(&name, func_ea) )
   {
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".FUNC %s", SCOLOR_ASMDIR), name.begin());
     ctx.gen_printf(0, COLSTR("%s:", SCOLOR_ASMDIR), name.begin());
@@ -371,10 +396,10 @@ static void idaapi mits_func_header(outctx_t &ctx, func_t *pfn)
 
 //--------------------------------------------------------------------------
 // prints function footer
-static void idaapi mits_func_footer(outctx_t &ctx, func_t *pfn)
+static void mits_func_footer(outctx_t &ctx, ea_t func_ea)
 {
   qstring name;
-  if ( mits_get_func_name(&name, pfn) )
+  if ( mits_get_func_name(&name, func_ea) )
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".ENDFUNC %s", SCOLOR_ASMDIR), name.begin());
 }
 
@@ -411,8 +436,8 @@ static const asm_t mitsubishi_asm =
   ".EQU",       // Equ
   nullptr,         // seg prefix
   "$",          // current IP (instruction pointer) symbol in assembler
-  mits_func_header,    // func_header
-  mits_func_footer,    // func_footer
+  nullptr,             // func_header
+  nullptr,             // func_footer
   ".PUB",       // public
   nullptr,         // weak
   nullptr,         // extrn

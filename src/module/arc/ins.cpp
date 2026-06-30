@@ -355,6 +355,10 @@ instruc_t Instructions[] =
 
   { "kflag",      CF_USE1                         },      // Set kernel flags
   { "wevt",       CF_USE1                         },      // Enter sleep state
+
+  // ARCv2 additional major-4 instructions
+  { "xbfu",       CF_CHG1|CF_USE2|CF_USE3|CF_USE4 },      // Bit field unsigned extract
+  { "dbnz",       CF_CHG1|CF_USE1|CF_USE2 },              // Decrement and branch if not zero
 };
 
 CASSERT(qnumber(Instructions) == ARC_last);

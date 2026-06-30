@@ -175,11 +175,11 @@ ssize_t idaapi i860_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        i860_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        i860_segstart(*ctx, ea);
         return 1;
       }
 

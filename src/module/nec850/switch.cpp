@@ -545,6 +545,201 @@ static int is_jump_pattern3(
 }
 
 //----------------------------------------------------------------------
+// jump pattern #4 (without 'switch' insn)
+// 5 cmp  ncases, rA
+//   bnc  default              (nearest to "cmp")
+// 4 shl  1, rA                 | shl  2, rA
+// 3 add  jumps, rA             |
+// 2 ld.h [rA'], rA             | ld.w jumps[rA'], rA
+// 1 add  elbase, rA            |
+// 0 jmp  [rA]                  | jmp  elbase[rA]
+// 0 -> 1 -> 2 -> 3 -> 4 -> 5
+
+static const char nec850_depends4[][4] =
+{
+  { 1 },  // 0
+  { 2 },  // 1
+  { 3 },  // 2
+  { 4 },  // 3
+  { 5 },  // 4
+  { 0 },  // 5
+};
+
+//-------------------------------------------------------------------------
+class nec850_jump_pattern4_t : public nec850_jump_pattern_t
+{
+protected:
+  enum
+  {
+    ADD_ELBASE_NJPI = 1,
+    ADD_JUMPS_NJPI = 3,
+    SHL_NJPI = 4,
+  };
+
+  // to set offsets
+  ea_t jumps_ea = BADADDR;  // always Op1
+  ea_t elbase_ea = BADADDR; // always Op1
+
+  int shift = -1;
+
+  bool jpi_add_base(ea_t *base)
+  {
+    const op_t *dst;
+    if ( insn.itype == NEC850_ADD )
+      dst = &insn.Op2;
+    else if ( insn.itype == NEC850_ADDI )
+      dst = &insn.Op3;
+    else
+      return false;
+    if ( !is_equal(*dst, rA) )
+      return false;
+    int ra;
+    if ( insn.Op1.type == o_imm )
+    {
+      *base = insn.Op1.value;
+      ra = insn.Op2.reg;
+    }
+    else // insn.Op1.type === o_reg
+    {
+      int rs[2] = { insn.Op1.reg, insn.Op2.reg };
+      reg_value_info_t rvi;
+      int res = find_nearest_rvi(&rvi, insn.ea, rs);
+      if ( res == -1 || !rvi.get_addr(base) )
+        return false;
+      // start tracking the opposite register
+      ra = rs[1 - res];
+    }
+    track(ra, rA, dt_dword);
+    return true;
+  }
+
+public:
+  nec850_jump_pattern4_t(procmod_t *_pm, switch_info_t *_si)
+    : nec850_jump_pattern_t(_pm, _si, nec850_depends4)
+  {
+  }
+
+  virtual bool jpi5(void) override { return jpi_cmp_ncases_condjump(); }
+  virtual bool jpi4(void) override; // shl  shift, rA
+  virtual bool jpi3(void) override; // add  jumps, rA
+  virtual bool jpi2(void) override; // ld.x jumps[rA'], rA
+  virtual bool jpi1(void) override; // add  elbase, rA
+  virtual bool jpi0(void) override; // jmp  elbase[rA]
+
+  void finish() const
+  {
+    if ( jumps_ea != BADADDR )
+      op_offset(jumps_ea, 0, REFINFO_NOBASE | REF_OFF32);
+    if ( elbase_ea != BADADDR && elbase_ea != jumps_ea )
+      op_offset(elbase_ea, 0, REFINFO_NOBASE | REF_OFF32);
+    mark_switch_insns(5);
+  }
+};
+
+//----------------------------------------------------------------------
+// shl  shift, rA
+bool nec850_jump_pattern4_t::jpi4()
+{
+  // assert: shift > 1 because of skip[SHL_NJPI]
+  if ( insn.itype != NEC850_SHL
+    || insn.Op1.type != o_imm
+    || insn.Op1.value != shift
+    || !is_equal(insn.Op2, rA) )
+  {
+    return false;
+  }
+  return true;
+}
+
+//----------------------------------------------------------------------
+// add  jumps, rA
+bool nec850_jump_pattern4_t::jpi3()
+{
+  // assert: elbase_ea == BADADDR because of skip[ADD_ELBASE_NJPI]
+  if ( !jpi_add_base(&si->jumps) )
+    return false;
+  jumps_ea = insn.ea;
+  return true;
+}
+
+//----------------------------------------------------------------------
+// ld.x jumps[rA'], rA
+bool nec850_jump_pattern4_t::jpi2()
+{
+  bool sign;
+  switch ( insn.itype )
+  {
+    case NEC850_LD_B:  shift = 0; sign = true;  break;
+    case NEC850_LD_BU: shift = 0; sign = false; break;
+    case NEC850_LD_H:  shift = 1; sign = true;  break;
+    case NEC850_LD_HU: shift = 1; sign = false; break;
+    case NEC850_LD_W:  shift = 2; sign = false; break;
+    default: return false;
+  }
+  if ( !is_equal(insn.Op2, rA) )
+    return false;
+  // assert: insn.Op1.type == o_displ
+  if ( insn.Op1.addr != 0 )
+  {
+    skip[ADD_JUMPS_NJPI] = true;
+    jumps_ea = insn.ea;
+    si->jumps = insn.Op1.addr;
+  }
+  si->set_jtable_element_size(1 << shift);
+  setflag(si->flags, SWI_SIGNED, sign);
+  track(insn.Op1.phrase, rA, dt_dword);
+  if ( shift == 0 )
+    skip[SHL_NJPI] = true;
+  return true;
+}
+
+//----------------------------------------------------------------------
+// add  elbase, rA
+bool nec850_jump_pattern4_t::jpi1()
+{
+  // assert: elbase_ea == BADADDR because of skip[ADD_ELBASE_NJPI]
+  ea_t base;
+  if ( !jpi_add_base(&base) )
+    return false;
+  elbase_ea = insn.ea;
+  si->set_elbase(base);
+  return true;
+}
+
+//----------------------------------------------------------------------
+// jmp elbase[rA]
+bool nec850_jump_pattern4_t::jpi0()
+{
+  if ( insn.itype != NEC850_JMP )
+    return false;
+  if ( insn.Op1.type == o_displ )
+  {
+    skip[ADD_ELBASE_NJPI] = true;
+    elbase_ea = insn.ea;
+    si->set_elbase(insn.Op1.addr);
+  }
+  else if ( insn.Op1.type != o_reg )
+  {
+    return false; // INTERR
+  }
+  track(insn.Op1.reg, rA, dt_dword);
+  return true;
+}
+
+//----------------------------------------------------------------------
+static int is_jump_pattern4(
+        switch_info_t *si,
+        const insn_t &insn,
+        procmod_t *pm)
+{
+  nec850_jump_pattern4_t jp(pm, si);
+  if ( !jp.match(insn) )
+    return JT_NONE;
+  jp.finish();
+  return JT_SWITCH;
+}
+
+//----------------------------------------------------------------------
 bool nec850_is_switch(const insn_t &insn)
 {
   if ( !inf_create_jump_tables() )
@@ -580,6 +775,7 @@ bool nec850_is_switch(const insn_t &insn)
           is_jump_pattern1,
           is_jump_pattern2,
           is_jump_pattern3,
+          is_jump_pattern4,
         };
         ok = check_for_table_jump(&si, insn, patterns, qnumber(patterns));
       }

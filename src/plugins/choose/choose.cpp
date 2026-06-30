@@ -35,7 +35,7 @@ public:
   eavec_t list;
 
   // this object must be allocated using `new`
-  calls_chooser_t(const char *title, bool ok, func_item_iterator_t *fii);
+  calls_chooser_t(const char *title, bool ok, function_item_iterator_t *fii);
 
   // function that is used to decide whether a new chooser should be opened
   // or we can use the existing one.
@@ -65,7 +65,7 @@ public:
   }
 
 protected:
-  void build_list(bool ok, func_item_iterator_t *fii)
+  void build_list(bool ok, function_item_iterator_t *fii)
   {
     insn_t insn;
     while ( ok )
@@ -94,7 +94,7 @@ const char *const calls_chooser_t::header_[] =
 inline calls_chooser_t::calls_chooser_t(
         const char *title_,
         bool ok,
-        func_item_iterator_t *fii)
+        function_item_iterator_t *fii)
   : chooser_t(0, qnumber(widths_), widths_, header_, title_),
     list()
 {
@@ -131,7 +131,7 @@ bool idaapi plugin_ctx_t::run(size_t)
   // or from the selected area
 
   // First we determine the working area
-  func_item_iterator_t fii;
+  function_item_iterator_t fii;
   bool ok;
   ea_t ea1, ea2;
   if ( read_range_selection(nullptr, &ea1, &ea2) ) // the selection is present?
@@ -142,14 +142,14 @@ bool idaapi plugin_ctx_t::run(size_t)
   }
   else                                          // nothing is selected
   {
-    func_t *pfn = get_func(get_screen_ea());    // try the current function
-    if ( pfn == nullptr )
+    ea_t func_ea = get_func_start(get_screen_ea()); // try the current function
+    if ( func_ea == BADADDR )
     {
       warning("Please position the cursor on a function or select an area");
       return true;
     }
-    ok = fii.set(pfn);
-    get_func_name(&title, pfn->start_ea);
+    ok = fii.set(func_ea);
+    get_func_name(&title, func_ea);
     title.insert("Functions called from ");
   }
 

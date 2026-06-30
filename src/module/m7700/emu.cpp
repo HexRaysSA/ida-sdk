@@ -219,18 +219,18 @@ static bool is_func_far(ea_t ea)
 }
 
 //----------------------------------------------------------------------
-bool idaapi create_func_frame(func_t *pfn)
+bool idaapi create_func_frame(ea_t func_ea)
 {
   // PC (2 bytes long) is always pushed
   int context_size = 2;
 
   // detect phd
-  ea_t ea = pfn->start_ea;
+  ea_t ea = func_ea;
 
   // if far, 1 byte more on the stack (PG register)
   if ( is_func_far(ea) )
   {
-    pfn->flags |= FUNC_FAR;
+    set_func_flag(func_ea, FUNC_FAR);
     context_size++;
   }
 
@@ -260,15 +260,15 @@ bool idaapi create_func_frame(func_t *pfn)
   // gen comment
   char b[MAXSTR];
   qsnprintf(b, sizeof b, "Auto Size (%d) - Context Size (%d)", auto_size, context_size);
-  set_func_cmt(pfn, b, false);
+  set_func_cmt_ea(func_ea, b, false);
 
-  return add_frame(pfn, auto_size, 0, 0);
+  return add_frame_ea(func_ea, auto_size, 0, 0);
 }
 
 //----------------------------------------------------------------------
-int idaapi idp_get_frame_retsize(const func_t *pfn)
+int idaapi idp_get_frame_retsize(ea_t func_ea)
 {
-  return pfn == nullptr ?             0
-       : is_func_far(pfn->start_ea) ? 2
-       :                              3;
+  return func_ea == BADADDR ?   0
+       : is_func_far(func_ea) ? 2
+       :                        3;
 }

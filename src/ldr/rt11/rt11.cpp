@@ -15,7 +15,7 @@
 */
 
 #include "../idaldr.h"
-#include "../../module/pdp11/pdp_ml.h"
+#include <module/pdp11/pdp_ml.h>
 
 //--------------------------------------------------------------------------
 //
@@ -96,7 +96,7 @@ void idaapi load_file(linput_t *li, ushort /*neflag*/, const char * /*fileformat
 //  Find out asect section and load it
 //
   int i;
-  segment_t s;
+  segment_info_t s;
   s.start_ea = to_ea(inf_get_baseaddr(), 0);
   qlseek(li, 040);
   ushort startIP, topPrg, svrEnd, ovt;
@@ -135,9 +135,10 @@ void idaapi load_file(linput_t *li, ushort /*neflag*/, const char * /*fileformat
   }
   inf_set_start_cs(inf_get_baseaddr());
   file2base(li, 0, s.start_ea, s.end_ea, FILEREG_PATCHABLE);
-  s.type = SEG_IMEM;
-  s.sel  = find_selector(inf_get_baseaddr());
-  add_segm_ex(&s, "asect", nullptr, ADDSEG_NOSREG);
+  s.set_type(SEG_IMEM);
+  s.set_sel(find_selector(inf_get_baseaddr()));
+  s.set_name("asect");
+  add_segment_ex(&s, ADDSEG_NOSREG);
 
   if ( inf_get_start_ip() != BADADDR )
     op_plain_offset(s.start_ea + 040, 0, s.start_ea);
@@ -256,9 +257,13 @@ nons:
       loadchunk(li, ovrstart+2, ovrsizeW-2, sel_l, fileBlock*512+2, "OVR");
       add_segment_translation(sel_l<<4, inf_get_baseaddr()<<4); // translate to asect
       add_segment_translation(sel_l<<4, inf_get_start_cs()<<4);  // translate to main
-      segment_t *s2 = getseg(ovrstart+2);
-      s2->ovrname = ((uint32)numOvr << 16) | numSeg;
-      set_segm_name(s2, name);
+      segment_info_t s2;
+      if ( get_segment_info(&s2, ovrstart+2) )
+      {
+        s2.set_orgbase(((uint32)numOvr << 16) | numSeg);
+        set_segment_info(&s2);
+      }
+      set_segment_name(ovrstart+2, name);
       temp.altset(i, ovrstart - loadAddr);
       lread(li, &loadAddr, sizeof(ushort)); // segment loading address
     }
@@ -278,16 +283,16 @@ nons:
     ea_t base = s.end_ea - ovt + ml->ovrcallbeg;
     i = ml->ovrcallend - ml->ovrcallbeg + 8;
     set_segm_start(s.end_ea, base+i, SEGMOD_KILL);
-    set_segm_name(getseg(base+i), "main");
+    set_segment_name(base+i, "main");
     loadchunk(li, base -= 0x10, i, inf_get_baseaddr()+1, ml->ovrcallbeg, "TBL");
     ml->ovrtbl_base = (uint32)to_ea(inf_get_baseaddr()+1, 0);
-    set_segm_name(getseg(base), "ov_call");
+    set_segment_name(base, "ov_call");
     char labname[17] = "cl_";
     for ( int j = 0; j < i; j += 8 )
     {
       uint32 trans = (uint32)ml_ovrtrans->altval(ml->ovrcallbeg+j);
       qstring sname;
-      get_segm_name(&sname, getseg(trans));
+      get_segment_name(&sname, trans);
       labname[3+7] = '\0';
       if ( sname == &labname[3] )
       {
@@ -303,7 +308,7 @@ nons:
       set_name(trans, &labname[3], SN_IDBENC);
       set_name(base + j, labname, SN_IDBENC);
       create_word(base + j, 2*3);
-      op_plain_offset(base + j + 6, 0, get_segm_base(getseg(trans)));
+      op_plain_offset(base + j + 6, 0, get_segment_base(trans));
     }
   }
   else

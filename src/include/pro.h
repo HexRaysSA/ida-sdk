@@ -32,8 +32,8 @@
    __ARM__     - ARM
 */
 
-/// IDA SDK v9.3
-#define IDA_SDK_VERSION      930
+/// IDA SDK v9.4
+#define IDA_SDK_VERSION      940
 
 //---------------------------------------------------------------------------
 #if !defined(__NT__) && !defined(__LINUX__) && !defined(__MAC__)
@@ -50,7 +50,9 @@
 
 // Linux or Mac imply Unix
 #if defined(__LINUX__) || defined(__MAC__)
+#ifndef __UNIX__
 #define __UNIX__
+#endif
 #endif
 
 /// \def{BADMEMSIZE, Invalid memory size}
@@ -80,6 +82,7 @@
 #include <memory>
 #include <new>
 #include <string>
+#include <utility>
 #endif
 #if defined(__NT__)
 #  include <malloc.h>
@@ -1425,8 +1428,8 @@ idaman int ida_export bitcount(uint64 x);
 idaman int ida_export bitcountr_zero(uint64 x);
 
 /// round up or down to a power of 2
-idaman uint32 ida_export round_up_power2(uint32 x);
-idaman uint32 ida_export round_down_power2(uint32 x);
+idaman size_t ida_export round_up_power2(size_t x);
+idaman size_t ida_export round_down_power2(size_t x);
 
 /// is power of 2? (or zero)
 template <class T> constexpr bool is_pow2(T val)
@@ -1545,7 +1548,7 @@ template<class T> bool is_mul_ok(T count, T elsize)
 template<class U, class T> bool is_add_ok(U x, T y)
 {
   CASSERT((U)(-1) > 0); // make sure U is unsigned
-  return y >= 0 ? y <= ((U)(-1)) - x : (0-y) <= x;
+  return y >= 0 ? (U)y <= ((U)(-1)) - x : (U)(0-y) <= x;
 }
 
 /// Check that unsigned division is permissible
@@ -1711,13 +1714,26 @@ idaman THREAD_SAFE uval_t ida_export rotate_left(uval_t x, int count, size_t bit
 
 
 #ifdef __cplusplus
+// Can we move around objects of type T using simple memcpy/memmove?
+// This class can be specialized for any type T to improve qvector's behavior.
+template <class T> struct ida_movable_type
+{
+  static constexpr bool value = std::is_pod<T>::value;
+};
+
 /// Swap 2 objects of the same type using memory copies
+// NOTE: qswap() has historically used raw byte copies for movable types.
+// Keep that behavior for ida_movable_type<T> to avoid changing ownership
+// semantics for legacy movable-but-non-trivially-copyable types.
 template <class T> inline THREAD_SAFE void qswap(T &a, T &b)
 {
+  static_assert(
+          ida_movable_type<T>::value || std::is_trivially_copyable<T>::value,
+          "qswap() requires a movable or trivially-copyable type; use std::swap() for other types");
   char temp[sizeof(T)];
-  memcpy(&temp, &a, sizeof(T));
-  memcpy(&a, &b, sizeof(T));
-  memcpy(&b, &temp, sizeof(T));
+  memcpy(temp, (const void *) &a, sizeof(T));
+  memcpy((void *) &a, (const void *) &b, sizeof(T));
+  memcpy((void *) &b, temp, sizeof(T));
 }
 
 //---------------------------------------------------------------------------
@@ -2176,12 +2192,6 @@ idaman THREAD_SAFE void *ida_export qvector_reserve(void *vec, void *old, size_t
 
 // Internal declarations to detect movable types
 /// \cond
-// Can we move around objects of type T using simple memcpy/memmove?
-// This class can be specialized for any type T to improve qvector's behavior.
-template <class T> struct ida_movable_type
-{
-  static constexpr bool value = std::is_pod<T>::value;
-};
 #define DECLARE_TYPE_AS_MOVABLE(T) template <> struct ida_movable_type<T> { static constexpr bool value = true; }
 
 
@@ -2200,11 +2210,11 @@ inline void shift_down(T *dst, T *src, size_t cnt)
 {
   if ( may_move_bytes<T>() )
   {
-    memmove(dst, src, cnt*sizeof(T));
+    memmove((void *) dst, (const void *) src, cnt * sizeof(T));
   }
   else
   {
-    ssize_t s = cnt;
+    ssize_t s = ssize_t(cnt);
     while ( --s >= 0 )
     {
       new(dst) T(std::move(*src));
@@ -2223,7 +2233,7 @@ inline void shift_up(T *dst, T *src, size_t cnt)
 {
   if ( may_move_bytes<T>() )
   {
-    memmove(dst, src, cnt*sizeof(T));
+    memmove((void *) dst, (const void *) src, cnt * sizeof(T));
   }
   else
   {
@@ -2268,9 +2278,9 @@ template <class T> class qvector
   /// Copies a range of elements from another qvector.
   void copy_range(const qvector<T> &x, size_t from, size_t _newsize)
   {
-    if ( std::is_trivially_copyable<T>::value )
+    if constexpr ( std::is_trivially_copyable<T>::value )
     {
-      memcpy(array + from, x.array + from, (_newsize-from)*sizeof(T));
+      memcpy((void *) (array + from), (const void *) (x.array + from), (_newsize - from) * sizeof(T));
     }
     else
     {
@@ -2327,12 +2337,20 @@ template <class T> class qvector
       free_memory();
 #endif
   }
-  /// Resizes to a bigger size, and zeros the new elements (they
-  /// should be of a std::is_trivially_constructible type).
+  /// Resizes to a bigger size, and zeros the new elements when the element
+  /// type is trivially copyable. Otherwise default-constructs them.
   void resize_more_trivial(size_t _newsize)
   {
     reserve(_newsize);
-    memset(array+n, 0, (_newsize-n)*sizeof(T));
+    if constexpr ( std::is_trivially_copyable<T>::value )
+    {
+      memset((void *) (array + n), 0, (_newsize - n) * sizeof(T));
+    }
+    else
+    {
+      for ( size_t i = n; i < _newsize; ++i )
+        new (array + i) T();
+    }
     n = _newsize;
   }
   /// Resizes to a bigger size with a given element.
@@ -2374,9 +2392,9 @@ public:
     array = static_cast<T*>(qalloc_or_throw(sz * sizeof(T)));
     alloc = sz;
 
-    if ( std::is_trivially_copyable<T>::value )
+    if constexpr ( std::is_trivially_copyable<T>::value )
     {
-      memcpy(array, l.begin(), sz * sizeof(T));
+      memcpy((void *) array, (const void *) l.begin(), sz * sizeof(T));
     }
     else
     {
@@ -2537,10 +2555,16 @@ public:
   /// Same as resize(size_t, const T &), but extra space is filled with empty elements
   void resize(size_t _newsize)
   {
-    if ( std::is_trivially_constructible<T>::value && _newsize > n )
+    if ( std::is_trivially_constructible<T>::value
+      && std::is_trivially_copyable<T>::value
+      && _newsize > n )
+    {
       resize_more_trivial(_newsize);
+    }
     else if ( _newsize == n )
+    {
       return;
+    }
 #if __cplusplus >= 201703
     else if constexpr ( std::is_default_constructible<T>::value )
       resize(_newsize, T());
@@ -3305,7 +3329,7 @@ public:
       len = ::qstrlen(ptr);
     if ( len == 0 )
       return true;
-    if ( length() < len )
+    if ( length() < size_t(len) )
       return false;
     return strneq(begin(), ptr, len);
   }
@@ -3319,11 +3343,11 @@ public:
     if ( ptr == nullptr )
       return true;
     if ( len == -1 )
-      len = ::qstrlen(ptr);
+      len = ssize_t(::qstrlen(ptr));
     if ( len == 0 )
       return true;
     size_t l = length();
-    if ( l < len )
+    if ( l < size_t(len) )
       return false;
     return strneq(begin() + l - len, ptr, len);
   }
@@ -3795,7 +3819,7 @@ void qstring::split(qstrvec_t *out, const char *sep, uint32 flags) const
     p = psep != nullptr ? psep + seplen : end;
   }
   // Account for trailing separator sequence
-  if ( ends_with(sep, seplen) && (flags & SSF_DROP_EMPTY) == 0 )
+  if ( ends_with(sep, ssize_t(seplen)) && (flags & SSF_DROP_EMPTY) == 0 )
     out->push_back(); // add an empty string
 }
 
@@ -3897,7 +3921,7 @@ public:
 #ifndef __X86__
     QASSERT(4, len <= 0xFFFFFFFF);
 #endif
-    pack_dd(len);
+    pack_dd(uint32(len));
     append(x, len);
   }
   /// Pack a string (zero-terminated) and append the result to the bytevec
@@ -3923,7 +3947,7 @@ public:
 #ifndef __X86__
     QASSERT(5, len <= 0xFFFFFFFF);
 #endif
-    pack_dd(len);
+    pack_dd(uint32(len));
     append(buf, len);
   }
   /// Pack an object of size 'len' and append the result to the bytevec
@@ -3944,7 +3968,7 @@ public:
   /// \param vec  eavec to pack
   void pack_eavec(ea_t ea, const eavec_t &vec)
   {
-    int nelems = vec.size();
+    int nelems = int(vec.size());
     pack_dw(nelems); // 16bits, fixme!
     ea_t old = ea;
     for ( int i=0; i < nelems; i++ )
@@ -4519,7 +4543,7 @@ THREAD_SAFE struct memory_deserializer_t
       unpack(&out->push_back());
   }
   // linput_t like interface
-  ssize_t read(void *obj, size_t objsize) { return unpack_obj(obj, objsize) ? objsize : -1; }
+  ssize_t read(void *obj, size_t objsize) { return unpack_obj(obj, objsize) ? ssize_t(objsize) : -1; }
   bool eof() const { return empty(); }
 };
 #define DECLARE_MEMORY_DESERIALIZER(name)                              \
@@ -4538,7 +4562,7 @@ struct memory_serializer_t : public bytevec_t
   template <class T>
   void pack(const qvector<T> &value)
   {
-    pack_dd(value.size());
+    pack_dd(uint32(value.size()));
     for ( const auto &item: value )
       pack(item);
   }
@@ -4712,10 +4736,14 @@ template <class T> T align_down(T val, int elsize)
 }
 
 //-------------------------------------------------------------------------
-/// Declare class as uncopyable.
-/// (copy assignment and copy ctr are undefined, so if anyone calls them,
-///  there will be a compilation or link error)
-#define DECLARE_UNCOPYABLE(T) T &operator=(const T &); T(const T &);
+/// Declare class as uncopyable and unmovable.
+/// (the copy and move operations are explicitly `= delete`-d, so any
+///  attempt to copy or move an instance is a compile-time error.)
+#define DECLARE_UNCOPYABLE(T)              \
+  T(const T &) = delete;                   \
+  T &operator=(const T &) = delete;        \
+  T(T &&) = delete;                        \
+  T &operator=(T &&) = delete;
 
 #ifndef SWIG
 //-------------------------------------------------------------------------
@@ -4775,7 +4803,7 @@ idaman THREAD_SAFE char *ida_export user2str(char *dst, const char *src, size_t 
 idaman THREAD_SAFE char ida_export back_char(const char **p);                             ///< Translate char after '\\'
 #ifdef __cplusplus
 idaman THREAD_SAFE void ida_export qstr2user(qstring *dst, const char *src, int nsyms=-1);///< see str2user()
-inline THREAD_SAFE void qstr2user(qstring *dst, const qstring &src) { qstr2user(dst, src.c_str(), src.length()); }
+inline THREAD_SAFE void qstr2user(qstring *dst, const qstring &src) { qstr2user(dst, src.c_str(), int(src.length())); }
 idaman THREAD_SAFE void ida_export user2qstr(qstring *dst, const qstring &src);           ///< see user2str()
 #else
 idaman THREAD_SAFE void ida_export qstr2user(qstring *dst, const qstring *src);           ///< see str2user()
@@ -5039,7 +5067,7 @@ inline ssize_t convert_encoding(
         DEFARG(int flags,0))
 {
   QASSERT(1451, ssize_t(indata->size()) >= 0);
-  return convert_encoding(out, fromcode, tocode, indata->begin(), indata->size(), flags);
+  return convert_encoding(out, fromcode, tocode, indata->begin(), ssize_t(indata->size()), flags);
 }
 #endif
 
@@ -5174,7 +5202,7 @@ struct cliopt_t
 {
   char shortname;
   const char *longname;
-  const char *help;
+  const char *help; // nullptr means hidden from usage
   cliopt_handler_t *handler;
   int nargs; // number of arguments. Can be 0, 1 or -1.
              // If '-1', it means 'poly_handler' will be used
@@ -5472,7 +5500,7 @@ typedef int idaapi qthread_cb_t(void *ud);
 OPAQUE_HANDLE(qthread_t);
 
 
-/// Create a thread and return a thread handle
+/// Create a thread and return a thread handle. Must call qthread_free() to free it!
 
 idaman THREAD_SAFE qthread_t ida_export qthread_create(qthread_cb_t *thread_cb, void *ud);
 

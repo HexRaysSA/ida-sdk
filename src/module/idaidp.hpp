@@ -1,4 +1,7 @@
 
+#ifndef __IDAIDP_HPP
+#define __IDAIDP_HPP
+
 // Common include files for IDP modules:
 
 #include <ida.hpp>
@@ -71,3 +74,5 @@ inline bool print_predefined_segname(
 // A function to create merge handlers for module.
 // This function is defined by processor modules.
 void create_std_procmod_handlers(merge_data_t &md);
+
+#endif // __IDAIDP_HPP

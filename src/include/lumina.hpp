@@ -146,15 +146,27 @@ struct insn_site_t
 {
   uint32 fchunk_nr = -1;
   uint32 fchunk_off = -1;
-  ea_t toea(const func_t *pfn) const
+  /// \deprecated Use to_ea() for safer access.
+  DEPRECATED ea_t toea(const func_t *pfn) const
   {
     QASSERT(1777, pfn != nullptr);
-    const range_t *r = fchunk_nr == 0             ? pfn
-                     : fchunk_nr-1 < pfn->tailqty ? &pfn->tails[fchunk_nr-1]
-                     :                              nullptr;
-    return r != nullptr && fchunk_off < r->size()
-         ? r->start_ea + fchunk_off
-         : BADADDR;
+    return to_ea(pfn->start_ea);
+  }
+  ea_t to_ea(ea_t func_ea) const
+  {
+    if ( fchunk_nr == 0 )
+    {
+      func_entry_info_t fi;
+      if ( !get_func_entry_info(&fi, func_ea) )
+        return BADADDR;
+      return fchunk_off < fi.size() ? fi.start_ea + fchunk_off : BADADDR;
+    }
+    rangevec_t tails;
+    get_func_tails(&tails, func_ea);
+    if ( fchunk_nr-1 >= tails.size() )
+      return BADADDR;
+    const range_t &r = tails[fchunk_nr-1];
+    return fchunk_off < r.size() ? r.start_ea + fchunk_off : BADADDR;
   }
 };
 
@@ -287,6 +299,7 @@ inline const uchar *metadata_t::find(mdkey_t key, const uchar **pend) const
 
 //-------------------------------------------------------------------------
 typedef void idaapi metadata_appender_t(metadata_creator_t &mcr, const func_t *pfn);
+typedef void idaapi metadata_appender_ea_t(metadata_creator_t &mcr, ea_t func_ea);
 
 //-------------------------------------------------------------------------
 struct md5_t;
@@ -309,11 +322,18 @@ enum lumina_feature_t
 
 //-------------------------------------------------------------------------
 
-idaman asize_t ida_export calc_func_metadata(
+/// \deprecated Use calc_function_metadata() for safer access.
+idaman DEPRECATED asize_t ida_export calc_func_metadata(
         md5_t *out_hash,     // can be nullptr
         func_info_t *out_fi, // can be nullptr
         const func_t *pfn,
         metadata_appender_t *append_metadata=nullptr);
+
+idaman asize_t ida_export calc_function_metadata(
+        md5_t *out_hash,     // can be nullptr
+        func_info_t *out_fi, // can be nullptr
+        ea_t func_ea,
+        metadata_appender_ea_t *append_metadata=nullptr);
 
 struct md_type_parts_t
 {
@@ -1130,7 +1150,7 @@ public:
                                       // to the lumina server
 #define PULL_MD_SEEN_FILE  0x02       // do not increase frequency count
 
-  virtual bool push_md(
+  virtual bool obsolete_push_md(
         push_md_result_t *result,
         const push_md_opts_t &opts,
         qstring *errbuf,
@@ -1143,6 +1163,13 @@ public:
 
   // unconditionally remove all metadata for FUNCS
   virtual bool del_history(qstring *errbuf, const eavec_t &funcs) newapi;
+
+  virtual bool push_md(
+        push_md_result_t *result,
+        const push_md_opts_t &opts,
+        qstring *errbuf,
+        metadata_appender_ea_t *append_metadata=nullptr,
+        uint32 flags=0) newapi;
 
   bool can_del_history() const
   {

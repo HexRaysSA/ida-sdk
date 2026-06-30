@@ -675,9 +675,8 @@ extern char ldrdata[64];        // Reserved place for LOADER data
 
 struct idadll_t
 {
-  void *dllinfo[LNE_MAXSEG];
-  void *entry;                  // first entry point of DLL
-  idadll_t(void) { dllinfo[0] = nullptr; entry = nullptr; }
+  void *dllinfo[LNE_MAXSEG] = {};
+  void *entry = nullptr;          // first entry point of DLL
   bool is_loaded(void) const { return dllinfo[0] != nullptr; }
 };
 
@@ -757,24 +756,21 @@ idaman const idp_descs_t *ida_export get_idp_descs(void);
 /// Structure to store plugin information
 struct plugin_info_t
 {
-  plugin_info_t *next;  ///< next plugin information
-  char *path;           ///< full path to the plugin
-  char *org_name;       ///< original short name of the plugin
-  char *name;           ///< short name of the plugin
-                        ///< it will appear in the menu
-  ushort org_hotkey;    ///< original hotkey to run the plugin
-  ushort hotkey;        ///< current hotkey to run the plugin
-  size_t arg;           ///< argument used to call the plugin
-  plugin_t *entry;      ///< pointer to the plugin if it is already loaded
+  plugin_info_t *next = nullptr;  ///< next plugin information
+  char *path = nullptr;           ///< full path to the plugin
+  char *org_name = nullptr;       ///< original short name of the plugin
+  char *name = nullptr;           ///< short name of the plugin
+                                  ///< it will appear in the menu
+  ushort org_hotkey = 0;          ///< original hotkey to run the plugin
+  ushort hotkey = 0;              ///< current hotkey to run the plugin
+  size_t arg = 0;                 ///< argument used to call the plugin
+  plugin_t *entry = nullptr;      ///< pointer to the plugin if it is already loaded
   idadll_t dllmem;
-  int flags;            ///< a copy of plugin_t::flags
-  char *comment;        ///< a copy of plugin_t::comment
-  qstring idaplg_name;  ///< "name" provided by ida-plugin.json or basename of path (without extension)
-  plugin_info_t()
-  {
-    memset(this, 0, sizeof(*this));
-  }
+  int flags = 0;                  ///< a copy of plugin_t::flags
+  char *comment = nullptr;        ///< a copy of plugin_t::comment
+  qstring idaplg_name;            ///< "name" provided by ida-plugin.json or basename of path (without extension)
 };
+
 
 
 /// Get pointer to the list of plugins. (some plugins might be listed several times

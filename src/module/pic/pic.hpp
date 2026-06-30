@@ -64,11 +64,8 @@ int calc_outf(const op_t &x);
 //------------------------------------------------------------------
 void interr(const char *module);
 
-void idaapi pic_segend(outctx_t &ctx, segment_t *seg);
-
 int  idaapi is_align_insn(ea_t ea);
 
-int idaapi is_jump_func(const func_t *pfn, ea_t *jump_target);
 int idaapi is_sane_insn(int nocrefs);
 int idaapi may_be_func(void);           // can a function start here?
 
@@ -131,7 +128,7 @@ struct pic_t : public procmod_t
   void free_mappings(void);
   void add_mapping(ea_t from, ea_t to);
   ea_t map_port(ea_t from);
-  void check_pclath(segment_t *s) const;
+  void check_pclath(ea_t seg_ea) const;
 
   bool build_macro(insn_t &insn, bool may_go_forward);
   void simplify(insn_t &insn) const;
@@ -150,7 +147,7 @@ struct pic_t : public procmod_t
   bool is_load_tris_reg(const insn_t &insn);
   inline void set_plain_offset(ea_t insn_ea, int n, ea_t base) const;
   int emu(const insn_t &insn);
-  bool create_func_frame(func_t *pfn) const;
+  bool create_func_frame(ea_t func_ea) const;
 
   void pic_header(outctx_t &ctx);
   int out_equ(outctx_t &ctx);
@@ -160,7 +157,7 @@ struct pic_t : public procmod_t
   bool conditional_insn(const insn_t &insn, flags64_t F) const; // may instruction be skipped?
   void print_segment_register(outctx_t &ctx, int reg, sel_t value);
   void pic_assumes(outctx_t &ctx);       // function to produce assume directives
-  void pic_segstart(outctx_t &ctx, segment_t *Srange) const;
+  void pic_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void pic_footer(outctx_t &ctx) const;
 
   void load_from_idb();

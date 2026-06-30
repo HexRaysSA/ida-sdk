@@ -55,7 +55,9 @@ static int idaapi accept_file(
     || wh.read_size > wh.mem_size
     || wh.start_offset >= wh.reltbl_offset
     || wh.beg_fileoff > fsize
+    || wh.read_size < 2
     || wh.read_size > fsize - wh.beg_fileoff
+    || wh.reltbl_offset < 4
     || wh.reltbl_offset > wh.read_size - 2 )
   {
     return 0;
@@ -207,15 +209,17 @@ static void create32(
 {
   set_selector(sel, 0);
 
-  segment_t s;
-  s.sel     = sel;
+  segment_info_t s;
+  s.set_sel(sel);
   s.start_ea = start_ea;
   s.end_ea   = end_ea;
-  s.align   = saRelByte;
-  s.comb    = scPub;
-  s.bitness = 1; // 32-bit
+  s.set_align(saRelByte);
+  s.set_comb(scPub);
+  s.set_bitness(1); // 32-bit
+  s.set_name(name);
+  s.set_sclass(sclass);
 
-  if ( !add_segm_ex(&s, name, sclass, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+  if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
     loader_failure();
 }
 

@@ -25,8 +25,7 @@ int32 backtrack_value(ea_t from_ea, uint8 size, btsource_t source)
 {
   // Note: At some point, we were using:
   // ---
-  //   const func_t * const func = get_fchunk(from_ea);
-  //   if (func == nullptr)
+  //   if ( !get_fchunk_info(nullptr, from_ea) )
   //     return -1;
   //   ea_t chunk_start_ea = func->start_ea;
   // ---

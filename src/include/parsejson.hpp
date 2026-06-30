@@ -201,7 +201,7 @@ struct jobj_t : public qvector<kvp_t>
   DEFINE_DFLT_GETTER(ConstType, JType, GetExpr)                         \
   DEFINE_SETTER(Type, SetExpr)
 
-  DEFINE_ACCESSORS(int, int, JT_NUM, v->num(), v->set_num(value));
+  DEFINE_ACCESSORS(int, int, JT_NUM, int(v->num()), v->set_num(value));
   DEFINE_ACCESSORS(int64, int64, JT_NUM, v->num(), v->set_num(value));
   DEFINE_ACCESSORS(double, double, JT_DBL, v->vdouble(), v->set_double(value));
   DEFINE_ACCESSORS(bool, bool, JT_BOOL, v->vbool(), v->set_bool(value));

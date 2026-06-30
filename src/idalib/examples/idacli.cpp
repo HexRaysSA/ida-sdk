@@ -288,20 +288,18 @@ static void list_binary_segments()
   std::cout << std::endl << "Listing segments, there are " << nb_items << " segments:" << std::endl<< std::endl;
   for ( int seg_no = 0; seg_no < nb_items; ++seg_no )
   {
-    segment_t *segment = getnseg(seg_no);
-    if ( segment != nullptr )
+    segment_info_t segment;
+    if ( get_segment_info_by_num(&segment, seg_no, GSI_NAME | GSI_SCLASS) )
     {
       qstring name;
-      get_visible_segm_name(&name, segment);
-      qstring sclass;
-      get_segm_class(&sclass, segment);
-
+      segment.visible_name(&name);
+      qstring sclass = segment.get_sclass();
       std::cout << seg_no + 1 << "." << "\tname: " << name.c_str() << std::endl;
-      std::cout << "\tstart: " << dump_address(segment->start_ea) << std::endl;
-      std::cout << "\talign: " << (int)segment->align << std::endl;
-      std::cout << "\ttype: " <<  get_segment_combination(segment->comb) << std::endl;
+      std::cout << "\tstart: " << dump_address(segment.start_ea) << std::endl;
+      std::cout << "\talign: " << (int)segment.get_align() << std::endl;
+      std::cout << "\ttype: " <<  get_segment_combination(segment.get_comb()) << std::endl;
       std::cout << "\tclass: " << (qstrlen(sclass.c_str()) > 0 ? sclass.c_str() : "unknown") << std::endl;
-      std::cout << "\taddress bits: " << segment->abits() << std::endl;
+      std::cout << "\taddress bits: " << segment.abits() << std::endl;
       std::cout << std::endl;
     }
   }
@@ -427,21 +425,20 @@ static void apply_signatures_from_path(
   int nb_items = get_segm_qty();
   for ( int seg_no = 0; seg_no < nb_items; ++seg_no )
   {
-    segment_t *segment = getnseg(seg_no);
-    if ( segment != nullptr )
+    segment_info_t segment;
+    if ( get_segment_info_by_num(&segment, seg_no, GSI_NAME | GSI_SCLASS) )
     {
       qstring s_name;
-      get_visible_segm_name(&s_name, segment);
+      segment.visible_name(&s_name);
 
-      qstring s_class;
-      get_segm_class(&s_class, segment);
+      qstring s_class = segment.get_sclass();
 
       qstring s_perm;
-      if ( segment->perm != 0 )
+      if ( segment.get_perm() != 0 )
       {
-        s_perm.append((segment->perm & SEGPERM_READ)  != 0 ? 'r' : '-');
-        s_perm.append((segment->perm & SEGPERM_WRITE) != 0 ? 'w' : '-');
-        s_perm.append((segment->perm & SEGPERM_EXEC)  != 0 ? 'x' : '-');
+        s_perm.append((segment.get_perm() & SEGPERM_READ)  != 0 ? 'r' : '-');
+        s_perm.append((segment.get_perm() & SEGPERM_WRITE) != 0 ? 'w' : '-');
+        s_perm.append((segment.get_perm() & SEGPERM_EXEC)  != 0 ? 'x' : '-');
       }
       else
         s_perm = "n/a";
@@ -450,12 +447,12 @@ static void apply_signatures_from_path(
       jvalue_t seg_value;
       seg_value.set_obj(new jobj_t());
       seg_value.obj().put("name", s_name);
-      seg_value.obj().put("start_ea", dump_address(segment->start_ea).c_str());
-      seg_value.obj().put("end_ea", dump_address(segment->end_ea).c_str());
-      seg_value.obj().put("align", (int)segment->align);
-      seg_value.obj().put("type", get_segment_combination(segment->comb));
+      seg_value.obj().put("start_ea", dump_address(segment.start_ea).c_str());
+      seg_value.obj().put("end_ea", dump_address(segment.end_ea).c_str());
+      seg_value.obj().put("align", (int)segment.get_align());
+      seg_value.obj().put("type", get_segment_combination(segment.get_comb()));
       seg_value.obj().put("class", s_class.size() ? s_class : "unknown");
-      seg_value.obj().put("address_bits", (int)segment->abits());
+      seg_value.obj().put("address_bits", (int)segment.abits());
       seg_value.obj().put("perm", s_perm);
       segments->arr().values.push_back(seg_value);
     }
@@ -522,15 +519,16 @@ static void apply_signatures_from_path(
     int lib_funcs_sizes = 0;       // cumulated size of lib functions found in program
     for ( int func_no = 0; func_no < nb_funcs; ++func_no )
     {
-      func_t *pfn = getn_func(func_no);
-      if ( !pfn )
+      func_entry_info_t fi;
+      if ( !get_func_entry_info_by_num(&fi, func_no) )
         continue;
 
-      total_funcs_sizes += (pfn->end_ea - pfn->start_ea);
-      if ( pfn->flags & FUNC_LIB )
+      asize_t fsize = fi.size();
+      total_funcs_sizes += fsize;
+      if ( fi.get_flags() & FUNC_LIB )
       {
         ++lib_funcs_no;
-        lib_funcs_sizes += (pfn->end_ea - pfn->start_ea);
+        lib_funcs_sizes += fsize;
       }
     }
 

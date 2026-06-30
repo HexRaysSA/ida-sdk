@@ -284,19 +284,21 @@ void idaapi load_file(linput_t *li, ushort /*neflag*/, const char * /*fileformat
 
     set_selector(selector, ISFLAT ? 0 : perseg[nseg].minea>>4);
 
-    segment_t s;
-    s.sel     = selector;
+    segment_info_t s;
+    s.set_sel(selector);
     s.start_ea = perseg[nseg].minea;
     s.end_ea   = perseg[nseg].topea;
-    s.align   = saRelByte;
-    s.comb    = scPub;
-    s.bitness = (_PCF_32BIT & ex.lmf_definition.cflags) ? 1 : 0;
+    s.set_align(saRelByte);
+    s.set_comb(scPub);
+    s.set_bitness((_PCF_32BIT & ex.lmf_definition.cflags) ? 1 : 0);
     bool sparse = (perseg[nseg].topea - perseg[nseg].minea) > filelen;
     int flags = (sparse ? ADDSEG_SPARSE : 0) | ADDSEG_NOSREG;
-    if ( !add_segm_ex(&s, seg_name, seg_class, flags) )
+    s.set_name(seg_name);
+    s.set_sclass(seg_class);
+    if ( !add_segment_ex(&s, flags) )
       loader_failure();
     if ( _PCF_32BIT &ex.lmf_definition.cflags )
-      set_segm_addressing(getseg(perseg[nseg].minea), 1); // 32bit
+      set_segment_addressing(perseg[nseg].minea, 1); // 32bit
   }
 
   set_default_dataseg(LDT_SELECTOR(ex.lmf_definition.argv_index));

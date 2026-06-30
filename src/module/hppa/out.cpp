@@ -1237,8 +1237,8 @@ void out_hppa_t::out_insn(void)
 }
 
 //--------------------------------------------------------------------------
-//lint -esym(818, Srange) could be made const
-void hppa_t::hppa_segstart(outctx_t &ctx, segment_t *Srange) const
+//lint -esym(1764, ctx) could be made const
+void hppa_t::hppa_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
   const char *const predefined[] =
   {
@@ -1248,13 +1248,14 @@ void hppa_t::hppa_segstart(outctx_t &ctx, segment_t *Srange) const
     ".comm",
   };
 
-  if ( is_spec_segm(Srange->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME|GSI_SCLASS) )
+    return;
+  if ( is_spec_segm(si.get_type()) )
     return;
 
-  qstring sname;
-  qstring sclas;
-  get_segm_name(&sname, Srange);
-  get_segm_class(&sclas, Srange);
+  qstring sname = si.get_name();
+  qstring sclas = si.get_sclass();
 
   if ( !print_predefined_segname(ctx, &sname, predefined, qnumber(predefined)) )
     ctx.gen_printf(DEFAULT_INDENT,
@@ -1283,11 +1284,6 @@ void hppa_t::hppa_assumes(outctx_t &ctx)                // function to produce a
     ctx.gen_printf(DEFAULT_INDENT,
                    COLSTR("%s %s = %0*a", SCOLOR_ASMDIR),
                    ash.cmnt, ph.reg_names[DPSEG], 8, got + sra.val);
-}
-
-//--------------------------------------------------------------------------
-void idaapi hppa_segend(outctx_t &, segment_t *)
-{
 }
 
 //--------------------------------------------------------------------------

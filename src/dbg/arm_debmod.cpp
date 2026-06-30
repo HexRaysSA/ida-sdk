@@ -1,7 +1,8 @@
 #include <pro.h>
 #include <nalt.hpp>
-#include "arm_debmod.h"
+#include <dbg/arm_debmod.h>
 
+#ifndef ARM_DEBMOD_PREAMBLE
 #ifdef ENABLE_LOWCNDS
 inline bool has_armv5(void) { return true; }
 #endif
@@ -17,8 +18,6 @@ inline bool is_arm64_ea(ea_t ea)
 #endif
 }
 
-
-#ifndef ARM_DEBMOD_PREAMBLE
 //-------------------------------------------------------------------------
 bool is_32bit_thumb_insn(uint16 code)
 {

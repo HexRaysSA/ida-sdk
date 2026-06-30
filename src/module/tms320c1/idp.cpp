@@ -85,11 +85,11 @@ ssize_t idaapi tms320c1_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        outSegStart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        outSegStart(*ctx, ea);
         return 1;
       }
 
@@ -152,8 +152,8 @@ void tms320c1_t::tms320c1x_Init() const
 //
 void tms320c1_t::tms320c1x_NewFile()
 {
-  ea_t      data_start;
-  segment_t dpage0, dpage1;
+  ea_t           data_start;
+  segment_info_t dpage0, dpage1;
 
   //
   // There are no known executable file formats for TMS320C1X executables.
@@ -207,15 +207,16 @@ void tms320c1_t::tms320c1x_NewFile()
   //
   // Assign it a unique selector value.
   //
-  dpage0.sel     = allocate_selector(dpage0.start_ea >> 4);
+  dpage0.set_sel(allocate_selector(dpage0.start_ea >> 4));
   //
   // Let the kernel know that it is a DATA segment.
   //
-  dpage0.type    = SEG_DATA;
+  dpage0.set_type(SEG_DATA);
   //
-  // Create the segment in the address space.
+  // Set the segment name and create the segment in the address space.
   //
-  add_segm_ex(&dpage0, "dp0", nullptr, ADDSEG_OR_DIE);
+  dpage0.set_name("dp0");
+  add_segment_ex(&dpage0, ADDSEG_OR_DIE);
 
   ////
   //// Create the second data segment, otherwise known as 'data page 1'.
@@ -229,22 +230,23 @@ void tms320c1_t::tms320c1x_NewFile()
   //
   // Assign it a unique selector value.
   //
-  dpage1.sel     = allocate_selector(dpage1.start_ea >> 4);
+  dpage1.set_sel(allocate_selector(dpage1.start_ea >> 4));
   //
   // Let the kernel know that it is a DATA segment.
   //
-  dpage1.type    = SEG_DATA;
+  dpage1.set_type(SEG_DATA);
   //
-  // Create the segment in the address space.
+  // Set the segment name and create the segment in the address space.
   //
-  add_segm_ex(&dpage1, "dp1", nullptr, ADDSEG_OR_DIE);
+  dpage1.set_name("dp1");
+  add_segment_ex(&dpage1, ADDSEG_OR_DIE);
 
   //
   // Store the selectors of these two data segments in the global
   // variables tms320c1x_dpage0 and tms320c1x_dpage1.
   //
-  tms320c1x_dpage0 = dpage0.sel;
-  tms320c1x_dpage1 = dpage1.sel;
+  tms320c1x_dpage0 = dpage0.get_sel();
+  tms320c1x_dpage1 = dpage1.get_sel();
 }
 
 

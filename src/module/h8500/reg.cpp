@@ -34,9 +34,9 @@ static const bytes_t retcodes[] =
 };
 
 //------------------------------------------------------------------
-static void idaapi func_header(outctx_t &ctx, func_t *pfn)
+static void func_header(outctx_t &ctx, ea_t func_ea)
 {
-  ctx.gen_func_header(pfn);
+  ctx.gen_function_header(func_ea);
 
   if ( ctx.curlabel.empty() )
     return;
@@ -47,7 +47,7 @@ static void idaapi func_header(outctx_t &ctx, func_t *pfn)
                  SCOLOR_OFF SCOLOR_AUTOCMT,
                  ctx.curlabel.begin(),
                  ASH.cmnt,
-                 (pfn->flags & FUNC_FAR) != 0 ? "far" : "near");
+                 (get_func_flags(func_ea) & FUNC_FAR) != 0 ? "far" : "near");
   ctx.ctxflags |= CTXF_LABEL_OK;
 }
 
@@ -84,8 +84,8 @@ static const asm_t gas =
   "=",          // equ
   nullptr,         // 'seg' prefix (example: push seg seg001)
   nullptr,         // current IP (instruction pointer)
-  func_header,  // func_header
-  nullptr,         // func_footer
+  nullptr,      // func_header
+  nullptr,      // func_footer
   ".globl",     // "public" name keyword
   nullptr,         // "weak"   name keyword
   ".extern",    // "extrn"  name keyword
@@ -288,20 +288,13 @@ ssize_t idaapi h8500_t::on_event(ssize_t msgid, va_list va)
       load_from_idb();
       break;
 
-    case processor_t::ev_creating_segm:    // new segment
+    case processor_t::ev_creating_segment:    // new segment
       {
-        segment_t *sptr = va_arg(va, segment_t *);
-        sptr->defsr[BR-ph.reg_first_sreg] = 0;
-        sptr->defsr[DP-ph.reg_first_sreg] = 0;
+        segment_info_t *si = va_arg(va, segment_info_t *);
+        si->set_defsr(BR-ph.reg_first_sreg, 0);
+        si->set_defsr(DP-ph.reg_first_sreg, 0);
       }
       break;
-
-    case processor_t::ev_is_jump_func:
-      {
-        const func_t *pfn = va_arg(va, const func_t *);
-        ea_t *jump_target = va_arg(va, ea_t *);
-        return is_jump_func(pfn, jump_target);
-      }
 
     case processor_t::ev_is_sane_insn:
       {
@@ -337,21 +330,24 @@ ssize_t idaapi h8500_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_function_header:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        h8500_segstart(*ctx, seg);
+        ea_t func_ea = va_arg(va, ea_t);
+        func_header(*ctx, func_ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        h8500_segend(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        h8500_segstart(*ctx, ea);
         return 1;
       }
+
+    case processor_t::ev_out_segment_end:
+      return 1;
 
     case processor_t::ev_out_assumes:
       {
@@ -416,18 +412,18 @@ ssize_t idaapi h8500_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 
-    case processor_t::ev_get_frame_retsize:
+    case processor_t::ev_get_function_retsize:
       {
         int *frsize = va_arg(va, int *);
-        const func_t *pfn = va_arg(va, const func_t *);
-        *frsize = h8500_get_frame_retsize(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        *frsize = h8500_get_frame_retsize(func_ea);
         return 1;
       }
 

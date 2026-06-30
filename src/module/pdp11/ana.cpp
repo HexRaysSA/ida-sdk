@@ -76,11 +76,11 @@ void pdp11_t::jmpoper(insn_t &insn, op_t *Op, uint16 nibble)
 // msg("addr=%o, trans=%lo\n", Op->addr16, trans);
     if ( trans != 0 )
     {
-      segment_t *S = getseg(trans);
-      if ( S != nullptr )
+      segment_info_t si;
+      if ( get_segment_info(&si, trans) )
       {
         Op->type = o_far;
-        Op->segval = (uint16)S->sel;
+        Op->segval = (uint16)si.get_sel();
         Op->addr16 = (ushort)(trans - to_ea(Op->segval,0));
       }
     }

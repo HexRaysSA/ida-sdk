@@ -178,8 +178,8 @@ bool m7900_t::choose_device()
   {
     ioh.device = NONEPROC;
 
-    segment_t *sptr = get_first_seg();
-    if ( sptr != nullptr )
+    ea_t first_seg_ea = get_first_segment_ea();
+    if ( first_seg_ea != BADADDR )
     {
       //inf_set_start_ea(sptr->start_ea);
       //inf_set_start_ip(0);
@@ -272,24 +272,24 @@ ssize_t idaapi m7900_t::on_event(ssize_t msgid, va_list va)
       //  Set the default segment register values :
       //      -1 (badsel) for DR
       //      0 for fM and fX
-      for ( segment_t *s=get_first_seg(); s != nullptr; s=get_next_seg(s->start_ea) )
+      for ( ea_t sea = get_first_segment_ea(); sea != BADADDR; sea = get_next_segment_ea(sea) )
       {
-        set_default_sreg_value(s, rDPR0, 0x0);
-        set_default_sreg_value(s, rDPR1, 0x0);
-        set_default_sreg_value(s, rDPR2, 0x0);
-        set_default_sreg_value(s, rDPR3, 0x0);
-        set_default_sreg_value(s, rDT, 0x0);
-        set_default_sreg_value(s, rPG, 0x0);
-        set_default_sreg_value(s, rPC, 0xFFFE);
-        set_default_sreg_value(s, rPS, 0x0FFF);
+        set_default_sreg_value_ea(sea, rDPR0, 0x0);
+        set_default_sreg_value_ea(sea, rDPR1, 0x0);
+        set_default_sreg_value_ea(sea, rDPR2, 0x0);
+        set_default_sreg_value_ea(sea, rDPR3, 0x0);
+        set_default_sreg_value_ea(sea, rDT, 0x0);
+        set_default_sreg_value_ea(sea, rPG, 0x0);
+        set_default_sreg_value_ea(sea, rPC, 0xFFFE);
+        set_default_sreg_value_ea(sea, rPS, 0x0FFF);
 
-        set_default_sreg_value(s, rfI, 1);
-        set_default_sreg_value(s, rfD, 0);
-        set_default_sreg_value(s, rfX, 0);
-        set_default_sreg_value(s, rfM, 0);
-        set_default_sreg_value(s, rfIPL, 0);
+        set_default_sreg_value_ea(sea, rfI, 1);
+        set_default_sreg_value_ea(sea, rfD, 0);
+        set_default_sreg_value_ea(sea, rfX, 0);
+        set_default_sreg_value_ea(sea, rfM, 0);
+        set_default_sreg_value_ea(sea, rfIPL, 0);
 
-        set_default_sreg_value(s, rDPReg, 1);
+        set_default_sreg_value_ea(sea, rDPReg, 1);
       }
       info(m7900_help_message);
       break;
@@ -305,11 +305,11 @@ ssize_t idaapi m7900_t::on_event(ssize_t msgid, va_list va)
       load_from_idb();
       break;
 
-    case processor_t::ev_creating_segm:    // new segment
+    case processor_t::ev_creating_segment:    // new segment
       {
-        segment_t *s = va_arg(va, segment_t *);
+        segment_info_t *si = va_arg(va, segment_info_t *);
         // Set default value of DS register for all segments
-        set_default_dataseg(s->sel);
+        set_default_dataseg(si->get_sel());
       }
       break;
 
@@ -334,11 +334,11 @@ ssize_t idaapi m7900_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        m7900_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        m7900_segstart(*ctx, ea);
         return 1;
       }
 

@@ -39,9 +39,9 @@ bool idaapi plugin_ctx_t::run(size_t)
 
   // generate microcode
   hexrays_failure_t hf;
-  mba_ranges_t mbr;
-  mbr.ranges.push_back(range_t(ea1, ea2));
-  mba_t *mba = gen_microcode(mbr, &hf, nullptr, DECOMP_WARNINGS);
+  decomp_ranges_t dcr;
+  dcr.ranges.push_back(range_t(ea1, ea2));
+  mba_t *mba = gen_microcode(dcr, &hf, nullptr, DECOMP_WARNINGS);
   if ( mba == nullptr )
   {
     warning("%a: %s", hf.errea, hf.desc().c_str());

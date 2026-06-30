@@ -171,11 +171,7 @@ void hppa_t::setup_got(void)
   if ( got == BADADDR )
     got = get_name_ea(BADADDR, "_GLOBAL_OFFSET_TABLE_");
   if ( got == BADADDR )
-  {
-    segment_t *s = get_segm_by_name(".got");
-    if ( s != nullptr )
-      got = s->start_ea;
-  }
+    got = get_segment_ea_by_name(".got");
   msg("DP is assumed to be %08a\n", got);
 }
 
@@ -322,10 +318,10 @@ ssize_t idaapi hppa_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_newasm:    // new assembler type
       break;
 
-    case processor_t::ev_creating_segm:    // new segment
+    case processor_t::ev_creating_segment:    // new segment
       {
-        segment_t *sptr = va_arg(va, segment_t *);
-        sptr->defsr[DPSEG-ph.reg_first_sreg] = 0;
+        segment_info_t *si = va_arg(va, segment_info_t *);
+        si->set_defsr(DPSEG-ph.reg_first_sreg, 0);
       }
       break;
 
@@ -425,21 +421,16 @@ ssize_t idaapi hppa_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        hppa_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        hppa_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
-      {
-        outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        hppa_segend(*ctx, seg);
-        return 1;
-      }
+    case processor_t::ev_out_segment_end:
+      return 1;
 
     case processor_t::ev_out_assumes:
       {
@@ -484,18 +475,18 @@ ssize_t idaapi hppa_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 
-    case processor_t::ev_get_frame_retsize:
+    case processor_t::ev_get_function_retsize:
       {
         int *frsize = va_arg(va, int *);
-        const func_t *pfn = va_arg(va, const func_t *);
-        *frsize = hppa_get_frame_retsize(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        *frsize = hppa_get_frame_retsize(func_ea);
         return 1;
       }
 

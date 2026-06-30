@@ -28,14 +28,14 @@ static const char wanted_name[] = "Remote Linux debugger";
 #include <kernwin.hpp>
 #include <network.hpp>
 #include <dbg.hpp>
-#include "dbg_plugmod.hpp"
+#include <dbg/dbg_plugmod.hpp>
 
-#include "dbg_rpc_client.h"
-#include "rpc_debmod.h"
+#include <dbg/dbg_rpc_client.h>
+#include <dbg/rpc_debmod.h>
 #include "linux_rpc.h"
 #include "stack_unwind.hpp"
-#include "pc_regs.hpp"
-#include "deb_pc.hpp"
+#include <dbg/pc_regs.hpp>
+#include <dbg/deb_pc.hpp>
 
 //-----------------------------------------------------------------------------
 class linux_rpc_debmod_stub_t : public rpc_debmod_t
@@ -77,7 +77,7 @@ public:
 #define LINUX_DEBMOD_T linux_rpc_debmod_stub_t    //lint !e750 not referenced
 inline linux_rpc_debmod_stub_t &get_linux_debmod() { return *static_cast<linux_rpc_debmod_stub_t*>(&get_debmod()); }
 
-#include "common_stub_impl.cpp"
+#include <dbg/common_stub_impl.cpp>
 #include "linux_local_impl.cpp"
 
 struct dbg_plugmod_t : public dbg_plugmod_stub_t
@@ -133,4 +133,4 @@ ssize_t idaapi ui_listener_t::on_event(ssize_t code, va_list)
     save_linux_options();
   return 0;
 }
-#include "common_local_impl.cpp"
+#include <dbg/common_local_impl.cpp>

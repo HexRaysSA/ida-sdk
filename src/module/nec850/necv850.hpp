@@ -153,8 +153,7 @@ enum proctype_t
 
 // prototypes -- out.cpp
 void idaapi nec850_header(outctx_t &ctx);
-void idaapi nec850_segstart(outctx_t &ctx, segment_t *seg);
-void idaapi nec850_segend(outctx_t &ctx, segment_t *seg);
+void idaapi nec850_segstart(outctx_t &ctx, ea_t seg_ea);
 
 // prototypes -- ana.cpp
 int  detect_inst_len(uint16 w);
@@ -428,14 +427,14 @@ struct nec850_t : public procmod_t
         const op_t &op,
         getreg_t *getreg,
         const regval_t *rv) const;
-  void trace_sp(func_t *pfn, const insn_t &insn) const;
+  void trace_sp(ea_t func_ea, const insn_t &insn) const;
   int calc_stack_delta(const insn_t &insn) const;
 
   int  may_be_func(const insn_t &insn) const;
   bool is_return_insn(const insn_t &insn, bool strict) const;
 
   // emu_frame.cpp
-  bool create_func_frame(func_t *pfn, bool reanalyze=false);
+  bool create_func_frame(ea_t func_ea, bool reanalyze=false);
 
   // ana.cpp
   bool build_macro(insn_t *insn, bool may_go_forward) const;
@@ -475,6 +474,7 @@ struct nec850_t : public procmod_t
         int reg,
         int max_depth = 0,
         size_t linear_insns = 0) const;
+  void update_reg_finder_sizes();
 
   // spcfuncs.cpp
   // is INSN is a call of a save/return function?

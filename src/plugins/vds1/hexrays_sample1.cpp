@@ -34,20 +34,20 @@ static plugmod_t *idaapi init()
 //--------------------------------------------------------------------------
 bool idaapi plugin_ctx_t::run(size_t)
 {
-  func_t *pfn = get_func(get_screen_ea());
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(get_screen_ea());
+  if ( func_ea == BADADDR )
   {
     warning("Please position the cursor within a function");
     return true;
   }
   hexrays_failure_t hf;
-  cfuncptr_t cfunc = decompile(pfn, &hf, DECOMP_WARNINGS);
+  cfuncptr_t cfunc = decompile_function(func_ea, &hf, DECOMP_WARNINGS);
   if ( cfunc == nullptr )
   {
     warning("#error \"%a: %s", hf.errea, hf.desc().c_str());
     return true;
   }
-  msg("%a: successfully decompiled\n", pfn->start_ea);
+  msg("%a: successfully decompiled\n", func_ea);
 
   const strvec_t &sv = cfunc->get_pseudocode();
   for ( int i=0; i < sv.size(); i++ )

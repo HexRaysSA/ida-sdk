@@ -77,13 +77,11 @@ ea_t calc_mem(const insn_t &insn, ea_t ea); // map virtual to physical ea
 //------------------------------------------------------------------
 void idaapi st20_header(outctx_t &ctx);
 
-void idaapi st20_segstart(outctx_t &ctx, segment_t *seg);
-void idaapi st20_segend(outctx_t &ctx, segment_t *seg);
+void idaapi st20_segstart(outctx_t &ctx, ea_t seg_ea);
 void idaapi st20_assumes(outctx_t &ctx);         // function to produce assume directives
 
 int  idaapi is_align_insn(ea_t ea);
 
-int is_jump_func(const func_t *pfn, ea_t *jump_target);
 int is_sane_insn(const insn_t &insn, int nocrefs);
 int may_be_func(const insn_t &insn);           // can a function start here?
 

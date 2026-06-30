@@ -57,7 +57,7 @@ ssize_t idaapi dbg_listener_t::on_event(ssize_t code, va_list)
       // we apply thumb/arm switches when the process is suspended.
       // it is quite late (normally we should do it as soon as the corresponding
       // segment is created) but i did not manage to make it work.
-      // in the segm_added event the addresses are not enabled yet,
+      // in the segment_added event the addresses are not enabled yet,
       // so switching modes fails.
       if ( !pm.pending_addresses.empty() )
       {
@@ -84,8 +84,7 @@ void set_arm_thumb_modes(ea_t *addrs, int qty)
   for ( int i=0; i < qty; i++ )
   {
     ea_t ea = addrs[i];
-    segment_t *s = getseg(ea);
-    if ( s == nullptr )
+    if ( !get_segment_info(nullptr, ea) )
       pm->pending_addresses.insert(ea);
     else
       handle_arm_thumb_modes(ea);

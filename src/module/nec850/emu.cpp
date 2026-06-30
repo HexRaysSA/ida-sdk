@@ -483,8 +483,8 @@ static bool is_good_target(ea_t target, bool allow_low_addrs = false)
 {
   if ( target == BADADDR )
     return false;
-  segment_t *seg = getseg(target);
-  if ( seg == nullptr )
+  segment_info_t si;
+  if ( !get_segment_info(&si, target, GSI_NAME) )
     return false;
   if ( !is_mapped(target) )
     return false;
@@ -501,17 +501,15 @@ static bool is_good_target(ea_t target, bool allow_low_addrs = false)
     if ( !is_flow(F32) )
       return true;
     // references to the function start are accepted
-    func_t *pfn = get_func(target);
-    return pfn != nullptr && target == pfn->start_ea;
+    return get_func_start(target) == target;
   }
   // check if it points into a DATA segment
-  qstring segname;
-  get_segm_name(&segname, seg);
+  qstring segname = si.get_name();
   if ( is_data(F32)
-    || seg->type == SEG_DATA
-    || seg->type == SEG_BSS
+    || si.get_type() == SEG_DATA
+    || si.get_type() == SEG_BSS
     || segname == "ROM" // e.g. a firmware image
-    || seg->start_ea == target )
+    || si.start_ea == target )
   {
     // skip pointers to the loader header
     if ( segname == "HEADER" || segname == "LOAD" )
@@ -611,7 +609,8 @@ static bool create_offset_for_add(
   {
     if ( base == BADADDR )
       return false;
-    fix_localpic_label(&flags, rvi);
+    if ( !rvi.empty() )
+      fix_localpic_label(&flags, rvi);
     return op_offset(ea, n, flags | REF_OFF32, BADADDR, base);
   }
   // assert: movhi.Op1.type == o_imm
@@ -820,7 +819,7 @@ int nec850_t::calc_stack_delta(const insn_t &insn) const
 }
 
 //----------------------------------------------------------------------
-void nec850_t::trace_sp(func_t *pfn, const insn_t &insn) const
+void nec850_t::trace_sp(ea_t func_ea, const insn_t &insn) const
 {
   sval_t delta;
   switch ( insn.itype )
@@ -855,7 +854,7 @@ void nec850_t::trace_sp(func_t *pfn, const insn_t &insn) const
     default:
       return;
   }
-  add_auto_stkpnt(pfn, insn.ea + insn.size, delta);
+  add_func_auto_stkpnt(func_ea, insn.ea + insn.size, delta);
 }
 
 //-------------------------------------------------------------------------
@@ -1070,10 +1069,10 @@ int nec850_t::nec850_emu(const insn_t &insn) const
 
   if ( may_trace_sp() )
   {
-    func_t *pfn = get_func(insn.ea);
-    if ( pfn != nullptr )
-      if ( !recalc_spd_for_basic_block(pfn, insn.ea) )
-        trace_sp(pfn, insn);
+    ea_t func_ea = get_func_start(insn.ea);
+    if ( func_ea != BADADDR )
+      if ( !recalc_func_spd_for_basic_block(func_ea, insn.ea) )
+        trace_sp(func_ea, insn);
   }
 
   // add dref to callt table entry address

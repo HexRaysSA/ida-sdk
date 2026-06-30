@@ -391,7 +391,7 @@ void idaapi load_file(linput_t *li, ushort neflag, const char * /*fileformatname
   {
     if ( bigaddr )
     {
-      set_segm_addressing(get_first_seg(), 1);
+      set_segment_addressing(get_first_segment_ea(), 1);
       if ( ph.id == PLFM_386 )
         inf_set_lflags(inf_get_lflags() | LFLG_PC_FLAT);
     }
@@ -459,8 +459,8 @@ int idaapi write_file(FILE *fp, const char * /*fileformatname*/)
     ea_t addr;
     for ( addr = inf_get_min_ea(); addr < inf_get_max_ea(); )
     {
-      segment_t *ps = getseg(addr);
-      if ( ps == nullptr || ps->type != SEG_IMEM )
+      segment_info_t ps;
+      if ( !get_segment_info(&ps, addr) || ps.get_type() != SEG_IMEM )
       {
         if ( is_loaded(addr) )
           break;
@@ -483,16 +483,16 @@ int idaapi write_file(FILE *fp, const char * /*fileformatname*/)
           return 1;
         strt = 0;
       }
-      ea1 -= (ps->end_ea - addr);
+      ea1 -= (ps.end_ea - addr);
       if ( ea1 < 0x10000 )
         return 1;
       ++ea1;
-      addr = ps->end_ea;
+      addr = ps.end_ea;
     }
     if ( base == BADADDR )
     {
-      segment_t *ps = getseg(addr);
-      ea1 -= (ps == nullptr) ? addr : ps->start_ea;
+      segment_info_t ps;
+      ea1 -= !get_segment_info(&ps, addr) ? addr : ps.start_ea;
       if ( ea1 <= 0x10000 )
         return 1;
     }
@@ -500,8 +500,8 @@ int idaapi write_file(FILE *fp, const char * /*fileformatname*/)
       return 0;
     for ( base = inf_get_max_ea()-1; base > addr; )
     {
-      segment_t *ps = getseg(base);
-      if ( ps == nullptr || ps->type != SEG_IMEM )
+      segment_info_t ps;
+      if ( !get_segment_info(&ps, base) || ps.get_type() != SEG_IMEM )
       {
         if ( is_loaded(base) )
           break;
@@ -510,11 +510,11 @@ int idaapi write_file(FILE *fp, const char * /*fileformatname*/)
         --base;
         continue;
       }
-      ea1 -= (base - ps->start_ea);
+      ea1 -= (base - ps.start_ea);
       if ( ea1 < 0x10000 )
         return 1;
       ++ea1;
-      base = ps->start_ea;
+      base = ps.start_ea;
     }
     return 0;
   }
@@ -554,8 +554,8 @@ int idaapi write_file(FILE *fp, const char * /*fileformatname*/)
     }
     if ( base == BADADDR )
     {
-      segment_t *ps = getseg(ea1);
-      base = ps == nullptr ? ea1 : ps->start_ea;
+      segment_info_t ps;
+      base = !get_segment_info(&ps, ea1) ? ea1 : ps.start_ea;
       if ( strt != BADADDR )
         strt += inf_get_min_ea() - base;
     }

@@ -46,10 +46,10 @@ void i51_iohandler_t::apply_io_port(ea_t ea, const char *name, const char *cmt)
   if ( ea >= 0x80 && ea < 0x100 )
   {
     // special mapping alg for i51 FSR regs
-    segment_t *s = get_segm_by_name("FSR");
-    if ( s != nullptr )
+    ea_t fsr_ea = get_segment_ea_by_name("FSR");
+    if ( fsr_ea != BADADDR )
     {
-      ea_t map = ea + s->start_ea - 0x80;
+      ea_t map = ea + fsr_ea - 0x80;
       if ( is_mapped(map) )
         ea = map;
     }
@@ -61,8 +61,7 @@ void i51_iohandler_t::apply_io_port(ea_t ea, const char *name, const char *cmt)
 bool i51_iohandler_t::segment_created(ea_t start, ea_t end, const char *word, const char *)
 {
   // if segment already exists then don't create it
-  segment_t *s = get_segm_by_name(word);
-  if ( s != nullptr )
+  if ( get_segment_ea_by_name(word) != BADADDR )
     return true;
   if ( stristr(word, "FSR") != nullptr || stristr(word, "RAM") != nullptr )
   {
@@ -116,46 +115,49 @@ bool i51_t::IsPredefined(const char *name)
 }
 
 //----------------------------------------------------------------------
-// Get linear address of a special segment
-//      sel - selector of the segment
-static ea_t specialSeg(segment_t *s)
+// Get linear address of a special segment and ensure type is SEG_IMEM
+static ea_t specialSeg(ea_t seg_ea)
 {
-  if ( s->type != SEG_IMEM )          // is the segment type correct? - no
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea) )
+    return BADADDR;
+  if ( si.get_type() != SEG_IMEM )          // is the segment type correct? - no
   {
-    s->type = SEG_IMEM;               // fix it
-    s->update();
+    si.set_type(SEG_IMEM);              // fix it
+    set_segment_info(&si);
   }
-  return s->start_ea;
+  return si.start_ea;
 }
 
 //----------------------------------------------------------------------
 ea_t i51_t::AdditionalSegment(size_t size, size_t offset, const char *name) const
 {
-  segment_t s;
-  s.start_ea = (ptype > prc_51)
+  segment_info_t si;
+  si.start_ea = (ptype > prc_51)
                    ? (inf_get_max_ea() + 0xF) & ~0xF
                    : find_free_chunk(0, size, 0xF);
-  s.end_ea  = s.start_ea + size;
-  s.sel     = allocate_selector((s.start_ea-offset) >> 4);
-  s.type    = SEG_IMEM;                         // internal memory
-  add_segm_ex(&s, name, nullptr, ADDSEG_NOSREG|ADDSEG_OR_DIE);
-  return s.start_ea - offset;
+  si.end_ea = si.start_ea + size;
+  si.set_sel(allocate_selector((si.start_ea-offset) >> 4));
+  si.set_type(SEG_IMEM);                         // internal memory
+  si.set_name(name);
+  add_segment_ex(&si, ADDSEG_NOSREG|ADDSEG_OR_DIE);
+  return si.start_ea - offset;
 }
 
 //----------------------------------------------------------------------
 void i51_t::setup_data_segment_pointers(void)
 {
-  segment_t *s = get_segm_by_name("INTMEM");
-  if ( s == nullptr )
-    s = get_segm_by_name("RAM");
-  if ( s != nullptr )
-    intmem = specialSeg(s);
+  ea_t seg_ea = get_segment_ea_by_name("INTMEM");
+  if ( seg_ea == BADADDR )
+    seg_ea = get_segment_ea_by_name("RAM");
+  if ( seg_ea != BADADDR )
+    intmem = specialSeg(seg_ea);
 
-  s = get_segm_by_name("SFR");
-  if ( s == nullptr )
-    s = get_segm_by_name("FSR");
-  if ( s != nullptr )
-    sfrmem = specialSeg(s) - 0x80;
+  seg_ea = get_segment_ea_by_name("SFR");
+  if ( seg_ea == BADADDR )
+    seg_ea = get_segment_ea_by_name("FSR");
+  if ( seg_ea != BADADDR )
+    sfrmem = specialSeg(seg_ea) - 0x80;
 }
 
 //--------------------------------------------------------------------------
@@ -225,25 +227,28 @@ ssize_t idaapi i51_t::on_event(ssize_t msgid, va_list va)
 
     case processor_t::ev_newfile:
       {
-        segment_t *sptr = get_first_seg();
-        if ( sptr != nullptr )
+        ea_t first_seg_ea = get_first_segment_ea();
+        segment_info_t si;
+        if ( first_seg_ea != BADADDR && get_segment_info(&si, first_seg_ea) )
         {
-          if ( sptr->start_ea-get_segm_base(sptr) == 0 )
+          if ( si.start_ea - si.base() == 0 )
           {
-            inf_set_start_ea(sptr->start_ea);
+            inf_set_start_ea(si.start_ea);
             inf_set_start_ip(0);
           }
         }
-        segment_t *scode = get_first_seg();
-        set_segm_class(scode, "CODE");
+        ea_t scode_ea = get_first_segment_ea();
+        set_segment_class(scode_ea, "CODE");
 
         if ( ptype > prc_51 )
         {
           AdditionalSegment(0x10000-256-128, 256+128, "RAM");
-          if ( scode != nullptr )
+          segment_info_t scode_si;
+          if ( scode_ea != BADADDR && get_segment_info(&scode_si, scode_ea) )
           {
-            ea_t align = (scode->end_ea + 0xFFF) & ~0xFFF;
-            if ( getseg(align-7) == scode )     // the code segment size is
+            ea_t align = (scode_si.end_ea + 0xFFF) & ~0xFFF;
+            segment_info_t align_si;
+            if ( get_segment_info(&align_si, align-7) && align_si.start_ea == scode_ea )  // the code segment size is
             {                                   // multiple of 4K or near it
               uchar b0 = get_byte(align-8);
               // 251:
@@ -295,9 +300,9 @@ ssize_t idaapi i51_t::on_event(ssize_t msgid, va_list va)
 
         // the default data segment will be INTMEM
         {
-          segment_t *s = getseg(intmem);
-          if ( s != nullptr )
-            set_default_dataseg(s->sel);
+          segment_info_t intmem_si;
+          if ( get_segment_info(&intmem_si, intmem) )
+            set_default_dataseg(intmem_si.get_sel());
         }
 
         iohandler_t::parse_area_line0_t cb(ioh);
@@ -314,9 +319,9 @@ ssize_t idaapi i51_t::on_event(ssize_t msgid, va_list va)
           ioh.device = NONEPROC;
         }
 
-        if ( get_segm_by_name("RAM") == nullptr )
+        if ( get_segment_ea_by_name("RAM") == BADADDR )
           AdditionalSegment(256, 0, "RAM");
-        if ( get_segm_by_name("FSR") == nullptr )
+        if ( get_segment_ea_by_name("FSR") == BADADDR )
           AdditionalSegment(128, 128, "FSR");
         setup_data_segment_pointers();
       }
@@ -329,14 +334,14 @@ ssize_t idaapi i51_t::on_event(ssize_t msgid, va_list va)
       load_from_idb();
       break;
 
-    case processor_t::ev_creating_segm:
+    case processor_t::ev_creating_segment:
         // make the default DS point to INTMEM
         // (8051 specific issue)
       {
-        segment_t *newseg = va_arg(va, segment_t *);
-        segment_t *intseg = getseg(intmem);
-        if ( intseg != nullptr )
-          newseg->defsr[rVds-ph.reg_first_sreg] = intseg->sel;
+        segment_info_t *si = va_arg(va, segment_info_t *);
+        segment_info_t intseg_si;
+        if ( get_segment_info(&intseg_si, intmem) )
+          si->set_defsr(rVds-ph.reg_first_sreg, intseg_si.get_sel());
       }
       break;
 
@@ -394,11 +399,11 @@ ssize_t idaapi i51_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        i51_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        i51_segstart(*ctx, ea);
         return 1;
       }
 

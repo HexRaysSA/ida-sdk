@@ -6,7 +6,13 @@
 #include <network.hpp>      // otherwise cannot compile win32_remote.bpr
 #include <err.h>
 
-#include "server.h"
+#include "dbg_rpc_handler.h"
+#include <dbg/server.h>
+
+#ifndef DBG_RPC_HANDLER_IOCTL_IMPL
+//lint -esym(528, get_rpc_code_name) may not be referenced in non-verbose builds
+static const char *get_rpc_code_name(int /*code*/) { return "?"; }
+#endif
 
 //--------------------------------------------------------------------------
 AS_PRINTF(3, 0) ssize_t dvmsg(int code, rpc_engine_t *rpc, const char *format, va_list va)
@@ -448,16 +454,18 @@ bool dbg_rpc_handler_t::check_broken_connection(pid_t pid)
 }
 
 //-------------------------------------------------------------------------
+#ifndef DBG_RPC_HANDLER_IOCTL_IMPL
 int dbg_rpc_handler_t::handle_server_ioctl(
         int fn,
-        void **out,
-        ssize_t *outsz,
+        void ** /*out*/,
+        ssize_t * /*outsz*/,
         memory_deserializer_t &mmdsr)
 {
   int code = -1;
   verb(("handle_server_ioctl(fn=%d, bufsize=%" FMT_Z ").\n", fn, mmdsr.size()));
   return code;
 }
+#endif
 
 //-------------------------------------------------------------------------
 int dbg_rpc_handler_t::on_recv_packet_progress(bool *performed)
@@ -709,6 +717,7 @@ bytevec_t dbg_rpc_handler_t::on_send_request_interrupt(const rpc_packet_t *rp)
               req.pack_str(tn.name);
             }
           }
+          verb(("stopped_at_debug_event => %s\n", get_rpc_code_name(err)));
         }
         break;
 

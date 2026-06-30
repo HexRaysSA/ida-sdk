@@ -1,3 +1,5 @@
+#ifndef UUNP_HPP
+#define UUNP_HPP
 #include <idp.hpp>
 #include <loader.hpp>
 
@@ -6,10 +8,15 @@
 //----------------------------------------------------------------------
 struct uunp_ctx_t;
 DECLARE_LISTENER(dbg_listener_t, uunp_ctx_t, ctx);
+struct idp_listener_t : public event_listener_t
+{
+  virtual ssize_t idaapi on_event(ssize_t code, va_list va) override;
+};
 
 struct uunp_ctx_t : public plugmod_t
 {
   dbg_listener_t dbg_listener = dbg_listener_t(*this);
+  idp_listener_t idp_listener = idp_listener_t();
 
   ea_t bp_gpa = BADADDR;            // address of GetProcAddress()
   range_t curmod;                   // current module range
@@ -87,3 +94,4 @@ struct uunp_ctx_t : public plugmod_t
 
 extern int data_id;
 
+#endif // UUNP_HPP

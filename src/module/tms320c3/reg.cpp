@@ -394,15 +394,15 @@ ssize_t idaapi tms320c3x_t::on_event(ssize_t msgid, va_list va)
       inf_set_wide_high_byte_first(false);
       if ( inf_like_binary() )
       {
-        segment_t *s0 = get_first_seg();
-        if ( s0 != nullptr )
+        ea_t s0_ea = get_first_segment_ea();
+        if ( s0_ea != BADADDR )
         {
-          set_segm_name(s0, "CODE");
-          segment_t *s1 = get_next_seg(s0->start_ea);
+          set_segment_name(s0_ea, "CODE");
+          ea_t s1_ea = get_next_segment_ea(s0_ea);
           for ( int i = dp; i <= rVds; i++ )
           {
-            set_default_sreg_value(s0, i, BADSEL);
-            set_default_sreg_value(s1, i, BADSEL);
+            set_default_sreg_value_ea(s0_ea, i, BADSEL);
+            set_default_sreg_value_ea(s1_ea, i, BADSEL);
           }
         }
         select_device(IORESP_ALL);
@@ -441,21 +441,16 @@ ssize_t idaapi tms320c3x_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
-      {
-        outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        segend(*ctx, seg);
-        return 1;
-      }
+    case processor_t::ev_out_segment_end:
+      return 1;
 
     case processor_t::ev_out_assumes:
       {
@@ -504,10 +499,10 @@ ssize_t idaapi tms320c3x_t::on_event(ssize_t msgid, va_list va)
         return tms_realcvt(m, e, swt);
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 

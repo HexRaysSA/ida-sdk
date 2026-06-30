@@ -280,10 +280,12 @@ struct asm_t
 
   /// Generate function header lines.
   /// If nullptr, then function headers are displayed as normal lines
+  /// \deprecated Use processor_t::ev_out_function_header
   void (idaapi *out_func_header)(outctx_t &ctx, func_t *);
 
   /// Generate function footer lines.
   /// If nullptr, then a comment line is displayed
+  /// \deprecated Use processor_t::ev_out_function_footer
   void (idaapi *out_func_footer)(outctx_t &ctx, func_t *);
 
   const char *a_public;                 ///< "public" name keyword. nullptr-use default, ""-do not generate
@@ -374,6 +376,18 @@ struct func_type_data_t;
 struct regobjs_t;
 class callregs_t;
 struct funcarg_t;
+struct stkarg_part_t;
+
+//-------------------------------------------------------------------------
+/// Information about an unmapped address.
+struct unmapped_info_t
+{
+  qstring qualifier; /// The symbol "qualifier". E.g., the path of a DyldSharedCache image
+  qstring symbol;    /// The symbol thath is being targeted by the address - empty if no symbol was found
+  ea_t offset = 0;   /// The symbol- (if present) or qualifier-relative offset
+};
+DECLARE_TYPE_AS_MOVABLE(unmapped_info_t);
+
 
 //--------------------------------------------------------------------------
 struct event_listener_t;
@@ -518,6 +532,7 @@ struct event_listener_t
 #define PLFM_RX         74        ///< Renesas RX
 #define PLFM_WASM       75        ///< WASM
 #define PLFM_NDS32      76        ///< Andes Technology NDS32
+#define PLFM_MCORE      77        ///< Motorola M*Core
 ///@}
 
 //-------------------------------------------------------------------------
@@ -777,12 +792,14 @@ struct processor_t
                                 ///< \retval void
 
     ev_out_segstart,            ///< Function to produce start of segment
+                                ///< \deprecated Use ev_out_segment_start
                                 ///< \param outctx        (::outctx_t *)
                                 ///< \param seg           (::segment_t *)
                                 ///< \retval 1 ok
                                 ///< \retval 0 not implemented
 
     ev_out_segend,              ///< Function to produce end of segment
+                                ///< \deprecated Use ev_out_segment_end
                                 ///< \param outctx        (::outctx_t *)
                                 ///< \param seg           (::segment_t *)
                                 ///< \retval 1 ok
@@ -857,11 +874,13 @@ struct processor_t
                                 ///< \retval 0 not implemented
 
     ev_creating_segm,           ///< A new segment is about to be created.
+                                ///< \deprecated Use ev_creating_segment
                                 ///< \param seg  (::segment_t *)
                                 ///< \retval 1  ok
                                 ///< \retval <0  segment should not be created
 
     ev_moving_segm,             ///< May the kernel move the segment?
+                                ///< \deprecated Use ev_moving_segment
                                 ///< \param seg    (::segment_t *) segment to move
                                 ///< \param to     (::ea_t) new segment start address
                                 ///< \param flags  (int) combination of \ref MSF_
@@ -1103,6 +1122,7 @@ struct processor_t
                                 ///< \retval 1  color set
 
     ev_is_jump_func,            ///< Is the function a trivial "jump" function?
+                                ///< \deprecated Use ev_is_jump_function
                                 ///< \param pfn           (::func_t *)
                                 ///< \param jump_target   (::ea_t *)
                                 ///< \param func_pointer  (::ea_t *)
@@ -1111,6 +1131,7 @@ struct processor_t
                                 ///< \retval 1  yes, see 'jump_target' and 'func_pointer'
 
     ev_func_bounds,             ///< find_func_bounds() finished its work.
+                                ///< \deprecated Use ev_function_bounds
                                 ///< The module may fine tune the function bounds
                                 ///< \param possible_return_code  (int *), in/out
                                 ///< \param pfn                   (::func_t *)
@@ -1118,6 +1139,7 @@ struct processor_t
                                 ///< \retval void
 
     ev_verify_sp,               ///< All function instructions have been analyzed.
+                                ///< \deprecated Use ev_verify_function_sp
                                 ///< Now the processor module can analyze the stack pointer
                                 ///< for the whole function
                                 ///< \param pfn  (::func_t *)
@@ -1125,16 +1147,19 @@ struct processor_t
                                 ///< \retval <0 bad stack pointer
 
     ev_verify_noreturn,         ///< The kernel wants to set 'noreturn' flags for a function.
+                                ///< \deprecated Use ev_verify_function_noreturn
                                 ///< \param pfn  (::func_t *)
                                 ///< \retval 0: ok. any other value: do not set 'noreturn' flag
 
     ev_create_func_frame,       ///< Create a function frame for a newly created function
+                                ///< \deprecated Use ev_create_function_frame
                                 ///< Set up frame size, its attributes etc
                                 ///< \param pfn      (::func_t *)
                                 ///< \retval  1  ok
                                 ///< \retval  0  not implemented
 
     ev_get_frame_retsize,       ///< Get size of function return address in bytes
+                                ///< \deprecated Use ev_get_function_retsize
                                 ///< If this event is not implemented, the kernel will assume
                                 ///<  - 8 bytes for 64-bit function
                                 ///<  - 4 bytes for 32-bit function
@@ -1465,6 +1490,103 @@ struct processor_t
                                 ///< \return >0 the operand number+1
                                 ///< \retval 0  not implemented
 
+    ev_out_segment_start,       ///< Function to produce start of segment
+                                ///< \param outctx        (::outctx_t *)
+                                ///< \param seg_start_ea  (::ea_t)
+                                ///< \retval 1 ok
+                                ///< \retval 0 not implemented
+
+    ev_out_segment_end,         ///< Function to produce end of segment
+                                ///< \param outctx        (::outctx_t *)
+                                ///< \param seg_start_ea  (::ea_t)
+                                ///< \retval 1 ok
+                                ///< \retval 0 not implemented
+
+    ev_creating_segment,        ///< A new segment is about to be created.
+                                ///< \param seg_info      (::segment_info_t *)
+                                ///< \retval 1  ok
+                                ///< \retval <0  segment should not be created
+
+    ev_moving_segment,          ///< May the kernel move the segment?
+                                ///< \param seg_start_ea  (::ea_t)
+                                ///< \param to     (::ea_t) new segment start address
+                                ///< \param flags  (int) combination of \ref MSF_
+                                ///< \retval 0   yes
+                                ///< \retval <0  the kernel should stop
+
+    ev_is_jump_function,        ///< Is the function a trivial "jump" function?
+                                ///< \param fi            (::func_entry_info_t *)
+                                ///< \param jump_target   (::ea_t *)
+                                ///< \param func_pointer  (::ea_t *)
+                                ///< \retval <0  no
+                                ///< \retval 0  don't know
+                                ///< \retval 1  yes, see 'jump_target' and 'func_pointer'
+
+    ev_function_bounds,         ///< find_function_bounds() finished its work.
+                                ///< The module may fine tune the function bounds
+                                ///< \param possible_return_code  (int *), in/out
+                                ///< \param fi                    (::fchunk_info_t *)
+                                ///< \param max_func_end_ea       (::ea_t) (from the kernel's point of view)
+                                ///< \retval void
+
+    ev_verify_function_sp,      ///< All function instructions have been analyzed.
+                                ///< Now the processor module can analyze the stack pointer
+                                ///< for the whole function
+                                ///< \param func_ea  (::ea_t) function entry start address
+                                ///< \retval 0  ok
+                                ///< \retval <0 bad stack pointer
+
+    ev_verify_function_noreturn,///< The kernel wants to set 'noreturn' flags for a function.
+                                ///< \param func_ea  (::ea_t) function entry start address
+                                ///< \retval 0: ok. any other value: do not set 'noreturn' flag
+
+    ev_create_function_frame,   ///< Create a function frame for a newly created function.
+                                ///< Set up frame size, its attributes etc
+                                ///< \param func_ea  (::ea_t) function entry start address
+                                ///< \retval  1  ok
+                                ///< \retval  0  not implemented
+
+    ev_get_function_retsize,    ///< Get size of function return address in bytes.
+                                ///< If this event is not implemented, the kernel will assume
+                                ///<  - 8 bytes for 64-bit function
+                                ///<  - 4 bytes for 32-bit function
+                                ///<  - 2 bytes otherwise
+                                ///<
+                                ///< \param frsize    (int *) frame size (out)
+                                ///< \param func_ea   (::ea_t) function entry start address
+                                ///< \retval  1  ok
+                                ///< \retval  0  not implemented
+
+    ev_out_function_header,     ///< Generate function header lines.
+                                ///< If this event is not implemented, the kernel will
+                                ///< use asm_t::out_func_header if available,
+                                ///< or display function headers as normal lines.
+                                ///< \param outctx     (::outctx_t *)
+                                ///< \param func_ea    (::ea_t)
+                                ///< \retval 1 ok
+                                ///< \retval 0 not implemented
+
+    ev_out_function_footer,     ///< Generate function footer lines.
+                                ///< If this event is not implemented, the kernel will
+                                ///< use asm_t::out_func_footer if available,
+                                ///< or display a comment line.
+                                ///< \param outctx     (::outctx_t *)
+                                ///< \param func_ea    (::ea_t)
+                                ///< \retval 1 ok
+                                ///< \retval 0 not implemented
+
+    ev_sanitize_name,           ///< Apply processor/language-specific rewrites to a
+                                ///< candidate name before the kernel validates its
+                                ///< character set. E.g. the golang plugin uses this
+                                ///< to rewrite "*" -> "_ptr_", "[]" -> "_slice_", ...
+                                ///< \param name  (::qstring *) name to sanitize (in/out)
+                                ///< \param cc    (::callcnv_t) calling convention hint
+                                ///<                           (pass CM_CC_UNKNOWN if not known;
+                                ///<                           plugins can resolve via
+                                ///<                           get_effective_cc())
+                                ///< \retval 1 handled (name may have been modified)
+                                ///< \retval 0 not implemented
+
     ev_last_cb_before_debugger, ///< START OF DEBUGGER CALLBACKS
 
     ev_next_exec_insn = 1000,   ///< Get next address to be executed
@@ -1680,7 +1802,7 @@ struct processor_t
     ev_lower_func_type,         ///< Get function arguments which should be converted to pointers when lowering function prototype.
                                 ///< The processor module can also modify 'fti' in order to make non-standard conversion
                                 ///< of some arguments.
-                                ///< \param argnums (intvec_t *), out - numbers of arguments to be converted to pointers in acsending order
+                                ///< \param argnums (intvec_t *), out - numbers of arguments to be converted to pointers in ascending order
                                 ///< \param fti     (::func_type_data_t *), inout func type details
                                 ///< \retval 0 not implemented
                                 ///< \retval 1 argnums was filled
@@ -1759,6 +1881,31 @@ struct processor_t
                                 ///< \retval 1 if success
                                 ///< \retval 0 not implemented
 
+    ev_query_unmapped_address,  ///< Get information about an unmapped address
+                                ///< \param[out] out (::unmapped_info_t *) output information (can be nullptr)
+                                ///< \param ea (::ea_t) the (currently unmapped) address
+                                ///< \retval 1 the address can be loaded
+                                ///< \retval 0 not implemented or failed
+
+    ev_load_unmapped_address,   ///< Load the dependency covering the provided address.
+                                ///< \param ea (::ea_t) the (currently unmapped) address
+                                ///< \retval 1 if success
+                                ///< \retval 0 not implemented or failed
+
+    ev_get_stkarg_parts,       ///< Enumerate the stkarg stores performed by
+                                ///< an instruction. Used by the kernel to
+                                ///< drive multi-slot stkarg propagation (e.g.
+                                ///< ARM "STMIA SP, {R0-R3}" writes 4 slots).
+                                ///< When the processor returns 0, the kernel
+                                ///< falls back to \ref argtinfo_helper_t::is_stkarg_load.
+                                ///< \param insn        (const ::insn_t *)
+                                ///< \param parts      (::stkarg_part_t *) output array
+                                ///< \param max_parts  (int) size of the output array
+                                ///< \retval N>0  produced N parts (use them)
+                                ///< \retval 0    not implemented for this insn
+
+    ev_get_swift_abi_regs,      ///< Reserved
+
     ev_last_cb_before_loader,
 
     // END OF TYPEINFO CALLBACKS
@@ -1809,6 +1956,7 @@ struct processor_t
   inline static ssize_t gen_regvar_def(outctx_t &ctx, regvar_t *v);
   inline static ssize_t gen_src_file_lnnum(outctx_t &ctx, const char *file, size_t lnnum);
   inline static ssize_t rename(ea_t ea, const char *new_name, int flags);
+  inline static ssize_t sanitize_name(qstring *name, callcnv_t cc);
   inline static ssize_t may_show_sreg(ea_t current_ea);
   inline static ssize_t coagulate(ea_t start_ea);
   inline static void auto_queue_empty(/*atype_t*/ int type);
@@ -1828,6 +1976,18 @@ struct processor_t
   inline static ssize_t is_ret_insn(const insn_t &insn, uchar iri_flags);
   inline static ssize_t is_align_insn(ea_t ea);
   inline static ssize_t is_addr_insn(int *type, const insn_t &insn);
+  inline static ssize_t out_segment_start(outctx_t &ctx, ea_t seg_start_ea);
+  inline static ssize_t out_segment_end(outctx_t &ctx, ea_t seg_start_ea);
+  inline static ssize_t creating_segment(segment_info_t *si);
+  inline static ssize_t moving_segment(ea_t seg_start_ea, ea_t to, int flags);
+  inline static ssize_t is_jump_function(func_entry_info_t *fi, ea_t *jump_target, ea_t *func_pointer);
+  inline static ssize_t function_bounds(int *possible_return_code, fchunk_info_t *fi, ea_t max_func_end_ea);
+  inline static ssize_t verify_function_sp(ea_t func_ea);
+  inline static ssize_t verify_function_noreturn(ea_t func_ea);
+  inline static ssize_t create_function_frame(ea_t func_ea);
+  inline static ssize_t get_function_retsize(int *retsize, ea_t func_ea);
+  inline static ssize_t out_function_header(outctx_t &ctx, ea_t func_ea);
+  inline static ssize_t out_function_footer(outctx_t &ctx, ea_t func_ea);
   inline static ssize_t can_have_type(const op_t &op);
   inline static ssize_t get_stkvar_scale_factor();
   inline static ssize_t demangle_name(int32 *res, qstring *out, const char *name, uint32 disable_mask, /*demreq_type_t*/ int demreq);
@@ -1892,6 +2052,7 @@ struct processor_t
   inline static ssize_t _calc_varglocs(func_type_data_t *ftd, regobjs_t *regs, relobj_t *stkargs, int nfixed);
   inline static ssize_t _calc_arglocs(func_type_data_t *fti);
   inline static ssize_t use_stkarg_type(ea_t ea, const funcarg_t &arg);
+  inline static ssize_t get_stkarg_parts(const insn_t &insn, stkarg_part_t *parts, int max_parts);
   inline static ssize_t use_regarg_type(int *idx, ea_t ea, /*const funcargvec_t * */void *rargs);
   inline static ssize_t use_arg_types(ea_t ea, func_type_data_t *fti, /*funcargvec_t * */void *rargs);
   inline static ssize_t calc_purged_bytes(int *p_purged_bytes, const func_type_data_t &fti);
@@ -1907,6 +2068,8 @@ struct processor_t
   inline ssize_t cvt64_supval(nodeidx_t node, uchar tag, nodeidx_t idx, const uchar *data, size_t datlen, qstring *errbuf = nullptr);
   inline ssize_t cvt64_hashval(nodeidx_t node, uchar tag, const char *name, const uchar *data, size_t datlen, qstring *errbuf = nullptr);
   inline static reg_finder_t *get_regfinder();
+  inline static ssize_t query_unmapped_address(unmapped_info_t *out, ea_t ea);
+  inline static ssize_t load_unmapped_address(ea_t ea);
 
   /// Get the stack variable scaling factor.
   /// Useful for processors who refer to the stack with implicit scaling factor.
@@ -1915,7 +2078,7 @@ struct processor_t
   {
     if ( (flag & PR_SCALE_STKVARS) == 0 )
       return 1;
-    int scale = notify(ev_get_stkvar_scale_factor);
+    int scale = int(notify(ev_get_stkvar_scale_factor));
     if ( scale == 0 )
       error("Request ph.get_stkvar_scale_factor should be implemented");
     else if ( scale <= 0 )
@@ -2014,7 +2177,9 @@ struct processor_t
   inline void ensure_processor(void);
   inline size_t sizeof_ldbl() const;
   inline bool is_funcarg_off(const func_t *pfn, uval_t frameoff) const;
+  inline bool is_funcarg_off_ea(ea_t func_ea, uval_t frameoff) const;
   inline sval_t lvar_off(const func_t *pfn, uval_t frameoff) const;
+  inline sval_t lvar_off_ea(ea_t func_ea, uval_t frameoff) const;
   inline bool is_lumina_usable() const;
 };
 #ifndef __X86__
@@ -2287,6 +2452,10 @@ inline ssize_t processor_t::rename(ea_t ea, const char *new_name, int flags)
 {
   return notify(ev_rename, ea, new_name, flags);
 }
+inline ssize_t processor_t::sanitize_name(qstring *name, callcnv_t cc)
+{
+  return notify(ev_sanitize_name, name, cc);
+}
 inline ssize_t processor_t::may_show_sreg(ea_t current_ea)
 {
   return notify(ev_may_show_sreg, current_ea);
@@ -2338,7 +2507,7 @@ inline ssize_t processor_t::moving_segm(segment_t *seg, ea_t to, int flags)
 inline ssize_t processor_t::is_sp_based(const insn_t &insn, const op_t &x)
 {
   int mode;
-  int code = notify(ev_is_sp_based, &mode, &insn, &x);
+  int code = int(notify(ev_is_sp_based, &mode, &insn, &x));
   return code == 0 ? OP_SP_BASED : mode;
 }
 inline ssize_t processor_t::is_far_jump(int icode)
@@ -2360,6 +2529,54 @@ inline ssize_t processor_t::is_align_insn(ea_t ea)
 inline ssize_t processor_t::is_addr_insn(int *type, const insn_t &insn)
 {
   return notify(ev_is_addr_insn, type, &insn);
+}
+inline ssize_t processor_t::out_segment_start(outctx_t &ctx, ea_t seg_start_ea)
+{
+  return notify(ev_out_segment_start, &ctx, seg_start_ea);
+}
+inline ssize_t processor_t::out_segment_end(outctx_t &ctx, ea_t seg_start_ea)
+{
+  return notify(ev_out_segment_end, &ctx, seg_start_ea);
+}
+inline ssize_t processor_t::creating_segment(segment_info_t *si)
+{
+  return notify(ev_creating_segment, si);
+}
+inline ssize_t processor_t::moving_segment(ea_t seg_start_ea, ea_t to, int flags)
+{
+  return notify(ev_moving_segment, seg_start_ea, to, flags);
+}
+inline ssize_t processor_t::is_jump_function(func_entry_info_t *fi, ea_t *jump_target, ea_t *func_pointer)
+{
+  return notify(ev_is_jump_function, fi, jump_target, func_pointer);
+}
+inline ssize_t processor_t::function_bounds(int *possible_return_code, fchunk_info_t *fi, ea_t max_func_end_ea)
+{
+  return notify(ev_function_bounds, possible_return_code, fi, max_func_end_ea);
+}
+inline ssize_t processor_t::verify_function_sp(ea_t func_ea)
+{
+  return notify(ev_verify_function_sp, func_ea);
+}
+inline ssize_t processor_t::verify_function_noreturn(ea_t func_ea)
+{
+  return notify(ev_verify_function_noreturn, func_ea);
+}
+inline ssize_t processor_t::create_function_frame(ea_t func_ea)
+{
+  return notify(ev_create_function_frame, func_ea);
+}
+inline ssize_t processor_t::get_function_retsize(int *retsize, ea_t func_ea)
+{
+  return notify(ev_get_function_retsize, retsize, func_ea);
+}
+inline ssize_t processor_t::out_function_header(outctx_t &ctx, ea_t func_ea)
+{
+  return notify(ev_out_function_header, &ctx, func_ea);
+}
+inline ssize_t processor_t::out_function_footer(outctx_t &ctx, ea_t func_ea)
+{
+  return notify(ev_out_function_footer, &ctx, func_ea);
 }
 inline ssize_t processor_t::can_have_type(const op_t &op)
 {
@@ -2503,7 +2720,7 @@ inline ssize_t processor_t::coagulate_dref(ea_t from, ea_t to, bool may_define, 
 inline const char *processor_t::set_idp_options(const char *keyword, int vtype, const void *value, bool idb_loaded)
 {
   const char *errmsg = IDPOPT_BADKEY;
-  int code = notify(ev_set_idp_options, keyword, vtype, value, &errmsg, idb_loaded);
+  int code = int(notify(ev_set_idp_options, keyword, vtype, value, &errmsg, idb_loaded));
   return code == 1 ? IDPOPT_OK : code == 0 ? IDPOPT_BADKEY : errmsg;
 }
 inline ssize_t processor_t::set_proc_options(const char *options, int confidence)
@@ -2604,6 +2821,10 @@ inline ssize_t processor_t::use_stkarg_type(ea_t ea, const funcarg_t &arg)
 {
   return notify(ev_use_stkarg_type, ea, &arg);
 }
+inline ssize_t processor_t::get_stkarg_parts(const insn_t &insn, stkarg_part_t *parts, int max_parts)
+{
+  return notify(ev_get_stkarg_parts, &insn, parts, max_parts);
+}
 inline ssize_t processor_t::use_regarg_type(int *idx, ea_t ea, /*const funcargvec_t * */void *rargs)
 {
   return notify(ev_use_regarg_type, idx, ea, rargs);
@@ -2664,6 +2885,14 @@ inline reg_finder_t *processor_t::get_regfinder()
 {
   return reinterpret_cast<reg_finder_t *>(notify(ev_get_regfinder));
 }
+inline ssize_t processor_t::query_unmapped_address(unmapped_info_t *out, ea_t ea)
+{
+  return notify(ev_query_unmapped_address, out, ea);
+}
+inline ssize_t processor_t::load_unmapped_address(ea_t ea)
+{
+  return notify(ev_load_unmapped_address, ea);
+}
 
 idaman int ida_export str2reg(const char *p);     ///< Get any register number (-1 on error)
 
@@ -2694,7 +2923,7 @@ idaman ssize_t ida_export get_reg_name(qstring *buf, int reg, size_t width, int 
 inline const char *processor_t::get_reg_info(const char *regname, bitrange_t *bitrange)
 {
   const char *r2;
-  int code = notify(ev_get_reg_info, &r2, bitrange, regname);
+  int code = int(notify(ev_get_reg_info, &r2, bitrange, regname));
   if ( code == 0 ) // not implemented?
   {
     if ( ::str2reg(regname) != -1 )
@@ -2964,6 +3193,7 @@ namespace idb_event
                             ///< \param n   (int) eventually or'ed with OPND_OUTER or OPND_ALL
 
     segm_added,             ///< A new segment has been created.
+                            ///< \deprecated Use segment_added
                             ///< \param s  (::segment_t *)
                             ///< See also adding_segm
 
@@ -2975,35 +3205,44 @@ namespace idb_event
                             ///< \param flags     (int)
 
     changing_segm_start,    ///< Segment start address is to be changed.
+                            ///< \deprecated Use changing_segment_start
                             ///< \param s             (::segment_t *)
                             ///< \param new_start     (::ea_t)
                             ///< \param segmod_flags  (int)
     segm_start_changed,     ///< Segment start address has been changed.
+                            ///< \deprecated Use segment_start_changed
                             ///< \param s        (::segment_t *)
                             ///< \param oldstart (::ea_t)
 
     changing_segm_end,      ///< Segment end address is to be changed.
+                            ///< \deprecated Use changing_segment_end
                             ///< \param s             (::segment_t *)
                             ///< \param new_end       (::ea_t)
                             ///< \param segmod_flags  (int)
     segm_end_changed,       ///< Segment end address has been changed.
+                            ///< \deprecated Use segment_end_changed
                             ///< \param s      (::segment_t *)
                             ///< \param oldend (::ea_t)
 
     changing_segm_name,     ///< Segment name is being changed.
+                            ///< \deprecated Use changing_segment_name
                             ///< \param s        (::segment_t *)
                             ///< \param oldname  (const char *)
     segm_name_changed,      ///< Segment name has been changed.
+                            ///< \deprecated Use segment_name_changed,
                             ///< \param s        (::segment_t *)
                             ///< \param name     (const char *)
 
     changing_segm_class,    ///< Segment class is being changed.
+                            ///< \deprecated Use changing_segment_class,
                             ///< \param s  (::segment_t *)
     segm_class_changed,     ///< Segment class has been changed.
+                            ///< \deprecated Use segment_class_changed
                             ///< \param s        (::segment_t *)
                             ///< \param sclass   (const char *)
 
     segm_attrs_updated,     ///< Segment attributes has been changed.
+                            ///< \deprecated Use segment_attrs_updated
                             ///< \param s        (::segment_t *)
                             ///< This event is generated for secondary segment
                             ///< attributes (examples: color, permissions, etc)
@@ -3021,50 +3260,63 @@ namespace idb_event
                             ///< \param info     (::segm_move_infos_t *)
 
     func_added,             ///< The kernel has added a function.
+                            ///< \deprecated Use function_added
                             ///< \param pfn  (::func_t *)
 
     func_updated,           ///< The kernel has updated a function.
+                            ///< \deprecated Use function_updated
                             ///< \param pfn  (::func_t *)
 
     set_func_start,         ///< Function chunk start address will be changed.
+                            ///< \deprecated Use set_function_start
                             ///< \param pfn        (::func_t *)
                             ///< \param new_start  (::ea_t)
 
     set_func_end,           ///< Function chunk end address will be changed.
+                            ///< \deprecated Use set_function_end
                             ///< \param pfn      (::func_t *)
                             ///< \param new_end  (::ea_t)
 
     deleting_func,          ///< The kernel is about to delete a function.
+                            ///< \deprecated Use deleting_function
                             ///< \param pfn  (::func_t *)
                             //
     frame_deleted,          ///< The kernel has deleted a function frame.
+                            ///< \deprecated Use function_frame_deleted
                             ///< \param pfn  (::func_t *)
                             ///< \ref idb_event::frame_created
 
     thunk_func_created,     ///< A thunk bit has been set for a function.
+                            ///< \deprecated Use thunk_function_created
                             ///< \param pfn  (::func_t *)
 
     func_tail_appended,     ///< A function tail chunk has been appended.
+                            ///< \deprecated Use function_tail_appended
                             ///< \param pfn   (::func_t *)
                             ///< \param tail  (::func_t *)
 
     deleting_func_tail,     ///< A function tail chunk is to be removed.
+                            ///< \deprecated Use deleting_function_tail
                             ///< \param pfn   (::func_t *)
                             ///< \param tail  (const ::range_t *)
 
     func_tail_deleted,      ///< A function tail chunk has been removed.
+                            ///< \deprecated Use function_tail_deleted
                             ///< \param pfn      (::func_t *)
                             ///< \param tail_ea  (::ea_t)
 
     tail_owner_changed,     ///< A tail chunk owner has been changed.
+                            ///< \deprecated Use function_tail_owner_changed
                             ///< \param tail        (::func_t *)
                             ///< \param owner_func  (::ea_t)
                             ///< \param old_owner   (::ea_t)
 
     func_noret_changed,     ///< #FUNC_NORET bit has been changed.
+                            ///< \deprecated Use function_noret_changed
                             ///< \param pfn  (::func_t *)
 
     stkpnts_changed,        ///< Stack change points have been modified.
+                            ///< \deprecated Use function_stkpnts_changed
                             ///< \param pfn  (::func_t *)
 
     updating_tryblks,       ///< About to update tryblk information
@@ -3154,6 +3406,7 @@ namespace idb_event
                             ///< \param regnum     (int)
 
     adding_segm,            ///< A segment is being created.
+                            ///< \deprecated Dropped
                             ///< \param s  (::segment_t *)
 
     func_deleted,           ///< A function has been deleted.
@@ -3294,6 +3547,97 @@ namespace idb_event
                             ///< \param dstdir      (::const char *)
                             ///< \param dstrank     (::ssize_t)
                             ///< SOURCES and MOVED_ITEMS correspond to each other
+
+    segment_added,          ///< A new segment has been created.
+                            ///< \param seg_start_ea (::ea_t)
+
+    changing_segment_start, ///< Segment start address is to be changed.
+                            ///< \param seg_start_ea (::ea_t)
+                            ///< \param new_start     (::ea_t)
+                            ///< \param segmod_flags  (int)
+    segment_start_changed,  ///< Segment start address has been changed.
+                            ///< \param seg_start_ea (::ea_t)
+                            ///< \param oldstart (::ea_t)
+
+    changing_segment_end,   ///< Segment end address is to be changed.
+                            ///< \param seg_start_ea (::ea_t)
+                            ///< \param new_end       (::ea_t)
+                            ///< \param segmod_flags  (int)
+    segment_end_changed,    ///< Segment end address has been changed.
+                            ///< \param seg_start_ea (::ea_t)
+                            ///< \param oldend (::ea_t)
+
+    changing_segment_name,  ///< Segment name is being changed.
+                            ///< \param seg_start_ea (::ea_t)
+                            ///< \param oldname  (const char *)
+    segment_name_changed,   ///< Segment name has been changed.
+                            ///< \param seg_start_ea (::ea_t)
+                            ///< \param name     (const char *)
+
+    changing_segment_class, ///< Segment class is being changed.
+                            ///< \param seg_start_ea (::ea_t)
+    segment_class_changed,  ///< Segment class has been changed.
+                            ///< \param seg_start_ea (::ea_t)
+                            ///< \param sclass   (const char *)
+
+    segment_attrs_updated,  ///< Segment attributes has been changed.
+                            ///< \param seg_start_ea (::ea_t)
+                            ///< This event is generated for secondary segment
+                            ///< attributes (examples: color, permissions, etc)
+
+    function_added,         ///< The kernel has added a function.
+                            ///< \param func_ea  (::ea_t) function entry start address
+
+    function_updated,       ///< The kernel has updated a function.
+                            ///< \param fchunk_ea  (::ea_t) function entry or tail start address
+
+    set_function_start,     ///< Function chunk start address will be changed.
+                            ///< \param fchunk     (::fchunk_info_t *)
+                            ///< \param new_start  (::ea_t)
+
+    set_function_end,       ///< Function chunk end address will be changed.
+                            ///< \param fchunk   (::fchunk_info_t *)
+                            ///< \param new_end  (::ea_t)
+
+    deleting_function,      ///< The kernel is about to delete a function.
+                            ///< \param func_ea  (::ea_t) function entry start address
+
+    function_tail_appended, ///< A function tail chunk has been appended.
+                            ///< \param func_ea  (::ea_t) function entry start address
+                            ///< \param tail     (::func_tail_info_t *)
+
+    deleting_function_tail, ///< A function tail chunk is to be removed.
+                            ///< \param func_ea (::ea_t) function entry start address
+                            ///< \param tail    (const ::range_t *)
+
+    function_tail_deleted,  ///< A function tail chunk has been removed.
+                            ///< \param func_ea  (::ea_t) function entry start address
+                            ///< \param tail_ea  (::ea_t)
+
+    function_tail_owner_changed,
+                            ///< A tail chunk owner has been changed.
+                            ///< \param tail        (::func_tail_info_t *)
+                            ///< \param owner_func  (::ea_t)
+                            ///< \param old_owner   (::ea_t)
+
+    function_noret_changed, ///< #FUNC_NORET bit has been changed.
+                            ///< \param func_ea  (::ea_t) function entry start address
+
+    function_stkpnts_changed,
+                            ///< Stack change points have been modified.
+                            ///< \param func_ea  (::ea_t) function entry start address
+
+    thunk_function_created, ///< A thunk bit has been set for a function.
+                            ///< \param func_ea  (::ea_t) function entry start address
+
+    function_frame_deleted, ///< The kernel has deleted a function frame.
+                            ///< \param func_ea  (::ea_t) function entry start address
+
+    moving_range_cmt,       ///< Range comment is to be moved.
+                            ///< \param kind        (::range_kind_t)
+                            ///< \param oldea       (ea_t)
+                            ///< \param newea       (ea_t)
+                            ///< \param repeatable  (bool)
   };
 }
 
@@ -3319,7 +3663,7 @@ inline int processor_t::get_proc_index(void)
     if ( p[0] == '-' ) // obsolete processor names start with a '-'
       ++p;
     if ( curproc == p )
-      return i;
+      return int(i);
   }
   // should not reach here
   INTERR(10336);

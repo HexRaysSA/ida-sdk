@@ -440,9 +440,9 @@ ssize_t idaapi i196_t::on_event(ssize_t msgid, va_list va)
 //        DUMMY_NAMES_TYPE = NM_SHORT
 //      #endif
 
-        segment_t *sptr = get_first_seg();
-        if ( sptr != nullptr )
-          set_segm_class(sptr, "CODE");
+        ea_t first_seg_ea = get_first_segment_ea();
+        if ( first_seg_ea != BADADDR )
+          set_segment_class(first_seg_ea, "CODE");
 
         ea_t ea, ea1;
 
@@ -495,12 +495,13 @@ ssize_t idaapi i196_t::on_event(ssize_t msgid, va_list va)
           inf_set_start_ip(layout.program_start);
         }
 
-        segment_t s;
-        s.start_ea = to_ea(inf_get_baseaddr(), 0);
-        s.end_ea   = to_ea(inf_get_baseaddr(), layout.intmem_length);
-        s.sel     = inf_get_baseaddr();
-        s.type    = SEG_IMEM;                         // internal memory
-        add_segm_ex(&s, "INTMEM", nullptr, ADDSEG_OR_DIE);
+        segment_info_t si;
+        si.start_ea = to_ea(inf_get_baseaddr(), 0);
+        si.end_ea   = to_ea(inf_get_baseaddr(), layout.intmem_length);
+        si.set_sel(inf_get_baseaddr());
+        si.set_type(SEG_IMEM);                        // internal memory
+        si.set_name("INTMEM");
+        add_segment_ex(&si, ADDSEG_OR_DIE);
 
         const predefined_t *ptr;
         for ( ptr = layout.iregs; ptr->name != nullptr; ptr++ )
@@ -521,11 +522,11 @@ ssize_t idaapi i196_t::on_event(ssize_t msgid, va_list va)
 //      create_16bit_data(0x18, 2);           // SP always word
       break;
 
-    case processor_t::ev_creating_segm:
+    case processor_t::ev_creating_segment:
                       // default DS is equal to Base Address
       {
-        segment_t *sg = va_arg(va, segment_t *);
-        sg->defsr[rVds-ph.reg_first_sreg] = inf_get_baseaddr();
+        segment_info_t *si = va_arg(va, segment_info_t *);
+        si->set_defsr(rVds-ph.reg_first_sreg, inf_get_baseaddr());
       }
       break;
 
@@ -533,6 +534,12 @@ ssize_t idaapi i196_t::on_event(ssize_t msgid, va_list va)
       // restore ptype
       proctype = proctypes[ph.get_proc_index()];
       goto SETFLAG;
+
+    case processor_t::ev_is_sane_insn:
+      {
+        const insn_t &insn = *va_arg(va, insn_t *);
+        return is_sane_insn(insn) ? 1 : -1;
+      }
 
     case processor_t::ev_newprc:
       {
@@ -561,19 +568,19 @@ SETFLAG:
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        i196_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        i196_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
+    case processor_t::ev_out_segment_end:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        i196_segend(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        i196_segend(*ctx, ea);
         return 1;
       }
 

@@ -572,6 +572,7 @@ enum op_fields_t ENUM_SIZE(uint32)
   S8,             //  6..0                  s8 signed branch displacement
   S7,             //  5..0                  s7 signed branch displacement
   S13,            // 10..0                 s13 signed branch displacement
+  S13_16,         // 5..0 & 11..6          s13 signed branch displacement (16-bit aligned)
   U3,             //  2..0                  u2 unsigned immediate
   U5,             //  4..0                  u5 unsigned immediate
   U6,             // 11..6                  u6 unsigned immediate
@@ -592,6 +593,8 @@ enum op_fields_t ENUM_SIZE(uint32)
   GENB,           //  14..12 & 26..24
   GENC,           // 11..6 or 5..0 & 11..6
   GENC_PCREL,     // 11..6 or 5..0 & 11..6
+  BFU_LSB_WIDTH,  // decode like GENC; if the result is an immediate, split
+                  // it into two operands (lsb, width) and consume two op slots.
   fBC_IND,        //  14..12 & 26..24, 11..6  [b, c]
   fBC16_IND,      //  10..8, 7..5  [b, c]
   R_SP,           // implicit SP
@@ -807,6 +810,40 @@ static const arcompact_opcode_t arcompact_sop[0x40] =
   { SUBTABLE2(14, 12, 26, 24, arcompact_zop) },// 0x3F
 };
 
+// Major-4 sub-op 0x0C and 0x0D share a slot with dbnz<.d> on ARCv2:
+//   format=10 (s12 imm), bit 15 = 0 selects dbnz (sub-op bit 16 acts as the .d flag)
+//   format=10 (s12 imm), bit 15 = 1 keeps the original cmp/rcmp s12 form
+//   other formats keep the original cmp/rcmp encoding
+// indexed by bit 15 inside the s12-form slot
+static const arcompact_opcode_t arcompact_maj4_0C_s12[2] =
+{
+  { ARC_dbnz, AUX_V2,           {GENB, S13_16, 0},     nullptr }, // bit15=0 -> dbnz b,s13
+  { ARC_cmp,  AUX_GEN2,         {GENB, GENC,   0},     nullptr }, // bit15=1 -> cmp b,s12
+};
+static const arcompact_opcode_t arcompact_maj4_0D_s12[2] =
+{
+  { ARC_dbnz, AUX_V2|AUX_D,     {GENB, S13_16, 0},     nullptr }, // bit15=0 -> dbnz.d b,s13
+  { ARC_rcmp, AUX_GEN,          {GENB, GENC,   0},     nullptr }, // bit15=1 -> rcmp b,s12
+};
+
+// Indexed by bits 23..22 (operand format selector for major-4).
+// Slot 2 (s12) is further split by bit 15 to detect dbnz; the other 3 keep
+// the original cmp/rcmp behavior driven by AUX_GEN/AUX_GEN2.
+static const arcompact_opcode_t arcompact_maj4_0C[4] =
+{
+  { ARC_cmp,  AUX_GEN2,         {GENB, GENC,    0},    nullptr }, // 00 reg-reg
+  { ARC_cmp,  AUX_GEN2,         {GENB, GENC,    0},    nullptr }, // 01 reg-u6
+  { SUBTABLE(15, 15, arcompact_maj4_0C_s12) },                    // 10 s12   -> dbnz / cmp
+  { ARC_cmp,  AUX_GEN2,         {GENB, GENC,    0},    nullptr }, // 11 cond
+};
+static const arcompact_opcode_t arcompact_maj4_0D[4] =
+{
+  { ARC_rcmp, AUX_GEN,          {GENB, GENC,    0},    nullptr }, // 00 reg-reg
+  { ARC_rcmp, AUX_GEN,          {GENB, GENC,    0},    nullptr }, // 01 reg-u6
+  { SUBTABLE(15, 15, arcompact_maj4_0D_s12) },                    // 10 s12   -> dbnz.d / rcmp
+  { ARC_rcmp, AUX_GEN,          {GENB, GENC,    0},    nullptr }, // 11 cond
+};
+
 // indexed by bits 21..16 (maj = 4)
 static const arcompact_opcode_t arcompact_maj4[0x40] =
 {
@@ -822,8 +859,8 @@ static const arcompact_opcode_t arcompact_maj4[0x40] =
   { ARC_min,  AUX_GEN,          {GENA, GENB, GENC},    nullptr }, // 0x09
   { ARC_mov,  AUX_GEN,          {GENB, GENC,    0},    nullptr }, // 0x0A
   { ARC_tst,  AUX_GEN2,         {GENB, GENC,    0},    nullptr }, // 0x0B
-  { ARC_cmp,  AUX_GEN2,         {GENB, GENC,    0},    nullptr }, // 0x0C
-  { ARC_rcmp, AUX_GEN,          {GENB, GENC,    0},    nullptr }, // 0x0D
+  { SUBTABLE(23, 22, arcompact_maj4_0C) },                                // 0x0C
+  { SUBTABLE(23, 22, arcompact_maj4_0D) },                                // 0x0D
   { ARC_rsub, AUX_GEN,          {GENA, GENB, GENC},    nullptr }, // 0x0E
   { ARC_bset, AUX_GEN,          {GENA, GENB, GENC},    nullptr }, // 0x0F
   { ARC_bclr, AUX_GEN,          {GENA, GENB, GENC},    nullptr }, // 0x10
@@ -855,8 +892,8 @@ static const arcompact_opcode_t arcompact_maj4[0x40] =
   { ARC_lr,   0,                {GENB, GENC|O_IND, 0}, nullptr }, // 0x2A
   { ARC_sr,   0,                {GENB, GENC|O_IND, 0}, nullptr }, // 0x2B
   { ARC_bmskn,AUX_V2|AUX_GEN,   {GENA, GENB, GENC},    nullptr }, // 0x2C
-  { ARC_null, AUX_GEN,          {GENA, GENB, GENC},    nullptr }, // 0x1C
-  { ARC_null, AUX_GEN,          {GENA, GENB, GENC},    nullptr }, // 0x1D
+  { ARC_xbfu, AUX_V2|AUX_GEN,   {GENA, GENB, BFU_LSB_WIDTH}, nullptr }, // 0x2D
+  { ARC_null, AUX_GEN,          {GENA, GENB, GENC},    nullptr }, // 0x2E
   { SUBTABLE(5, 0, arcompact_sop)                           }, // 0x2F
   { ARC_ld, AAZZXD_23_15,       {fA32, fBC_IND, 0},    nullptr }, // 0x30
   { ARC_ld, AAZZXD_23_15,       {fA32, fBC_IND, 0},    nullptr }, // 0x31
@@ -2184,6 +2221,12 @@ void arc_t::decode_operand(
       opbranch(insn, x, displ * 4);
       break;
 
+    case S13_16:       // 5..0 & 11..6             s13 signed branch displacement (16-bit aligned)
+      // bits 11..6 hold the lower 6 bits and bits 5..0 hold the upper 6 bits of the offset
+      displ = (SBITS(code, 5, 0) << 6) | BITS(code, 11, 6);
+      opbranch(insn, x, displ * 2);
+      break;
+
     case PCL_U10:
       displ = BITS(code, 7, 0);
       opdisp(insn, x, PCL, displ*4);
@@ -2310,6 +2353,34 @@ void arc_t::decode_operand(
       }
       if ( (opkind & ~O_IND) == GENC_PCREL && x.type == o_imm )
         opbranch(insn, x, reg * 2);
+      break;
+
+    case BFU_LSB_WIDTH:
+      // xbfu control operand: decode like GENC, then if the result is an
+      // immediate split it into (lsb = bits[4:0], width = bits[9:5] + 1).
+      // Register form is left as-is (the split happens at runtime).
+      p = BITS(code, 23, 22);
+      if ( p != 2 )
+      {
+        reg = BITS(code, 11, 6);
+        if ( p == 0 || (p == 3 && BITS(code, 5, 5) == 0) )
+          opreg(insn, x, reg);  // reg (0x3E => LIMM as o_imm)
+        else
+          opimm(x, reg);  // u6
+      }
+      else
+      {
+        reg = (BITS(code, 5, 0) << 6) | BITS(code, 11, 6);
+        opimm(x, SIGNEXT(reg, 12));  // s12
+      }
+      if ( x.type == o_imm )
+      {
+        uint32 packed = uint32(x.value);
+        opimm(x, packed & 0x1F);  // lsb
+        op_t &y = insn.ops[op_pos];
+        ++op_pos;
+        opimm(y, ((packed >> 5) & 0x1F) + 1);  // width
+      }
       break;
 
     case fBC_IND:

@@ -32,12 +32,14 @@ struct strwinsetup_t
   uchar ignore_heads = 0;
 };
 
+
 /// Information about one string from the string list
 struct string_info_t
 {
   ea_t ea;
   int length = 0; // in octets
   int type = 0;
+  qstring decompiler_string;
   string_info_t(ea_t _ea=BADADDR) : ea(_ea) {}
   bool operator<(const string_info_t &r) const { return ea < r.ea; }
 };

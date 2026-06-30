@@ -56,7 +56,7 @@ static bool find_addil_or_ldil(ea_t ea, uint32 r, ea_t dp, uval_t *pv)
 {
   uval_t v;
   insn_t insn;
-  func_item_iterator_t fii(get_func(ea), ea);
+  function_item_iterator_t fii(get_func_start(ea), ea);
   while ( fii.decode_prev_insn(&insn) )
   {
     switch ( insn.itype )
@@ -148,13 +148,12 @@ bool hppa_t::is_frreg(const insn_t &insn, int reg)
 {
   if ( reg != 0 )
   {
-    func_t *pfn = get_func(insn.ea);
-    if ( pfn != nullptr )
+    ea_t func_ea = get_func_start(insn.ea);
+    if ( func_ea != BADADDR )
     {
-      ea_t ea = pfn->start_ea;
-      if ( ea != oldea )
+      if ( func_ea != oldea )
       {
-        oldea = ea;
+        oldea = func_ea;
         oldreg = helper.altval_ea(oldea);
       }
       return reg == oldreg;
@@ -457,8 +456,8 @@ static bool create_lvar(const insn_t &insn, const op_t &x, uval_t v)
     { -32,  "LPT"         },    // (external Data/LT pointer)
   };
 
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(insn.ea);
+  if ( func_ea == BADADDR )
     return false;
 
   sval_t delta;
@@ -471,13 +470,16 @@ static bool create_lvar(const insn_t &insn, const op_t &x, uval_t v)
     stkvar_idx = frame.get_stkvar(&delta, insn, &x, v);
     if ( stkvar_idx == -1 )
       return false;   // should not happen but better check
-    delta -= pfn->argsize;
+    func_entry_info_t fi;
+    get_func_entry_info(&fi, func_ea);
+    asize_t argsize = fi.get_argsize();
+    delta -= argsize;
     // delta contains real offset from SP
     for ( size_t i=0; i < qnumber(linfo); i++ )
     {
       if ( delta == linfo[i].delta )
       {
-        stkvar_idx = frame.find_udm((delta+pfn->argsize)*8LL);
+        stkvar_idx = frame.find_udm((delta+argsize)*8LL);
         if ( stkvar_idx != -1 )
           frame.rename_udm(stkvar_idx, linfo[i].name);
         break;
@@ -486,9 +488,12 @@ static bool create_lvar(const insn_t &insn, const op_t &x, uval_t v)
     if ( delta <= -0x34 )       // seems to be an argument in the stack
     {                           // this means that the current function
                                 // has at least 4 register arguments
-      pfn = get_func(insn.ea);
-      while ( pfn->regargqty < 4 )
-        add_regarg(pfn, R26-pfn->regargqty, tinfo_t(BT_INT), nullptr);
+      size_t regargqty = get_func_regarg_qty(func_ea);
+      while ( regargqty < 4 )
+      {
+        add_func_regarg(func_ea, R26-regargqty, tinfo_t(BT_INT), nullptr);
+        regargqty = get_func_regarg_qty(func_ea);
+      }
     }
   }
 
@@ -595,11 +600,7 @@ void hppa_t::process_operand(const insn_t &insn, const op_t &x, bool isAlt, bool
 //----------------------------------------------------------------------
 static bool add_stkpnt(const insn_t &insn, sval_t delta)
 {
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
-    return false;
-
-  return add_auto_stkpnt(pfn, insn.ea+insn.size, delta);
+  return add_func_auto_stkpnt(get_func_start(insn.ea), insn.ea+insn.size, delta);
 }
 
 //----------------------------------------------------------------------
@@ -637,11 +638,15 @@ void hppa_t::trace_sp(const insn_t &insn)
           // (restores the original value of sp + optional delta
           // using the frame pointer register)
           // ldo 4(%r4), %sp
-          func_t *pfn = get_func(insn.ea);
-          if ( pfn != nullptr )
+          ea_t func_ea = get_func_start(insn.ea);
+          if ( func_ea != BADADDR )
           {
-            sval_t delta = insn.Op1.addr + pfn->frregs - get_spd(pfn,insn.ea);
-            add_stkpnt(insn, -delta);
+            func_entry_info_t fi;
+            if ( get_func_entry_info(&fi, func_ea) )
+            {
+              sval_t delta = insn.Op1.addr + fi.get_frregs() - get_func_spd(func_ea, insn.ea);
+              add_stkpnt(insn, -delta);
+            }
           }
         }
       }
@@ -752,16 +757,15 @@ int idaapi is_align_insn(ea_t ea)
 }
 
 //----------------------------------------------------------------------
-int idaapi hppa_get_frame_retsize(const func_t *)
+int idaapi hppa_get_frame_retsize(ea_t /*func_ea*/)
 {
-  return 0;     // ALPHA doesn't use stack for function return addresses
+  return 0;     // HPPA doesn't use stack for function return addresses
 }
 
 //----------------------------------------------------------------------
-//lint -e{818} could be declared as pointing to const
-bool hppa_t::create_func_frame(func_t *pfn)
+bool hppa_t::create_func_frame(ea_t func_ea)
 {
-  ea_t ea = pfn->start_ea;
+  ea_t ea = func_ea;
   int frame_reg = 0;
   for ( int i=0; i < 16; i++ )
   {
@@ -772,9 +776,8 @@ bool hppa_t::create_func_frame(func_t *pfn)
     if ( opcode(get_dword(ea)) == 0x1B )    // stw,m
     {
       if ( frame_reg != 0 )
-        helper.altset_ea(pfn->start_ea, frame_reg);
-//      return true;//add_frame(pfn, 0, 0, 0);
-      return add_frame(pfn, insn.Op2.addr, 0, 0);
+        helper.altset_ea(func_ea, frame_reg);
+      return add_frame_ea(func_ea, insn.Op2.addr, 0, 0);
     }
     ea += 4;
   }
@@ -840,14 +843,14 @@ static bool hppa_set_op_type(
     case o_reg:
       {
         uint32 r = x.reg;
-        func_t *pfn = get_func(insn.ea);
-        if ( pfn == nullptr )
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( func_ea == BADADDR )
           return false;
         bool ok;
         bool farref;
-        func_item_iterator_t fii;
+        function_item_iterator_t fii;
         insn_t l;
-        for ( ok=fii.set(pfn, insn.ea);
+        for ( ok=fii.set(func_ea, insn.ea);
               ok && (ok=fii.decode_preceding_insn(&visited, &farref, &l)) != 0;
               )
         {
@@ -879,9 +882,9 @@ static bool hppa_set_op_type(
           }
           break;
         }
-        if ( !ok && l.ea == pfn->start_ea )
+        if ( !ok && l.ea == func_ea )
         { // reached the function start, this looks like a register argument
-          add_regarg(pfn, r, type, name);
+          add_func_regarg(func_ea, r, type, name);
           break;
         }
       }

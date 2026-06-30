@@ -159,9 +159,9 @@ void oakdsp_t::handle_operand(const insn_t &insn, const op_t &x, bool is_forced,
     case o_local: // local variables
       if ( may_create_stkvars() )
       {
-        func_t *pfn = get_func(insn.ea);
-        if ( pfn != nullptr
-          && (pfn->flags & FUNC_FRAME) != 0
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( func_ea != BADADDR
+          && (get_func_flags(func_ea) & FUNC_FRAME) != 0
           && insn.create_stkvar(x, x.addr, STKVAR_VALID_SIZE) )
         {
           op_stkvar(insn.ea, x.n);
@@ -175,11 +175,11 @@ void oakdsp_t::handle_operand(const insn_t &insn, const op_t &x, bool is_forced,
 //----------------------------------------------------------------------
 static bool add_stkpnt(const insn_t &insn, sval_t delta)
 {
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(insn.ea);
+  if ( func_ea == BADADDR )
     return false;
 
-  return add_auto_stkpnt(pfn, insn.ea+insn.size, delta);
+  return add_func_auto_stkpnt(func_ea, insn.ea+insn.size, delta);
 }
 
 //----------------------------------------------------------------------
@@ -357,64 +357,59 @@ int idaapi is_align_insn(ea_t ea)
 }
 
 //----------------------------------------------------------------------
-bool idaapi create_func_frame(func_t *pfn)     // create frame of newly created function
+bool idaapi create_func_frame(ea_t func_ea)     // create frame of newly created function
 {
   bool std_vars_func = true;
 
-  if ( pfn != nullptr )
+  func_entry_info_t fi;
+  if ( get_func_entry_info(&fi, func_ea) && fi.get_frame_id() == BADNODE )
   {
-    if ( pfn->frame == BADNODE )
+    ea_t ea = func_ea;
+    int regsize = 0;
+
+    insn_t insn;
+    while ( ea < fi.end_ea ) // check for register pushes
     {
-      ea_t ea = pfn->start_ea;
-      int regsize = 0;
+      decode_insn(&insn, ea);
+      ea += insn.size;         // count pushes
+      if ( (insn.itype == OAK_Dsp_push) && (insn.Op1.type == o_reg) )
+        regsize++;
+      else
+        break;
+    }
 
-      insn_t insn;
-      while ( ea < pfn->end_ea ) // check for register pushes
+    ea = func_ea;
+    int16 localsize = 0;
+    while ( ea < fi.end_ea ) // check for frame creation
+    {
+      decode_insn(&insn, ea);
+      ea += insn.size; // try to detect ADDV #,SP
+      if ( (insn.itype == OAK_Dsp_addv) && (insn.Op1.type == o_imm) && (insn.Op2.type == o_reg) && (insn.Op2.reg == SP) )
       {
-        decode_insn(&insn, ea);
-        ea += insn.size;         // count pushes
-        if ( (insn.itype == OAK_Dsp_push) && (insn.Op1.type == o_reg) )
-          regsize++;
-        else
-          break;
+        localsize = (uint16)insn.Op1.value;
+        break;
       }
 
-      ea = pfn->start_ea;
-      int16 localsize = 0;
-      while ( ea < pfn->end_ea ) // check for frame creation
+      // if found mov #, rb  --> do not create frame
+      if ( (insn.itype == OAK_Dsp_mov) && (insn.Op1.type == o_imm) && (insn.Op2.type == o_reg) && (insn.Op2.reg == RB) )
       {
-        decode_insn(&insn, ea);
-        ea += insn.size; // try to detect ADDV #,SP
-        if ( (insn.itype == OAK_Dsp_addv) && (insn.Op1.type == o_imm) && (insn.Op2.type == o_reg) && (insn.Op2.reg == SP) )
-        {
-          localsize = (uint16)insn.Op1.value;
-          break;
-        }
-
-        // if found mov #, rb  --> do not create frame
-        if ( (insn.itype == OAK_Dsp_mov) && (insn.Op1.type == o_imm) && (insn.Op2.type == o_reg) && (insn.Op2.reg == RB) )
-        {
-          std_vars_func = false;
-          break;
-        }
-
+        std_vars_func = false;
+        break;
       }
-
-      if ( std_vars_func )
-      {
-        pfn->flags |= FUNC_FRAME;
-        update_func(pfn);
-      }
-
-      add_frame(pfn, -localsize, (ushort)regsize, 0);
 
     }
+
+    if ( std_vars_func )
+      set_func_flag(func_ea, FUNC_FRAME);
+
+    add_frame_ea(func_ea, -localsize, (ushort)regsize, 0);
+
   }
   return 0;
 }
 
 //----------------------------------------------------------------------
-int idaapi OAK_get_frame_retsize(const func_t * /*pfn*/)
+int idaapi OAK_get_frame_retsize(ea_t /*func_ea*/)
 {
   return 1;     // 1 'byte' for the return address
 }

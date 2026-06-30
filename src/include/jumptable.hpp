@@ -432,11 +432,11 @@ public:
 
 protected:
   //lint --e{958} padding is required
-  func_t *pfn;      // to check bounds
-  const segment_t *seg;
+  ea_t func_ea = BADADDR;  // to check bounds
+  range_t seg;
   ea_t start_ea;
-  ea_t cur_end;     // end of current basic block
-  uint insn_cnt;
+  ea_t cur_end = BADADDR; // end of current basic block
+  uint insn_cnt = 0;
   // visited basic blocks:
   // key_type - start of the block, mapped_type - end of the block;
   typedef std::map<ea_t, ea_t> visited_t;
@@ -464,20 +464,18 @@ public:
       ctrl(ctrl_),
       only_near(only_near_),
       max_insn_cnt(max_insn_cnt_),
-      pfn(nullptr),
-      seg(nullptr),
       start_ea(start_ea_),
-      cur_end(BADADDR),
-      insn_cnt(0),
       visited(),
       waiting()
   {
     // to check bounds
-    pfn = get_func(start_ea);
-    if ( pfn == nullptr )
+    func_ea = get_func_start(start_ea);
+    if ( func_ea == BADADDR )
     {
-      seg = getseg(start_ea);
-      QASSERT(10183, seg != nullptr);
+      segment_info_t si;
+      if ( !get_segment_info(&si, start_ea) )
+        INTERR(10183);
+      seg = si;
     }
   }
 
@@ -510,9 +508,9 @@ protected:
 
   bool check_bounds() const
   {
-    if ( pfn != nullptr )
-      return func_contains(pfn, cur_ea);
-    return seg->contains(cur_ea);
+    if ( func_ea != BADADDR )
+      return function_contains(func_ea, cur_ea);
+    return seg.contains(cur_ea);
   }
 };
 

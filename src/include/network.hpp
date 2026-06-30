@@ -533,7 +533,7 @@ THREAD_SAFE inline lofi_timestamp_t to_lofi_timestamp(qtime64_t ts)
 //-------------------------------------------------------------------------
 THREAD_SAFE inline qtime64_t from_lofi_timestamp(lofi_timestamp_t lts)
 {
-  return make_qtime64(lts / 10, (lts % 10) * (100 * 1000));
+  return make_qtime64(uint32(lts / 10), (lts % 10) * (100 * 1000));
 }
 
 //-------------------------------------------------------------------------
@@ -959,6 +959,7 @@ public:
     generic_client_t::init(_irs);
   }
   virtual ~generic_client_t();
+  friend struct generic_client_internal_t;
 protected:
   virtual bool try_reconnect(qstring *errbuf) = 0;
   virtual rpc_packet_data_t *create_failure_packet(const char *errmsg) = 0;
@@ -1038,6 +1039,7 @@ struct login_credentials_t : public endpoint_credentials_t
   bool use_tls() const { return (state & LCS_NO_TLS) == 0; }
   void set_use_tls(bool use_tls) { setflag(state, LCS_NO_TLS, !use_tls); }
   bool has_seen_proxy_option() const { return (state & LCS_SEEN_PROXY_OPTION) != 0; }
+  friend struct login_credentials_internal_t;
 
 protected:
   bool _process_switch(const char *args);
@@ -1085,6 +1087,9 @@ decl ask_user_result_t ida_export vcred_ask_user(vault_credentials_t *vc, creden
 decl bool ida_export vcred_reg_should_store_info();\
 decl void ida_export vcred_reg_set_store_info(bool store_pass);\
 decl bool ida_export vcred_reg_del_store_info();\
+decl bool ida_export vcred_reg_should_auto_connect();\
+decl void ida_export vcred_reg_set_auto_connect(bool auto_connect);\
+decl bool ida_export vcred_reg_del_auto_connect();\
 decl void ida_export vcred_reg_set_site(const vault_credentials_t *vc, const char *site);\
 decl bool ida_export vcred_load_site(vault_credentials_t *vc);
 VCRED_HELPER_DEFINITIONS(idaman)
@@ -1142,6 +1147,9 @@ struct vault_credentials_t : public login_credentials_t
   static bool reg_should_store_info() { return vcred_reg_should_store_info(); }
   static void reg_set_store_info(bool store_pass) { vcred_reg_set_store_info(store_pass); }
   static bool reg_del_store_info() { return vcred_reg_del_store_info(); }
+  static bool reg_should_auto_connect() { return vcred_reg_should_auto_connect(); }
+  static void reg_set_auto_connect(bool auto_connect) { vcred_reg_set_auto_connect(auto_connect); }
+  static bool reg_del_auto_connect() { return vcred_reg_del_auto_connect(); }
 
 private:
   void _init();

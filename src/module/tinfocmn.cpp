@@ -84,4 +84,3 @@ bool flatten_struct(
   member_collector_t mc(parts, maxparts);
   return mc.visit_type(type, 0);
 }
-

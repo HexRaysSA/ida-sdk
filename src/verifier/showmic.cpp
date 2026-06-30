@@ -55,12 +55,14 @@ struct showmic_vars_t
 
   mblock_dumper_t md; //lint !e958 padding
   qstring dumpdir;
+  qstring buffers[10] = { nullptr, };
   int oldn = 0;
   int dumpnum = 0;
-  qstring buffers[10] = { nullptr, };
+  int cdumpnum = 0;
   int lastbuf = 0;
 
   void get_dump_file_name(char *buf, size_t bufsize, int serial);
+  void get_ctree_dump_file_name(char *buf, size_t bufsize, const char *name);
   void emulate_and_check(
         const char *header,
         const mba_t *mba,
@@ -114,7 +116,6 @@ DEFINE_DSTR(valranges_t)
 DEFINE_DSTR(chain_t)
 DEFINE_DSTR(block_chains_t)
 DEFINE_DSTR(mcases_t)
-DEFINE_DSTR(edgevec_t)
 DEFINE_DSTR(fnumber_t)
 DEFINE_DSTR(gva_attrs_t)
 DEFINE_DSTR(gva_fields_t)
@@ -139,11 +140,13 @@ void dgr(citem_t *item)
 #endif
 
 //-------------------------------------------------------------------------
-static ea_t align_badaddr(const hexrays_vars_t &hv, ea_t ea)
+ea_t align_badaddr(const hexrays_vars_t &hv, ea_t ea)
 {
   // represent BADADDR as 0xffffffff if ida64 is running with a 32bit binary
   return ea == BADADDR ? hv.eah().mask : ea;
 }
+
+//-------------------------------------------------------------------------
 static ea_t align_badaddr(ea_t ea)
 {
   return ea == BADADDR
@@ -222,7 +225,6 @@ GCC_DIAG_OFF(nonnull)
   CALL_DSTR(lvar_t);
   CALL_DSTR(mop_t);
   CALL_DSTR(mcallarg_t);
-  CALL_DSTR(edgevec_t);
   CALL_DSTR(argloc_t);
   CALL_DSTR(vdloc_t);
   CALL_DSTR(mblock_emulator_t);
@@ -367,7 +369,7 @@ qstring print_lvinf(const mvm_t &mvm, const lvar_saved_info_t &lsi)
   qstring buf;
 
   if ( !lsi.type.empty() )
-    vd_print_type(&buf, lsi.type, lsi.name.begin());
+    mvm.hv.vd_print_type(&buf, lsi.type, lsi.name.begin());
   else if ( !lsi.name.empty() )
     buf.append(lsi.name);
 
@@ -412,11 +414,11 @@ void dump_lvar_settings(ea_t entry_ea, const lvar_uservec_t &lvinf)
       entry_ea,
       lvinf.stkoff_delta,
       (lvinf.ulv_flags & ULV_PRECISE_DEFEA) != 0 ? "PRECISE_DEFEA" : "");
-  for ( int i=0; i < lvinf.lvvec.size(); i++ )
+  for ( size_t i=0; i < lvinf.lvvec.size(); i++ )
   {
     const lvar_saved_info_t &lsi = lvinf.lvvec[i];
     qstring buf = print_lvinf(mvm, lsi);
-    msg("%d. %s\n", i, buf.c_str());
+    msg("%" FMT_Z ". %s\n", i, buf.c_str());
   }
 
   const lvar_mapping_t &m = lvinf.lmaps;
@@ -583,8 +585,8 @@ static bool verify_rasm(const char *path)
         {
           qmakepath(outfile, sizeof(outfile), dumpdir.begin(), "rasm.dmp", nullptr);
           FILE *fp = fopenWT(outfile);
-          for ( int i=0; i < md2.lines.size(); i++ )
-            qfprintf(fp, "%s\n", md2.lines[i].c_str());
+          for ( const qstring &line : md2.lines )
+            qfprintf(fp, "%s\n", line.c_str());
           qfclose(fp);
         }
         // compare results
@@ -630,13 +632,15 @@ void showmic_vars_t::emulate_and_check(
   {
     emu_blknum = 0;
     qstring envvar;
-    if ( !under_debugger && !mba->hv.force_dump )
+    if ( !under_debugger && !mba->hv.force_dump() )
       return;
     if ( !qgetenv("VD_EMULATE", &envvar) )
       return;
 
     // the format of the envvar is:
-    // VD_EMULATE=blknum:asg1,asg2,asg3...
+    // VD_EMULATE=blknum:asg1 asg2 asg3...
+    // example:
+    // VD_EMULATE=1:$a0.4=-1 $zf.1=1
     char *endp;
     char *ptr = envvar.begin();
     emu_blknum = strtol(ptr, &endp, 10);
@@ -649,6 +653,11 @@ void showmic_vars_t::emulate_and_check(
 
   if ( blk == nullptr )
   {
+    if ( emu_blknum >= mba->qty )
+    {
+      msg("mcode_emu: block number %d does not exist\n", emu_blknum);
+      return;
+    }
     blk = mba->get_mblock(emu_blknum);
     if ( blk == nullptr )
       return;
@@ -663,7 +672,7 @@ void showmic_vars_t::emulate_and_check(
 
   static int zzz = 0; //lint !e550 not used
   ++zzz; // for the debugger, to add a conditional bpt
-
+  qnotused(zzz);
 
   mblock_emulator_t emu;
   emu.init_with(blk, emu_values.c_str());
@@ -681,16 +690,37 @@ void showmic_vars_t::emulate_and_check(
 //-------------------------------------------------------------------------
 void showmic_vars_t::get_dump_file_name(char *buf, size_t bufsize, int serial)
 {
+  if ( serial < 0 )
+    qsnprintf(buf, bufsize,
+              "%s%cm%05d----.dmp",
+              dumpdir.begin(), DIRCHAR, dumpnum++);
+  else
+    qsnprintf(buf, bufsize,
+              "%s%cm%05d-%03d.dmp",
+              dumpdir.begin(), DIRCHAR, dumpnum++, serial);
+}
+
+//-------------------------------------------------------------------------
+void showmic_vars_t::get_ctree_dump_file_name(
+        char *buf,
+        size_t bufsize,
+        const char *name)
+{
+  // sanitize name for use in filename
+  qstring sname(name);
+  for ( auto &c : sname )
+    if ( c != '\0' && !qisalnum(c) && c != '_' && c != '-' )
+      c = '_';
   qsnprintf(buf, bufsize,
-            "%s%cb%05dd%03d.dmp",
-            dumpdir.begin(), DIRCHAR, dumpnum++, serial);
+            "%s%cc%05d-%s.dmp",
+            dumpdir.begin(), DIRCHAR, cdumpnum++, sname.c_str());
 }
 
 //-------------------------------------------------------------------------
 void mblock_t::vdump_block(const char *title, va_list va) const
 {
   showmic_vars_t &sv = *hv.showmic_vars;
-  if ( !under_debugger && !hv.force_dump )
+  if ( !under_debugger && !hv.force_dump() )
     return;
   if ( empty() || sv.dumpdir.empty() )
     return;
@@ -698,12 +728,15 @@ void mblock_t::vdump_block(const char *title, va_list va) const
   qstring header;
   header.vsprnt(title, va);
 
-  if ( (mba->get_mba_flags() & MBA_PREOPT) != 0 || strneq(title, "debug", 5) )
+  if ( (mba->get_mba_flags() & MBA_PREOPT) != 0
+    || hv.dump_prop()
+    || strneq(title, "debug", 5) )
   {
     mblock_dumper_t &md = sv.md;
     char path[QMAXPATH];
     sv.get_dump_file_name(path, sizeof(path), serial);
 
+    int start_ln = 0;
     qstrvec_t oldlines;
     oldlines.swap(md.lines);
     md.nline = 0;
@@ -711,15 +744,19 @@ void mblock_t::vdump_block(const char *title, va_list va) const
     hv.gmba = mba;
     print(md);
 
-    // find the first different line
-    int n = qmin(md.lines.size(), oldlines.size());
-    int i;
-    for ( i=0; i < n; i++ )
-      if ( md.lines[i] != oldlines[i] )
-        break;
-    if ( i == n )
-      i = sv.oldn;
-    i -= i % 20;
+    if ( !hv.force_dump() )
+    {
+      // find the first different line
+      int n = qmin(md.lines.size(), oldlines.size());
+      int i;
+      for ( i=0; i < n; i++ )
+        if ( md.lines[i] != oldlines[i] )
+          break;
+      if ( i == n )
+        i = sv.oldn;
+      i -= i % 20;
+      start_ln = i;
+    }
 
     FILE *fp = fopenWT(path);
     if ( fp == nullptr )
@@ -728,11 +765,11 @@ void mblock_t::vdump_block(const char *title, va_list va) const
     }
     else
     {
-      if ( sv.oldn != i )
+      if ( sv.oldn != start_ln )
       {
-        sv.oldn = i;
-        qfprintf(fp, "; block %d: scrolling to %d\n\n", serial, i);
-        for ( int j=i; j < oldlines.size(); j++ )
+        sv.oldn = start_ln;
+        qfprintf(fp, "; block %d: scrolling to %d\n\n", serial, start_ln);
+        for ( int j=start_ln; j < oldlines.size(); j++ )
           qfprintf(fp, "%s", oldlines[j].c_str());
         qfclose(fp);
         char *p = strrchr(path, '.');
@@ -743,14 +780,19 @@ void mblock_t::vdump_block(const char *title, va_list va) const
       qfprintf(fp, "pattern block_%d 0x%a; ", serial, align_badaddr(hv, start));
       qfprintf(fp, "%s\n\n", header.c_str());
 
-      while ( i < md.lines.size() )
-        qfputs(md.lines[i++].c_str(), fp);
+      for ( int i=start_ln; i < md.lines.size(); i++ )
+        qfputs(md.lines[i].c_str(), fp);
 
       qfprintf(fp, "\nendp\n");
       qfclose(fp);
     }
-    micro_verifier_t mv;
-    verify(mv);
+    // Verify the block but only when we are not dumping too often, otherwise
+    // we could dump an yet inconsistent microcode
+    if ( !hv.dump_prop() )
+    {
+      micro_verifier_t mv;
+      verify(mv);
+    }
   } //lint !e593 custodial pointer possibly not freed nor returned
   sv.emulate_and_check(header.c_str(), mba, this);
 }
@@ -798,15 +840,22 @@ void mba_t::print(vd_printer_t &vp) const
   mba_t *saved = hv.gmba;
   hv.gmba = CONST_CAST(mba_t *)(this);
 
-  microplace_t mp;
-  linearray_t la(CONST_CAST(mba_t*)(this));
-  la.set_place(&mp);
-  while ( true )
+  mba_t *ncmba = CONST_CAST(mba_t *)(this);
+  for ( int blk = 0; blk < qty; blk++ )
   {
-    const qstring *line = la.down();
-    if ( line == nullptr )
-      break;
-    vp.print(0, "%s\n", line->c_str());
+    mblock_t *b = ncmba->get_mblock(blk);
+    int ninsns = 0;
+    for ( const minsn_t *m = b->head; m != nullptr; m = m->next )
+      ninsns++;
+    if ( ninsns == 0 )
+      ninsns = 1; // generate one entry for empty blocks
+    for ( int n = 0; n < ninsns; n++ )
+    {
+      qstrvec_t lines;
+      generate_micro_lines(&lines, ncmba, blk, n, 25000);
+      for ( const auto &line : lines )
+        vp.print(0, "%s\n", line.c_str());
+    }
   }
 
   hv.gmba = saved;
@@ -818,7 +867,7 @@ void mba_t::vdump_mba(bool do_verify, const char *title, va_list va) const
   qstring header;
   header.vsprnt(title, va);
   showmic_vars_t &sv = *hv.showmic_vars;
-  if ( (under_debugger || hv.force_dump) && !sv.dumpdir.empty() )
+  if ( (under_debugger || hv.force_dump()) && !sv.dumpdir.empty() )
   {
     char path[QMAXPATH];
     sv.get_dump_file_name(path, sizeof(path), -1);
@@ -847,9 +896,10 @@ void mba_t::vdump_mba(bool do_verify, const char *title, va_list va) const
 void mba_t::init_dump() const
 {
   showmic_vars_t &sv = *hv.showmic_vars;
-  if ( !under_debugger && !hv.force_dump )
+  if ( !under_debugger && !hv.force_dump() && !hv.dump_ctree_full() )
     return;
   sv.dumpnum = 0;
+  sv.cdumpnum = 0;
   sv.prev_emu = mblock_emulator_t();
   if ( qgetenv("IDA_DUMPDIR", &sv.dumpdir) && !sv.dumpdir.empty() )
   {
@@ -866,6 +916,17 @@ void mba_t::init_dump() const
       qunlink(path);
     }
   }
+}
+
+//-------------------------------------------------------------------------
+FILE *open_ctree_dump_file(hexrays_vars_t &hv, const char *name)
+{
+  showmic_vars_t &sv = *hv.showmic_vars;
+  if ( sv.dumpdir.empty() )
+    return nullptr;
+  char path[QMAXPATH];
+  sv.get_ctree_dump_file_name(path, sizeof(path), name);
+  return fopenWT(path);
 }
 
 //-------------------------------------------------------------------------
@@ -1028,7 +1089,7 @@ static void print_type(
         const qstring &name)
 {
   qstring tb;
-  vd_print_type(&tb, type, name.begin());
+  prh.hv.vd_print_type(&tb, type, name.begin());
   lexical_anchor_printer_t type_anchor(prh, out, &type);
   append_name(out, tb.c_str());
 }
@@ -1072,6 +1133,7 @@ void mcallinfo_t::print(
     case CM_CC_SPOILED : ccname = "!spl"; break;
     case CM_CC_GOLANG  : ccname = "go";   break;
     case CM_CC_GOSTK   : ccname = "gostk";break;
+    case CM_CC_RUST    : ccname = "rust"; break;
     case CM_CC_RESERVE3: ccname = "rsv3"; break;
     case CM_CC_SPECIALE: ccname = "spce"; break;
     case CM_CC_SPECIALP: ccname = "spcp"; break;
@@ -1079,12 +1141,14 @@ void mcallinfo_t::print(
     default: break;
   }
   out->append('<');
+//  if ( role != ROLE_UNK )
+//    out->cat_sprnt("role=%d ", role);
   if ( cc != CM_CC_VOIDARG )
   {
     out->append(ccname);
     out->append(':');
-    int n = args.size();
-    for ( int i=0; i < n; i++ )
+    size_t n = args.size();
+    for ( size_t i=0; i < n; i++ )
     {
       if ( i != 0 )
         out->append(',');
@@ -1103,7 +1167,7 @@ void mcallinfo_t::print(
   }
   if ( !retregs.empty() )
   {
-    for ( int i=0; i < retregs.size(); i++ )
+    for ( size_t i=0; i < retregs.size(); i++ )
     {
       if ( i != 0 )
         out->append(':');
@@ -1128,7 +1192,7 @@ void mcases_t::print(qstring *out, mba_print_helper_t &prh) const
 {
   lexical_anchor_printer_t cases_anchor(prh, out, this);
   out->append('{');
-  for ( int i=0; i < size(); i++ )
+  for ( size_t i=0; i < size(); i++ )
   {
     if ( i > 0 )
       out->append(", ");
@@ -1139,7 +1203,7 @@ void mcases_t::print(qstring *out, mba_print_helper_t &prh) const
     }
     else
     {
-      for ( int j=0; j < v.size(); j++ )
+      for ( size_t j=0; j < v.size(); j++ )
       {
         if ( j != 0 )
           out->append(',');
@@ -1528,37 +1592,45 @@ void minsn_t::print(qstring *out, mba_print_helper_t &prh, int shins_flags) cons
   if ( (shins_flags & SHINS_SHORT) != 0 )
     return;
 
-  add_spaces(out, 30);
-  tag_on(out, COLOR_AUTOCMT);
-  out->cat_sprnt(" ; %a ", align_badaddr(ea));
-  if ( is_inverted_jx()   ) out->append("inverted_jx ");
-  if ( is_ignlowsrc()     ) out->append("ignlowsrc ");
-  if ( !is_propagatable() ) out->append("dontprop ");
-  if ( is_combined()      ) out->append("combined ");
-  if ( was_unpaired()     ) out->append("unpaired ");
-  if ( is_farcall()       ) out->append("farcall ");
-  if ( is_cleaning_pop()  ) out->append("popecx ");
-  if ( is_extstx()        ) out->append("extstx ");
-  if ( is_tailcall()      ) out->append("tailcall ");
-  if ( is_assert()        ) out->append("assert ");
-  if ( is_multimov()      ) out->append("multimov ");
-  if ( !is_combinable()   ) out->append("not_combinable ");
-  if ( was_noret_icall()  ) out->append("was_noret_icall ");
-  if ( is_mbarrier()      ) out->append("mbarrier ");
-  if ( was_unmerged()     ) out->append("unmerged ");
+  qstring cmt;
+  if ( (shins_flags & SHINS_NOEA) == 0 )
+    cmt.cat_sprnt("%a ", align_badaddr(ea));
+  if ( is_inverted_jx()   ) cmt.append("inverted_jx ");
+  if ( is_ignlowsrc()     ) cmt.append("ignlowsrc ");
+  if ( !is_propagatable() ) cmt.append("dontprop ");
+  if ( is_combined()      ) cmt.append("combined ");
+  if ( was_unpaired()     ) cmt.append("unpaired ");
+  if ( is_farcall()       ) cmt.append("farcall ");
+  if ( is_cleaning_pop()  ) cmt.append("popecx ");
+  if ( is_extstx()        ) cmt.append("extstx ");
+  if ( is_tailcall()      ) cmt.append("tailcall ");
+  if ( is_assert()        ) cmt.append("assert ");
+  if ( is_multimov()      ) cmt.append("multimov ");
+  if ( !is_combinable()   ) cmt.append("not_combinable ");
+  if ( was_noret_icall()  ) cmt.append("was_noret_icall ");
+  if ( is_mbarrier()      ) cmt.append("mbarrier ");
+  if ( was_unmerged()     ) cmt.append("unmerged ");
+  if ( was_memfunc()      ) cmt.append("memfunc ");
   int split = get_split_size();
   if ( split != 0 )
-    out->cat_sprnt("split%d ", split);
-  out_oprop_bit(out, OPROP_UDT, "udt");
+    cmt.cat_sprnt("split%d ", split);
+  out_oprop_bit(&cmt, OPROP_UDT, "udt");
   if ( !is_fpinsn() )
-    out_oprop_bit(out, OPROP_FLOAT, "float");
-  out_oprop_bit(out, OPROP_LOWADDR, "lowaddr");
+    out_oprop_bit(&cmt, OPROP_FLOAT, "float");
+  out_oprop_bit(&cmt, OPROP_LOWADDR, "lowaddr");
 
   const mba_t *const mba = prh.mba != nullptr ? prh.mba : GMBA;
   if ( mba != nullptr )
-    mba->print_insn_usedef(out, *this);
+    mba->print_insn_usedef(&cmt, *this);
 
-  tag_off(out, COLOR_AUTOCMT);
+  if ( !cmt.empty() )
+  {
+    add_spaces(out, 30);
+    tag_on(out, COLOR_AUTOCMT);
+    out->append(" ; ");
+    out->append(cmt);
+    tag_off(out, COLOR_AUTOCMT);
+  }
 }
 
 //-------------------------------------------------------------------------
@@ -1609,9 +1681,17 @@ static void print_vector_element(qstring *out, const edge_t &e)
 }
 
 //-------------------------------------------------------------------------
-void edgevec_t::print(qstring *out) const
+void print_edgevec(qstring *out, const edgevec_t &ev)
 {
-  print_vector(out, *this);
+  print_vector(out, ev);
+}
+
+//-------------------------------------------------------------------------
+const char *edgevec_dstr(const edgevec_t &ev)
+{
+  qstring *buf = debug_getbuf();
+  print_edgevec(buf, ev);
+  return buf->c_str();
 }
 
 //-------------------------------------------------------------------------
@@ -1686,7 +1766,9 @@ static qstring print_ea_with_orig(const mba_t *mba, ea_t ea)
 }
 
 //-------------------------------------------------------------------------
-void mblock_t::print_block_header(qstrvec_t *vec) const
+void mblock_t::print_block_header(
+        qstrvec_t *vec,
+        const mba_print_helper_t &prh) const
 {
   qstring buf;
   if ( serial == 0 )
@@ -1706,7 +1788,7 @@ void mblock_t::print_block_header(qstrvec_t *vec) const
       if ( !sregs.empty() )
       {
         buf.append(SCOLOR_ON SCOLOR_RPTCMT "; SAVEDREGS: ");
-        for ( int i=0; i < sregs.size(); i++ )
+        for ( size_t i=0; i < sregs.size(); i++ )
         {
           if ( i != 0 )
             buf.append(',');
@@ -1736,13 +1818,19 @@ void mblock_t::print_block_header(qstrvec_t *vec) const
   {
     buf.append(" INBOUNDS:");
     for ( int i=0; i < npred(); i++ )
-      buf.cat_sprnt(" %d", pred(i));
+    {
+      buf.append(' ');
+      prh.append_block_number(&buf, pred(i));
+    }
   }
   if ( nsucc() != 0 )
   {
     buf.append(" OUTBOUNDS:");
     for ( int i=0; i < nsucc(); i++ )
-      buf.cat_sprnt(" %d", succ(i));
+    {
+      buf.append(' ');
+      prh.append_block_number(&buf, succ(i));
+    }
   }
   buf.cat_sprnt(" [START=%s END=%s] MINREFS: STK=%a/ARG=%a, MAXBSP: %a" SCOLOR_OFF SCOLOR_RPTCMT,
                 print_ea_with_orig(mba, start).c_str(),
@@ -1979,12 +2067,12 @@ inline void print_vector_element(qstring *vout, const range_t &v)
 }
 
 //-------------------------------------------------------------------------
-void mba_ranges_t::print(qstring *vout) const
+void decomp_ranges_t::print(qstring *vout) const
 {
   bool append_curly = false;
   if ( !is_snippet() )
   {
-    vout->cat_sprnt("%a", pfn->start_ea);
+    vout->cat_sprnt("%a", func_ea);
     if ( !ranges.empty() )
     {
       vout->append("+outline{");
@@ -2006,7 +2094,7 @@ void mba_t::dump_stkpnts(const char *header, const ivlset_t *nonfunc) const
   {
     size_t n = stkpnts.size();
     qstring rangestr;
-    mbr.print(&rangestr);
+    dcr.print(&rangestr);
     msg("STKPNTS for %s (%s; %" FMT_Z " entries); "
         "stacksize=0x%" FMT_EA "X tmpstk=0x%" FMT_EA "X",
         rangestr.c_str(), header, n, stacksize, tmpstk_size);
@@ -2047,7 +2135,7 @@ void dump_stkpnts(const mba_t *mba, const stkpnts_t &stkpnts, const char *header
 }
 
 //-------------------------------------------------------------------------
-void dump_flowchart(const qflow_chart_t &fc)
+void dump_flowchart(const qflow_chart_ea_t &fc)
 {
 #ifdef _DUMP_FLOWCHART
   if ( under_debugger )
@@ -2057,11 +2145,11 @@ void dump_flowchart(const qflow_chart_t &fc)
       qstring s;
       const qbasic_block_t &bb = fc.blocks[i];
       s.sprnt("%" FMT_Z ". %a..%a", i, bb.start_ea, bb.end_ea);
-      int ns = bb.succ.size();
+      size_t ns = bb.succ.size();
       if ( ns > 0 )
       {
         s.append(" =>");
-        for ( int j=0; j < ns; j++ )
+        for ( size_t j=0; j < ns; j++ )
           s.cat_sprnt(" %d", bb.succ[j]);
       }
       msg("%s\n", s.c_str());

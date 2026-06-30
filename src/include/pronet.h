@@ -49,13 +49,13 @@
 //---------------------------------------------------------------------------
 inline ssize_t qsendto(int socket, const SOCKBUF_T buf, size_t size, int flags, const struct sockaddr *dest_addr, SOCKLEN_T addrlen)
 {
-  SIG_SAFE_CALL(::sendto(socket, buf, size, flags, dest_addr, addrlen));
+  SIG_SAFE_CALL(::sendto(socket, buf, int(size), flags, dest_addr, addrlen));
 }
 
 //---------------------------------------------------------------------------
 inline ssize_t qrecvfrom(int socket, SOCKBUF_T buf, size_t size, int flags, struct sockaddr *src_addr, SOCKLEN_T *addrlen)
 {
-  SIG_SAFE_CALL(::recvfrom(socket, buf, size, flags, src_addr, addrlen));
+  SIG_SAFE_CALL(::recvfrom(socket, buf, int(size), flags, src_addr, addrlen));
 }
 
 //---------------------------------------------------------------------------
@@ -156,6 +156,23 @@ bool get_my_ip(char out[NI_MAXHOST], const ushort family = AF_INET);
 // Get the local host name (utf-8)
 idaman bool ida_export qgethostname(qstring *out);
 
+//-]
+/// Get the MAC address of the first network interface
+#define GMAF_ALL  0x1 // Fetch all mac addresses
+#define GMAF_ZERO 0x2 // Accept a mac address consisting of 00:00:00:00:00:00
+idaman bool ida_export get_mac_addresses(qstrvec_t *out, uint32 flags=0);
+
+/// retrieve a relatively stable machine identifier
+/// on linux and Windows, we use the hostname for that
+/// on macOS we use the PlatformUUID (the hostname changes easily on macOS e.g. VPNs)
+bool get_host_identifier(qstring *out);
+
+/// Is usable network interface?
+/// This function checks if the network interface of the right family.
+/// all==false: also check if the interface is up and running and has some activity
+/// Only for Unix.
+bool is_usable_network_interface(struct ifaddrs *ifa, int family, bool all=false);
+//-[
 
 #undef SIG_SAFE_CALL
 #undef SOCKLEN_T

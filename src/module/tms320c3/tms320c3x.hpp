@@ -141,7 +141,7 @@ struct tms320c3x_t : public procmod_t
   void header(outctx_t &ctx);
   void assumes(outctx_t &ctx);
   void print_segment_register(outctx_t &ctx, int reg, sel_t value);
-  void segstart(outctx_t &ctx, segment_t *seg) const;
+  void segstart(outctx_t &ctx, ea_t seg_ea) const;
   void footer(outctx_t &ctx) const;
   void gen_stkvar_def(outctx_t &ctx, const udm_t *stkvar, sval_t v) const;
 
@@ -161,11 +161,10 @@ const char *get_cond8(char value);
 int get_signed(int byte, int mask);
 
 //------------------------------------------------------------------
-void idaapi segend(outctx_t &, segment_t *seg);
 
 void idaapi data(outctx_t &ctx);
 
-bool idaapi create_func_frame(func_t *pfn);
+bool idaapi create_func_frame(ea_t func_ea);
 int  idaapi is_align_insn(ea_t ea);
 bool is_basic_block_end(const insn_t &insn);
 bool idaapi can_have_type(const op_t &op);

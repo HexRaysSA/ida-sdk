@@ -218,14 +218,16 @@ void idaapi sam8_header(outctx_t &ctx)
 // --------------------------------------------------------------------------
 // generate start of segment
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void sam8_t::sam8_segstart(outctx_t &ctx, segment_t *Sarea) const
+void sam8_t::sam8_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
   // generate ORG directive if necessary
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
+    segment_info_t seg;
+    if ( !get_segment_info(&seg, seg_ea) )
+      return;
     // get segment data
-    size_t org = size_t(ctx.insn_ea - get_segm_base(Sarea));
+    size_t org = size_t(ctx.insn_ea - seg.base());
 
     // generate line
     if ( org != 0 )

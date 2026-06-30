@@ -82,13 +82,6 @@ int st20_t::st20_emu(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
-int is_jump_func(const func_t * /*pfn*/, ea_t *jump_target)
-{
-  *jump_target = BADADDR;
-  return 0; // means "don't know"
-}
-
-//----------------------------------------------------------------------
 int may_be_func(const insn_t &)
 {
 //  if ( insn.itype == H8_push && isbp(insn.Op1.reg) ) return 100;  // push.l er6

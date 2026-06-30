@@ -201,14 +201,16 @@ static void load_subspaces(linput_t *li, const header &h, qoff64_t fpos, int n)
     set_selector(i, 0);
     const char *sclass = strstr(name, "CODE") != nullptr ? CLASS_CODE : CLASS_DATA;
 
-    segment_t s;
-    s.sel      = setup_selector(i);
+    segment_info_t s;
+    s.set_sel(setup_selector(i));
     s.start_ea = start;
     s.end_ea   = start + sr.subspace_length;
-    s.align    = saRelByte;
-    s.comb     = scPub;
-    s.bitness  = 1; // 32-bit
-    if ( !add_segm_ex(&s, name, sclass, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+    s.set_align(saRelByte);
+    s.set_comb(scPub);
+    s.set_bitness(1); // 32-bit
+    s.set_name(name);
+    s.set_sclass(sclass);
+    if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
       loader_failure("Failed to create segment %a..%a", s.start_ea, s.end_ea);
 
     if ( i == first_text_subspace_idx )
@@ -310,7 +312,7 @@ static void load_imports(linput_t *li, const dl_header &dl)
       ea_t ea2 = get_dword(ea);
       force_name(ea2, &buf[1], SN_IDBENC);
       add_func(ea2);
-      set_func_cmt(get_func(ea2), "THUNK", false);
+      set_func_cmt_ea(ea2, "THUNK", false);
       create_dword(ea+4, 4);
       ea += 8;
     }

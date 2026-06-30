@@ -155,7 +155,15 @@ const color_t
 
 
   COLOR_RESERVED1= COLOR_ADDR+11,///< This tag is reserved for internal IDA use
-  COLOR_LUMINA   = COLOR_ADDR+12;///< Lumina-related, only for the navigation band
+  COLOR_LUMINA   = COLOR_ADDR+12,///< Lumina-related, only for the navigation band
+
+  COLOR_ADDR_EXPR = COLOR_ADDR+13,///< Wraps an "address expression" - possibly composed of sub-expressions
+
+  COLOR_GROUP     = COLOR_ADDR+14;///< Groups together a run of tagged text so
+                                  ///< it can be looked up as a single span
+                                  ///< (like COLOR_ADDR_EXPR), but without
+                                  ///< influencing rendering: no associated
+                                  ///< style color key (\ref sck_) exists.
 ///@}
 
 /// Size of a tagged address (see ::COLOR_ADDR)
@@ -233,6 +241,29 @@ const color_t
 /// \param tag  one of SCOLOR_xxx constants
 #define COLSTR(str,tag) SCOLOR_ON tag str SCOLOR_OFF tag
 
+//----------------- Colors for tiplace_t ------------------------------------
+/// \defgroup TIPLACE_COLORS Line colors to \ref tiplace_t
+///@{
+const color_t
+  COLOR_NAME    = COLOR_CNAME,    ///< names      - blue
+  COLOR_TYPE    = COLOR_HIDNAME,  ///< type names - gray
+  COLOR_ATTR    = COLOR_HIDNAME,  ///< type attrs - gray
+  COLOR_TNUM    = COLOR_LIBNAME,  ///< numbers    - light blue
+  COLOR_CMT     = COLOR_NUMBER,   ///< comments   - green
+  COLOR_ARGLOC  = COLOR_CREFTAIL, ///< arglocs    - red
+  COLOR_ARGNAME = COLOR_REG,      ///< argnames   - dark blue
+  COLOR_PRAGMA  = COLOR_MACRO;    ///< pragmas    - purple
+
+#define SCOLOR_NAME    SCOLOR_CNAME
+#define SCOLOR_TYPE    SCOLOR_HIDNAME
+#define SCOLOR_ATTR    SCOLOR_HIDNAME
+#define SCOLOR_TNUM    SCOLOR_LIBNAME
+#define SCOLOR_CMT     SCOLOR_NUMBER
+#define SCOLOR_ARGLOC  SCOLOR_CREFTAIL
+#define SCOLOR_ARGNAME SCOLOR_REG
+#define SCOLOR_PRAGMA  SCOLOR_MACRO
+///@}
+
 
 //------------------------------------------------------------------------
 
@@ -248,6 +279,13 @@ const color_t
 /// \param ins  if true, the tag will be inserted at the beginning of the buffer
 
 idaman THREAD_SAFE void ida_export tag_addr(qstring *buf, ea_t ea, bool ins=false);
+
+
+/// Decode an address from an address mark.
+/// \param line  points to sequence: COLOR_ON COLOR_ADDR ADDRESS
+/// \return      the decoded address, or BADADDR on malformed input
+
+idaman THREAD_SAFE ea_t ida_export tag_get_addr(const char *line);
 
 
 /// Move pointer to a 'line' to 'cnt' positions right.
@@ -340,13 +378,24 @@ idaman bool ida_export add_sourcefile(ea_t ea1, ea_t ea2, const char *filename);
 
 
 /// Get name of source file occupying the given address.
+/// \deprecated Use get_sourcefile_by_ea() for safer access without pointer lifetime issues.
 /// \param ea      linear address
 /// \param bounds  pointer to the output buffer with the address range
 ///                for the current file. May be nullptr.
 /// \return nullptr if source file information is not found,
 ///          otherwise returns pointer to file name
 
-idaman const char *ida_export get_sourcefile(ea_t ea, range_t *bounds=nullptr);
+idaman DEPRECATED const char *ida_export get_sourcefile(ea_t ea, range_t *bounds=nullptr);
+
+
+/// Get name of source file occupying the given address.
+/// \param out     file name, may be nullptr
+/// \param ea      linear address
+/// \param bounds  pointer to the output buffer with the address range
+///                for the current file. May be nullptr.
+/// \return true if source file information is found, false otherwise
+
+idaman bool ida_export get_sourcefile_by_ea(qstring *out, ea_t ea, range_t *bounds=nullptr);
 
 
 /// Delete information about the source file.
@@ -354,6 +403,39 @@ idaman const char *ida_export get_sourcefile(ea_t ea, range_t *bounds=nullptr);
 /// \return success
 
 idaman bool ida_export del_sourcefile(ea_t ea);
+
+/// Get number of source file ranges.
+/// \return number of source file mapping entries
+
+idaman size_t ida_export get_sourcefiles_qty(void);
+
+/// Snapshot of a source file range (thread-safe, no pointer lifetime issues).
+
+struct sourcefile_info_t
+{
+  range_t range;        ///< address range of the source file
+  qstring filename;     ///< owned copy of the source file name
+};
+
+/// Get information about a source file range by its index.
+/// \param out  pointer to output structure. Must not be nullptr.
+/// \param n    index of the source file range (0..get_sourcefiles_qty()-1)
+/// \return success
+
+idaman bool ida_export getn_sourcefile(sourcefile_info_t *out, size_t n);
+
+/// One source file range entry for the batch add_sourcefiles() API.
+struct sourcefile_t : public range_t
+{
+  qstring filename;
+};
+typedef qvector<sourcefile_t> sourcefilevec_t;
+
+/// Batch version of add_sourcefile(): insert all source file ranges at once
+/// and perform a single save() at the end.
+/// \param items  vector of source file ranges to insert
+/// \return success
+idaman bool ida_export add_sourcefiles(const sourcefilevec_t &items);
 ///@}
 
 //------------------------------------------------------------------------

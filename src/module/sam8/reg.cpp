@@ -23,22 +23,24 @@ ssize_t idaapi sam8_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_newfile:
       {
         // create a new segment for code data
-        segment_t seg;
-        seg.start_ea = SAM8_CODESEG_START;
-        seg.end_ea   = SAM8_CODESEG_START + SAM8_CODESEG_SIZE;
-        seg.sel     = allocate_selector(seg.start_ea >> 4);
-        seg.type    = SEG_NORM;
-        add_segm_ex(&seg, "code", nullptr, ADDSEG_NOSREG|ADDSEG_OR_DIE);
+        segment_info_t si;
+        si.start_ea = SAM8_CODESEG_START;
+        si.end_ea   = SAM8_CODESEG_START + SAM8_CODESEG_SIZE;
+        si.set_sel(allocate_selector(si.start_ea >> 4));
+        si.set_type(SEG_NORM);
+        si.set_name("code");
+        add_segment_ex(&si, ADDSEG_NOSREG|ADDSEG_OR_DIE);
       }
       {
         // create a new segment for the external data
-        segment_t seg;
-        seg.start_ea = SAM8_EDATASEG_START;
-        seg.end_ea   = SAM8_EDATASEG_START + SAM8_EDATASEG_SIZE;
-        seg.sel     = allocate_selector(seg.start_ea >> 4);
-        seg.flags   = SFL_HIDDEN;
-        seg.type    = SEG_BSS;
-        add_segm_ex(&seg, "emem", nullptr, ADDSEG_NOSREG|ADDSEG_OR_DIE);
+        segment_info_t si;
+        si.start_ea = SAM8_EDATASEG_START;
+        si.end_ea   = SAM8_EDATASEG_START + SAM8_EDATASEG_SIZE;
+        si.set_sel(allocate_selector(si.start_ea >> 4));
+        si.set_flags(SFL_HIDDEN);
+        si.set_type(SEG_BSS);
+        si.set_name("emem");
+        add_segment_ex(&si, ADDSEG_NOSREG|ADDSEG_OR_DIE);
       }
       break;
 
@@ -56,11 +58,11 @@ ssize_t idaapi sam8_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        sam8_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        sam8_segstart(*ctx, ea);
         return 1;
       }
 

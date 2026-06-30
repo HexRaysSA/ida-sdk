@@ -194,38 +194,42 @@ void avr_t::setup_avr_device(int resp_info)
     return;
 
   ioh.set_device_name(ioh.device.c_str(), resp_info);
-  if ( get_first_seg() == nullptr )  // set processor options before load file
+  if ( get_first_segment_ea() == BADADDR )  // set processor options before load file
     return;
   plan_range(0, BADADDR); // reanalyze program
 
   // resize the ROM segment
   {
-    segment_t *s = getseg(node2ea(helper.altval(-1)));
-    if ( s == nullptr )
-      s = get_first_seg();  // for the old databases
-    if ( s != nullptr )
+    ea_t seg_ea = node2ea(helper.altval(-1));
+    segment_info_t si;
+    if ( !get_segment_info(&si, seg_ea) )
     {
-      if ( s->size() > romsize )
+      seg_ea = get_first_segment_ea();  // for the old databases
+      get_segment_info(&si, seg_ea);
+    }
+    if ( si.is_valid() )
+    {
+      if ( si.size() > romsize )
         warning("The input file is bigger than the ROM size of the current device");
-      set_segm_end(s->start_ea, s->start_ea+romsize, SEGMOD_KILL);
+      set_segm_end(si.start_ea, si.start_ea+romsize, SEGMOD_KILL);
     }
   }
   // resize the RAM segment
   {
-    segment_t *s = get_segm_by_name("RAM");
-    if ( s == nullptr && ramsize != 0 )
+    ea_t ram_ea = get_segment_ea_by_name("RAM");
+    if ( ram_ea == BADADDR && ramsize != 0 )
     {
       ea_t start = (inf_get_max_ea() + 0xFFFFF) & ~0xFFFFF;
       add_segm(start>>4, start, start+ramsize, "RAM", "DATA");
-      s = getseg(start);
+      ram_ea = start;
     }
     ram = BADADDR;
-    if ( s != nullptr )
+    if ( ram_ea != BADADDR )
     {
       int i;
       // offset added to I/O port address to get RAM address
       int ram_offset = 0;
-      ram = s->start_ea;
+      ram = ram_ea;
       set_segm_end(ram, ram+ramsize, SEGMOD_KILL);
 
       if ( subarch < E_AVR_MACH_TINY )
@@ -432,12 +436,12 @@ ssize_t idaapi idb_listener_t::on_event(ssize_t code, va_list va)
 {
   switch ( code )
   {
-    case idb_event::segm_added:
+    case idb_event::segment_added:
       {
-        segment_t *s = va_arg(va, segment_t *);
-        qstring sclass;
-        if ( get_segm_class(&sclass, s) > 0 && sclass == "DATA" )
-          set_default_dataseg(s->sel);
+        ea_t seg_start_ea = va_arg(va, ea_t);
+        segment_info_t s;
+        if ( get_segment_info(&s, seg_start_ea, GSI_SCLASS) && streq(s.get_sclass(), "DATA") )
+          set_default_dataseg(s.get_sel());
       }
       break;
 
@@ -542,9 +546,9 @@ static ssize_t idaapi notify(void *, int msgid, va_list)
 void avr_t::load_from_idb()
 {
   ioh.restore_device();
-  segment_t *s = get_segm_by_name("RAM");
-  if ( s != nullptr )
-    ram = s->start_ea;
+  ea_t ram_ea = get_segment_ea_by_name("RAM");
+  if ( ram_ea != BADADDR )
+    ram = ram_ea;
 }
 
 //--------------------------------------------------------------------------
@@ -579,12 +583,12 @@ ssize_t idaapi avr_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_newfile:   // new file loaded
       // remember the ROM segment
       {
-        segment_t *s = get_first_seg();
-        if ( s != nullptr )
+        ea_t seg_ea = get_first_segment_ea();
+        if ( seg_ea != BADADDR )
         {
           if ( subarch == 0 )
-            set_segm_name(s, "ROM");
-          helper.altset(-1, ea2node(s->start_ea));
+            set_segment_name(seg_ea, "ROM");
+          helper.altset(-1, ea2node(seg_ea));
         }
       }
       if ( subarch != 0 && set_param_by_arch() )
@@ -653,19 +657,19 @@ ssize_t idaapi avr_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        avr_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        avr_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
+    case processor_t::ev_out_segment_end:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        avr_segend(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        avr_segend(*ctx, ea);
         return 1;
       }
 

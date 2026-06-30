@@ -134,8 +134,8 @@ static int idaapi out_asm_file(
 }
 
 //----------------------------------------------------------------------
-static void idaapi func_header(outctx_t &ctx, func_t *) { ctx.ctxflags |= CTXF_LABEL_OK; }
-static void idaapi func_footer(outctx_t &, func_t *) {}
+static void func_header(outctx_t &ctx) { ctx.ctxflags |= CTXF_LABEL_OK; }
+static void func_footer(outctx_t &) {}
 static bool idaapi java_specseg(outctx_t &ctx, uchar)    { java_data(ctx, false); return false; }
 
 //----------------------------------------------------------------------
@@ -300,8 +300,8 @@ static const asm_t jasmin_asm =
   " = ",        // equ
   nullptr,         // seg prefix
   nullptr,         // a_curip
-  func_header,  // func header
-  func_footer,  // func footer
+  nullptr,      // func header
+  nullptr,      // func footer
   "",     // public (disable ouput)
   nullptr,         // weak
   nullptr,         // extrn
@@ -362,8 +362,8 @@ static const asm_t list_asm =
   " = ",        // equ
   nullptr,         // seg prefix
   nullptr,         // a_curip
-  func_header,  // func header
-  func_footer,  // func footer
+  nullptr,      // func header
+  nullptr,      // func footer
   "",     // public (disable ouput)
   nullptr,         // weak
   nullptr,         // extrn
@@ -659,19 +659,33 @@ inv_name:
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_function_header:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        java_segstart(*ctx, seg);
+        func_header(*ctx);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
+    case processor_t::ev_out_function_footer:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        java_segend(*ctx, seg);
+        func_footer(*ctx);
+        return 1;
+      }
+
+    case processor_t::ev_out_segment_start:
+      {
+        outctx_t *ctx = va_arg(va, outctx_t *);
+        ea_t ea = va_arg(va, ea_t);
+        java_segstart(*ctx, ea);
+        return 1;
+      }
+
+    case processor_t::ev_out_segment_end:
+      {
+        outctx_t *ctx = va_arg(va, outctx_t *);
+        ea_t ea = va_arg(va, ea_t);
+        java_segend(*ctx, ea);
         return 1;
       }
 

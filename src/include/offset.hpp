@@ -247,10 +247,6 @@ inline ea_t calc_target(ea_t from, ea_t ea, int n, adiff_t opval)
 }
 
 /// Calculate the value of the reference base.
-inline ea_t calc_basevalue(ea_t target, ea_t base)
-{
-  return base - get_segm_base(getseg(target));
-}
-
+idaman ea_t ida_export calc_basevalue(ea_t target, ea_t base);
 
 #endif  // _OFFSET_HPP

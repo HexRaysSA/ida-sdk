@@ -154,7 +154,7 @@ struct i51_t : public procmod_t
   int emu(const insn_t &insn);
   int ana_basic(insn_t &insn);
   int ana(insn_t *_insn);
-  void i51_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void i51_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void i51_footer(outctx_t &ctx) const;
   void do_out_equ(outctx_t &ctx, const char *name, const char *equ, uchar off) const;
 

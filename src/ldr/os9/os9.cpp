@@ -11,7 +11,7 @@
  */
 
 #include "../idaldr.h"
-#include "../../module/mc68xx/notify_codes.hpp"
+#include <module/mc68xx/notify_codes.hpp>
 #include "os9.hpp"
 
 //----------------------------------------------------------------------
@@ -167,13 +167,15 @@ static void create32(
 {
   set_selector(sel, 0);
 
-  segment_t s;
-  s.sel     = sel;
+  segment_info_t s;
+  s.set_sel(sel);
   s.start_ea = start_ea;
   s.end_ea   = end_ea;
-  s.align   = saRelByte;
-  s.comb    = scPub;
-  if ( !add_segm_ex(&s, name, classname, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+  s.set_align(saRelByte);
+  s.set_comb(scPub);
+  s.set_name(name);
+  s.set_sclass(classname);
+  if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
     loader_failure();
 }
 

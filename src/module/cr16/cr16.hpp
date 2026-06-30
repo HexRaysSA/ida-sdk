@@ -51,7 +51,7 @@ struct cr16_t : public procmod_t
   void handle_operand(const insn_t &insn, const op_t &x, bool is_forced, bool isload);
   int CR16_emu(const insn_t &insn);
 
-  void CR16_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void CR16_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void CR16_footer(outctx_t &ctx) const;
 
   void load_from_idb();

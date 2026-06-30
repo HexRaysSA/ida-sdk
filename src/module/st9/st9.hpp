@@ -677,11 +677,11 @@ struct st9_t : public procmod_t
 
   int st9_emu(const insn_t &insn);
   void handle_operand(const insn_t &insn, const op_t &op, bool lwrite);
-  bool create_func_frame(func_t *pfn) const;
+  bool create_func_frame(ea_t func_ea) const;
 
   void st9_assumes(outctx_t &ctx);
   void st9_footer(outctx_t &ctx) const;
-  void st9_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void st9_segstart(outctx_t &ctx, ea_t seg_ea) const;
 
   void save_idpflags() { helper.altset(-1, idpflags); }
   void load_from_idb();

@@ -21,13 +21,13 @@ static const char wanted_name[] = "Local Linux debugger";
 #include <range.hpp>
 #include <loader.hpp>
 #include <dbg.hpp>
-#include "dbg_plugmod.hpp"
+#include <dbg/dbg_plugmod.hpp>
 #include "linux_debmod.h"
 #include "stack_unwind.hpp"
 
-#include "pc_regs.hpp"
-#include "deb_pc.hpp"
-#include "common_stub_impl.cpp"
+#include <dbg/pc_regs.hpp>
+#include <dbg/deb_pc.hpp>
+#include <dbg/common_stub_impl.cpp>
 #include "linux_local_impl.cpp"
 
 struct dbg_plugmod_t : public dbg_plugmod_user_t
@@ -88,4 +88,4 @@ ssize_t idaapi ui_listener_t::on_event(ssize_t code, va_list)
     save_linux_options();
   return 0;
 }
-#include "common_local_impl.cpp"
+#include <dbg/common_local_impl.cpp>

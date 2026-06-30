@@ -8,7 +8,7 @@
 #include "win32_rpc.h"
 #include "win32_undoc.h"
 
-#include "dbg_pe_hlp.cpp"
+#include <dbg/dbg_pe_hlp.cpp>
 
 struct impfunc_t
 {
@@ -66,7 +66,7 @@ inline void myread(linput_t *li, void *buf, size_t size)
   }
 }
 
-#include "../../ldr/pe/common.cpp"
+#include <ldr/pe/common.cpp>
 
 #define GetMappedFileName_Name "GetMappedFileNameW"
 #define GetModuleFileNameEx_Name "GetModuleFileNameExW"
@@ -179,31 +179,25 @@ int win32_debmod_t::add_thread_ranges(
   if ( ti == nullptr )
     return 0;
 
-  // This structure is specific to NT, but stack related records are Win9X compatible
+  // lpThreadLocalBase is the native TEB (x64 TEB on x64/WOW64 processes)
   _NT_TIB tib;
-  ea_t ea_tib = ptr_to_ea(ti->lpThreadLocalBase);
-  if ( _read_memory(ea_tib, &tib, sizeof(tib)) != sizeof(tib) ) // read the TIB
+  ea_t ea_teb = ptr_to_ea(ti->lpThreadLocalBase);
+  if ( _read_memory(ea_teb, &tib, sizeof(tib)) != sizeof(tib) ) // read the TEB
     return 0;
 
-  // additional test: we verify that TIB->Self contains the TIB's linear address
-  if ( ptr_to_ea(tib.Self) != ea_tib )
+  // additional test: we verify that TIB->Self contains the TEB's linear address
+  if ( ptr_to_ea(tib.Self) != ea_teb )
     return false;
 
-  // add TIB range
+  // add native TEB range
   char name[MAXSTR];
-  qsnprintf(name, sizeof(name), "TIB[%08X]", tid);
-  // we suppose the whole page is reserved for the TIB
-  image_info_t ii_tib(this, ea_tib, system_teb_size, name);
-  thr_ranges.insert(std::make_pair(ii_tib.base, ii_tib));
-
   int cnt = 0;
   const char *pref = "";
   if ( check_wow64_process() == WOW64_YES )
   {
-    // Note: This works for Windows versions <= 8.1
     // The offset of the 32-bit TEB address within the 64-bit TEB is 0.
     // This can be used to directly access the 32-bit TEB of a WOW64 thread
-    ea_t wow64_tib_ea = *(uint32*)&tib;
+    ea_t wow64_teb_ea = *(uint32*)&tib;
     struct _NT_TIB32
     {
       DWORD ExceptionList;
@@ -215,14 +209,51 @@ int win32_debmod_t::add_thread_ranges(
       DWORD Self;
     };
     _NT_TIB32 tib32;
-    if ( _read_memory(wow64_tib_ea, &tib32, sizeof(tib32)) == sizeof(tib32) )
+    if ( _read_memory(wow64_teb_ea, &tib32, sizeof(tib32)) == sizeof(tib32) )
     {
+      // add the 32-bit TEB segment
+      qsnprintf(name, sizeof(name), "TEB[%08X]", tid);
+      image_info_t ii_teb32(this, wow64_teb_ea, system_teb_size, name);
+      thr_ranges.insert(std::make_pair(ii_teb32.base, ii_teb32));
+
+      // add the 32-bit stack segment
       _NT_TIB tib2;
       tib2.StackBase = (PVOID)(eanat_t)tib32.StackBase;
       tib2.StackLimit = (PVOID)(eanat_t)tib32.StackLimit;
       cnt += describe_stack_segment(tid, thr_ranges, cls_ranges, tib2, pref);
     }
+
+    // also add the native x64 TEB segment with a prefix
+    qsnprintf(name, sizeof(name), "TEB64[%08X]", tid);
     pref = "x64";
+  }
+  else
+  {
+    qsnprintf(name, sizeof(name), "TEB[%08X]", tid);
+  }
+  // add the native TEB range
+  image_info_t ii_teb(this, ea_teb, system_teb_size, name);
+  thr_ranges.insert(std::make_pair(ii_teb.base, ii_teb));
+
+  // add PEB range (once per process, the PEB address is the same for all threads)
+  // PEB pointer is at offset 0x60 in the x64 TEB, offset 0x30 in the x86 TEB
+#ifdef __X86__
+  uint32 peb_ea32;
+  if ( _read_memory(ea_teb + 0x30, &peb_ea32, sizeof(peb_ea32)) == sizeof(peb_ea32)
+    && peb_ea32 != 0 )
+  {
+    ea_t peb_ea = peb_ea32;
+#else
+  ea_t peb_ea;
+  if ( _read_memory(ea_teb + 0x60, &peb_ea, sizeof(peb_ea)) == sizeof(peb_ea)
+    && peb_ea != 0 )
+  {
+#endif
+    if ( thr_ranges.find(peb_ea) == thr_ranges.end() )
+    {
+      image_info_t ii_peb(this, peb_ea, MEMORY_PAGE_SIZE, "PEB");
+      thr_ranges.insert(std::make_pair(ii_peb.base, ii_peb));
+    }
   }
 
   // add stack range

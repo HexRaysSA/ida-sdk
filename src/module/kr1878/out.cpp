@@ -50,8 +50,8 @@ void out_kr1878_t::out_bad_address(ea_t addr)
 //----------------------------------------------------------------------
 void out_kr1878_t::out_address(ea_t ea, const op_t &x)
 {
-  segment_t *s = getseg(ea);
-  ea_t value = s != nullptr ? ea - get_segm_base(s) : ea;
+  segment_info_t si;
+  ea_t value = get_segment_info(&si, ea) ? ea - si.base() : ea;
   if ( !out_name_expr(x, ea, value) )
   {
     out_tagon(COLOR_ERROR);
@@ -169,10 +169,10 @@ void kr1878_t::print_segment_register(outctx_t &ctx, int reg, sel_t value)
 void kr1878_t::kr1878_assumes(outctx_t &ctx)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *seg = getseg(ea);
-  if ( seg == nullptr || (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 )
+  segment_info_t si;
+  if ( !get_segment_info(&si, ea) || (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 )
     return;
-  bool seg_started = (ea == seg->start_ea);
+  bool seg_started = (ea == si.start_ea);
 
   for ( int i = ph.reg_first_sreg; i <= ph.reg_last_sreg; ++i )
   {
@@ -194,30 +194,29 @@ void kr1878_t::kr1878_assumes(outctx_t &ctx)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Srange) could be made const
-void kr1878_t::kr1878_segstart(outctx_t &ctx, segment_t *Srange) const
+void kr1878_t::kr1878_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
-  if ( is_spec_segm(Srange->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_SCLASS) )
+    return;
+  if ( is_spec_segm(si.get_type()) )
     return;
 
-  qstring sclas;
-  get_segm_class(&sclas, Srange);
-
-  if ( sclas == "CODE" )
+  if ( streq(si.get_sclass(), "CODE") )
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".text", SCOLOR_ASMDIR));
-  else if ( sclas == "DATA" )
+  else if ( streq(si.get_sclass(), "DATA") )
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".data", SCOLOR_ASMDIR));
 
-  if ( Srange->orgbase != 0 )
+  if ( si.get_orgbase() != 0 )
   {
     char buf[MAX_NUMBUF];
-    btoa(buf, sizeof(buf), Srange->orgbase);
+    btoa(buf, sizeof(buf), si.get_orgbase());
     ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s %s", SCOLOR_ASMDIR), ash.origin, buf);
   }
 }
 
 //--------------------------------------------------------------------------
-void idaapi kr1878_segend(outctx_t &, segment_t *)
+void idaapi kr1878_segend(outctx_t &, ea_t)
 {
 }
 

@@ -925,8 +925,11 @@ PIT:
       break;
 
     case 0x0D:  // ldo
-      if ( getseg(insn.ea)->is_64bit() )
-        dtype = dt_qword;
+      {
+        segment_info_t si;
+        if ( get_segment_info(&si, insn.ea) && si.is_64bit() )
+          dtype = dt_qword;
+      }
       opd(insn.Op1, r06(code), s16(get_ldo(code)), dtype);
       opr(insn.Op2, r11(code));
       break;

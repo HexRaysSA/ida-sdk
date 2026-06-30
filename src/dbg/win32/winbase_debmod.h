@@ -9,8 +9,8 @@ using std::make_pair;
 
 //--------------------------------------------------------------------------
 #define BASE_DEBUGGER_MODULE pc_debmod_t
-#include "../deb_pc.hpp"
-#include "../pc_debmod.h"
+#include <dbg/deb_pc.hpp>
+#include <dbg/pc_debmod.h>
 #define BPT_CODE_SIZE X86_BPT_SIZE
 #include "win32_util.hpp"
 

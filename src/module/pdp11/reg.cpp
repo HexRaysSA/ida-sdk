@@ -113,13 +113,14 @@ static ssize_t idaapi notify(void *, int msgid, va_list)
 ssize_t idaapi pdp11_t::on_event(ssize_t msgid, va_list va)
 {
   int retcode = 1;
-  segment_t *sptr;
 
   switch ( msgid )
   {
-    case processor_t::ev_creating_segm:
-      sptr = va_arg(va, segment_t *);
-      sptr->defsr[rVds-ph.reg_first_sreg] = find_selector(inf_get_start_cs()); //sptr->sel;
+    case processor_t::ev_creating_segment:
+      {
+        segment_info_t *si = va_arg(va, segment_info_t *);
+        si->set_defsr(rVds-ph.reg_first_sreg, find_selector(inf_get_start_cs())); //si->sel();
+      }
       break;
 
     case processor_t::ev_init:
@@ -172,11 +173,11 @@ ssize_t idaapi pdp11_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        pdp_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        pdp_segstart(*ctx, ea);
         return 1;
       }
 

@@ -80,7 +80,7 @@ struct m740_t : public procmod_t
 
   void m740_header(outctx_t &ctx);
   void m740_footer(outctx_t &ctx) const;
-  void m740_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void m740_segstart(outctx_t &ctx, ea_t seg_ea) const;
 
   void load_from_idb();
 };

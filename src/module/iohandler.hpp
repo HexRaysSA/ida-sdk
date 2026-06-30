@@ -150,25 +150,28 @@ struct iohandler_t
           buf->sprnt(format.c_str(), _ram, _rom, _eprom, _eeprom);
         else
           buf->qclear();
-        if ( (respect_info & IORESP_AREA) != 0 && get_first_seg() != nullptr )
+        if ( (respect_info & IORESP_AREA) != 0 && get_first_segment_ea() != BADADDR )
         {
           if ( !area_processing(ea1, ea2, word, aclass) )
           {
             if ( !segment_created(ea1, ea2, word, aclass) )
             {
-              segment_t s;
-              s.sel     = setup_selector(0);
-              s.start_ea = ea1;
-              s.end_ea   = ea2;
-              s.align   = saRelByte;
-              s.comb    = streq(aclass, "STACK") ? scStack : scPub;
-              s.bitness = PH.get_default_segm_bitness(inf_is_64bit());
-              if ( s.bitness == 0 && s.size() > 0xFFFF )
-                s.bitness = 1;
+              segment_info_t si;
+              si.set_sel(setup_selector(0));
+              si.start_ea = ea1;
+              si.end_ea   = ea2;
+              si.set_align(saRelByte);
+              si.set_comb(streq(aclass, "STACK") ? scStack : scPub);
+              uchar bitness = PH.get_default_segm_bitness(inf_is_64bit());
+              if ( bitness == 0 && si.size() > 0xFFFF )
+                bitness = 1;
+              si.set_bitness(bitness);
+              si.set_name(word);
+              si.set_sclass(aclass);
               int sfl = ADDSEG_NOSREG;
-              if ( !is_loaded(s.start_ea) )
+              if ( !is_loaded(si.start_ea) )
                 sfl |= ADDSEG_SPARSE;
-              add_segm_ex(&s, word, aclass, sfl);
+              add_segment_ex(&si, sfl);
             }
           }
         }
@@ -206,8 +209,8 @@ struct iohandler_t
       if ( (respect_info & IORESP_INT) != 0 )
       {
         ea_t proc, wrong;
-        segment_t *s = getseg(ea1);
-        if ( s == nullptr || s->is_16bit() )
+        segment_info_t si;
+        if ( !get_segment_info(&si, ea1) || si.is_16bit() )
         {
           create_word(ea1, 2);
           proc = get_word(ea1);

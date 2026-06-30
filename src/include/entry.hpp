@@ -107,5 +107,4 @@ idaman bool ida_export set_entry_forwarder(uval_t ord, const char *name, int fla
 
 idaman ssize_t ida_export get_entry_forwarder(qstring *buf, uval_t ord);
 
-
 #endif // _ENTRY_HPP

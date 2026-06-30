@@ -65,8 +65,8 @@ bool idaapi mex_ctx_t::run(size_t)
   // Just for illustration purposes of how plugins should merge address-specific info
   // stored in a netnode.
   ea_t ea = get_screen_ea();
-  func_t *pfn = get_func(ea);
-  if ( pfn != nullptr )
+  ea_t func_ea = get_func_start(ea);
+  if ( func_ea != BADADDR )
   {
     qstring mark;
     mark.sprnt("MEX" MEX_NUMBER "%s%s",
@@ -74,7 +74,7 @@ bool idaapi mex_ctx_t::run(size_t)
                (flags & MEX_FLAGS_1) != 0 ? " two" : "");
     netnode eanode;
     eanode.create(MEX_NODE_NAME);
-    eanode.supset_ea(pfn->start_ea, mark.c_str(), 0, ea_tag);
+    eanode.supset_ea(func_ea, mark.c_str(), 0, ea_tag);
     // We stored a string at the function entry address
   }
   return true;

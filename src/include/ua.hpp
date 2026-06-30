@@ -552,6 +552,7 @@ public:
 
   ///@}
 
+  DECLARE_INSN_HELPERS(friend)
 };
 #ifdef __EA64__
 CASSERT(sizeof(insn_t) == 360);
@@ -907,7 +908,7 @@ struct outctx_base_t
     {
       size_t len = ::qstrlen(name);
       if ( len < width )
-        out_chars(' ', width - len);
+        out_chars(' ', int(width - len));
     }
   }
 
@@ -1094,6 +1095,9 @@ struct outctx_base_t
 
   virtual ssize_t idaapi get_stkvar(const op_t &x, uval_t v, sval_t *vv, int *is_sp_based, tinfo_t *_frame);
 
+  /// FIXME: DOCME
+  virtual void idaapi out_unmapped_addr(ea_t addr, char radix=16);
+
   void gen_empty_line_without_annotations(void)
   {
     int saved_flags = forbid_annotations();
@@ -1103,13 +1107,13 @@ struct outctx_base_t
 
   inline flags64_t getF() const;
 
-
 protected:
   virtual bool idaapi flush_and_reinit(void);
   virtual void idaapi append_user_prefix(const char *, int) {}
   virtual void idaapi add_aux_prefix(const char *, int) {}
   virtual void idaapi out_label_addr_tag(void) {}
   virtual void idaapi out_aux_cmts(void) {}
+  friend struct outctx_base_internal_t;
 };
 
 //--------------------------------------------------------------------------
@@ -1223,8 +1227,10 @@ struct outctx_t : public outctx_base_t
   /// This function outputs colored text.
   virtual void idaapi out_immchar_cmts(void) newapi;
 
-  virtual void idaapi gen_func_header(func_t *pfn) newapi;
-  virtual void idaapi gen_func_footer(const func_t *pfn) newapi;
+  /// \deprecated Use gen_function_header()
+  DEPRECATED virtual void idaapi gen_func_header(func_t *pfn) newapi;
+  /// \deprecated Use gen_function_footer()
+  DEPRECATED virtual void idaapi gen_func_footer(const func_t *pfn) newapi;
 
   // display data items and undefined bytes.
   virtual void idaapi out_data(bool analyze_only) newapi;
@@ -1258,6 +1264,26 @@ struct outctx_t : public outctx_base_t
   /// indirect call.
   /// This function outputs colored text.
   virtual void idaapi out_fcref_names() newapi;
+
+  /// Generate function header lines.
+  /// This function is called to generate the opening lines of a function,
+  /// including border, comments, attributes, and the function name.
+  virtual void idaapi gen_function_header(ea_t func_ea) newapi;
+
+  /// Generate function footer lines.
+  /// This function is called to generate the closing lines of a function,
+  /// typically a comment with the function name.
+  virtual void idaapi gen_function_footer(ea_t func_ea) newapi;
+  friend struct outctx_internal_t;
+  /// Internal overrides; not part of the SDK API - do not call or override.
+protected:
+  virtual bool idaapi flush_and_reinit(void) override;
+  virtual void idaapi add_aux_prefix(const char *contents, int indent) override;
+  virtual void idaapi append_user_prefix(const char *contents, int indent) override;
+private:
+  virtual void idaapi out_label_addr_tag() override;
+  virtual void idaapi out_aux_cmts() override;
+  virtual ssize_t idaapi get_stkvar(const op_t &x, uval_t v, sval_t *vv, int *is_sp_based, tinfo_t *_frame) override;
 };
 
 //-------------------------------------------------------------------------
@@ -1621,6 +1647,5 @@ inline bool macro_constructor_t::construct_macro(insn_t *insn, bool enable)
 /// \return index in the 'regs' array or -1
 
 idaman int ida_export get_spoiled_reg(const insn_t &insn, const uint32 *regs, size_t n);
-
 
 #endif // _UA_HPP

@@ -96,10 +96,9 @@ int elf_machine_2_proc_module_id(reader_t &reader)
     CASE(M16C, M16C);
     CASE(MN10200, MN102L00);
     // CASE(MN10300, MN103L00); // FIXME: Dunno what to do, here.
-    // CASE(MCORE, MCORE); // FIXME: PLFM_MCORE still defined in mcore/reg.cpp
+    CASE(MCORE, MCORE);
     CASE(S390, S390);
 #undef CASE
   }
   return id;
 }
-

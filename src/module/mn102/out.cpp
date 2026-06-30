@@ -136,21 +136,23 @@ void mn102_t::mn102_header(outctx_t &ctx)
 //--------------------------------------------------------------------------
 // segment header
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void mn102_t::mn102_segstart(outctx_t &ctx, segment_t *Sarea) const
+void mn102_t::mn102_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
   ea_t ea = ctx.insn_ea;
-  const char *SegType = Sarea->type == SEG_CODE ? "CSEG"
-                      : Sarea->type == SEG_DATA ? "DSEG"
-                      :                           "RSEG";
+  const char *SegType = si.get_type() == SEG_CODE ? "CSEG"
+                      : si.get_type() == SEG_DATA ? "DSEG"
+                      :                             "RSEG";
   // print RSEG <NAME>
   qstring sn;
-  get_visible_segm_name(&sn, Sarea);
+  si.visible_name(&sn);
   ctx.gen_printf(-1, "%s %s ", SegType, sn.c_str());
   // if org is not zero, print it
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
-    ea_t org = ea - get_segm_base(Sarea);
+    ea_t org = ea - si.base();
     if ( org != 0 )
     {
       char bufn[MAX_NUMBUF];

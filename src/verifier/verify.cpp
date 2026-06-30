@@ -35,6 +35,7 @@ NORETURN void micro_verifier_t::MBLOCK_INTERR(int code) const
   if ( got_interr++ == 0 )
   {
     msg("BLOCK %d\n", blk->serial);
+    mba->hv.dump_flags |= HDF_PROP; // forbid recursive call of the verifier
     blk->dump_block("INTERR %d", code);
   }
   INTERR(code);
@@ -91,7 +92,7 @@ void mcallinfo_t::verify(micro_verifier_t &mv, int size) const
   if ( !pass_regs.empty() )
   {
     if ( !mv.mba->has_passregs() )
-      mv.MINSN_INTERR(51087); // passthrough registers exist but HAS_PASSREGS is not set
+      mv.MINSN_INTERR(51087); // passthrough registers exist but MBA_PASSREGS is not set
     if ( !pass_regs.is_subset_of(spoiled) )
       mv.MINSN_INTERR(50991); // passthrough registers must be part of SPOILED
   }
@@ -114,9 +115,8 @@ void mcallinfo_t::verify(micro_verifier_t &mv, int size) const
     // special handling for long double (10 bytes)
     if ( retregs.size() == 1 && return_type.get_size() == retregs[0].size )
       vmop = VMOP_ANYSIZE;
-    for ( int i=0; i < retregs.size(); i++ )
+    for ( const mop_t &m : retregs )
     {
-      const mop_t &m = retregs[i];
       m.verify(mv, vmop);
       s2 += m.size;
     }
@@ -136,21 +136,21 @@ void mcallinfo_t::verify(micro_verifier_t &mv, int size) const
 //-------------------------------------------------------------------------
 void mcases_t::verify(const micro_verifier_t &mv) const
 {
-  int n = targets.size();
+  size_t n = targets.size();
   if ( n != values.size() )
     mv.MINSN_INTERR(50746); // switch: sizes of values and targets mismatch
   if ( n == 0 )
     mv.MINSN_INTERR(50747); // switch: no targets?!
   if ( n == 1 )
   {
-    int nvals = values[0].size();
+    size_t nvals = values[0].size();
     if ( nvals == 0 )
       mv.MINSN_INTERR(50748); // switch: only single 'default' case?!
   }
   bool seen_default = false;
   qset<uint64> seen;
   easet_t targset;
-  for ( int i=0; i < n; i++ )
+  for ( size_t i=0; i < n; i++ )
   {
     const svalvec_t &v = values[i];
     if ( v.empty() )
@@ -159,8 +159,8 @@ void mcases_t::verify(const micro_verifier_t &mv) const
         mv.MINSN_INTERR(50750); // switch: duplicate 'default' cases?!
       seen_default = true;
     }
-    for ( int j=0; j < v.size(); j++ )
-      if ( !seen.insert(v[j]).second )
+    for ( sval_t val : v )
+      if ( !seen.insert(val).second )
         mv.MINSN_INTERR(50751); // switch: duplicate case value
     int b = targets[i];
     if ( b <= 0 || b >= mv.mba->qty )
@@ -547,7 +547,7 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
   if ( !with_target && !is_mcode_propagatable(opcode) )
     mv.MINSN_INTERR(50800); // this opcode cannot be used in a subinstruction
 
-  // check fpinsn flag
+  // check fpinsn flag and unsigned comparisons
   switch ( opcode )
   {
     case m_ext:
@@ -556,17 +556,20 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     case m_mov:
     case m_setnz:
     case m_setz:
+    case m_setp:
+    case m_jnz:
+    case m_jz:
+      break;          // may or may not be fpinsn
     case m_setae:
     case m_setb:
     case m_seta:
     case m_setbe:
-    case m_setp:
-    case m_jnz:
-    case m_jz:
     case m_jae:
     case m_jbe:
     case m_jb:
-    case m_ja:          // may or may not be fpinsn
+    case m_ja:
+      if ( (mvm.flags & MVM_NO_UNSIGNED_CMP) != 0 && !is_fpinsn() && !mv.mba->is_pattern() )
+        mv.MINSN_INTERR(53085); // unsigned comparison forbidden by MVM flags
       break;
     default:
       if ( is_mcode_fpu(opcode) != is_fpinsn() )
@@ -963,11 +966,21 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
       if ( l.is_insn() )
       {
         const minsn_t *ld = l.d;
-        if ( (ld->opcode == m_low || ld->opcode == m_high) && ld->l.is_udt() )
+        if ( ld->opcode == m_low || ld->opcode == m_high )
         {
           // low(high(udt)), high(low(udt)): accept any size of the inner insn
-          // (they are handled in a special way in m2c)
-          lf = VMOP_ANYSIZE;
+          // (they are handled in a special way in m2c, which walks the whole
+          // chain of m_low/m_high wrappers). The leaf may be a UDT (sliced into
+          // a member) or a valid-sized non-scalar operand such as a SIMD/vector
+          // value (e.g. low.4(high.12(int8x16_t.16)) extracting a vector lane).
+          const mop_t *inner = &ld->l;
+          while ( inner->is_insn()
+               && (inner->d->opcode == m_low || inner->d->opcode == m_high) )
+          {
+            inner = &inner->d->l;
+          }
+          if ( inner->is_udt() || is_valid_size(inner->size) )
+            lf = VMOP_ANYSIZE;
         }
       }
       break;
@@ -1005,9 +1018,10 @@ void minsn_t::verify(micro_verifier_t &mv, bool with_target) const
     mv.MINSN_INTERR(52123); // only mov/f2f instructions may be assertions
 
   // check each operand
-  l.verify(mv, lf);
-  r.verify(mv, rf);
-  d.verify(mv, df);
+  int common_flags = was_memfunc() ? VMOP_ANYSIZE : 0;
+  l.verify(mv, lf|common_flags);
+  r.verify(mv, rf|common_flags);
+  d.verify(mv, df|common_flags);
 }
 
 //-------------------------------------------------------------------------
@@ -1247,7 +1261,7 @@ void mblock_t::verify(micro_verifier_t &mv) const
       {
         // since we subtract one, we cannot use mba_t::range_contains directly
         ea_t real_end = mba->map_fict_ea(end);
-        if ( !mba->mbr.range_contains(real_end-1) )
+        if ( !mba->dcr.range_contains(real_end-1) )
           mv.MBLOCK_INTERR(50870); // block outside of function boundaries
       }
     }
@@ -1324,7 +1338,7 @@ void mblock_t::verify(micro_verifier_t &mv) const
       // functions with MERR_BADSP, but only for negative spoff; we relax the
       // verification here rather than add a check against subframe bottom there
       sval_t spwidth = mba->slotsize();
-      sval_t delta = qmin(spwidth, sp+sf.bottom);
+      sval_t delta = qmin(spwidth, sval_t(sp+sf.bottom));
       invisible_mem.mem.sub(sp+sf.bottom-delta, sf.size+delta);
     }
     if ( invisible_mem.mem.has_common(mustbuse.mem) )
@@ -1353,7 +1367,7 @@ void mblock_t::verify(micro_verifier_t &mv) const
         && (tail->l.t == mop_b                                // 1
          || tail->l.is_glbvar()
          && tail->l.g != mba->entry_ea
-         && mba->mbr.range_contains(tail->l.g)) )
+         && mba->dcr.range_contains(tail->l.g)) )
       {
         minsn_t *defins = find_def(invisible_mem, tail);
         if ( defins != nullptr && defins->ea == tail->ea )    // 3
@@ -1398,9 +1412,9 @@ void mba_t::verify_args(micro_verifier_t &mv) const
   }
   usercc_argloc_verifier_t argloc_verifier(hv, base_stkoff);
   mlist_t used;
-  for ( int i=0; i < argidx.size(); i++ )
+  for ( int ai : argidx )
   {
-    const lvar_t &v = vars[argidx[i]];
+    const lvar_t &v = vars[ai];
     mv.lvar = &v;
     if ( !v.is_arg_var() )
       mv.LVAR_INTERR(50906); // non-argvar in the argument list
@@ -1614,34 +1628,35 @@ void mba_t::verify(bool always) const
       INTERR(50885); // minstkref is higher than lvar area size?!
     if ( frsize+frregs > stacksize )
       INTERR(50886); // wrong lvar area size
-    func_t *pfn = get_curfunc();
-    if ( pfn != nullptr )
+    ea_t func_ea = get_curfunc_ea();
+    func_entry_info_t fi;
+    if ( func_ea != BADADDR && get_func_entry_info(&fi, func_ea) )
     {
-      if ( pfn->frsize != frsize )
+      if ( fi.get_frsize() != frsize )
         INTERR(50887); // wrong frame frsize
-      if ( pfn->frregs != frregs )
+      if ( fi.get_frregs() != frregs )
         INTERR(50888); // wrong frame frregs
-      if ( pfn->fpd != fpd )
+      if ( fi.get_fpd() != fpd )
         INTERR(51704); // wrong frame fpd
-      if ( get_frame_retsize(pfn) != retsize )
+      if ( get_frame_retsize_ea(func_ea) != retsize )
         INTERR(50889); // wrong frame retsize
     }
 
     if ( is_snippet() )
     {
-      if ( mbr.ranges.empty() )
+      if ( dcr.ranges.empty() )
         INTERR(52620); // empty snippet range
     }
     else
     {
       if ( has_outlines() )
       { // microcode is marked as having outlined code
-        if ( mbr.ranges.empty() )
+        if ( dcr.ranges.empty() )
           INTERR(52666); // missing inlined ranges
       }
       else
       { // microcode is not marked as having outlined code
-        if ( !mbr.ranges.empty() )
+        if ( !dcr.ranges.empty() )
           INTERR(52667); // unexpected inlined ranges
       }
     }
@@ -1733,18 +1748,18 @@ void pattern_t::verify(bool always) const
   micro_verifier_t mv;
   mv.mba = CONST_CAST(pattern_t*)(this);
   mv.blk = nullptr;
-  for ( int i=0; i < postactions.size(); i++ )
+  for ( const postaction_t &pa : postactions )
   {
-    mv.topins = mv.curins = CONST_CAST(minsn_t*)(&postactions[i].insn);
+    mv.topins = mv.curins = CONST_CAST(minsn_t*)(&pa.insn);
     mv.topins->verify(mv, true);
   }
 
   mv.topins = mv.curins = nullptr;
-  for ( int i=0; i < conditions.size(); i++ )
-    conditions[i].verify(mv, 0);
+  for ( const mop_t &op : conditions )
+    op.verify(mv, 0);
 
-  for ( int i=0; i < typereqs.size(); i++ )
-    typereqs[i].mop.verify(mv, 0);
+  for ( const typereq_t &tr : typereqs )
+    tr.mop.verify(mv, 0);
 }
 
 //-------------------------------------------------------------------------

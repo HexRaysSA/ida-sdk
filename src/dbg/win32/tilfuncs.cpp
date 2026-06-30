@@ -3,13 +3,13 @@
 #include <err.h>
 #include <idp.hpp>
 #include <expr.hpp>
-#include "debmod.h"
+#include <dbg/debmod.h>
 #include "tilfuncs.hpp"
 
 #define PDB_WIN32_SERVER
-#include "../../plugins/pdb/common.cpp"
-#include "../../plugins/pdb/msdia.cpp"
-#include "../../plugins/pdb/varser.hpp"
+#include <plugins/pdb/common.cpp>
+#include <plugins/pdb/msdia.cpp>
+#include <plugins/pdb/varser.hpp>
 
 pdb_thread_t pdb_thread;
 

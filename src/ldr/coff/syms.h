@@ -1,7 +1,7 @@
 #ifndef _H_SYMS
 #define _H_SYMS
 
-#include "../../ldr/coff/storclas.h"
+#include "storclas.h"
 #pragma pack(push, 1)
 
 #define SYMNMLEN        8       /* Number of characters in a symbol name */

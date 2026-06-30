@@ -17,10 +17,10 @@
 #include <exehdr.h>
 #include <diskio.hpp>
 #include <mergemod.hpp>
-#include "../../ldr/pe/pe.h"
-#include "../../ldr/elf/elfbase.h"
-#include "../../ldr/elf/elf.h"
-#include "../../ldr/aof/aof.h"
+#include <ldr/pe/pe.h>
+#include <ldr/elf/elfbase.h>
+#include <ldr/elf/elf.h>
+#include <ldr/aof/aof.h>
 static int data_id;
 
 //==========================================================================
@@ -137,7 +137,7 @@ public:
   }
 };
 
-// ../../ldr/aof/aof.h:154
+// ldr/aof/aof.h:154
 static merge_node_info_t armsegfl_merge_node_info[] =
 {
   // the bits are kept in netnode().altval(seg_start_ea)

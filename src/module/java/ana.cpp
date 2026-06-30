@@ -162,9 +162,10 @@ int java_t::ana(insn_t *_insn)
   insn_t &insn = *_insn;
 
   CIC_param ctype;
-  segment_t *s = getMySeg(insn.ea); // also set curSeg
+  segment_info_t si;
+  getMySeg(&si, insn.ea); // also set curSeg
 
-  if ( s->type != SEG_CODE || insn.ip >= curSeg.CodeSize )
+  if ( si.get_type() != SEG_CODE || insn.ip >= curSeg.CodeSize )
   {
     warning("Can't decode non-code fragment!");
     return 0;

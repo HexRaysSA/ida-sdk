@@ -116,13 +116,13 @@ bool nec850_t::set_op_type(
     case o_reg:
       {
         uint32 r = x.reg;
-        func_t *pfn = get_func(insn->ea);
-        if ( pfn == nullptr )
+        ea_t func_ea = get_func_start(insn->ea);
+        if ( func_ea == BADADDR )
           break;
         bool ok;
         bool farref;
-        func_item_iterator_t fii;
-        for ( ok=fii.set(pfn, insn->ea);
+        function_item_iterator_t fii;
+        for ( ok=fii.set(func_ea, insn->ea);
               ok && (ok=fii.decode_preceding_insn(visited, &farref, insn)) != 0;
               )
         {
@@ -161,10 +161,10 @@ bool nec850_t::set_op_type(
           }
           break;
         }
-        if ( !ok && fii.current() == pfn->start_ea )
+        if ( !ok && fii.current() == func_ea )
         {
           // reached the function start, this looks like a register argument
-          add_regarg(pfn, r, type, name);
+          add_func_regarg(func_ea, r, type, name);
           break;
         }
       }

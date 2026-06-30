@@ -131,6 +131,7 @@ decl void ida_export rangeset_t_swap(rangeset_t *, rangeset_t &r);
 #endif // SWIG
 
 class rangeset_t;
+struct rangeset_undo_record_t;
 
 RANGESET_HELPER_DEFINITIONS(idaman)
 
@@ -142,11 +143,15 @@ class rangeset_t
   int undo_code = -1;
 
   RANGESET_HELPER_DEFINITIONS(friend)
+  #ifndef SWIG
+  friend bool _rangeset_t_add(rangeset_t *cb, const range_t &range, rangeset_undo_record_t &ur);
+  #endif
   bool verify(void) const;
 public:
   DEFINE_MEMORY_ALLOCATION_FUNCS()
   /// Constructor
   rangeset_t(void) : cache(nullptr) {}
+  rangeset_t(int _uc) : cache(nullptr), undo_code(_uc) {}
   /// Constructor - Initialize set with 'range'
   rangeset_t(const range_t &range): cache(nullptr) { if ( !range.empty() ) bag.push_back(range); }
   /// Constructor - Initialize set with 'ivs'

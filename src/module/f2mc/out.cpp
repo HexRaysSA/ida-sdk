@@ -282,8 +282,8 @@ void f2mc_t::print_segment_register(outctx_t &ctx, int reg, sel_t value)
 void f2mc_t::f2mc_assumes(outctx_t &ctx)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *seg = getseg(ea);
-  if ( seg == nullptr || (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 )
+  segment_info_t si;
+  if ( !get_segment_info(&si, ea) || (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 )
     return;
 
   for ( int i = ph.reg_first_sreg; i <= ph.reg_last_sreg; ++i )
@@ -294,7 +294,7 @@ void f2mc_t::f2mc_assumes(outctx_t &ctx)
     if ( !get_sreg_range(&sra, ea, i) )
       continue;
     sel_t now = get_sreg(ea, i);
-    bool seg_started = (ea == seg->start_ea);
+    bool seg_started = (ea == si.start_ea);
     if ( seg_started || sra.start_ea == ea )
     {
       sreg_range_t prev_sra;
@@ -307,16 +307,17 @@ void f2mc_t::f2mc_assumes(outctx_t &ctx)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Srange) could be made const
-void f2mc_t::f2mc_segstart(outctx_t &ctx, segment_t *Srange) const
+void f2mc_t::f2mc_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
-  if ( is_spec_segm(Srange->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME|GSI_SCLASS) )
+    return;
+  if ( is_spec_segm(si.get_type()) )
     return;
 
   qstring sname;
-  qstring sclas;
-  get_visible_segm_name(&sname, Srange);
-  get_segm_class(&sclas, Srange);
+  si.visible_name(&sname);
+  qstring sclas = si.get_sclass();
 
   ctx.gen_printf(DEFAULT_INDENT,
                  COLSTR(".section %s, %s", SCOLOR_ASMDIR),
@@ -324,16 +325,16 @@ void f2mc_t::f2mc_segstart(outctx_t &ctx, segment_t *Srange) const
                  sclas == "CODE" ? "code"
                  : sclas == "BSS" ? "data"
                  : "const");
-  if ( Srange->orgbase != 0 )
+  if ( si.get_orgbase() != 0 )
   {
     char buf[MAX_NUMBUF];
-    btoa(buf, sizeof(buf), Srange->orgbase);
+    btoa(buf, sizeof(buf), si.get_orgbase());
     ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s %s", SCOLOR_ASMDIR), ash.origin, buf);
   }
 }
 
 //--------------------------------------------------------------------------
-void idaapi f2mc_segend(outctx_t &, segment_t *) {}
+void f2mc_t::f2mc_segend(outctx_t &, ea_t) const {}
 
 //--------------------------------------------------------------------------
 void f2mc_t::f2mc_header(outctx_t &ctx)

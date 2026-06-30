@@ -253,8 +253,8 @@ void m32r_t::handle_operand(const insn_t &insn, const op_t &op, bool loading)
       // create stack variables if required
       if ( may_create_stkvars() && !is_defarg(F, op.n) )
       {
-        func_t *pfn = get_func(insn.ea);
-        if ( pfn != nullptr && (op.reg == rFP || op.reg == rSP) && pfn->flags & FUNC_FRAME )
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( func_ea != BADADDR && (op.reg == rFP || op.reg == rSP) && (get_func_flags(func_ea) & FUNC_FRAME) != 0 )
         {
           if ( insn.create_stkvar(op, op.addr, STKVAR_VALID_SIZE) )
             op_stkvar(insn.ea, op.n);
@@ -266,10 +266,10 @@ void m32r_t::handle_operand(const insn_t &insn, const op_t &op, bool loading)
       /* create stack variables if required */
       if ( op.specflag1 == fRI && may_create_stkvars() && !is_defarg(F, op.n) )
       {
-        func_t *pfn = get_func(insn.ea);
-        if ( pfn != nullptr
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( func_ea != BADADDR
           && (op.reg == rFP || op.reg == rSP)
-          && (pfn->flags & FUNC_FRAME) != 0 )
+          && (get_func_flags(func_ea) & FUNC_FRAME) != 0 )
         {
           if ( insn.create_stkvar(op, 0, STKVAR_VALID_SIZE) )
             op_stkvar(insn.ea, op.n);
@@ -313,12 +313,9 @@ int m32r_t::emu(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------------
-bool idaapi create_func_frame(func_t *pfn)
+bool idaapi create_func_frame(ea_t func_ea)
 {
-  if ( pfn == nullptr )
-    return 0;
-
-  ea_t ea = pfn->start_ea;
+  ea_t ea = func_ea;
   insn_t insn[4];
   int i;
 
@@ -373,13 +370,13 @@ bool idaapi create_func_frame(func_t *pfn)
   if ( insn[i].itype != m32r_mv || insn[i].Op1.reg != rFP || insn[i].Op2.reg != rSP )
     return 0;
 
-  pfn->flags |= (FUNC_FRAME | FUNC_BOTTOMBP);
-  return add_frame(pfn, offset, regsize, 0);
+  set_func_flag(func_ea, FUNC_FRAME | FUNC_BOTTOMBP);
+  return add_frame_ea(func_ea, offset, regsize, 0);
 }
 
 //----------------------------------------------------------------------------
 // should always returns 0
-int idaapi m32r_get_frame_retsize(const func_t *)
+int idaapi m32r_get_frame_retsize(ea_t /*func_ea*/)
 {
   return 0;
 }

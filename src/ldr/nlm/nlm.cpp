@@ -145,9 +145,12 @@ static void add_imports(void)
   set_selector(3, 0);
   if ( add_segm(3, ebase, eend, NAME_EXTERN, nullptr) )
   {
-    segment_t *ps = getseg(ebase);
-    ps->type = SEG_XTRN;
-    ps->update();
+    segment_info_t si;
+    if ( get_segment_info(&si, ebase) )
+    {
+      si.set_type(SEG_XTRN);
+      set_segment_info(&si);
+    }
   }
   else
   {
@@ -642,16 +645,16 @@ static void load_image(void)
   for ( int i = 1; ; )
   {
     const char *pn, *pc;
-    segment_t s;
+    segment_info_t s;
     s.start_ea = lc.start;
     s.end_ea   = lc.start;
-    s.align    = saRel4K;
-    s.bitness  = 1;
-    s.comb     = scPub;
-    s.sel      = i;
+    s.set_align(saRel4K);
+    s.set_bitness(1);
+    s.set_comb(scPub);
+    s.set_sel(i);
     if ( i == 1 )
     {
-      s.type  = SEG_CODE;
+      s.set_type(SEG_CODE);
       pn      = NAME_BSS;
       pc      = CLASS_CODE;
     }
@@ -669,14 +672,14 @@ static void load_image(void)
       }
       if ( lend != 0 || addbss )
       {
-        s.type = SEG_DATA;
+        s.set_type(SEG_DATA);
         lc.dbase = lc.start;
         lc.dsize = lend;
       }
     }
     if ( lend == 0 && !addbss )
     {
-      s.type = SEG_NULL;
+      s.set_type(SEG_NULL);
       lc.start += 0x1000;
     }
     else
@@ -692,8 +695,10 @@ static void load_image(void)
       s.end_ea += addbss;
       lc.start = (s.end_ea + 0xFFF) & ~0xFFF;
     }
-    set_selector(s.sel, 0);
-    if ( !add_segm_ex(&s, pn, pc, ADDSEG_NOSREG | ADDSEG_SPARSE) )
+    set_selector(s.get_sel(), 0);
+    s.set_name(pn);
+    s.set_sclass(pc);
+    if ( !add_segment_ex(&s, ADDSEG_NOSREG | ADDSEG_SPARSE) )
       loader_failure();
 //-
     if ( ++i > 2 )

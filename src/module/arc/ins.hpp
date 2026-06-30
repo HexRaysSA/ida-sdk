@@ -381,6 +381,10 @@ enum nameNum
   ARC_kflag,                    // Set kernel flags
   ARC_wevt,                     // Enter sleep state
 
+  // ARCv2 additional major-4 instructions
+  ARC_xbfu,                     // Bit field unsigned extract
+  ARC_dbnz,                     // Decrement and branch if not zero
+
   ARC_last,
 };
 

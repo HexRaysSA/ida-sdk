@@ -333,7 +333,7 @@ class sample_processor_t(ida_idp.processor_t):
         (i.e. one of: byte,word,dword,near,far,etc...)
         """
         if is_code(flag):
-            pfn = get_func(ea_or_id)
+            func_ea = get_func_start(ea_or_id)
             # return get func name
         elif is_word(flag):
             return "word"
@@ -442,7 +442,15 @@ class sample_processor_t(ida_idp.processor_t):
         """function to produce start of segment"""
         return 0
 
+    def ev_out_segment_start(self, ctx, seg_start_ea):
+        """function to produce start of segment"""
+        return 0
+
     def ev_out_segend(self, ctx, segment):
+        """function to produce end of segment"""
+        return 0
+
+    def ev_out_segment_end(self, ctx, seg_start_ea):
         """function to produce end of segment"""
         return 0
 
@@ -595,6 +603,14 @@ class sample_processor_t(ida_idp.processor_t):
         """
         return 0
 
+    def ev_create_function_frame(self, func_ea):
+        """
+        Create a function frame for a newly created function.
+        Set up frame size, its attributes etc.
+        @param func_ea: function start address (ea_t)
+        """
+        return 0
+
     def ev_is_far_jump(self, icode):
         """
         Is indirect far jump or call instruction?
@@ -621,6 +637,17 @@ class sample_processor_t(ida_idp.processor_t):
         """
         Get size of function return address in bytes
         If this function is absent, the kernel will assume
+             4 bytes for 32-bit function
+             2 bytes otherwise
+        """
+        ida_pro.int_pointer.frompointer(frsize).assign(2)
+        return 1
+
+    def ev_get_function_retsize(self, frsize, func_ea):
+        """
+        Get size of function return address in bytes
+        If this function is absent, the kernel will assume
+             8 bytes for 64-bit function
              4 bytes for 32-bit function
              2 bytes otherwise
         """
@@ -714,6 +741,10 @@ class sample_processor_t(ida_idp.processor_t):
         return -1
 
     def ev_func_bounds(self, code, func_ea, max_func_end_ea):
+        ida_pro.int_pointer.frompointer(code).assign(ida_funcs.FIND_FUNC_OK)
+        return 1
+
+    def ev_function_bounds(self, code, func_ea, max_func_end_ea):
         ida_pro.int_pointer.frompointer(code).assign(ida_funcs.FIND_FUNC_OK)
         return 1
 
@@ -854,6 +885,9 @@ class sample_processor_t(ida_idp.processor_t):
     def ev_creating_segm(self, s):
         return 0
 
+    def ev_creating_segment(self, si):
+        return 0
+
     def ev_auto_queue_empty(self, atype):
         return 0
 
@@ -879,6 +913,13 @@ class sample_processor_t(ida_idp.processor_t):
         """
         return 0
 
+    def ev_moving_segment(self, seg_start_ea, to, flags):
+        """
+        May the kernel move the segment?
+        returns: 0-yes, <0-the kernel should stop
+        """
+        return 0
+
     def ev_segm_moved(self, from_ea, to_ea, size, changed_netdelta):
         """
         A segment is moved
@@ -888,6 +929,14 @@ class sample_processor_t(ida_idp.processor_t):
     def ev_verify_noreturn(self, pfn):
         """
         The kernel wants to set 'noreturn' flags for a function
+        Returns: 0-ok, <0-do not set 'noreturn' flag
+        """
+        return 0
+
+    def ev_verify_function_noreturn(self, func_ea):
+        """
+        The kernel wants to set 'noreturn' flags for a function
+        @param func_ea: function start address (ea_t)
         Returns: 0-ok, <0-do not set 'noreturn' flag
         """
         return 0
@@ -1003,6 +1052,16 @@ class sample_processor_t(ida_idp.processor_t):
         """
         return 0
 
+    def ev_verify_function_sp(self, func_ea):
+        """
+        All function instructions have been analyzed
+        Now the processor module can analyze the stack pointer
+        for the whole function
+        @param func_ea: function start address (ea_t)
+        Returns: 0-ok, <0-bad stack pointer
+        """
+        return 0
+
     def renamed(self, ea, new_name, is_local_name):
         """
         The kernel has renamed a byte
@@ -1024,11 +1083,31 @@ class sample_processor_t(ida_idp.processor_t):
         """
         return 0
 
+    def set_function_start(self, fchunk, new_ea):
+        """
+        Function chunk start address will be changed
+        args:
+          fchunk: function chunk info (fchunk_info_t)
+          new_ea
+        Returns: 0-ok,<0-do not change
+        """
+        return 0
+
     def set_func_end(self, pfn, new_end_ea):
         """
         Function chunk end address will be changed
         args:
           pfn
+          new_end_ea
+        Returns: 0-ok,<0-do not change
+        """
+        return 0
+
+    def set_function_end(self, fchunk, new_end_ea):
+        """
+        Function chunk end address will be changed
+        args:
+          fchunk: function chunk info (fchunk_info_t)
           new_end_ea
         Returns: 0-ok,<0-do not change
         """
@@ -1041,10 +1120,24 @@ class sample_processor_t(ida_idp.processor_t):
         """
         return 0
 
+    def function_added(self, func_ea):
+        """
+        The kernel has added a function.
+        @param func_ea: function start address (ea_t)
+        """
+        return 0
+
     def deleting_func(self, pfn):
         """
         The kernel is about to delete a function
         @param func: function
+        """
+        return 0
+
+    def deleting_function(self, func_ea):
+        """
+        The kernel is about to delete a function
+        @param func_ea: function start address
         """
         return 0
 

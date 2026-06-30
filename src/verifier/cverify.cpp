@@ -8,6 +8,7 @@
  */
 
 #include "allmicro.h"
+#include "lvar.hpp"
 
 static int got_interr = 0;
 
@@ -116,27 +117,39 @@ void cfunc_t::verify_insn(const cinsn_t *i) const
         CFAIL_QASSERT(50680, i); // ctree: empty assembler instruction list
       break;
     case cit_try:
-      if ( i->ctry->is_wind )
+      if ( i->ctry->is_synchronized_block() )
+      {
+        if ( i->ctry->catchs.size() != 1 )
+          CFAIL_QASSERT(53053, i); // ctree: synchronized must have exactly one catch clause
+        const ccatch_t &cc = i->ctry->catchs.front();
+        if ( cc.exprs.size() != 1 || cc.exprs.front().obj.op == cot_empty )
+          CFAIL_QASSERT(53054, i); // ctree: synchronized catch must have a lock object
+        verify_expr(i, &cc.exprs.front().obj);
+      }
+      else if ( i->ctry->is_wind() )
       {
         if ( i->ctry->catchs.size() != 1 )
           CFAIL_QASSERT(52707, i); // ctree: __wind must have exactly one __unwind
         const ccatch_t &cc = i->ctry->catchs.front();
-        if ( !cc.is_catch_all() )
-          CFAIL_QASSERT(52708, i); // ctree: __unwind must have "catch all"
+        if ( !cc.is_finally() )
+          CFAIL_QASSERT(52708, i); // ctree: __unwind must be "finally"
       }
       else
       {
         if ( i->ctry->catchs.empty() )
           CFAIL_QASSERT(52738, i); // ctree: 'try' without any 'catch' clauses?!
       }
-      for ( const ccatch_t &cc : i->ctry->catchs )
       {
-        for ( const catchexpr_t &ce : cc.exprs )
-          verify_expr(i, &ce.obj);
-        // FIXME: once we are allowed to modify the ctree design,
-        // replace the vector of expressions with just one expression.
-        if ( cc.exprs.size() > 1 )
-          CFAIL_QASSERT(52931, i); // ctree: too many catch expressions
+        bool seen_finally = false;
+        for ( const ccatch_t &cc : i->ctry->catchs )
+        {
+          for ( const catchexpr_t &ce : cc.exprs )
+            verify_expr(i, &ce.obj);
+          if ( seen_finally )
+            CFAIL_QASSERT(53013, i); // ctree: wrong "finally" expression (must be one at the end)
+          if ( cc.is_finally() )
+            seen_finally = true;
+        }
       }
       break;
   }
@@ -196,14 +209,34 @@ void cfunc_t::verify_insn(const cinsn_t *i) const
 bool is_acceptable_lvalue(const citem_t *parent, const cexpr_t *e, ctree_maturity_t maturity)
 {
   ctype_t op = e->op;
-  if ( (!is_lvalue(op) || parent->op != cot_ref && e->type.is_array() && maturity >= CMAT_CPA)
-    && !e->is_odd_lvalue()
-    && op != cot_helper
-    && (op != cot_call || !e->type.is_small_udt()) ) // for small udts, allow cast
+
+  // normal lvalues are acceptable, except arrays not under cot_ref
+  // after CPA (arrays decay to pointers and aren't assignable)
+  if ( is_lvalue(op)
+    && (parent->op == cot_ref || !e->type.is_array() || maturity < CMAT_CPA) )
   {
-    return false;
+    return true;
   }
-  return true;
+
+  // dereference of pointer-to-array used as assignment target:
+  // the CAST phase will convert the array type to UDT
+  // (example: x64_interr_50708_22.c)
+  if ( op == cot_ptr && is_assignment(parent->op) && maturity < CMAT_CASTED )
+    return true;
+
+  // some expressions are marked as odd lvalues (e.g. ternary)
+  if ( e->is_odd_lvalue() )
+    return true;
+
+  // helpers can be lvalues
+  if ( op == cot_helper && parent->is_expr() )
+    return true;
+
+  // calls returning small udts can be lvalues (for cast purposes)
+  if ( op == cot_call && e->type.is_small_udt() )
+    return true;
+
+  return false;
 }
 
 //-------------------------------------------------------------------------
@@ -520,11 +553,12 @@ CHECK_EQUAL:
   switch ( op )
   {
     case cot_cast:
-      // cannot cast to arrays or functions. casting to array in golang is ok
+      // cannot cast to arrays or functions. casting to array in golang/usercall is ok
       if ( type.is_array()
         && !hv.is_golang()
+        && !use_rust_cc()
         && (parent->op != cot_call
-         || !is_golang_cc(((cexpr_t *)parent)->a->functype.get_cc())) )
+         || !accept_array_args(((cexpr_t *)parent)->a->functype.get_cc())) )
       {
         CFAIL_QASSERT(50710, e); // ctree: casting to array is forbidden
       }
@@ -592,7 +626,10 @@ MEM:
 
 #if defined(TESTABLE_BUILD)
         if ( !e->type.equals_to(udm.type)
-          && !e->type.get_ptrarr_object().equals_to(udm.type.get_array_element()) )
+          && !e->type.get_ptrarr_object().equals_to(udm.type.get_array_element())
+          // in Dalvik, field types are defined in the dex file and type
+          // propagation may override them; allow all mismatches
+          && hv.mvm.platform != PLFM_DALVIK )
         {
           tinfo_t tmp = remove_pointer(e->type);
           // allow if expression ultimately points to a function
@@ -610,7 +647,8 @@ MEM:
       // in other words it always must use a pointer. otherwise we risk
       // getting interr 50397 when calculating types.
       if ( !x->type.is_ptr_or_array() || y->type.is_paf() )
-        CFAIL_QASSERT(50703, e); // ctree: index operator can be applied only to pointers and arrays
+        if ( hv.mvm.platform != PLFM_DALVIK )
+          CFAIL_QASSERT(50703, e); // ctree: index operator can be applied only to pointers and arrays
       break;
     case cot_num: // n
       e->n->verify();
@@ -729,7 +767,7 @@ void cfunc_t::verify(allow_unused_labels_t _aul, bool always) const
           int label = *p;
           if ( !gotos.has(label) )
           {
-            dump_ctree(hv, &hv.gfunc->body, "UNUSED LABEL %d", label);
+            dump_ctree(hv, &hv.gfunc->body, "UNUSED_LABEL %d", label);
             INTERR(50729); // ctree: unused label
           }
         }
@@ -761,7 +799,7 @@ void cfunc_t::verify(allow_unused_labels_t _aul, bool always) const
 #endif
 
 #ifdef TESTABLE_BUILD
-  if ( hv.num_cfuncs == 1 )
+  if ( hv.num_cfuncs - int(hv.snapshot_cfuncs.size()) == 1 )
   {
     // verify citem_t leaks
     struct ida_local leak_verifier_t : public ctree_visitor_t

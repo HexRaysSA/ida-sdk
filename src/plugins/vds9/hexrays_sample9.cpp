@@ -24,8 +24,8 @@ struct plugin_ctx_t : public plugmod_t
 //--------------------------------------------------------------------------
 bool idaapi plugin_ctx_t::run(size_t)
 {
-  func_t *pfn = get_func(get_screen_ea());
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(get_screen_ea());
+  if ( func_ea == BADADDR )
   {
     warning("Please position the cursor within a function");
     return true;
@@ -37,13 +37,14 @@ bool idaapi plugin_ctx_t::run(size_t)
   // way of obtaining microcode of earlier stages is to explicitly specify
   // the required maturity level in the gen_mircocode() call.
   hexrays_failure_t hf;
-  mba_t *mba = gen_microcode(pfn, &hf, nullptr, DECOMP_WARNINGS);
+  decomp_ranges_t dcr(func_ea);
+  mba_t *mba = gen_microcode(dcr, &hf, nullptr, DECOMP_WARNINGS);
   if ( mba == nullptr )
   {
     warning("#error \"%a: %s", hf.errea, hf.desc().c_str());
     return true;
   }
-  msg("%a: successfully generated microcode\n", pfn->start_ea);
+  msg("%a: successfully generated microcode\n", func_ea);
 
   // Dump the microcode to the output window
   vd_printer_t vp;

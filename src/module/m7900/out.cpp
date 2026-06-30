@@ -801,18 +801,20 @@ void m7900_t::m7900_header(outctx_t &ctx)
 //--------------------------------------------------------------------------
 // generate segment header
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Srange) could be made const
-void m7900_t::m7900_segstart(outctx_t &ctx, segment_t *Srange) const
+void m7900_t::m7900_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
   qstring sname;
-  get_visible_segm_name(&sname, Srange);
+  si.visible_name(&sname);
 
   if ( ash.uflag & UAS_SEGM )
     ctx.gen_printf(DEFAULT_INDENT, COLSTR("SEGMENT %s", SCOLOR_ASMDIR), sname.c_str());
   else
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".SECTION %s", SCOLOR_ASMDIR), sname.c_str());
 
-  ea_t orgbase = ctx.insn_ea - get_segm_para(Srange);
+  ea_t orgbase = ctx.insn_ea - si.para();
   if ( orgbase != 0 )
   {
     char buf[MAX_NUMBUF];

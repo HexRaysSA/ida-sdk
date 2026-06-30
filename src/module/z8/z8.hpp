@@ -76,8 +76,8 @@ struct z8_t : public procmod_t
   bool out_opnd(outctx_t &ctx, const op_t &x);
   void z8_header(outctx_t &ctx);
   void z8_footer(outctx_t &ctx);
-  void z8_segstart(outctx_t &ctx, segment_t *seg);
-  void z8_segend(outctx_t &ctx, segment_t *seg);
+  void z8_segstart(outctx_t &ctx, ea_t seg_ea);
+  void z8_segend(outctx_t &ctx, ea_t seg_ea);
   void z8_data(outctx_t &ctx, bool analyze_only);
   void z8_assumes(outctx_t &ctx);
 };

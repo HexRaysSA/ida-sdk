@@ -51,14 +51,14 @@ static ea_t find_bb_start(ea_t call_ea)
 
 //-------------------------------------------------------------------------
 static bool determine_decompilation_range(
-        mba_ranges_t *mbr,
+        decomp_ranges_t *dcr,
         ea_t call_ea,
         const tinfo_t &tif)
 {
-  func_t *pfn = get_func(call_ea);
-  if ( pfn != nullptr && calc_func_size(pfn) <= 1024 )
+  ea_t func_ea = get_func_start(call_ea);
+  if ( func_ea != BADADDR && calc_func_size_ea(func_ea) <= 1024 )
   { // a small function, decompile it entirely
-    mbr->pfn = pfn;
+    dcr->func_ea = func_ea;
     return true;
   }
 
@@ -78,7 +78,7 @@ static bool determine_decompilation_range(
     if ( maxea < addrs[i] )
       maxea = addrs[i];
   }
-  range_t &r = mbr->ranges.push_back();
+  range_t &r = dcr->ranges.push_back();
   r.start_ea = minea;
   r.end_ea = get_item_end(maxea);
   return true;
@@ -92,11 +92,11 @@ static bool generate_call_line(
         ea_t call_ea,
         const tinfo_t &tif)
 {
-  mba_ranges_t mbr;
-  if ( !determine_decompilation_range(&mbr, call_ea, tif) )
+  decomp_ranges_t dcr;
+  if ( !determine_decompilation_range(&dcr, call_ea, tif) )
     return false;
   hexrays_failure_t hf;
-  cfuncptr_t func = decompile(mbr, &hf, DECOMP_NO_WAIT);
+  cfuncptr_t func = decompile(dcr, &hf, DECOMP_NO_WAIT);
   if ( func == nullptr )
   {
     if ( hf.code == MERR_CANCELED )

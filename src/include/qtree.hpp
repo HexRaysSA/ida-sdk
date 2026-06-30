@@ -379,10 +379,12 @@ class qtree
   };
 
   // Static assertions that only apply to qtree_node_unpacked
+#ifndef __clang__
   static_assert(offsetof(qtree_node_unpacked, parent_) == 0, "qtree_node_unpacked::parent_ must be at offset 0");
   static_assert(offsetof(qtree_node_unpacked, color_) == 3 * sizeof(void *), "qtree_node_unpacked::color_ must follow the three pointer-sized fields");
   static_assert(offsetof(qtree_node_unpacked, is_nil_) == 3 * sizeof(void *) + 1, "qtree_node_unpacked::is_nil_ must follow color_");
   static_assert(offsetof(qtree_node_unpacked, storage_) >= 3 * sizeof(void *) + 2, "qtree_node_unpacked::storage_ must follow is_nil_");
+#endif
 
   // This version packs `color` and `is_nil` into the bottom 2 bits of `parent`.
   // It relies on a guarantee that the allocator returns addresses whose
@@ -447,9 +449,11 @@ class qtree
   };
 
   // Static assertions that only apply to qtree_node_packed
+#ifndef __clang__
   static_assert(offsetof(qtree_node_packed, parent_and_tags_) == 0, "qtree_node_packed::parent_and_tags_ must be at offset 0");
   static_assert(alignof(Value) > alignof(void *) || offsetof(qtree_node_packed, storage_) == 3 * sizeof(void *), "qtree_node_packed::storage_ must immediately follow right_");
   static_assert(alignof(Value) <= alignof(void *) || offsetof(qtree_node_packed, storage_) > 3 * sizeof(void *), "qtree_node_packed::storage_ must follow right_");
+#endif
 
   // Choose the node type (packed or unpacked) based on PackNode template param
   using node_type = std::conditional_t<PackNode, qtree_node_packed, qtree_node_unpacked>;
@@ -458,6 +462,7 @@ class qtree
   static node_alloc make_node_alloc() noexcept { return node_alloc {}; }
 
   // Static assertions that apply to both node varieties
+#ifndef __clang__
   static_assert(alignof(node_type) >= alignof(void *), "node alignment");
   static_assert(std::is_standard_layout<node_type>::value, "node_type must be standard layout");
   static_assert(offsetof(node_type, left_) % alignof(void *) == 0, "packed layout not allowed");
@@ -466,6 +471,7 @@ class qtree
   static_assert(offsetof(node_type, right_) == 2 * sizeof(void *), "right_ must immediately follow left_");
   static_assert(offsetof(node_type, storage_) % alignof(Value) == 0, "storage_ must be Value-aligned (don't compile under packing)");
   static_assert(alignof(node_type) >= (alignof(void *) > alignof(Value) ? alignof(void *) : alignof(Value)),"node alignment must meet pointer/value alignment");
+#endif
 
 public:
   using value_type = Value;

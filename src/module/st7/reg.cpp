@@ -182,13 +182,6 @@ ssize_t idaapi st7_t::on_event(ssize_t msgid, va_list va)
       load_from_idb();
       break;
 
-    case processor_t::ev_is_jump_func:
-      {
-        const func_t *pfn = va_arg(va, const func_t *);
-        ea_t *jump_target = va_arg(va, ea_t *);
-        return is_jump_func(pfn, jump_target);
-      }
-
     case processor_t::ev_is_sane_insn:
       {
         const insn_t *insn = va_arg(va, insn_t *);
@@ -216,21 +209,16 @@ ssize_t idaapi st7_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        st7_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        st7_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
-      {
-        outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        st7_segend(*ctx, seg);
-        return 1;
-      }
+    case processor_t::ev_out_segment_end:
+      return 1;
 
     case processor_t::ev_ana_insn:
       {

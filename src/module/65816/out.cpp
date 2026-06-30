@@ -351,8 +351,9 @@ void m65816_t::m65816_assumes(outctx_t &ctx)
   char buf[MAXSTR];
   char *ptr = buf;
   char *end = buf + sizeof(buf);
-  segment_t *seg = getseg(ea);
-  bool seg_started = (ea == seg->start_ea);
+  segment_info_t si;
+  get_segment_info(&si, ea);
+  bool seg_started = (ea == si.start_ea);
   for ( int reg=ph.reg_first_sreg; reg <= ph.reg_last_sreg; reg++ )
   {
     if ( reg == rCs )
@@ -414,11 +415,10 @@ void m65816_t::m65816_header(outctx_t &ctx) const
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Srange) could be made const
-void m65816_t::m65816_segstart(outctx_t &ctx, segment_t *Srange) const
+void m65816_t::m65816_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
   qstring name;
-  get_visible_segm_name(&name, Srange);
+  get_segment_name(&name, seg_ea, 1);
   if ( ash.uflag & UAS_SECT )
   {
     ctx.gen_printf(0, COLSTR("%s: .section",SCOLOR_ASMDIR), name.c_str());
@@ -436,7 +436,7 @@ void m65816_t::m65816_segstart(outctx_t &ctx, segment_t *Srange) const
   }
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
-    ea_t org = ctx.insn_ea - get_segm_base(Srange);
+    ea_t org = ctx.insn_ea - get_segment_base(seg_ea);
     if ( org != 0 )
     {
       char buf[MAX_NUMBUF];
