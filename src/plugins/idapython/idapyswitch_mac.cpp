@@ -2,6 +2,8 @@
 
 #include "../../pro/registry.cpp"
 
+#define IDA_ADDLIB_VALUE "Python3TargetDLL"
+
 #define BUILD_IDAPYSWITCH
 
 #include "../../fmt/mach-o/common.h"
@@ -521,6 +523,41 @@ void pyver_tool_t::do_find_python_libs(pylib_entries_t *result) const
     if ( qisdir(libdir) )
       extract_pylib_bin(result, libdir);
   });
+
+  qstring existing;
+  if ( reg_read_string(&existing, IDA_ADDLIB_VALUE)
+    && qfileexist(existing.c_str()) )
+  {
+    out_verb("Previously used runtime: \"%s\"\n", existing.c_str());
+    bool found = false;
+    for ( pylib_entry_t &e : result->entries )
+    {
+      if ( e.paths.has(existing) )
+      {
+        found = true;
+        e.preferred = true;
+      }
+    }
+    if ( !found )
+    {
+      pylib_entry_t e((pylib_version_t()));
+      qstring probe_errbuf;
+      if ( get_pylib_entry_for_macho(&e, existing.c_str(), &probe_errbuf) )
+      {
+        qstring verbuf;
+        out("IDA previously used: \"%s\" (guessed version: %s). "
+            "Making this the preferred version.\n",
+            existing.c_str(), e.version.str(&verbuf));
+        e.preferred = true;
+        result->entries.push_back(e);
+      }
+      else
+      {
+        out_verb("Ignoring path \"%s\": %s\n",
+                 existing.c_str(), probe_errbuf.c_str());
+      }
+    }
+  }
 }
 
 //-------------------------------------------------------------------------
@@ -647,8 +684,6 @@ static bool patch_python_dylib_cmd(
   munmap(map, sbuf.qst_size);
   return ok;
 }
-
-#define IDA_ADDLIB_VALUE "Python3TargetDLL"
 
 //-------------------------------------------------------------------------
 bool pyver_tool_t::do_apply_version(

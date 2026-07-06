@@ -15,6 +15,9 @@ parent_dirname, _ = os.path.split(dirname)
 if parent_dirname not in sys.path:
     sys.path.append(parent_dirname)
 
+import io
+from _writeutil import write_if_different
+
 from argparse import ArgumentParser
 p = ArgumentParser()
 
@@ -303,22 +306,23 @@ def gen_safecall(out, class_name):
 
 
 with open(args.input) as fin:
-    with open(args.output, "w") as fout:
-        for line in fin:
-            fout.write(line)
-            import re
-            m = re.match(r".*%s:([^\s]*).*" % args.marker, line)
-            if m:
-                what = m.group(1)
-                if what == "methods":
-                    gen_methods(fout)
-                elif what == "notifications":
-                    gen_notifications(fout)
-                elif what == "methodsinfo_decl":
-                    gen_methodsinfo_decl(fout)
-                elif what == "methodsinfo_def":
-                    gen_methodsinfo_def(fout)
-                elif what.startswith("safecall="):
-                    gen_safecall(fout, what[9:])
-                else:
-                    raise Exception("Unknown marker type: %s" % what)
+    fout = io.StringIO()
+    for line in fin:
+        fout.write(line)
+        import re
+        m = re.match(r".*%s:([^\s]*).*" % args.marker, line)
+        if m:
+            what = m.group(1)
+            if what == "methods":
+                gen_methods(fout)
+            elif what == "notifications":
+                gen_notifications(fout)
+            elif what == "methodsinfo_decl":
+                gen_methodsinfo_decl(fout)
+            elif what == "methodsinfo_def":
+                gen_methodsinfo_def(fout)
+            elif what.startswith("safecall="):
+                gen_safecall(fout, what[9:])
+            else:
+                raise Exception("Unknown marker type: %s" % what)
+    write_if_different(args.output, fout.getvalue())

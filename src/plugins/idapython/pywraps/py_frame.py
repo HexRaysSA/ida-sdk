@@ -21,8 +21,8 @@ calc_frame_offset = ida_idaapi._ida_deprecated(calc_frame_offset, "calc_frame_of
 
 add_regvar = ida_idaapi._ida_deprecated(add_regvar, "add_func_regvar")
 find_regvar = ida_idaapi._ida_deprecated(find_regvar, "find_func_regvar")
-rename_regvar = ida_idaapi._ida_deprecated(rename_regvar, "rename_regvar_ea")
-set_regvar_cmt = ida_idaapi._ida_deprecated(set_regvar_cmt, "set_regvar_cmt_ea")
+rename_regvar = ida_idaapi._ida_deprecated(rename_regvar, "rename_func_regvar")
+set_regvar_cmt = ida_idaapi._ida_deprecated(set_regvar_cmt, "set_func_regvar_cmt")
 del_regvar = ida_idaapi._ida_deprecated(del_regvar, "del_func_regvar")
 has_regvar = ida_idaapi._ida_deprecated(has_regvar, "has_func_regvar")
 

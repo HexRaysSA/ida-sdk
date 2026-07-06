@@ -5,6 +5,7 @@ Deploy code snips into swig interface files
 """
 from __future__ import print_function
 
+import io
 import os
 import re
 import sys
@@ -12,6 +13,9 @@ import sys
 from argparse import ArgumentParser
 from itertools import chain
 from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _writeutil import write_if_different
 
 major, minor, micro, _, _ = sys.version_info
 
@@ -157,23 +161,22 @@ def deploy(module, template, output, pywraps, iface_deps, lifecycle_aware, verbo
         template_str = apply_tags(template_str, typemaps_str, synth_tags, verbose, "[generated]")
 
 
-    # write output file
-    with open(output, 'w', encoding="utf-8") as f:
-        f.write("""%module(directors="1",threads="1") {0}\n""".format("ida_%s" % module))
-        f.write("#ifndef IDA_MODULE_DEFINED\n")
-        f.write("""  #define IDA_MODULE_%s\n""" % module.upper())
-        f.write("#define IDA_MODULE_DEFINED\n")
-        f.write("#endif // IDA_MODULE_DEFINED\n")
-        for dep in [module] + deps:
-            if len(dep):
-                f.write("#ifndef HAS_DEP_ON_INTERFACE_%s\n" % dep.upper())
-                f.write("  #define HAS_DEP_ON_INTERFACE_%s\n" % dep.upper())
-                f.write("#endif\n")
-        f.write("%include \"header.i\"\n")
-        f.write(template_str)
+    buf = io.StringIO()
+    buf.write("""%module(directors="1",threads="1") {0}\n""".format("ida_%s" % module))
+    buf.write("#ifndef IDA_MODULE_DEFINED\n")
+    buf.write("""  #define IDA_MODULE_%s\n""" % module.upper())
+    buf.write("#define IDA_MODULE_DEFINED\n")
+    buf.write("#endif // IDA_MODULE_DEFINED\n")
+    for dep in [module] + deps:
+        if len(dep):
+            buf.write("#ifndef HAS_DEP_ON_INTERFACE_%s\n" % dep.upper())
+            buf.write("  #define HAS_DEP_ON_INTERFACE_%s\n" % dep.upper())
+            buf.write("#endif\n")
+    buf.write("%include \"header.i\"\n")
+    buf.write(template_str)
 
-        if lifecycle_aware:
-            f.write("""
+    if lifecycle_aware:
+        buf.write("""
 %%init %%{
 {
   module_callbacks_t module_lfc;
@@ -184,6 +187,7 @@ def deploy(module, template, output, pywraps, iface_deps, lifecycle_aware, verbo
 }
 %%}
 """ % (module, module, module))
+    write_if_different(output, buf.getvalue())
 
 deploy(
     args.module,

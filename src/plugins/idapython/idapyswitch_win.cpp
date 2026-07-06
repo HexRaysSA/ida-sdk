@@ -555,7 +555,8 @@ void pyver_tool_t::do_find_python_libs(pylib_entries_t *result) const
     out_verb("Previously-used DLL: \"%s\"\n", existing.c_str());
     pylib_version_t version;
     qstrvec_t paths;
-    if ( probe_python_install_dir_from_dll_path(
+    if ( qfileexist(existing.c_str())
+      && probe_python_install_dir_from_dll_path(
                  &paths,
                  &version,
                  existing.c_str(),

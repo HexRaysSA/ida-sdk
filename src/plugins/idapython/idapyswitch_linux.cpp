@@ -392,7 +392,8 @@ void pyver_tool_t::do_find_python_libs(pylib_entries_t *result) const
     pylib_version_t version;
     qstring verbuf;
     const char *libname = qbasename(existing.c_str());
-    if ( extract_version_from_libpython_filename(&version, libname) )
+    if ( qfileexist(existing.c_str())
+      && extract_version_from_libpython_filename(&version, libname) )
     {
       out("IDA previously used: \"%s\" (guessed version: %s). "
           "Making this the preferred version.\n",

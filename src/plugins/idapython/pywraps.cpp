@@ -1,4 +1,6 @@
 
+#include <set>
+
 #include <pro.h>
 #include <ieee.h>
 #include <parsejson.hpp>
@@ -2329,6 +2331,18 @@ DECLARE_TYPE_AS_MOVABLE(hx_clearable_t);
 typedef qvector<hx_clearable_t> hx_clearables_t;
 hx_clearables_t hx_python_clearables;
 
+// Membership index over hx_python_clearables, keyed by pointer. The vector
+// above stays the source of truth (and preserves the cleanup order used by
+// hexrays_deregister_all_python_clearable_references()); this set only makes
+// the per-registration duplicate check O(log n) instead of O(n). Without it,
+// registering N instances is O(N^2) -- and a single decompile/gen_microcode
+// pass over a large database registers 100k+ instances, which dominated the
+// runtime. The two are kept in sync: insert on register, erase on deregister.
+// (qvector's associative ops -- add_unique/has/index -- are all linear, and
+// there is no native hashed container, so we use std::set as the SDK headers
+// do for associative lookups.)
+static std::set<const void *> hx_python_clearables_set;
+
 
 //-------------------------------------------------------------------------
 static void debug_hexrays_dump_clearable_instances(int level=DCLVL_FULL)
@@ -2349,9 +2363,8 @@ void hexrays_register_python_clearable_instance(
 {
   if ( ptr == nullptr )
     return;
-  for ( size_t i = 0, n = hx_python_clearables.size(); i < n; ++i )
-    if ( hx_python_clearables[i].ptr == ptr )
-      return;
+  if ( !hx_python_clearables_set.insert(ptr).second )
+    return; // already registered
   hx_clearable_t &hxc = hx_python_clearables.push_back();
   hxc.ptr = ptr;
   hxc.type = type;
@@ -2363,6 +2376,8 @@ void hexrays_register_python_clearable_instance(
 void hexrays_deregister_python_clearable_instance(void *ptr)
 {
   debug_hexrays_ctree(DCLVL_SIMPLE, "maybe de-registering %p\n", ptr);
+  if ( hx_python_clearables_set.erase(ptr) == 0 )
+    return; // not registered
   for ( size_t i = 0, n = hx_python_clearables.size(); i < n; ++i )
   {
     const hx_clearable_t &hxc = hx_python_clearables[i];

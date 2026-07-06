@@ -240,14 +240,11 @@ struct pyver_tool_t
         const pylib_entry_t &e0,
         const pylib_entry_t &e1)
   {
-    if ( e0.preferred )
-      return true;
-    if ( e1.preferred )
-      return false;
-    int rc = e0.version.compare(e1.version);
-    if ( rc > 0 )
-      return true;
-    return false;
+    // preferred entries first (comparing both flags keeps this a valid
+    // strict weak ordering), then highest version first
+    if ( e0.preferred != e1.preferred )
+      return e0.preferred;
+    return e0.version.compare(e1.version) > 0;
   }
 
   bool path_to_pylib_entry(

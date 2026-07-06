@@ -2,6 +2,7 @@
 
 %ignore enumerate_selectors;
 %ignore enumerate_segments_with_selector;
+%ignore enumerate_segments_with_selector_ea;
 
 // Kernel-only
 %ignore vset_segm_name;

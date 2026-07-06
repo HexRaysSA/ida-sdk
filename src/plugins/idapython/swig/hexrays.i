@@ -43,19 +43,9 @@
 %enddef
 
 //-------------------------------------------------------------------------
-%define %monitored_lifecycle_object_t(TypeName)
+%define %ctree_ownership_helpers(TypeName)
 %extend TypeName {
-
-    int __dbg_get_registered_kind() const
-    {
-      return hexrays_is_registered_python_clearable_instance(self);
-    }
-
-    PyObject *_obj_id() const { return PyLong_FromSize_t(size_t(self)); }
-
     %pythoncode {
-      obj_id = property(_obj_id)
-
       def _ensure_cond(self, ok, cond_str):
           if not ok:
               raise Exception("Condition \"%s\" not verified" % cond_str)
@@ -78,6 +68,24 @@
               if dereg:
                   dereg()
           return True
+    }
+};
+%enddef
+
+//-------------------------------------------------------------------------
+%define %monitored_lifecycle_object_t(TypeName)
+%ctree_ownership_helpers(TypeName)
+%extend TypeName {
+
+    int __dbg_get_registered_kind() const
+    {
+      return hexrays_is_registered_python_clearable_instance(self);
+    }
+
+    PyObject *_obj_id() const { return PyLong_FromSize_t(size_t(self)); }
+
+    %pythoncode {
+      obj_id = property(_obj_id)
 
       def _maybe_disown_and_deregister(self):
           if self.thisown:
@@ -546,6 +554,12 @@ cexpr_t *citem_t_cexpr_get(citem_t *item) { return (cexpr_t *) item; }
 %override_cinsn_t_obj_property(cit_goto,   cgoto,   cgoto_t *);
 %override_cinsn_t_obj_property(cit_asm,    casm,    casm_t *);
 
+%ctree_ownership_helpers(cif_t);
+%ctree_ownership_helpers(cloop_t);
+%override_node_obj_property(cif_t,   True, ithen, cinsn_t *, None, True);
+%override_node_obj_property(cif_t,   True, ielse, cinsn_t *, None, True);
+%override_node_obj_property(cloop_t, True, body,  cinsn_t *, None, True);
+
 %define_hexrays_lifecycle_object(cexpr_t);
 %extend cexpr_t {
   var_ref_t* get_v() { if ( self->op == cot_var ) { return &self->v; } else { return nullptr; } }
@@ -845,8 +859,25 @@ void qswap(cinsn_t &a, cinsn_t &b);
 };
 
 %extend mba_t {
+   // Deterministic, explicit free for a gen_microcode() mba_t. Looping
+   // gen_microcode() over every function of a large database leaks the mba_t:
+   // RSS grows ~37 KB/function (to ~7.7 GiB on a ~180k-function iOS
+   // kernelcache) and the worker is OOM-killed. The same loop in native C++
+   // idalib with `delete mba` stays flat, so the decompiler is fine -- the
+   // mba_t never reaches the unref/`delete $this` path from Python (thisown is
+   // True, yet dropping it, gc.collect() and _deregister() are all no-ops).
+   // release() frees it now, like the C++ `delete`; thisown is cleared first so
+   // the proxy destructor cannot double-free. Workaround only: why the
+   // automatic path leaks is still unresolved.
+   void _release() { hexrays_deregister_python_clearable_instance($self); delete $self; }
    %pythoncode {
      idb_node = property(lambda self: self.deprecated_idb_node)
+
+     def release(self):
+         """Free the underlying mba_t immediately. The object must not be used afterwards."""
+         if self.thisown:
+             self.thisown = False
+             self._release()
    }
 };
 

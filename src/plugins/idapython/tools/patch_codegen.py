@@ -390,10 +390,12 @@ with open(args.input) as f:
         else:
             all_lines.append(line)
 
+import os
+import sys
 import tempfile
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _writeutil import move_if_different
 temp = tempfile.NamedTemporaryFile(mode="w", delete=False)
 temp.write("".join(all_lines))
 temp.close()
-
-import shutil
-shutil.move(temp.name, args.output)
+move_if_different(temp.name, args.output)
