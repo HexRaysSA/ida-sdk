@@ -794,6 +794,21 @@ public:
   {
     reg_value_base_t::truncate(width, slotsize, addrsize);
   }
+
+  /// \deprecated 9.3 source-compat shim; prefer truncate().
+  inline void trunc_uval(const procmod_t &pm)
+  {
+    if ( !is_num() )
+      return;
+    if ( slotsize != 0 )
+    {
+      truncate();
+      return;
+    }
+    for ( auto &p : vals )
+      p.val = pm.trunc_uval(p.val);
+    sort_multivals();
+  }
 };
 
 //-------------------------------------------------------------------------

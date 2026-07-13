@@ -155,6 +155,12 @@ public:
     sel = _sel;
   }
 
+  /// \deprecated pass a selector, or use set_target_sel()
+  DEPRECATED void set_sel(const segment_t *seg)
+  {
+    set_sel(seg == nullptr ? BADSEL : seg->sel);
+  }
+
   /// Set selector of fixup to the target.
   /// The target should be set before a call of this function.
   void set_target_sel()

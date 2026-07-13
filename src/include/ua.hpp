@@ -1095,7 +1095,17 @@ struct outctx_base_t
 
   virtual ssize_t idaapi get_stkvar(const op_t &x, uval_t v, sval_t *vv, int *is_sp_based, tinfo_t *_frame);
 
-  /// FIXME: DOCME
+  /// Output a reference to an address that is not (yet) mapped in the database.
+  ///
+  /// The processor module is queried (\ref processor_t::query_unmapped_address)
+  /// for symbolic information about \p addr.
+  ///
+  /// If the not-yet-mapped address is mappable, a colored symbolic expression is emitted
+  /// (e.g. "qualifier:symbol+offset", prefixed with a "outgoing" arrow).
+  /// Otherwise the raw numeric value is emitted, tagged with #COLOR_ERROR.
+  ///
+  /// \param addr   the unmapped address
+  /// \param radix  radix for the numeric fallback (default 16)
   virtual void idaapi out_unmapped_addr(ea_t addr, char radix=16);
 
   void gen_empty_line_without_annotations(void)

@@ -172,7 +172,7 @@ inline dscu_svc_t *get_dscu_svc()
 /// Available region types. See the region_info_t documentation for more info.
 enum region_type_t : uint32
 {
-  rt_invalid = uint32(-1), ///< Invalid
+  rt_invalid = (uint32)-1, ///< Invalid
   rt_image_entity = 0,   ///< A subset of an image (segment, section, ...)
   rt_island = 1,         ///< A branch island
   rt_header = 2,         ///< The dyld header

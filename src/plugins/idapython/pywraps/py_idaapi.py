@@ -260,14 +260,49 @@ def _ida_deprecated_class(cls_or_replacement, replacement=None):
     return cls
 
 
+def _ida_deprecated_method_overload(cls, method, old_type, old_sig, new_sig):
+    """Mark one overload of a method as deprecated, selected by first-arg type.
+
+    Use when a method has multiple C++ overloads (merged by SWIG into a single
+    Python `method(self, *args)`) and only one form - distinguished by its first
+    argument's type - is `DEPRECATED`. `_deprecated_overload` would dispatch on
+    `self`, so it can't be used here; this helper inspects the user-supplied
+    first positional arg instead.
+
+    Example:
+        ida_idaapi._ida_deprecated_method_overload(
+            fixup_data_t, "set_sel", ida_segment.segment_t,
+            "fixup_data_t.set_sel(segment_t)",
+            "fixup_data_t.set_sel(sel_t)")
+
+    The warning fires once per process (deduped via `_emitted_deprecations`,
+    keyed by `old_sig`).
+    """
+    orig = getattr(cls, method)
+    key = ("method.overload", cls.__name__, method, old_sig)
+
+    @functools.wraps(orig)
+    def wrapper(self, *args, **kwargs):
+        if args and isinstance(args[0], old_type) and key not in _emitted_deprecations:
+            _emitted_deprecations.add(key)
+            warnings.warn(
+                f"{old_sig} is deprecated, use {new_sig}",
+                DeprecationWarning,
+                stacklevel=2)
+        return orig(self, *args, **kwargs)
+    setattr(cls, method, wrapper)
+    return cls
+
+
 def _ida_deprecated_init_overload(cls, old_type, old_sig, new_sig):
     """Mark one `__init__` overload as deprecated, selected by first-arg type.
 
     Use when a class has multiple constructor forms in C++ (merged by SWIG into
     a single Python `__init__(*args)`) and only one form - distinguished by its
     first argument's type - is `DEPRECATED`. `_deprecated_overload` would
-    dispatch on `self`, so it can't be used here; this helper inspects the
-    user-supplied first positional arg instead.
+    dispatch on `self`, so it can't be used here; this helper (via
+    `_ida_deprecated_method_overload`) inspects the user-supplied first
+    positional arg instead.
 
     Example:
         ida_idaapi._ida_deprecated_init_overload(
@@ -278,20 +313,8 @@ def _ida_deprecated_init_overload(cls, old_type, old_sig, new_sig):
     The warning fires once per process (deduped via `_emitted_deprecations`,
     keyed by `old_sig`).
     """
-    orig_init = cls.__init__
-    key = ("class.__init__.overload", cls.__name__, old_sig)
-
-    @functools.wraps(orig_init)
-    def wrapper(self, *args, **kwargs):
-        if args and isinstance(args[0], old_type) and key not in _emitted_deprecations:
-            _emitted_deprecations.add(key)
-            warnings.warn(
-                f"{old_sig} is deprecated, use {new_sig}",
-                DeprecationWarning,
-                stacklevel=2)
-        return orig_init(self, *args, **kwargs)
-    cls.__init__ = wrapper
-    return cls
+    return _ida_deprecated_method_overload(
+        cls, "__init__", old_type, old_sig, new_sig)
 
 
 # -----------------------------------------------------------------------

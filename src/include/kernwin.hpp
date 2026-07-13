@@ -2643,6 +2643,16 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
     return nearest;
   }
 
+#ifndef NO_OBSOLETE_FUNCS
+  /// \deprecated Use innermost_at() instead.
+  DEPRECATED const tagged_line_section_t *nearest_at(
+        cpidx_t x,
+        color_t tag=0) const
+  {
+    return innermost_at(x, tag);
+  }
+#endif
+
   // For example, '// XREF: __loff_t/r _IO_FILE/r'
   // <on><xref>// XREF: <on><addr:FF001BAC>__loff_t/r <on><addr:FF001BC9>_IO_FILE/r<off><dref>
   // ^___ r1 ________________________________________________________________________________^

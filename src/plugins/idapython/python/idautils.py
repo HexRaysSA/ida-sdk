@@ -507,7 +507,7 @@ class Strings(object):
             ida_strlist.get_strlist_options()
         self.refresh()
 
-        self._si = ida_strlist.string_info_t()
+        self._si = ida_strlist.string_info_ex_t()
 
 
     def refresh(self):
@@ -533,7 +533,7 @@ class Strings(object):
 
 
     def _get_item(self, index):
-        if not ida_strlist.get_strlist_item(self._si, index):
+        if not ida_strlist.get_strlist_item_ex(self._si, index):
             return None
         return Strings.StringItem(self._si)
 

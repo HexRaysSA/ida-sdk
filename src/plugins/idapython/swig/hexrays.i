@@ -467,6 +467,37 @@ void py_debug_hexrays_ctree(int level, const char *msg)
 %ignore vcall_helper;
 %ignore vcreate_helper;
 
+// until IDA 9.3, ctry_t::is_wind was a data member
+%rename (_is_wind) ctry_t::is_wind;
+%extend ctry_t {
+  void _set_is_wind(bool v) { setflag($self->flags, CTRY_WIND, v); }
+  %pythoncode {
+    is_wind = property(
+            lambda self: self._is_wind(),
+            lambda self, v: self._set_is_wind(v))
+    """Is C++ wind statement? (not part of the C++ language)
+
+    MSVC generates code like the following to keep track of constructed
+    objects and destroy them upon an exception. Example:
+
+    // an object is constructed at this point
+    __wind
+    {
+      // some other code that may throw an exception
+    }
+    __unwind
+    {
+      // this code is executed only if there was an exception
+      // in the __wind block. normally here we destroy the object
+      // after that the exception is passed to the
+      // exception handler, regular control flow is interrupted here.
+    }
+    // regular logic continues here, if there were no exceptions
+    // also the object's destructor is called
+    """
+  }
+};
+
 %const_void_pointer_and_size(uchar, bytes, nbytes);
 %apply qstrvec_t *out { qstrvec_t *warnings };
 %hooks_director_handle_qstrvec_t_output(collect_warnings, warnings);

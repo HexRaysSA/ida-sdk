@@ -39,11 +39,19 @@ struct string_info_t
   ea_t ea;
   int length = 0; // in octets
   int type = 0;
-  qstring decompiler_string;
   string_info_t(ea_t _ea=BADADDR) : ea(_ea) {}
   bool operator<(const string_info_t &r) const { return ea < r.ea; }
 };
 DECLARE_TYPE_AS_MOVABLE(string_info_t);
+
+/// Same as string_info_t, plus the string reconstructed by the decompiler
+/// (set only when type == STRTYPE_DECOMP).
+struct string_info_ex_t : public string_info_t
+{
+  qstring decompiler_string;
+  string_info_ex_t(ea_t _ea=BADADDR) : string_info_t(_ea) {}
+};
+DECLARE_TYPE_AS_MOVABLE(string_info_ex_t);
 
 
 /// Get the static string list options
@@ -71,6 +79,11 @@ idaman size_t ida_export get_strlist_qty(void);
 /// Get nth element of the string list (n=0..get_strlist_qty()-1)
 
 idaman bool ida_export get_strlist_item(string_info_t *si, size_t n);
+
+
+/// Get nth element of the string list, including the decompiler string.
+
+idaman bool ida_export get_strlist_item_ex(string_info_ex_t *si, size_t n);
 
 
 #endif // _STRLIST_HPP

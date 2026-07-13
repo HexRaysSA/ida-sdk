@@ -239,5 +239,7 @@ prompt_function_prototype = ida_idaapi._deprecated_overload(
     prompt_function_prototype, ida_funcs.func_t, _prompt_function_prototype_pfn,
     "prompt_function_prototype(func_t)",
     "prompt_function_prototype(ea_t)")
+tagged_line_sections_t.nearest_at = ida_idaapi._ida_deprecated(
+    tagged_line_sections_t.nearest_at, "innermost_at")
 
 #</pycode(py_kernwin)>

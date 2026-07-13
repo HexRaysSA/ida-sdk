@@ -8362,7 +8362,7 @@ inline bool cblock_t::is_ordinary_flow() const
 const char *hexapi get_ctype_name(ctype_t op);
 qstring hexapi create_field_name(const tinfo_t &type, uval_t offset=BADADDR);
 typedef void *hexdsp_t(int code, ...);
-const int64 HEXRAYS_API_MAGIC = 0x00DEC0DE00000004LL;
+const int64 HEXRAYS_API_MAGIC = 0x00DEC0DE00000005LL;
 
 /// Decompiler events.
 /// Use install_hexrays_callback() to install a handler for decompiler events.

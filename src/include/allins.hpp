@@ -4695,21 +4695,6 @@ ARM_uminv,              // Unsigned Integer Min Element in Vector
 ARM_sminv,              // Signed Integer Min Element in Vector
 ARM_fminv,              // Floating-point Min Element in Vector
 ARM_fminnmv,            // Floating-point minNum Element in Vector
-// SVE integer reduction
-ARM_saddv,              // Signed Integer Add Reduction
-ARM_uaddv,              // Unsigned Integer Add Reduction
-ARM_addqv,              // Integer Add Reduction (quadwords)
-ARM_smaxqv,             // Signed Integer Max Reduction (quadwords)
-ARM_umaxqv,             // Unsigned Integer Max Reduction (quadwords)
-ARM_sminqv,             // Signed Integer Min Reduction (quadwords)
-ARM_uminqv,             // Unsigned Integer Min Reduction (quadwords)
-ARM_orv,                // Bitwise OR Reduction
-ARM_eorv,               // Bitwise EOR Reduction
-ARM_andv,               // Bitwise AND Reduction
-ARM_orqv,               // Bitwise OR Reduction (quadwords)
-ARM_eorqv,              // Bitwise EOR Reduction (quadwords)
-ARM_andqv,              // Bitwise AND Reduction (quadwords)
-ARM_movprfx,            // Move Prefix
 // atomic operations (ARMv8.1/ARMv8.3)
 // ARM_swp,              // Swap value with memory, No memory ordering
 ARM_swpl,               // Swap value with memory, Release
@@ -5683,6 +5668,21 @@ ARM_uzp_sme4,             // SME2 Multi-vec UZP (four regs)
 ARM_ld1q,                 // SME Load Quadword tile slice
 ARM_st1q,                 // SME Store Quadword tile slice
 ARM_psel,                 // SME/SVE2p1 Predicate Select
+// SVE integer reduction
+ARM_saddv,              // Signed Integer Add Reduction
+ARM_uaddv,              // Unsigned Integer Add Reduction
+ARM_addqv,              // Integer Add Reduction (quadwords)
+ARM_smaxqv,             // Signed Integer Max Reduction (quadwords)
+ARM_umaxqv,             // Unsigned Integer Max Reduction (quadwords)
+ARM_sminqv,             // Signed Integer Min Reduction (quadwords)
+ARM_uminqv,             // Unsigned Integer Min Reduction (quadwords)
+ARM_orv,                // Bitwise OR Reduction
+ARM_eorv,               // Bitwise EOR Reduction
+ARM_andv,               // Bitwise AND Reduction
+ARM_orqv,               // Bitwise OR Reduction (quadwords)
+ARM_eorqv,              // Bitwise EOR Reduction (quadwords)
+ARM_andqv,              // Bitwise AND Reduction (quadwords)
+ARM_movprfx,            // Move Prefix
 ARM_last
 };
 /*
@@ -22993,17 +22993,6 @@ enum
   // Q(uadruple) precision float instruction extension
   RISCV_flq,     // Load quadruple (128b)
   RISCV_fsq,     // Store quadruple (128b)
-  // Zcmp compressed push/pop instructions
-  RISCV_cmpush,    // Store ra/s-reg list and allocate stack frame
-  RISCV_cmpop,     // Load ra/s-reg list and deallocate stack frame
-  RISCV_cmpopretz, // Load ra/s-reg list, set a0=0, return
-  RISCV_cmpopret,  // Load ra/s-reg list, return
-  // Zcmp compressed double-move instructions
-  RISCV_cmmva01s, // Move two s0-s7 registers into a0-a1
-  RISCV_cmmvsa01, // Move a0-a1 into two different s0-s7 registers
-  // Zcmt compressed table-jump instructions
-  RISCV_cmjt,      // Jump via jump vector table
-  RISCV_cmjalt,    // Jump and link via jump vector table
   // 64b Q(uadruple) precision float extension
   // pseudo insn
   RISCV_nop,        // No operation
@@ -23279,11 +23268,6 @@ enum
   RISCV_hinval,       // invalidates address-translation cache in hypervisor mode
   // Pause hint (Zihintpause)
   RISCV_pause,        // Pause
-  // Non-temporal locality hints (Zihintntl)
-  RISCV_ntl_p1,       // NTL.P1: non-temporal, innermost private cache
-  RISCV_ntl_pall,     // NTL.PALL: non-temporal, all private caches
-  RISCV_ntl_s1,       // NTL.S1: non-temporal, innermost shared cache
-  RISCV_ntl_all,      // NTL.ALL: non-temporal, all cache levels
   // Cache management operation
   RISCV_cbo,          // cache base operation
   RISCV_prefetch,     // prefetch address hint
@@ -23494,6 +23478,22 @@ enum
   RISCV_bitsi,         // bitsi rd, rs1, imm - rd = rs1 | (1 << imm)
   RISCV_pcnt,          // pcnt rd, rs1       - population count
   RISCV_fls,           // fls rd, rs1        - find last set bit helper
+  // Zcmp compressed push/pop instructions
+  RISCV_cmpush,    // Store ra/s-reg list and allocate stack frame
+  RISCV_cmpop,     // Load ra/s-reg list and deallocate stack frame
+  RISCV_cmpopretz, // Load ra/s-reg list, set a0=0, return
+  RISCV_cmpopret,  // Load ra/s-reg list, return
+  // Zcmp compressed double-move instructions
+  RISCV_cmmva01s, // Move two s0-s7 registers into a0-a1
+  RISCV_cmmvsa01, // Move a0-a1 into two different s0-s7 registers
+  // Zcmt compressed table-jump instructions
+  RISCV_cmjt,      // Jump via jump vector table
+  RISCV_cmjalt,    // Jump and link via jump vector table
+  // Non-temporal locality hints (Zihintntl)
+  RISCV_ntl_p1,       // NTL.P1: non-temporal, innermost private cache
+  RISCV_ntl_pall,     // NTL.PALL: non-temporal, all private caches
+  RISCV_ntl_s1,       // NTL.S1: non-temporal, innermost shared cache
+  RISCV_ntl_all,      // NTL.ALL: non-temporal, all cache levels
   RISCV_last
 };
 /*

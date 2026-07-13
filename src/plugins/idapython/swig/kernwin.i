@@ -230,12 +230,6 @@ struct dirspec_t;
   }
 }
 
-%extend tagged_line_sections_t {
-  %pythoncode {
-    nearest_at = innermost_at
-  }
-}
-
 // Make ask_addr(), ask_seg(), and ask_long() return a
 // tuple: (result, value)
 %rename (_ask_long) ask_long;

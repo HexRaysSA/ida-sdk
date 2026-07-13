@@ -45,9 +45,9 @@ endif()
 # Module names list (order matters for api_contents)
 set(MODULE_NAMES
     hexrays
-    allins auto bitrange bytes dbg diskio dirtree entry expr fixup fpro frame
+    allins auto bitrange bytes dbg diskio dirtree dscu entry expr fixup fpro frame
     funcs gdl graph ida idaapi idc idd idp ieee kernwin libfuncs lines loader
-    lumina
+    lumina indexer
 )
 if(IDA_TESTABLE_BUILD AND INTERNAL_ONLY_MODULES)
     list(APPEND MODULE_NAMES ${INTERNAL_ONLY_MODULES})
