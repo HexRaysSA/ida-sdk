@@ -1,5 +1,9 @@
 name: IDAPython Build (reusable)
 
+# Build the IDAPython plugin for one platform across all supported Python
+# versions. Self-contained: IDAPython links against the shipped SDK stub libs
+# in src/lib/, so no prior SDK build (or artifact) is required.
+
 on:
   workflow_call:
     inputs:
@@ -9,28 +13,18 @@ on:
       os:
         required: true
         type: string
-      sdk-artifact:
-        required: true
-        type: string
 
 jobs:
   build:
+    name: py${{ matrix.python }}
     strategy:
       fail-fast: false
       matrix:
         python: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
     runs-on: ${{ inputs.os }}
-    env:
-      IDASDK: ${{ github.workspace }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-
-    - name: Download SDK build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ inputs.sdk-artifact }}
-        path: src/bin/
 
     - name: Setup Visual Studio Developer Environment
       if: runner.os == 'Windows'
@@ -38,15 +32,8 @@ jobs:
       with:
         arch: x64
 
-    - name: Install Cygwin
-      if: runner.os == 'Windows'
-      uses: cygwin/cygwin-install-action@v4
-      with:
-        packages: make zip unzip
-        add-to-path: true
-
-    # Install SWIG outside of Cygwin — Cygwin's swig has a different
-    # directory structure from the official release and is not compatible.
+    # Use the official SWIG release via choco (Cygwin's swig has a different
+    # directory structure and is not compatible).
     - name: Install SWIG (Windows)
       if: runner.os == 'Windows'
       run: choco install swig -y
@@ -70,7 +57,7 @@ jobs:
     - name: Build IDAPython
       working-directory: src/plugins/idapython
       shell: bash
-      run: python3 build.py -I ${{ runner.temp }}
+      run: python3 build.py
 
     - name: Build Statistics
       working-directory: src

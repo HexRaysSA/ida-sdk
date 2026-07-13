@@ -1,0 +1,27 @@
+name: IDAPython Build - all platforms (reusable)
+
+# Thin fan-out wrapper: one nested reusable-workflow call per platform, so the
+# caller renders a single "build-idapython" group with a windows/linux/macos
+# subgroup each, and the Python versions nested under those.
+
+on:
+  workflow_call:
+
+jobs:
+  windows:
+    uses: ./.github/workflows/idapython-build.yml
+    with:
+      platform: windows
+      os: windows-latest
+
+  linux:
+    uses: ./.github/workflows/idapython-build.yml
+    with:
+      platform: linux
+      os: ubuntu-latest
+
+  macos:
+    uses: ./.github/workflows/idapython-build.yml
+    with:
+      platform: macos
+      os: macos-latest
