@@ -1,4 +1,4 @@
-name: IDA SDK Build Test
+name: Build
 
 on:
   push:
@@ -7,58 +7,15 @@ on:
     branches: [ main, build/cmake ]
 
 jobs:
-  # SDK build jobs — one per platform via the reusable sdk-build workflow.
-  build-windows:
+  # build-sdk       -> windows | linux | macos | docs
+  build-sdk:
     uses: ./.github/workflows/sdk-build.yml
-    with:
-      platform: windows
-      os: windows-latest
 
-  build-linux:
-    uses: ./.github/workflows/sdk-build.yml
-    with:
-      platform: linux
-      os: ubuntu-latest
-
-  build-macos:
-    uses: ./.github/workflows/sdk-build.yml
-    with:
-      platform: macos
-      os: macos-latest
-
-  # Debug-server-only builds via presets (Linux + Windows, 64- and 32-bit EA).
+  # build-dbgserver -> linux | linux-ea32 | windows | windows-ea32
   build-dbgserver:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        preset: [dbgserver, dbgserver-ea32]
     uses: ./.github/workflows/dbgserver-build.yml
-    with:
-      os: ${{ matrix.os }}
-      preset: ${{ matrix.preset }}
 
-  # IDAPython build jobs — each platform starts as soon as its SDK build completes.
-  idapython-windows:
-    needs: build-windows
-    uses: ./.github/workflows/idapython-build.yml
-    with:
-      platform: windows
-      os: windows-latest
-      sdk-artifact: sdk-build-windows
-
-  idapython-linux:
-    needs: build-linux
-    uses: ./.github/workflows/idapython-build.yml
-    with:
-      platform: linux
-      os: ubuntu-latest
-      sdk-artifact: sdk-build-linux
-
-  idapython-macos:
-    needs: build-macos
-    uses: ./.github/workflows/idapython-build.yml
-    with:
-      platform: macos
-      os: macos-latest
-      sdk-artifact: sdk-build-macos
+  # build-idapython -> windows|linux|macos, each with py3.9..py3.14
+  # Self-contained; runs in parallel with build-sdk (no dependency).
+  build-idapython:
+    uses: ./.github/workflows/idapython-os.yml

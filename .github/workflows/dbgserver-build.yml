@@ -2,23 +2,24 @@ name: Debug Server Build (reusable)
 
 # Build the debug server only, via the dbgserver / dbgserver-ea32 CMake presets
 # (Ninja, IDA_BUILD_IDA=OFF, IDA_BUILD_DBGSRV=ON, static runtime). Linux and
-# Windows only -- the presets are conditioned out on macOS.
+# Windows only -- the presets are conditioned out on macOS. One matrix leg per
+# os x preset; the `label` drives the job name and artifact name.
 
 on:
   workflow_call:
-    inputs:
-      os:
-        required: true
-        type: string
-      preset:
-        required: true
-        type: string
 
 jobs:
   build:
-    runs-on: ${{ inputs.os }}
-    env:
-      IDASDK: ${{ github.workspace }}
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: linux,        os: ubuntu-latest,  preset: dbgserver }
+          - { label: linux-ea32,   os: ubuntu-latest,  preset: dbgserver-ea32 }
+          - { label: windows,      os: windows-latest, preset: dbgserver }
+          - { label: windows-ea32, os: windows-latest, preset: dbgserver-ea32 }
+    runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -35,21 +36,28 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential cmake ninja-build
         # dbgserver-ea32 is a 32-bit x86 build -> needs multilib.
-        if [ "${{ inputs.preset }}" = "dbgserver-ea32" ]; then
+        if [ "${{ matrix.preset }}" = "dbgserver-ea32" ]; then
           sudo apt-get install -y gcc-multilib g++-multilib
         fi
 
-    - name: Configure (preset ${{ inputs.preset }})
+    - name: Configure (preset ${{ matrix.preset }})
       working-directory: src
-      run: cmake --preset ${{ inputs.preset }}
+      run: cmake --preset ${{ matrix.preset }}
 
-    - name: Build (preset ${{ inputs.preset }})
+    - name: Build (preset ${{ matrix.preset }})
       working-directory: src
-      run: cmake --build --preset ${{ inputs.preset }}
+      run: cmake --build --preset ${{ matrix.preset }}
 
     - name: Build Statistics
       working-directory: src
       shell: bash
       run: |
-        echo "=== Debug server (${{ inputs.preset }}, $RUNNER_OS) ==="
+        echo "=== Debug server (${{ matrix.preset }}, $RUNNER_OS) ==="
         ls -la bin/dbgsrv/ 2>/dev/null || echo "  (none found)"
+
+    - name: Upload debug server artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dbgserver-${{ matrix.label }}
+        path: src/bin/dbgsrv/
+        retention-days: 7
