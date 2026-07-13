@@ -333,3 +333,6 @@ For community help, visit:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+The SDK CMake support is based on Elias Bachaalany's [allthingsida/ida-cmake](https://github.com/allthingsida/ida-cmake) project (commit
+[06e2b64](https://github.com/allthingsida/ida-cmake/tree/06e2b64ddcb2ba6fdf87b4579f298bf054231960)), and maintains compatibility with its interface. Thanks, Elias!
