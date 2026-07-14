@@ -1095,19 +1095,6 @@ struct outctx_base_t
 
   virtual ssize_t idaapi get_stkvar(const op_t &x, uval_t v, sval_t *vv, int *is_sp_based, tinfo_t *_frame);
 
-  /// Output a reference to an address that is not (yet) mapped in the database.
-  ///
-  /// The processor module is queried (\ref processor_t::query_unmapped_address)
-  /// for symbolic information about \p addr.
-  ///
-  /// If the not-yet-mapped address is mappable, a colored symbolic expression is emitted
-  /// (e.g. "qualifier:symbol+offset", prefixed with a "outgoing" arrow).
-  /// Otherwise the raw numeric value is emitted, tagged with #COLOR_ERROR.
-  ///
-  /// \param addr   the unmapped address
-  /// \param radix  radix for the numeric fallback (default 16)
-  virtual void idaapi out_unmapped_addr(ea_t addr, char radix=16);
-
   void gen_empty_line_without_annotations(void)
   {
     int saved_flags = forbid_annotations();
@@ -1285,15 +1272,32 @@ struct outctx_t : public outctx_base_t
   /// typically a comment with the function name.
   virtual void idaapi gen_function_footer(ea_t func_ea) newapi;
   friend struct outctx_internal_t;
+
   /// Internal overrides; not part of the SDK API - do not call or override.
 protected:
   virtual bool idaapi flush_and_reinit(void) override;
   virtual void idaapi add_aux_prefix(const char *contents, int indent) override;
   virtual void idaapi append_user_prefix(const char *contents, int indent) override;
+
 private:
   virtual void idaapi out_label_addr_tag() override;
   virtual void idaapi out_aux_cmts() override;
   virtual ssize_t idaapi get_stkvar(const op_t &x, uval_t v, sval_t *vv, int *is_sp_based, tinfo_t *_frame) override;
+
+
+public:
+  /// Output a reference to an address that is not (yet) mapped in the database.
+  ///
+  /// The processor module is queried (\ref processor_t::query_unmapped_address)
+  /// for symbolic information about \p addr.
+  ///
+  /// If the not-yet-mapped address is mappable, a colored symbolic expression is emitted
+  /// (e.g. "qualifier:symbol+offset", prefixed with a "outgoing" arrow).
+  /// Otherwise the raw numeric value is emitted, tagged with #COLOR_ERROR.
+  ///
+  /// \param addr   the unmapped address
+  /// \param radix  radix for the numeric fallback (default 16)
+  virtual void idaapi out_unmapped_addr(ea_t addr, char radix=16) newapi;
 };
 
 //-------------------------------------------------------------------------

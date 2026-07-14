@@ -31,11 +31,14 @@
 
 //-------------------------------------------------------------------------
 // ignore helpers
+// internal 9.3-ABI helpers (find_reg_value_info/find_nearest_rvi wrap them)
+%ignore reg_finder94_find_reg_value_info(reg_value_info_t *out, ea_t ea, int reg, int max_depth);
+%ignore reg_finder94_find_nearest_rvi(reg_value_info_t *rvi, ea_t ea, const int reg[2]);
 %ignore reg_finder_invalidate_cache(reg_finder_t *_this, ea_t to, ea_t from, cref_t cref);
 %ignore reg_finder_invalidate_cache(reg_finder_t *_this);
 %ignore reg_finder_invalidate_xrefs_cache(reg_finder_t *_this, ea_t ea, dref_t dref);
 %ignore reg_finder_find(reg_finder_t *_this, reg_value_base_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insns);
-%ignore reg_finder_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, ea_t func_ea);
+%ignore reg_finder94_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, ea_t func_ea);
 %ignore reg_finder_calc_op_addr(reg_finder_t *_this, reg_value_base_t *addr, const op_t *memop, const insn_t *insn, ea_t ea, ea_t ds, int max_depth);
 %ignore reg_finder_emulate_mem_read(reg_finder_t *_this, reg_value_base_t *value, const reg_value_base_t *addr, int width, bool is_signed, const insn_t *insn);
 %ignore reg_finder_emulate_binary_op(reg_finder_t *_this, reg_value_base_t *value, int aop, const op_t *op1, const op_t *op2, const insn_t *insn, ea_t ea, ea_t ds, reg_finder_binary_ops_adjust_fun adjust, void *ud);

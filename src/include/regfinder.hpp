@@ -143,6 +143,7 @@ protected:
   using val_def_t = reg_value_def_t;
   friend struct reg_finder_block_t; // for join_values()
   friend struct reg_value_info_t;   // for derived class access
+  friend struct reg_value_info93_t; // 9.3 ABI shim: needs raw vals/state
 
   enum state_t : uint8
   {
@@ -909,7 +910,7 @@ typedef void (*reg_finder_binary_ops_adjust_fun)(
 decl void ida_export reg_finder_invalidate_cache(reg_finder_t *_this, ea_t to, ea_t from, cref_t cref);\
 decl void ida_export reg_finder_invalidate_xrefs_cache(reg_finder_t *_this, ea_t ea, dref_t dref);\
 decl void ida_export reg_finder_find(reg_finder_t *_this, reg_value_base_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insns);\
-decl void ida_export reg_finder_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, ea_t func_ea);\
+decl void ida_export reg_finder94_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, ea_t func_ea);\
 decl bool ida_export reg_finder_calc_op_addr(reg_finder_t *_this, reg_value_base_t *addr, const op_t *memop, const insn_t *insn, ea_t ea, ea_t ds, int max_depth);\
 decl bool ida_export reg_finder_emulate_mem_read(reg_finder_t *_this, reg_value_base_t *value, const reg_value_base_t *addr, int width, bool is_signed, const insn_t *insn);\
 decl void ida_export reg_finder_emulate_binary_op(reg_finder_t *_this, reg_value_base_t *value, int aop, const op_t *op1, const op_t *op2, const insn_t *insn, ea_t ea, ea_t ds, reg_finder_binary_ops_adjust_fun adjust, void *ud);\
@@ -930,8 +931,11 @@ struct reg_finder_t
 {
   const procmod_t &pm;
   const int proc_maxop; // max number of operands in insns
+  uint32 flags;         // a set of RF_... bits
+  // new public fields after 9.3
   int addrsize;         // the address size in bytes (4 or 8)
   int slotsize;         // the register size in bytes (4 or 8)
+  // new public fields after 9.4 (keep offsets above for ABI compat)
 
   // ADDRSIZE should match to the application bitness. This structure stores
   // a local copy of this value, initialized via get_effective_addrsize().
@@ -943,8 +947,6 @@ struct reg_finder_t
   {
     return inf_get_effective_addrsize() < 8 ? 4 : 8;
   }
-
-  uint32 flags; // a set of RF_... bits
 
   // a call insn may modify stkvars (via aliased stkvars passed as args).
   // this bit indicates how to answer this question.
@@ -983,8 +985,11 @@ protected:
   size_t linear_flow_cnt = 0;   // the number of insn to search in the
                                 // linear flow (if != 0)
   bool only_linear_flow() const { return linear_flow_cnt != 0; }
-  size_t bblk_cnt = 0;          // the number of insn in a basic block
+  // ABORTING_EA is kept at its 9.3 offset (72): a 9.3-built make_rfop() writes
+  // aborting_ea=BADADDR, and if it were elsewhere it would clobber another
+  // field. Keep it before BBLK_CNT for that reason.
   ea_t aborting_ea = BADADDR;   // to make tracking aborting easier
+  size_t bblk_cnt = 0;          // the number of insn in a basic block
   rvb_t standalone_value;       // to return a value for the initial block
                                 // without addresses
 
@@ -1111,19 +1116,25 @@ private:
   bool in_invalidate = false; // the guard for invalidate_regfinder_cache()
   bool debug_on = true;
 
-public:
+protected:
+  // The constructor is protected on purpose: reg_finder_t is meant to be
+  // used only as a base for internal processor-specific finders. External
+  // code must go through the convenience functions (find_reg_value_info(),
+  // find_sp_value(), ...).
   reg_finder_t(
         const procmod_t &_pm,
         int _proc_maxop = 3,
         uint32 _flags = RF_DOES_CALL_SPOIL_STKVARS)
     : pm(_pm),
       proc_maxop(_proc_maxop),
+      flags(_flags),
       addrsize(get_effective_addrsize()),
-      slotsize(addrsize),
-      flags(_flags)
+      slotsize(addrsize)
   {
     reg_finder_ctr(this);
   }
+
+public:
   virtual ~reg_finder_t() { reg_finder_dtr(this); }
 
   // this method must be called when the register size does not match the
@@ -1249,7 +1260,7 @@ public:
     if ( !can_track_op(&op, insn, func_ea) )
       return rfop_t();
     rfop_t res;
-    reg_finder_make_rfop(this, &res, &op, &insn, func_ea);
+    reg_finder94_make_rfop(this, &res, &op, &insn, func_ea);
     aborting_ea = BADADDR; // ignore for this call
     return res;
   }
@@ -1392,13 +1403,11 @@ protected:
     return reg == get_sp_reg(ea);
   }
 
-  // we can track only registers and stkvars (including BP-based)
-  virtual bool can_track_op(op_t *op, const insn_t &insn, ea_t func_ea) const
+  // 9.3-ABI slot
+  // Kept inline so the vtable stays weak (no key function).
+  virtual bool can_track_op93(op_t *op, const insn_t &insn, range_t *pfn) const  //lint !e818
   {
-    qnotused(op);
-    qnotused(insn);
-    qnotused(func_ea);
-    return false;
+    return can_track_op(op, insn, pfn != nullptr ? pfn->start_ea : BADADDR);
   }
 
   // is INSN a 'move' instruction? (or a simple add/sub instruction)
@@ -1465,6 +1474,17 @@ protected:
     qnotused(flow);
     value->set_unkinsn(insn); // do not support any instruction
     return true;
+  }
+
+  // we can track only registers and stkvars (including BP-based)
+  // NB: added at the END of the vtable so can_track_op's original slot keeps
+  // the 9.3 signature via can_track_op93().
+  virtual bool can_track_op(op_t *op, const insn_t &insn, ea_t func_ea) const
+  {
+    qnotused(op);
+    qnotused(insn);
+    qnotused(func_ea);
+    return false;
   }
 
   // helper methods for emulate_insn()
@@ -1709,6 +1729,12 @@ private:
 };
 
 //-------------------------------------------------------------------------
+// compatibility helpers
+//-------------------------------------------------------------------------
+idaman bool ida_export reg_finder94_find_reg_value_info(reg_value_info_t *out, ea_t ea, int reg, int max_depth);
+idaman int ida_export reg_finder94_find_nearest_rvi(reg_value_info_t *rvi, ea_t ea, const int reg[2]);
+
+//-------------------------------------------------------------------------
 // convenience functions
 //-------------------------------------------------------------------------
 /// Find register value using the register tracker.
@@ -1759,11 +1785,16 @@ idaman int ida_export find_sp_value(sval_t *sval, ea_t ea, int reg = -1);
 /// \retval 'false'   the processor module does not support a register
 ///                   tracker
 /// \retval 'true'    the found value is in RVI
-idaman bool ida_export find_reg_value_info(
+#ifndef IDA_REGFINDER_LEGACY_COMPAT
+inline bool ida_export find_reg_value_info(
         reg_value_info_t *rvi,
         ea_t ea,
         int reg,
-        int max_depth = 0);
+        int max_depth = 0)
+{
+  return reg_finder94_find_reg_value_info(rvi, ea, reg, max_depth);
+}
+#endif
 
 //-------------------------------------------------------------------------
 /// Find register value using the register tracker.
@@ -1798,10 +1829,15 @@ idaman bool ida_export find_regname_value_info(
 /// \param ea         the address to find a value at
 /// \param reg        the registers to find
 /// \return           the index of the found register or -1
-idaman int ida_export find_nearest_rvi(
+#ifndef IDA_REGFINDER_LEGACY_COMPAT
+inline int ida_export find_nearest_rvi(
         reg_value_info_t *rvi,
         ea_t ea,
-        const int reg[2]);
+        const int reg[2])
+{
+  return reg_finder94_find_nearest_rvi(rvi, ea, reg);
+}
+#endif
 
 //-------------------------------------------------------------------------
 /// The control flow from FROM to TO has removed (CREF==fl_U) or added

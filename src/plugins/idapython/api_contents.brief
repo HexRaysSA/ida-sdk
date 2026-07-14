@@ -16609,7 +16609,6 @@ ida_ua.outctx_base_t.out_spaces
 ida_ua.outctx_base_t.out_symbol
 ida_ua.outctx_base_t.out_tagoff
 ida_ua.outctx_base_t.out_tagon
-ida_ua.outctx_base_t.out_unmapped_addr
 ida_ua.outctx_base_t.out_value
 ida_ua.outctx_base_t.outbuf
 ida_ua.outctx_base_t.print_label_now
@@ -16644,6 +16643,7 @@ ida_ua.outctx_t.out_mnem
 ida_ua.outctx_t.out_mnemonic
 ida_ua.outctx_t.out_one_operand
 ida_ua.outctx_t.out_specea
+ida_ua.outctx_t.out_unmapped_addr
 ida_ua.outctx_t.retrieve_cmt
 ida_ua.outctx_t.retrieve_name
 ida_ua.outctx_t.set_bin_state
