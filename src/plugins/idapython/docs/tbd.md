@@ -53,7 +53,7 @@ With:
     install-name:    '@executable_path/libpython3.link.dylib'
 
 Note that the libpython3.link.dylib symlink will be created by idapyswitch at idapython build time
-(see TBD_MODULE_DEP in idapython/makefile and pyver_tool_t::do_apply_version() in idapyswitch_mac.cpp).
+(see pyver_tool_t::do_apply_version() in idapyswitch_mac.cpp).
 
 It is also a good idea to clean up the .tbd file by removing all config directives that aren't
 absolutely necessary. This makes it more likely that the .tbd file will continue to be compatible
