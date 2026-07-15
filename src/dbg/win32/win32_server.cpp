@@ -8,7 +8,7 @@
 #include <pro.h>
 #include "win32_rpc.h"
 #include "win32_debmod.h"
-#include "dbg_rpc_hlp.h"
+#include <dbg/dbg_rpc_hlp.h>
 
 bool ida_export idb_utf8(qstring *, const char *, int, int) { return false; }
 

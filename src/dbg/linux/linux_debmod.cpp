@@ -1715,7 +1715,7 @@ void linux_debmod_t::add_dll(ea_t base, asize_t size, const char *modname, const
 }
 
 #define LOOK_FOR_DEBUG_FILE_DEBUG_FLAG IDA_DEBUG_DEBUGGER
-#include "../../plugins/dwarf/look_for_debug_file.cpp"
+#include <plugins/dwarf/look_for_debug_file.cpp>
 
 //--------------------------------------------------------------------------
 void linux_debmod_t::_import_symbols_from_file(name_info_t *out, image_info_t &ii)

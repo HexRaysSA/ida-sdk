@@ -64,20 +64,20 @@ static void create_section(
 {
   set_selector(sel, 0);
 
-  segment_t s;
-  s.sel     = sel;
-  s.start_ea = start_ea;
-  s.end_ea   = end_ea;
-  s.align   = saRelByte;
-  s.comb    = scPub;
-  s.bitness = 1; // 32-bit
+  segment_info_t si;
+  si.start_ea = start_ea;
+  si.end_ea   = end_ea;
+  si.set_sel(sel);
+  si.set_align(saRelByte);
+  si.set_comb(scPub);
+  si.set_bitness(1); // 32-bit
+  si.set_name(name);
+  si.set_sclass(classname);
   int flags = ADDSEG_SPARSE | ADDSEG_NOSREG | ADDSEG_NOTRUNC;
-  if ( !add_segm_ex(&s, name, classname, flags) )
+  if ( !add_segment_ex(&si, flags) )
     loader_failure();
 
-  segment_t *sptr = getseg(start_ea);
   set_arm_segm_flags(start_ea, 2 << 10); // alignment
-  sptr->update();
 }
 
 //--------------------------------------------------------------------------
@@ -186,7 +186,8 @@ static size_t process_item(uchar *di, size_t disize, section_t *sect)
         size_t nsyms = size_t(sect->name);
         dsym_t *ds = (dsym_t *)(sect+1);
         char *str = (char *)(ds+nsyms);
-        if ( !is_mul_ok(nsyms, sizeof(dsym_t)) || ds+nsyms < ds || str >= (char *)end )
+        bool overflow = uint64(uintptr_t(ds)) + nsyms * sizeof(dsym_t) < uint64(uintptr_t(ds));
+        if ( !is_mul_ok(nsyms, sizeof(dsym_t)) || overflow || str >= (char *)end )
           return 0;
         bool use_pascal = swap_symbols(ds, str, end, nsyms);
         for ( int i=0; i < nsyms; i++,ds++ )

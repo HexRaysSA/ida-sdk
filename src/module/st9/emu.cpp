@@ -99,8 +99,8 @@ void st9_t::handle_operand(const insn_t &insn, const op_t &op, bool lwrite)
         // create stack variables if required
         if ( may_create_stkvars() && !is_defarg(F, op.n) && op.reg == rrr14 )
         {
-          func_t *pfn = get_func(insn.ea);
-          if ( pfn != nullptr && pfn->flags & FUNC_FRAME )
+          ea_t func_ea = get_func_start(insn.ea);
+          if ( func_ea != BADADDR && (get_func_flags(func_ea) & FUNC_FRAME) != 0 )
           {
             adiff_t displ = (int16)op.addr;
             if ( insn.create_stkvar(op, displ, STKVAR_VALID_SIZE) )
@@ -108,15 +108,15 @@ void st9_t::handle_operand(const insn_t &insn, const op_t &op, bool lwrite)
               op_stkvar(insn.ea, op.n);
               if ( insn.Op2.type == o_reg )
               {
-                regvar_t *r = find_regvar(pfn, insn.ea, ph.reg_names[insn.Op2.reg]);
-                if ( r != nullptr )
+                regvar_t r;
+                if ( find_func_regvar(&r, func_ea, insn.ea, ph.reg_names[insn.Op2.reg]) != -1 )
                 {
                   tinfo_t frame;
                   ssize_t stkvar_idx = frame.get_stkvar(nullptr, insn, &op, displ);
                   if ( !frame.empty() && stkvar_idx != -1 )
                   {
                     char b[20];
-                    qsnprintf(b, sizeof b, "%scopy", r->user);
+                    qsnprintf(b, sizeof b, "%scopy", r.user);
                     frame.rename_udm(stkvar_idx, b);
                   }
                 }
@@ -295,26 +295,25 @@ static bool is_far_return(ea_t ea)
 //----------------------------------------------------------------------
 // if a function ends with a far return, mark it as such
 // NB: we only handle regular (non-chunked) functions
-static void setup_far_func(func_t *pfn)
+static void setup_far_func(ea_t func_ea)
 {
-  if ( (pfn->flags & FUNC_FAR) == 0 )
+  uint64 flags = get_func_flags(func_ea);
+  if ( (flags & FUNC_FAR) == 0 )
   {
-    if ( is_far_return(pfn->end_ea) )
-    {
-      pfn->flags |= FUNC_FAR;
-      update_func(pfn);
-    }
+    func_entry_info_t fi;
+    if ( get_func_entry_info(&fi, func_ea) && is_far_return(fi.end_ea) )
+      set_func_flags(func_ea, flags | FUNC_FAR);
   }
 }
 
 
 //----------------------------------------------------------------------
 // Create a function frame
-bool st9_t::create_func_frame(func_t *pfn) const
+bool st9_t::create_func_frame(ea_t func_ea) const
 {
-  setup_far_func(pfn);
+  setup_far_func(func_ea);
 
-  ea_t ea = pfn->start_ea;
+  ea_t ea = func_ea;
 
   insn_t insn;
   ea = next_insn(&insn, ea);
@@ -364,16 +363,16 @@ bool st9_t::create_func_frame(func_t *pfn) const
 
     char regvar[10];
     qsnprintf(regvar, sizeof regvar, "arg_%d", i);
-    int err = add_regvar(pfn, ldi.ea, ldi.ea + ldi.size,
-                         ph.reg_names[ldi.Op2.reg], regvar, nullptr);
+    int err = add_func_regvar(func_ea, ldi.ea, ldi.ea + ldi.size,
+                            ph.reg_names[ldi.Op2.reg], regvar, nullptr);
     if ( err )
       msg("add_regvar() failed : error %d\n", err);
   }
 
   //msg("LOCAL: %d\nARGS: %d\n", total_size - args_size, args_size);
 
-  pfn->flags |= FUNC_FRAME;
-  return add_frame(pfn, total_size - args_size, 0, args_size);
+  set_func_flag(func_ea, FUNC_FRAME);
+  return add_frame_ea(func_ea, total_size - args_size, 0, args_size);
 }
 
 //------------------------------------------------------------------------

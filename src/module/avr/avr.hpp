@@ -16,7 +16,7 @@
 #include <diskio.hpp>
 #include <fixup.hpp>
 #include "../iohandler.hpp"
-#include "../../ldr/elf/elfr_avr.h"
+#include <ldr/elf/elfr_avr.h>
 extern int data_id;
 
 #define PROCMOD_NAME            avr
@@ -53,7 +53,7 @@ enum RegNo
 };
 
 //------------------------------------------------------------------
-void idaapi avr_segend(outctx_t &ctx, segment_t *seg);
+void idaapi avr_segend(outctx_t &ctx, ea_t seg_start_ea);
 void idaapi avr_assumes(outctx_t &ctx);         // function to produce assume directives
 
 int  idaapi is_align_insn(ea_t ea);
@@ -127,7 +127,7 @@ struct avr_t : public procmod_t
   inline uint32 code_address(const insn_t &insn, signed int delta) const;
   int ana(insn_t *_insn);
 
-  void avr_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void avr_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void avr_footer(outctx_t &ctx) const;
 
   void load_from_idb();

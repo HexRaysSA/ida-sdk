@@ -40,8 +40,7 @@ def FindInstructions(instr, asm_where=None):
     """
     if not asm_where:
         # get first segment
-        seg = ida_segment.get_first_seg()
-        asm_where = seg.start_ea if seg else ida_idaapi.BADADDR
+        asm_where = ida_segment.get_first_segment_ea()
         if asm_where == ida_idaapi.BADADDR:
             return (False, "No segments defined")
 
@@ -133,7 +132,7 @@ class SearchResult:
 
         # funcname_or_segname
         n = ida_funcs.get_func_name(ea) \
-            or ida_segment.get_segm_name(ida_segment.getseg(ea))
+            or ida_segment.get_segment_name(ea)
         if n:
             self.funcname_or_segname = n
 
@@ -145,8 +144,9 @@ def find(s=None, x=False, asm_where=None):
         if x:
             results = []
             for ea in ret:
-                seg = ida_segment.getseg(ea)
-                if (not seg) or (seg.perm & ida_segment.SEGPERM_EXEC) == 0:
+                si = ida_segment.segment_info_t()
+                if not ida_segment.get_segment_info(si, ea) \
+                        or (si.get_perm() & ida_segment.SEGPERM_EXEC) == 0:
                     continue
                 results.append(SearchResult(ea))
         else:

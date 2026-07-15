@@ -356,17 +356,17 @@ void out_oakdsp_t::out_insn(void)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Srange) could be made const
-void oakdsp_t::oakdsp_segstart(outctx_t &ctx, segment_t *Srange) const
+void oakdsp_t::oakdsp_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
-  ea_t ea = ctx.insn_ea;
-  if ( is_spec_segm(Srange->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME | GSI_SCLASS) )
+    return;
+  if ( is_spec_segm(si.get_type()) )
     return;
 
-  qstring sname;
-  qstring sclas;
-  get_segm_name(&sname, Srange);
-  get_segm_class(&sclas, Srange);
+  ea_t ea = ctx.insn_ea;
+  qstring sname = si.get_name();
+  qstring sclas = si.get_sclass();
 
   if ( ash.uflag & UAS_GNU )
   {
@@ -391,7 +391,7 @@ void oakdsp_t::oakdsp_segstart(outctx_t &ctx, segment_t *Srange) const
     if ( sname == "XMEM" )
     {
       char buf[MAX_NUMBUF];
-      btoa(buf, sizeof(buf), ea-get_segm_base(Srange));
+      btoa(buf, sizeof(buf), ea - si.base());
       ctx.gen_printf(DEFAULT_INDENT,
                      COLSTR("%s %c:%s", SCOLOR_ASMDIR),
                      ash.origin,
@@ -431,10 +431,10 @@ void oakdsp_t::print_segment_register(outctx_t &ctx, int reg, sel_t value)
 void oakdsp_t::oakdsp_assumes(outctx_t &ctx)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *seg = getseg(ea);
-  if ( seg == nullptr || (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 )
+  segment_info_t si;
+  if ( !get_segment_info(&si, ea) || (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 )
     return;
-  bool seg_started = (ea == seg->start_ea);
+  bool seg_started = (ea == si.start_ea);
 
   for ( int i = ph.reg_first_sreg; i <= ph.reg_last_sreg; ++i )
   {
@@ -455,13 +455,14 @@ void oakdsp_t::oakdsp_assumes(outctx_t &ctx)
 }
 
 //--------------------------------------------------------------------------
-void oakdsp_t::oakdsp_segend(outctx_t &ctx, segment_t *Srange) const
+void oakdsp_t::oakdsp_segend(outctx_t &ctx, ea_t seg_ea) const
 {
-  if ( !is_spec_segm(Srange->type) && (ash.uflag & UAS_GNU) == 0 )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
+  if ( !is_spec_segm(si.get_type()) && (ash.uflag & UAS_GNU) == 0 )
   {
-    qstring sname;
-    get_segm_name(&sname, Srange);
-    if ( sname != "XMEM" )
+    if ( !streq(si.get_name(), "XMEM") )
       ctx.gen_printf(DEFAULT_INDENT, "endsec");
   }
 }

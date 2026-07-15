@@ -26,6 +26,11 @@ This file is subject to change without any notice.
 Future versions of IDA may use other definitions.
 """
 from __future__ import print_function
+import os
+import re
+import struct
+import time
+
 # FIXME: Perhaps those should be loaded on-demand
 import ida_idaapi
 import ida_auto
@@ -60,28 +65,23 @@ import ida_xref
 
 import _ida_idaapi
 
-import os
-import re
-import struct
-import time
-import types
-import sys
+
 
 __EA64__ = ida_idaapi.BADADDR == 0xFFFFFFFFFFFFFFFF
-WORDMASK = 0xFFFFFFFFFFFFFFFF if __EA64__ else 0xFFFFFFFF # just there for bw-compat purposes; please don't use
+# just there for bw-compat purposes; please don't use
+WORDMASK = 0xFFFFFFFFFFFFFFFF if __EA64__ else 0xFFFFFFFF
 class DeprecatedIDCError(Exception):
     """
     Exception for deprecated function calls
     """
-    pass
 
 __warned_deprecated_proto_confusion = {}
 def __warn_once_deprecated_proto_confusion(what, alternative):
     if what not in __warned_deprecated_proto_confusion:
-        print("NOTE: idc.%s is deprecated due to signature confusion with %s. Please use %s instead" % (
-            what,
-            alternative,
-            alternative))
+        print(
+            f"NOTE: idc.{what} is deprecated due to signature confusion with"
+            f" {alternative}. Please use {alternative} instead"
+            )
         __warned_deprecated_proto_confusion[what] = True
 
 def _IDC_GetAttr(obj, attrmap, attroffs):
@@ -91,9 +91,8 @@ def _IDC_GetAttr(obj, attrmap, attroffs):
     """
     if attroffs in attrmap and hasattr(obj, attrmap[attroffs][1]):
         return getattr(obj, attrmap[attroffs][1])
-    else:
-        errormsg = "attribute with offset %d not found, check the offset and report the problem" % attroffs
-        raise KeyError(errormsg)
+    raise KeyError(f"attribute with offset {attroffs} not found, check the "
+                   "offset and report the problem")
 
 
 def _IDC_SetAttr(obj, attrmap, attroffs, value):
@@ -104,11 +103,11 @@ def _IDC_SetAttr(obj, attrmap, attroffs, value):
     # check for read-only atributes
     if attroffs in attrmap:
         if attrmap[attroffs][0]:
-            raise KeyError("attribute with offset %d is read-only" % attroffs)
-        elif hasattr(obj, attrmap[attroffs][1]):
+            raise KeyError(f"attribute with offset {attroffs} is read-only")
+        if hasattr(obj, attrmap[attroffs][1]):
             return setattr(obj, attrmap[attroffs][1], value)
-    errormsg = "attribute with offset %d not found, check the offset and report the problem" % attroffs
-    raise KeyError(errormsg)
+    raise KeyError(f"attribute with offset {attroffs} not found, check the "
+                   "offset and report the problem")
 
 
 BADADDR         = ida_idaapi.BADADDR # Not allowed address value
@@ -117,7 +116,7 @@ SIZE_MAX        = _ida_idaapi.SIZE_MAX
 ida_ida.__set_module_dynattrs(
     __name__,
     {
-        "MAXADDR" : (lambda: ida_ida.inf_get_privrange_start_ea(), None),
+        "MAXADDR" : (ida_ida.inf_get_privrange_start_ea, None),
     })
 
 #
@@ -126,18 +125,21 @@ ida_ida.__set_module_dynattrs(
 MS_VAL  = ida_bytes.MS_VAL             # Mask for byte value
 FF_IVL  = ida_bytes.FF_IVL             # Byte has value ?
 
-# Do flags contain byte value? (i.e. has the byte a value?)
-# if not, the byte is uninitialized.
+def has_value(f):
+    """
+    Do flags contain byte value? (i.e. has the byte a value?)
+    if not, the byte is uninitialized.
+    """
+    return (f & FF_IVL) != 0     # any defined value?
 
-def has_value(F):     return ((F & FF_IVL) != 0)     # any defined value?
 
-def byte_value(F):
+def byte_value(f):
     """
     Get byte value from flags
     Get value of byte provided that the byte is initialized.
     This macro works ok only for 8-bit byte machines.
     """
-    return (F & MS_VAL)
+    return f & MS_VAL
 
 
 def is_loaded(ea):
@@ -150,11 +152,26 @@ FF_DATA  = ida_bytes.FF_DATA  # Data ?
 FF_TAIL  = ida_bytes.FF_TAIL  # Tail ?
 FF_UNK   = ida_bytes.FF_UNK   # Unknown ?
 
-def is_code(F):       return ((F & MS_CLS) == FF_CODE) # is code byte?
-def is_data(F):       return ((F & MS_CLS) == FF_DATA) # is data byte?
-def is_tail(F):       return ((F & MS_CLS) == FF_TAIL) # is tail byte?
-def is_unknown(F):    return ((F & MS_CLS) == FF_UNK)  # is unexplored byte?
-def is_head(F):       return ((F & FF_DATA) != 0)      # is start of code/data?
+
+def is_code(f):
+    return (f & MS_CLS) == FF_CODE  # is code byte?
+
+
+def is_data(f):
+    return (f & MS_CLS) == FF_DATA  # is data byte?
+
+
+def is_tail(f):
+    return (f & MS_CLS) == FF_TAIL  # is tail byte?
+
+
+def is_unknown(f):
+    return (f & MS_CLS) == FF_UNK   # is unexplored byte?
+
+
+def is_head(f):
+    return (f & FF_DATA) != 0       # is start of code/data?
+
 
 #
 #      Common bits
@@ -168,11 +185,27 @@ FF_LABL  = ida_bytes.FF_LABL  # Has dummy name?
 FF_FLOW  = ida_bytes.FF_FLOW  # Exec flow from prev instruction?
 FF_ANYNAME = FF_LABL | FF_NAME
 
-def is_flow(F):       return ((F & FF_FLOW) != 0)
-def isExtra(F):      return ((F & FF_LINE) != 0)
-def isRef(F):        return ((F & FF_REF)  != 0)
-def hasName(F):      return ((F & FF_NAME) != 0)
-def hasUserName(F):  return ((F & FF_ANYNAME) == FF_NAME)
+
+def is_flow(f):
+    return (f & FF_FLOW) != 0
+
+
+def isExtra(f):
+    return (f & FF_LINE) != 0
+
+
+def isRef(f):
+    return (f & FF_REF)  != 0
+
+
+def hasName(f):
+    return (f & FF_NAME) != 0
+
+
+def hasUserName(f):
+    return (f & FF_ANYNAME) == FF_NAME
+
+
 
 MS_0TYPE  = ida_bytes.MS_0TYPE  # Mask for 1st arg typing
 FF_0VOID  = ida_bytes.FF_0VOID  # Void (unknown)?
@@ -206,30 +239,102 @@ FF_1STK   = ida_bytes.FF_1STK   # Stack variable?
 #   'is the 1st (or 2nd) operand of instruction or data of the given type'?
 # Please note that data items use only the 1st operand type (is...0)
 
-def is_defarg0(F):    return ((F & MS_0TYPE) != FF_0VOID)
-def is_defarg1(F):    return ((F & MS_1TYPE) != FF_1VOID)
-def isDec0(F):       return ((F & MS_0TYPE) == FF_0NUMD)
-def isDec1(F):       return ((F & MS_1TYPE) == FF_1NUMD)
-def isHex0(F):       return ((F & MS_0TYPE) == FF_0NUMH)
-def isHex1(F):       return ((F & MS_1TYPE) == FF_1NUMH)
-def isOct0(F):       return ((F & MS_0TYPE) == FF_0NUMO)
-def isOct1(F):       return ((F & MS_1TYPE) == FF_1NUMO)
-def isBin0(F):       return ((F & MS_0TYPE) == FF_0NUMB)
-def isBin1(F):       return ((F & MS_1TYPE) == FF_1NUMB)
-def is_off0(F):       return ((F & MS_0TYPE) == FF_0OFF)
-def is_off1(F):       return ((F & MS_1TYPE) == FF_1OFF)
-def is_char0(F):      return ((F & MS_0TYPE) == FF_0CHAR)
-def is_char1(F):      return ((F & MS_1TYPE) == FF_1CHAR)
-def is_seg0(F):       return ((F & MS_0TYPE) == FF_0SEG)
-def is_seg1(F):       return ((F & MS_1TYPE) == FF_1SEG)
-def is_enum0(F):      return ((F & MS_0TYPE) == FF_0ENUM)
-def is_enum1(F):      return ((F & MS_1TYPE) == FF_1ENUM)
-def is_manual0(F):       return ((F & MS_0TYPE) == FF_0FOP)
-def is_manual1(F):       return ((F & MS_1TYPE) == FF_1FOP)
-def is_stroff0(F):    return ((F & MS_0TYPE) == FF_0STRO)
-def is_stroff1(F):    return ((F & MS_1TYPE) == FF_1STRO)
-def is_stkvar0(F):    return ((F & MS_0TYPE) == FF_0STK)
-def is_stkvar1(F):    return ((F & MS_1TYPE) == FF_1STK)
+def is_defarg0(f):
+    return (f & MS_0TYPE) != FF_0VOID
+
+
+def is_defarg1(f):
+    return (f & MS_1TYPE) != FF_1VOID
+
+
+def isDec0(f):
+    return (f & MS_0TYPE) == FF_0NUMD
+
+
+def isDec1(f):
+    return (f & MS_1TYPE) == FF_1NUMD
+
+
+def isHex0(f):
+    return (f & MS_0TYPE) == FF_0NUMH
+
+
+def isHex1(f):
+    return (f & MS_1TYPE) == FF_1NUMH
+
+
+def isOct0(f):
+    return (f & MS_0TYPE) == FF_0NUMO
+
+
+def isOct1(f):
+    return (f & MS_1TYPE) == FF_1NUMO
+
+
+def isBin0(f):
+    return (f & MS_0TYPE) == FF_0NUMB
+
+
+def isBin1(f):
+    return (f & MS_1TYPE) == FF_1NUMB
+
+
+def is_off0(f):
+    return (f & MS_0TYPE) == FF_0OFF
+
+
+def is_off1(f):
+    return (f & MS_1TYPE) == FF_1OFF
+
+
+def is_char0(f):
+    return (f & MS_0TYPE) == FF_0CHAR
+
+
+def is_char1(f):
+    return (f & MS_1TYPE) == FF_1CHAR
+
+
+def is_seg0(f):
+    return (f & MS_0TYPE) == FF_0SEG
+
+
+def is_seg1(f):
+    return (f & MS_1TYPE) == FF_1SEG
+
+
+def is_enum0(f):
+    return (f & MS_0TYPE) == FF_0ENUM
+
+
+def is_enum1(f):
+    return (f & MS_1TYPE) == FF_1ENUM
+
+
+def is_manual0(f):
+    return (f & MS_0TYPE) == FF_0FOP
+
+
+def is_manual1(f):
+    return (f & MS_1TYPE) == FF_1FOP
+
+
+def is_stroff0(f):
+    return (f & MS_0TYPE) == FF_0STRO
+
+
+def is_stroff1(f):
+    return (f & MS_1TYPE) == FF_1STRO
+
+
+def is_stkvar0(f):
+    return (f & MS_0TYPE) == FF_0STK
+
+
+def is_stkvar1(f):
+    return (f & MS_1TYPE) == FF_1STK
+
+
 
 #
 #      Bits for DATA bytes
@@ -249,18 +354,54 @@ FF_DOUBLE    = ida_bytes.FF_DOUBLE & 0xFFFFFFFF    # double
 FF_PACKREAL  = ida_bytes.FF_PACKREAL & 0xFFFFFFFF  # packed decimal real
 FF_ALIGN     = ida_bytes.FF_ALIGN & 0xFFFFFFFF     # alignment directive
 
-def is_byte(F):     return (is_data(F) and (F & DT_TYPE) == FF_BYTE)
-def is_word(F):     return (is_data(F) and (F & DT_TYPE) == FF_WORD)
-def is_dword(F):     return (is_data(F) and (F & DT_TYPE) == FF_DWORD)
-def is_qword(F):     return (is_data(F) and (F & DT_TYPE) == FF_QWORD)
-def is_oword(F):     return (is_data(F) and (F & DT_TYPE) == FF_OWORD)
-def is_tbyte(F):     return (is_data(F) and (F & DT_TYPE) == FF_TBYTE)
-def is_float(F):    return (is_data(F) and (F & DT_TYPE) == FF_FLOAT)
-def is_double(F):   return (is_data(F) and (F & DT_TYPE) == FF_DOUBLE)
-def is_pack_real(F): return (is_data(F) and (F & DT_TYPE) == FF_PACKREAL)
-def is_strlit(F):    return (is_data(F) and (F & DT_TYPE) == FF_STRLIT)
-def is_struct(F):   return (is_data(F) and (F & DT_TYPE) == FF_STRUCT)
-def is_align(F):    return (is_data(F) and (F & DT_TYPE) == FF_ALIGN)
+def is_byte(f):
+    return is_data(f) and (f & DT_TYPE) == FF_BYTE
+
+
+def is_word(f):
+    return is_data(f) and (f & DT_TYPE) == FF_WORD
+
+
+def is_dword(f):
+    return is_data(f) and (f & DT_TYPE) == FF_DWORD
+
+
+def is_qword(f):
+    return is_data(f) and (f & DT_TYPE) == FF_QWORD
+
+
+def is_oword(f):
+    return is_data(f) and (f & DT_TYPE) == FF_OWORD
+
+
+def is_tbyte(f):
+    return is_data(f) and (f & DT_TYPE) == FF_TBYTE
+
+
+def is_float(f):
+    return is_data(f) and (f & DT_TYPE) == FF_FLOAT
+
+
+def is_double(f):
+    return is_data(f) and (f & DT_TYPE) == FF_DOUBLE
+
+
+def is_pack_real(f):
+    return is_data(f) and (f & DT_TYPE) == FF_PACKREAL
+
+
+def is_strlit(f):
+    return is_data(f) and (f & DT_TYPE) == FF_STRLIT
+
+
+def is_struct(f):
+    return is_data(f) and (f & DT_TYPE) == FF_STRUCT
+
+
+def is_align(f):
+    return is_data(f) and (f & DT_TYPE) == FF_ALIGN
+
+
 
 #
 #      Bits for CODE bytes
@@ -297,12 +438,31 @@ NEF_FLAT   = ida_loader.NEF_FLAT   # Autocreated FLAT group (PE)
 # ----------------------------------------------------------------------------
 #                       M I S C E L L A N E O U S
 # ----------------------------------------------------------------------------
-def value_is_string(var): raise NotImplementedError("this function is not needed in Python")
-def value_is_long(var):   raise NotImplementedError("this function is not needed in Python")
-def value_is_float(var):  raise NotImplementedError("this function is not needed in Python")
-def value_is_func(var):   raise NotImplementedError("this function is not needed in Python")
-def value_is_pvoid(var):  raise NotImplementedError("this function is not needed in Python")
-def value_is_int64(var):  raise NotImplementedError("this function is not needed in Python")
+_NOT_NEEDED = "this function is not needed in Python"
+
+
+def value_is_string(var):
+    raise NotImplementedError(_NOT_NEEDED)
+
+
+def value_is_long(var):
+    raise NotImplementedError(_NOT_NEEDED)
+
+
+def value_is_float(var):
+    raise NotImplementedError(_NOT_NEEDED)
+
+
+def value_is_func(var):
+    raise NotImplementedError(_NOT_NEEDED)
+
+
+def value_is_pvoid(var):
+    raise NotImplementedError(_NOT_NEEDED)
+
+
+def value_is_int64(var):
+    raise NotImplementedError(_NOT_NEEDED)
 
 def to_ea(seg, off):
     """
@@ -310,20 +470,33 @@ def to_ea(seg, off):
     """
     return (seg << 4) + off
 
+_USE_PY_STR = "Use python string operations instead."
+
+
 def form(format, *args):
-    raise DeprecatedIDCError("form() is deprecated. Use python string operations instead.")
+    raise DeprecatedIDCError(
+        f"form() is deprecated. {_USE_PY_STR}")
+
 
 def substr(s, x1, x2):
-    raise DeprecatedIDCError("substr() is deprecated. Use python string operations instead.")
+    raise DeprecatedIDCError(
+        f"substr() is deprecated. {_USE_PY_STR}")
+
 
 def strstr(s1, s2):
-    raise DeprecatedIDCError("strstr() is deprecated. Use python string operations instead.")
+    raise DeprecatedIDCError(
+        f"strstr() is deprecated. {_USE_PY_STR}")
+
 
 def strlen(s):
-    raise DeprecatedIDCError("strlen() is deprecated. Use python string operations instead.")
+    raise DeprecatedIDCError(
+        f"strlen() is deprecated. {_USE_PY_STR}")
+
 
 def xtol(s):
-    raise DeprecatedIDCError("xtol() is deprecated. Use python long() instead.")
+    raise DeprecatedIDCError(
+        "xtol() is deprecated."
+        " Use python long() instead.")
 
 def atoa(ea):
     """
@@ -336,10 +509,14 @@ def atoa(ea):
     return ida_kernwin.ea2str(ea)
 
 def ltoa(n, radix):
-    raise DeprecatedIDCError("ltoa() is deprecated. Use python string operations instead.")
+    raise DeprecatedIDCError(
+        f"ltoa() is deprecated. {_USE_PY_STR}")
+
 
 def atol(s):
-    raise DeprecatedIDCError("atol() is deprecated. Use python long() instead.")
+    raise DeprecatedIDCError(
+        "atol() is deprecated."
+        " Use python long() instead.")
 
 
 def rotate_left(value, count, nbits, offset):
@@ -363,17 +540,17 @@ def rotate_left(value, count, nbits, offset):
     tmp = value & mask
 
     if count > 0:
-        for x in range(count):
+        for _ in range(count):
             if (tmp >> (offset+nbits-1)) & 1:
                 tmp = (tmp << 1) | (1 << offset)
             else:
-                tmp = (tmp << 1)
+                tmp = tmp << 1
     else:
-        for x in range(-count):
+        for _ in range(-count):
             if (tmp >> offset) & 1:
                 tmp = (tmp >> 1) | (1 << (offset+nbits-1))
             else:
-                tmp = (tmp >> 1)
+                tmp = tmp >> 1
 
     value = (value-(value&mask)) | (tmp & mask)
 
@@ -403,23 +580,26 @@ def eval_idc(expr):
 
     :param expr: an expression
 
-    :returns: the expression value. If there are problems, the returned value will be "IDC_FAILURE: xxx"
+    :returns: the expression value. If there are problems,
+             the returned value will be "IDC_FAILURE: xxx"
              where xxx is the error description
 
-    NOTE: Python implementation evaluates IDC only, while IDC can call other registered languages
+    NOTE: Python implementation evaluates IDC only,
+          while IDC can call other registered languages
     """
     rv = ida_expr.idc_value_t()
 
     err = ida_expr.eval_idc_expr(rv, BADADDR, expr)
     if err:
         return "IDC_FAILURE: "+err
-    else:
-        if rv.vtype == '\x02': # long
-            return rv.num
-        elif rv.vtype == '\x07': # VT_STR
-            return rv.c_str()
-        else:
-            raise NotImplementedError("eval_idc() supports only expressions returning strings or longs")
+    if rv.vtype == ida_expr.VT_LONG:
+        return rv.num
+    if rv.vtype == ida_expr.VT_STR:
+        return rv.c_str()
+    raise NotImplementedError(
+        "eval_idc() supports only expressions"
+        " returning strings or longs"
+    )
 
 
 def EVAL_FAILURE(code):
@@ -430,7 +610,8 @@ def EVAL_FAILURE(code):
 
     :returns: True if there was an evaluation error
     """
-    return type(code) == bytes and code.startswith("IDC_FAILURE: ")
+    return isinstance(code, bytes) \
+        and code.startswith("IDC_FAILURE: ")
 
 
 def save_database(idbname, flags=0):
@@ -441,14 +622,16 @@ def save_database(idbname, flags=0):
                     file will be used.
     :param flags: combination of ida_loader.DBFL_... bits or 0
     """
-    if len(idbname) == 0:
+    if not idbname:
         idbname = get_idb_path()
     mask = ida_loader.DBFL_KILL | ida_loader.DBFL_COMP | ida_loader.DBFL_BAK
     return ida_loader.save_database(idbname, flags & mask)
 
-DBFL_BAK = ida_loader.DBFL_BAK # for compatiblity with older versions, eventually delete this
+# for compatibility with older versions, eventually delete this
+DBFL_BAK = ida_loader.DBFL_BAK
 
-def validate_idb_names(do_repair = 0):
+
+def validate_idb_names(do_repair=0):
     """
     check consistency of IDB name records
     :param do_repair: try to repair netnode header it TRUE
@@ -511,11 +694,13 @@ def delete_all_segments():
             ida_funcs.set_func_cmt(func, "", True)
             ida_funcs.del_func(ea)
         ida_bytes.del_hidden_range(ea)
-        seg = ida_segment.getseg(ea)
-        if seg:
-            ida_segment.set_segment_cmt(seg, "", False)
-            ida_segment.set_segment_cmt(seg, "", True)
-            ida_segment.del_segm(ea, ida_segment.SEGMOD_KEEP | ida_segment.SEGMOD_SILENT)
+        ida_segment.set_segment_cmt_by_ea(ea, "", False)
+        ida_segment.set_segment_cmt_by_ea(ea, "", True)
+        if ida_segment.get_segment_info(None, ea):
+            ida_segment.del_segm(
+                ea,
+                ida_segment.SEGMOD_KEEP
+                | ida_segment.SEGMOD_SILENT)
 
         ea = ida_bytes.next_head(ea, ida_ida.inf_get_max_ea())
 
@@ -548,28 +733,33 @@ def set_name(ea, name, flags=ida_name.SN_CHECK):
     """
     return ida_name.set_name(ea, name, flags)
 
-SN_CHECK      = ida_name.SN_CHECK    # Fail if the name contains invalid characters.
-SN_NOCHECK    = ida_name.SN_NOCHECK  # Don't fail if the name contains invalid characters.
-                                     # If this bit is set, all invalid chars
-                                     # (not in NameChars or MangleChars) will be replaced
-                                     # by '_'.
-                                     # List of valid characters is defined in ida.cfg
-SN_PUBLIC     = ida_name.SN_PUBLIC   # if set, make name public
-SN_NON_PUBLIC = ida_name.SN_NON_PUBLIC # if set, make name non-public
-SN_WEAK       = ida_name.SN_WEAK     # if set, make name weak
-SN_NON_WEAK   = ida_name.SN_NON_WEAK # if set, make name non-weak
-SN_AUTO       = ida_name.SN_AUTO     # if set, make name autogenerated
-SN_NON_AUTO   = ida_name.SN_NON_AUTO # if set, make name non-autogenerated
-SN_NOLIST     = ida_name.SN_NOLIST   # if set, exclude name from the list
-                                     # if not set, then include the name into
-                                     # the list (however, if other bits are set,
-                                     # the name might be immediately excluded
-                                     # from the list)
-SN_NOWARN     = ida_name.SN_NOWARN   # don't display a warning if failed
-SN_LOCAL      = ida_name.SN_LOCAL    # create local name. a function should exist.
-                                     # local names can't be public or weak.
-                                     # also they are not included into the list
-                                     # of names they can't have dummy prefixes
+# Fail if the name contains invalid characters.
+SN_CHECK      = ida_name.SN_CHECK
+# Don't fail if the name contains invalid characters.
+# If this bit is set, all invalid chars
+# (not in NameChars or MangleChars) will be replaced
+# by '_'.
+# List of valid characters is defined in ida.cfg
+SN_NOCHECK    = ida_name.SN_NOCHECK
+SN_PUBLIC     = ida_name.SN_PUBLIC    # make name public
+SN_NON_PUBLIC = ida_name.SN_NON_PUBLIC  # make name non-public
+SN_WEAK       = ida_name.SN_WEAK     # make name weak
+SN_NON_WEAK   = ida_name.SN_NON_WEAK  # make name non-weak
+SN_AUTO       = ida_name.SN_AUTO     # make name autogenerated
+SN_NON_AUTO   = ida_name.SN_NON_AUTO  # make name non-auto
+# if set, exclude name from the list
+# if not set, then include the name into
+# the list (however, if other bits are set,
+# the name might be immediately excluded
+# from the list)
+SN_NOLIST     = ida_name.SN_NOLIST
+# don't display a warning if failed
+SN_NOWARN     = ida_name.SN_NOWARN
+# create local name. a function should exist.
+# local names can't be public or weak.
+# also they are not included into the list
+# of names they can't have dummy prefixes
+SN_LOCAL      = ida_name.SN_LOCAL
 
 set_cmt = ida_bytes.set_cmt
 
@@ -581,13 +771,16 @@ def make_array(ea, nitems):
     :param ea: linear address
     :param nitems: size of array in items
 
-    NOTE: This function will create an array of the items with the same type as
-    the type of the item at 'ea'. If the byte at 'ea' is undefined, then
+    NOTE: This function will create an array of the
+    items with the same type as the type of the item
+    at 'ea'. If the byte at 'ea' is undefined, then
     this function will create an array of bytes.
     """
     flags = ida_bytes.get_flags(ea)
 
-    if ida_bytes.is_code(flags) or ida_bytes.is_tail(flags) or ida_bytes.is_align(flags):
+    if (ida_bytes.is_code(flags)
+            or ida_bytes.is_tail(flags)
+            or ida_bytes.is_align(flags)):
         return False
 
     if ida_bytes.is_unknown(flags):
@@ -621,7 +814,9 @@ def create_strlit(ea, endea):
 
     NOTE: The type of an existing string is returned by get_str_type()
     """
-    return ida_bytes.create_strlit(ea, 0 if endea == BADADDR else endea - ea, get_inf_attr(INF_STRTYPE))
+    size = 0 if endea == BADADDR else endea - ea
+    return ida_bytes.create_strlit(
+        ea, size, get_inf_attr(INF_STRTYPE))
 
 
 create_data = ida_bytes.create_data
@@ -750,7 +945,7 @@ def create_struct(ea, size, strname):
     """
     tif = ida_typeinf.tinfo_t()
     if not tif.get_named_type(None, strname) or not tif.is_udt():
-        return -1
+        return 0
 
     if size == -1:
         size = tif.get_size()
@@ -794,21 +989,28 @@ def define_local_var(start, end, location, name):
             return 0
 
         offset = int(m.group(2), 0)
-        return 1 if ida_frame.define_stkvar(func, name, offset, ida_typeinf.tinfo_t(ida_typeinf.BT_UNK_BYTE)) else 0
-    else:
-        # Location as simple register name
-        return ida_frame.add_regvar(func, start, end, location, name, None)
+        tif = ida_typeinf.tinfo_t(ida_typeinf.BT_UNK_BYTE)
+        ok = ida_frame.define_stkvar(
+            func, name, offset, tif)
+        return 1 if ok else 0
+    # Location as simple register name
+    err = ida_frame.add_regvar(
+        func, start, end, location, name, None)
+    return 1 if err == ida_frame.REGVAR_ERROR_OK else 0
 
 
 del_items = ida_bytes.del_items
 
-DELIT_SIMPLE   = ida_bytes.DELIT_SIMPLE   # simply undefine the specified item
-DELIT_EXPAND   = ida_bytes.DELIT_EXPAND   # propogate undefined items, for example
-                                          # if removing an instruction removes all
-                                          # references to the next instruction, then
-                                          # plan to convert to unexplored the next
-                                          # instruction too.
-DELIT_DELNAMES = ida_bytes.DELIT_DELNAMES # delete any names at the specified address(es)
+# simply undefine the specified item
+DELIT_SIMPLE   = ida_bytes.DELIT_SIMPLE
+# propogate undefined items, for example
+# if removing an instruction removes all
+# references to the next instruction, then
+# plan to convert to unexplored the next
+# instruction too.
+DELIT_EXPAND   = ida_bytes.DELIT_EXPAND
+# delete any names at the specified address(es)
+DELIT_DELNAMES = ida_bytes.DELIT_DELNAMES
 
 
 def set_array_params(ea, flags, litems, align):
@@ -825,12 +1027,16 @@ def set_array_params(ea, flags, litems, align):
 
     :returns: 1-ok, 0-failure
     """
-    return eval_idc("set_array_params(0x%X, 0x%X, %d, %d)"%(ea, flags, litems, align))
+    return eval_idc(
+        f"set_array_params(0x{ea:X}, 0x{flags:X},"
+        f" {litems:d}, {align:d})"
+    )
 
 AP_ALLOWDUPS    = 0x00000001     # use 'dup' construct
 AP_SIGNED       = 0x00000002     # treats numbers as signed
 AP_INDEX        = 0x00000004     # display array element indexes as comments
-AP_ARRAY        = 0x00000008     # reserved (this flag is not stored in database)
+# reserved (this flag is not stored in database)
+AP_ARRAY        = 0x00000008
 AP_IDXBASEMASK  = 0x000000F0     # mask for number base of the indexes
 AP_IDXDEC       = 0x00000000     # display indexes in decimal
 AP_IDXHEX       = 0x00000010     # display indexes in hex
@@ -885,8 +1091,7 @@ def op_plain_offset(ea, n, base):
     """
     if base == BADADDR:
         return ida_bytes.clr_op_type(ea, n)
-    else:
-        return ida_offset.op_plain_offset(ea, n, base)
+    return ida_offset.op_plain_offset(ea, n, base)
 
 
 OPND_OUTER = ida_bytes.OPND_OUTER # outer offset base
@@ -950,8 +1155,9 @@ def op_stroff(ea, n, strid, delta):
         - 1 - the second, third and all other operands
         - -1 - all operands
     :param strid: id of a structure type
-    :param delta: struct offset delta. usually 0. denotes the difference
-                    between the structure base and the pointer into the structure.
+    :param delta: struct offset delta. usually 0. denotes the
+                    difference between the structure base and
+                    the pointer into the structure.
 
     """
     path = ida_pro.tid_array(1)
@@ -1019,11 +1225,13 @@ def split_sreg_range(ea, reg, value, tag=SR_user):
     :param value: new value of the segment register.
     :param tag: of SR_... constants
 
-    NOTE: IDA keeps tracks of all the points where segment register change their
-          values. This function allows you to specify the correct value of a segment
-          register if IDA is not able to find the correct value.
+    NOTE: IDA keeps tracks of all the points where
+          segment register change their values.
+          This function allows you to specify the
+          correct value of a segment register if IDA
+          is not able to find the correct value.
     """
-    reg = ida_idp.str2sreg(reg);
+    reg = ida_idp.str2sreg(reg)
     if reg == -1:
         return False
     return ida_segregs.split_sreg_range(ea, reg, value, tag)
@@ -1065,15 +1273,18 @@ def gen_file(filetype, path, ea1, ea2, flags):
                 -1 if an error occurred
                 OFILE_EXE: 0-can't generate exe file, 1-ok
     """
-    fopen = ida_diskio.fopenWB if filetype == ida_loader.OFILE_EXE else ida_diskio.fopenWT
+    if filetype == ida_loader.OFILE_EXE:
+        fopen = ida_diskio.fopenWB
+    else:
+        fopen = ida_diskio.fopenWT
     fp = fopen(path)
     if fp:
-        retval = ida_loader.gen_file(filetype, fp, ea1, ea2, flags)
+        retval = ida_loader.gen_file(
+            filetype, fp, ea1, ea2, flags)
         import ida_fpro
         ida_fpro.qfclose(fp)
         return retval
-    else:
-        return -1
+    return -1
 
 
 # output file types:
@@ -1085,14 +1296,14 @@ OFILE_ASM  = ida_loader.OFILE_ASM
 OFILE_DIF  = ida_loader.OFILE_DIF
 
 # output control flags:
-GENFLG_MAPSEG  = ida_loader.GENFLG_MAPSEG  # map: generate map of segments
-GENFLG_MAPNAME = ida_loader.GENFLG_MAPNAME # map: include dummy names
-GENFLG_MAPDMNG = ida_loader.GENFLG_MAPDMNG # map: demangle names
-GENFLG_MAPLOC  = ida_loader.GENFLG_MAPLOC  # map: include local names
-GENFLG_IDCTYPE = ida_loader.GENFLG_IDCTYPE # idc: gen only information about types
-GENFLG_ASMTYPE = ida_loader.GENFLG_ASMTYPE # asm&lst: gen information about types too
-GENFLG_GENHTML = ida_loader.GENFLG_GENHTML # asm&lst: generate html (gui version only)
-GENFLG_ASMINC  = ida_loader.GENFLG_ASMINC  # asm&lst: gen information only about types
+GENFLG_MAPSEG  = ida_loader.GENFLG_MAPSEG   # map: gen map of segments
+GENFLG_MAPNAME = ida_loader.GENFLG_MAPNAME  # map: include dummy names
+GENFLG_MAPDMNG = ida_loader.GENFLG_MAPDMNG  # map: demangle names
+GENFLG_MAPLOC  = ida_loader.GENFLG_MAPLOC   # map: include local names
+GENFLG_IDCTYPE = ida_loader.GENFLG_IDCTYPE  # idc: gen only type info
+GENFLG_ASMTYPE = ida_loader.GENFLG_ASMTYPE  # asm&lst: gen type info
+GENFLG_GENHTML = ida_loader.GENFLG_GENHTML  # asm&lst: gen html (gui)
+GENFLG_ASMINC  = ida_loader.GENFLG_ASMINC   # asm&lst: gen only types
 
 def gen_flow_graph(outfile, title, ea1, ea2, flags):
     """
@@ -1104,27 +1315,34 @@ def gen_flow_graph(outfile, title, ea1, ea2, flags):
     :param ea2: end of the range to flow chart.
     :param flags: combination of CHART_... constants
 
-    NOTE: If ea2 == BADADDR then ea1 is treated as an address within a function.
+    NOTE: If ea2 == BADADDR then ea1 is treated as
+           an address within a function.
            That function will be flow charted.
     """
-    return ida_gdl.gen_flow_graph(outfile, title, None, ea1, ea2, flags)
+    return ida_gdl.gen_flow_graph(
+        outfile, title, None, ea1, ea2, flags)
 
 
-CHART_PRINT_NAMES = 0x1000 # print labels for each block?
-CHART_GEN_GDL     = 0x4000 # generate .gdl file (file extension is forced to .gdl)
-CHART_WINGRAPH    = 0x8000 # call grapher to display the graph
-CHART_NOLIBFUNCS  = 0x0400 # don't include library functions in the graph
+CHART_PRINT_NAMES = 0x1000  # print labels for each block?
+# generate .gdl file (file extension is forced to .gdl)
+CHART_GEN_GDL     = 0x4000
+# call grapher to display the graph
+CHART_WINGRAPH    = 0x8000
+# don't include library functions in the graph
+CHART_NOLIBFUNCS  = 0x0400
 
 
 def gen_simple_call_chart(outfile, title, flags):
     """
     Generate a function call graph GDL file
 
-    :param outfile: output file name. GDL extension will be used
+    :param outfile: output file name. GDL ext will be used
     :param title:   graph title
-    :param flags:   combination of CHART_GEN_GDL, CHART_WINGRAPH, CHART_NOLIBFUNCS
+    :param flags:   combination of CHART_GEN_GDL,
+                    CHART_WINGRAPH, CHART_NOLIBFUNCS
     """
-    return ida_gdl.gen_simple_call_chart(outfile, "Generating chart", title, flags)
+    return ida_gdl.gen_simple_call_chart(
+        outfile, "Generating chart", title, flags)
 
 
 #----------------------------------------------------------------------------
@@ -1158,33 +1376,35 @@ get_full_flags = ida_bytes.get_full_flags
 get_db_byte = ida_bytes.get_db_byte
 
 
-def get_bytes(ea, size, use_dbg = False):
+def get_bytes(ea, size, use_dbg=False):
     """
     Return the specified number of bytes of the program
 
     :param ea: linear address
-
     :param size: size of buffer in normal 8-bit bytes
-
-    :param use_dbg: if True, use debugger memory, otherwise just the database
+    :param use_dbg: if True, use debugger memory,
+                    otherwise just the database
 
     :returns: None on failure
              otherwise a string containing the read bytes
     """
     if use_dbg:
         return ida_idd.dbg_read_memory(ea, size)
-    else:
-        return ida_bytes.get_bytes(ea, size)
+    return ida_bytes.get_bytes(ea, size)
 
 
 get_wide_byte = ida_bytes.get_wide_byte
 
 
-def __DbgValue(ea, len):
-    if len not in ida_idaapi.__struct_unpack_table:
+def __DbgValue(ea, size):
+    if size not in ida_idaapi.__struct_unpack_table:
         return None
-    r = ida_idd.dbg_read_memory(ea, len)
-    return None if r is None else struct.unpack((">" if ida_ida.inf_is_be() else "<") + ida_idaapi.__struct_unpack_table[len][1], r)[0]
+    r = ida_idd.dbg_read_memory(ea, size)
+    if r is None:
+        return None
+    endian = ">" if ida_ida.inf_is_be() else "<"
+    fmt = ida_idaapi.__struct_unpack_table[size][1]
+    return struct.unpack(endian + fmt, r)[0]
 
 
 def read_dbg_byte(ea):
@@ -1238,13 +1458,16 @@ def write_dbg_memory(ea, data):
     :param data: string to write
     :returns: number of written bytes (-1 - network/debugger error)
 
-    Thread-safe function (may be called only from the main thread and debthread)
+    Thread-safe function (may be called only from
+    the main thread and debthread)
     """
-    __warn_once_deprecated_proto_confusion("write_dbg_memory", "ida_dbg.write_dbg_memory")
+    __warn_once_deprecated_proto_confusion(
+        "write_dbg_memory", "ida_dbg.write_dbg_memory")
     if not ida_dbg.dbg_can_query():
         return -1
-    elif len(data) > 0:
+    if data:
         return ida_idd.dbg_write_memory(ea, data)
+    return 0
 
 
 get_original_byte = ida_bytes.get_original_byte
@@ -1306,12 +1529,7 @@ def get_segm_by_sel(base):
              if no such segment
     """
     sel = ida_segment.find_selector(base)
-    seg = ida_segment.get_segm_by_sel(sel)
-
-    if seg:
-        return seg.start_ea
-    else:
-        return BADADDR
+    return ida_segment.get_segment_ea_by_sel(sel)
 
 
 get_screen_ea = ida_kernwin.get_screen_ea
@@ -1331,12 +1549,11 @@ def read_selection_start():
     Get start address of the selected range
     returns BADADDR - the user has not selected an range
     """
-    selection, startaddr, endaddr = ida_kernwin.read_range_selection(None)
+    selection, startaddr, _endaddr = ida_kernwin.read_range_selection(None)
 
     if selection == 1:
         return startaddr
-    else:
-        return BADADDR
+    return BADADDR
 
 
 def read_selection_end():
@@ -1345,12 +1562,11 @@ def read_selection_end():
 
     :returns: BADADDR - the user has not selected an range
     """
-    selection, startaddr, endaddr = ida_kernwin.read_range_selection(None)
+    selection, _startaddr, endaddr = ida_kernwin.read_range_selection(None)
 
     if selection == 1:
         return endaddr
-    else:
-        return BADADDR
+    return BADADDR
 
 
 def get_sreg(ea, reg):
@@ -1362,11 +1578,12 @@ def get_sreg(ea, reg):
 
     :returns: the value of the segment register or -1 on error
 
-    NOTE: The segment registers in 32bit program usually contain selectors,
-           so to get paragraph pointed to by the segment register you need to
-           call sel2para() function.
+    NOTE: The segment registers in 32bit program
+           usually contain selectors, so to get
+           paragraph pointed to by the segment
+           register you need to call sel2para().
     """
-    reg = ida_idp.str2sreg(reg);
+    reg = ida_idp.str2sreg(reg)
     if reg == -1:
         return -1
     return ida_segregs.get_sreg(ea, reg)
@@ -1434,15 +1651,18 @@ def func_contains(func_ea, ea):
     return False
 
 
-GN_VISIBLE = ida_name.GN_VISIBLE     # replace forbidden characters by SUBSTCHAR
-GN_COLORED = ida_name.GN_COLORED     # return colored name
-GN_DEMANGLED = ida_name.GN_DEMANGLED # return demangled name
-GN_STRICT = ida_name.GN_STRICT       # fail if cannot demangle
-GN_SHORT = ida_name.GN_SHORT         # use short form of demangled name
-GN_LONG = ida_name.GN_LONG           # use long form of demangled name
-GN_LOCAL = ida_name.GN_LOCAL         # try to get local name first; if failed, get global
-GN_ISRET = ida_name.GN_ISRET         # for dummy names: use retloc
-GN_NOT_ISRET = ida_name.GN_NOT_ISRET # for dummy names: do not use retloc
+# replace forbidden characters by SUBSTCHAR
+GN_VISIBLE   = ida_name.GN_VISIBLE
+GN_COLORED   = ida_name.GN_COLORED    # return colored name
+GN_DEMANGLED = ida_name.GN_DEMANGLED  # return demangled name
+GN_STRICT    = ida_name.GN_STRICT     # fail if cannot demangle
+GN_SHORT     = ida_name.GN_SHORT      # short form of demangled
+GN_LONG      = ida_name.GN_LONG       # long form of demangled
+# try to get local name first; if failed, get global
+GN_LOCAL     = ida_name.GN_LOCAL
+GN_ISRET     = ida_name.GN_ISRET      # dummy names: use retloc
+# for dummy names: do not use retloc
+GN_NOT_ISRET = ida_name.GN_NOT_ISRET
 
 
 calc_gtn_flags = ida_name.calc_gtn_flags
@@ -1492,8 +1712,7 @@ def generate_disasm_line(ea, flags):
     text = ida_lines.generate_disasm_line(ea, flags)
     if text:
         return ida_lines.tag_remove(text)
-    else:
-        return ""
+    return ""
 
 # flags for generate_disasm_line
 # generate a disassembly line as if
@@ -1532,8 +1751,7 @@ def print_insn_mnem(ea):
 
     if not res:
         return ""
-    else:
-        return res
+    return res
 
 
 def print_operand(ea, n):
@@ -1552,8 +1770,7 @@ def print_operand(ea, n):
 
     if not res:
         return ""
-    else:
-        return ida_lines.tag_remove(res)
+    return ida_lines.tag_remove(res)
 
 
 def get_operand_type(ea, n):
@@ -1572,14 +1789,14 @@ def get_operand_type(ea, n):
     return -1 if inslen == 0 else insn.ops[n].type
 
 
-o_void     = ida_ua.o_void      # No Operand                           ----------
-o_reg      = ida_ua.o_reg       # General Register (al,ax,es,ds...)    reg
-o_mem      = ida_ua.o_mem       # Direct Memory Reference  (DATA)      addr
-o_phrase   = ida_ua.o_phrase    # Memory Ref [Base Reg + Index Reg]    phrase
-o_displ    = ida_ua.o_displ     # Memory Reg [Base Reg + Index Reg + Displacement] phrase+addr
-o_imm      = ida_ua.o_imm       # Immediate Value                      value
-o_far      = ida_ua.o_far       # Immediate Far Address  (CODE)        addr
-o_near     = ida_ua.o_near      # Immediate Near Address (CODE)        addr
+o_void     = ida_ua.o_void      # No Operand
+o_reg      = ida_ua.o_reg       # General Register
+o_mem      = ida_ua.o_mem       # Direct Memory Ref (DATA)
+o_phrase   = ida_ua.o_phrase    # Mem Ref [Base+Index]
+o_displ    = ida_ua.o_displ     # Mem [Base+Index+Disp]
+o_imm      = ida_ua.o_imm       # Immediate Value
+o_far      = ida_ua.o_far       # Immediate Far Addr
+o_near     = ida_ua.o_near      # Immediate Near Addr
 o_idpspec0 = ida_ua.o_idpspec0  # Processor specific type
 o_idpspec1 = ida_ua.o_idpspec1  # Processor specific type
 o_idpspec2 = ida_ua.o_idpspec2  # Processor specific type
@@ -1602,7 +1819,7 @@ o_creglist  =    ida_ua.o_idpspec2      # Coprocessor register list (for CDP)
 o_creg  =        ida_ua.o_idpspec3      # Coprocessor register (for LDC/STC)
 o_fpreglist  =   ida_ua.o_idpspec4      # Floating point register list
 o_text  =        ida_ua.o_idpspec5      # Arbitrary text stored in the operand
-o_cond  =        (ida_ua.o_idpspec5+1)  # ARM condition as an operand
+o_cond  =        ida_ua.o_idpspec5+1    # ARM condition operand
 
 # ppc
 o_spr  =         ida_ua.o_idpspec0      # Special purpose register
@@ -1637,7 +1854,8 @@ def get_operand_value(ea, n):
     if not op:
         return -1
 
-    if op.type in [ ida_ua.o_mem, ida_ua.o_far, ida_ua.o_near, ida_ua.o_displ ]:
+    if op.type in [ida_ua.o_mem, ida_ua.o_far,
+                    ida_ua.o_near, ida_ua.o_displ]:
         value = op.addr
     elif op.type == ida_ua.o_reg:
         value = op.reg
@@ -1695,17 +1913,20 @@ STRTYPE_LEN4_16   = ida_nalt.STRTYPE_LEN4_16
 # alias
 STRTYPE_C16       = STRTYPE_C_16
 
-def get_strlit_contents(ea, length = -1, strtype = STRTYPE_C):
+def get_strlit_contents(ea, length=-1, strtype=STRTYPE_C):
     """
     Get string contents
     :param ea: linear address
-    :param length: string length. -1 means to calculate the max string length
-    :param strtype: the string type (one of STRTYPE_... constants)
+    :param length: string length. -1 means to calculate
+                   the max string length
+    :param strtype: the string type
+                    (one of STRTYPE_... constants)
 
     :returns: string contents or empty string
     """
     if length == -1:
-        length = ida_bytes.get_max_strlit_length(ea, strtype, ida_bytes.ALOPT_IGNHEADS)
+        length = ida_bytes.get_max_strlit_length(
+            ea, strtype, ida_bytes.ALOPT_IGNHEADS)
 
     return ida_bytes.get_strlit_contents(ea, length, strtype)
 
@@ -1745,7 +1966,10 @@ def process_config_line(directive):
     """
     Obsolete. Please use ida_idp.process_config_directive().
     """
-    return eval_idc('process_config_directive("%s")' % ida_kernwin.str2user(directive))
+    return eval_idc(
+        f'process_config_directive'
+        f'("{ida_kernwin.str2user(directive)}")'
+    )
 
 
 # The following functions allow you to set/get common parameters.
@@ -1758,7 +1982,9 @@ INF_PROCNAME   = 1            # char[8]; Name of current processor
 INF_GENFLAGS   = 2            # ushort;  General flags:
 INF_LFLAGS     = 3            # uint32;  IDP-dependent flags
 
-INF_DATABASE_CHANGE_COUNT= 4  # uint32; database change counter; keeps track of byte and segment modifications
+# uint32; database change counter;
+# keeps track of byte and segment modifications
+INF_DATABASE_CHANGE_COUNT = 4
 INF_CHANGE_COUNTER=INF_DATABASE_CHANGE_COUNT
 
 INF_FILETYPE   = 5            # short;   type of input file (see ida.hpp)
@@ -1776,11 +2002,13 @@ FT_COFF        = 10           #              Common Object File Format (COFF)
 FT_PE          = 11           #              Portable Executable (PE)
 FT_OMF         = 12           #              Object Module Format
 FT_SREC        = 13           #              R-records
-FT_ZIP         = 14           #              ZIP file (this file is never loaded to IDA database)
+# ZIP file (this file is never loaded to IDA database)
+FT_ZIP         = 14
 FT_OMFLIB      = 15           #              Library of OMF Modules
 FT_AR          = 16           #              ar library
 FT_LOADER      = 17           #              file is loaded using LOADER DLL
-FT_ELF         = 18           #              Executable and Linkable Format (ELF)
+# Executable and Linkable Format (ELF)
+FT_ELF         = 18
 FT_W32RUN      = 19           #              Watcom DOS32 Extender (W32RUN)
 FT_AOUT        = 20           #              Linux a.out (AOUT)
 FT_PRC         = 21           #              PalmPilot program file
@@ -1859,13 +2087,16 @@ INF_LOW_OFF=INF_LOWOFF
 INF_HIGHOFF    = 24           # ea_t;    high limit of voids
 INF_HIGH_OFF=INF_HIGHOFF
 INF_MAXREF     = 25           # uval_t;  max xref depth
-INF_PRIVRANGE_START_EA = 27   # uval_t; Range of addresses reserved for internal use.
+# uval_t; Range of addresses reserved for internal use.
+INF_PRIVRANGE_START_EA = 27
 INF_START_PRIVRANGE=INF_PRIVRANGE_START_EA
-INF_PRIVRANGE_END_EA = 28     # uval_t; Initially (MAXADDR, MAXADDR+0x100000)
+# uval_t; Initially (MAXADDR, MAXADDR+0x100000)
+INF_PRIVRANGE_END_EA = 28
 INF_END_PRIVRANGE=INF_PRIVRANGE_END_EA
 
-INF_NETDELTA   = 29           # sval_t; Delta value to be added to all addresses for mapping to netnodes.
-                              # Initially 0.
+# sval_t; Delta value to be added to all addresses
+# for mapping to netnodes. Initially 0.
+INF_NETDELTA   = 29
 # CROSS REFERENCES
 INF_XREFNUM    = 30           # char;    Number of references to generate
                               #          0 - xrefs won't be generated at all
@@ -1891,7 +2122,8 @@ INF_LONG_DEMNAMES = 37       # int32;   long form of demangled names
                               #          see demangle.h for definitions
 INF_LONG_DN=INF_LONG_DEMNAMES
 INF_DEMNAMES   = 38           # char;    display demangled names as:
-INF_LISTNAMES  = 39           # uchar;   What names should be included in the list?
+# uchar; What names should be included in the list?
+INF_LISTNAMES  = 39
 
 # DISASSEMBLY LISTING DETAILS
 INF_INDENT     = 40           # char;    Indention for instructions
@@ -1925,7 +2157,8 @@ INF_DATATYPES    = 55         # int32;   data types allowed in data carousel
 
 # COMPILER
 INF_CC_ID        = 57         # uchar;   compiler
-COMP_MASK    = 0x0F           #              mask to apply to get the pure compiler id
+# mask to apply to get the pure compiler id
+COMP_MASK    = 0x0F
 COMP_UNK     = 0x00           # Unknown
 COMP_MS      = 0x01           # Visual C++
 COMP_BC      = 0x02           # Borland C++
@@ -1955,77 +2188,100 @@ INF_SIZEOF_LDBL = INF_CC_SIZE_LDBL
 INF_ABIBITS= 67               # uint32; ABI features
 INF_APPCALL_OPTIONS= 68       # uint32; appcall options
 
+def _inf_acc(name):
+    """Helper to build (getter, setter) tuple."""
+    return (
+        getattr(ida_ida, "inf_get_" + name),
+        getattr(ida_ida, "inf_set_" + name),
+    )
+
 _INF_attrs_accessors = {
-    INF_ABIBITS               : (ida_ida.inf_get_abibits,               ida_ida.inf_set_abibits),
-    INF_AF                    : (ida_ida.inf_get_af,                    ida_ida.inf_set_af),
-    INF_AF2                   : (ida_ida.inf_get_af2,                   ida_ida.inf_set_af2),
-    INF_APPCALL_OPTIONS       : (ida_ida.inf_get_appcall_options,       ida_ida.inf_set_appcall_options),
-    INF_APPTYPE               : (ida_ida.inf_get_apptype,               ida_ida.inf_set_apptype),
-    INF_ASMTYPE               : (ida_ida.inf_get_asmtype,               ida_ida.inf_set_asmtype),
-    INF_BASEADDR              : (ida_ida.inf_get_baseaddr,              ida_ida.inf_set_baseaddr),
-    INF_BIN_PREFIX_SIZE       : (ida_ida.inf_get_bin_prefix_size,       ida_ida.inf_set_bin_prefix_size),
-    INF_CC_CM                 : (ida_ida.inf_get_cc_cm,                 ida_ida.inf_set_cc_cm),
-    INF_CC_DEFALIGN           : (ida_ida.inf_get_cc_defalign,           ida_ida.inf_set_cc_defalign),
-    INF_CC_ID                 : (ida_ida.inf_get_cc_id,                 ida_ida.inf_set_cc_id),
-    INF_CC_SIZE_B             : (ida_ida.inf_get_cc_size_b,             ida_ida.inf_set_cc_size_b),
-    INF_CC_SIZE_E             : (ida_ida.inf_get_cc_size_e,             ida_ida.inf_set_cc_size_e),
-    INF_CC_SIZE_I             : (ida_ida.inf_get_cc_size_i,             ida_ida.inf_set_cc_size_i),
-    INF_CC_SIZE_L             : (ida_ida.inf_get_cc_size_l,             ida_ida.inf_set_cc_size_l),
-    INF_CC_SIZE_LDBL          : (ida_ida.inf_get_cc_size_ldbl,          ida_ida.inf_set_cc_size_ldbl),
-    INF_CC_SIZE_LL            : (ida_ida.inf_get_cc_size_ll,            ida_ida.inf_set_cc_size_ll),
-    INF_CC_SIZE_S             : (ida_ida.inf_get_cc_size_s,             ida_ida.inf_set_cc_size_s),
-    INF_CMTFLAG               : (ida_ida.inf_get_cmtflg,                ida_ida.inf_set_cmtflg),
-    INF_CMT_INDENT            : (ida_ida.inf_get_cmt_indent,            ida_ida.inf_set_cmt_indent),
-    INF_DATABASE_CHANGE_COUNT : (ida_ida.inf_get_database_change_count, ida_ida.inf_set_database_change_count),
-    INF_DATATYPES             : (ida_ida.inf_get_datatypes,             ida_ida.inf_set_datatypes),
-    INF_DEMNAMES              : (ida_ida.inf_get_demnames,              ida_ida.inf_set_demnames),
-    INF_END_PRIVRANGE         : (ida_ida.inf_get_privrange_end_ea,      ida_ida.inf_set_privrange_end_ea),
-    INF_FILETYPE              : (ida_ida.inf_get_filetype,              ida_ida.inf_set_filetype),
-    INF_GENFLAGS              : (ida_ida.inf_get_genflags,              ida_ida.inf_set_genflags),
-    INF_HIGHOFF               : (ida_ida.inf_get_highoff,               ida_ida.inf_set_highoff),
-    INF_INDENT                : (ida_ida.inf_get_indent,                ida_ida.inf_set_indent),
-    INF_LENXREF               : (ida_ida.inf_get_lenxref,               ida_ida.inf_set_lenxref),
-    INF_LFLAGS                : (ida_ida.inf_get_lflags,                ida_ida.inf_set_lflags),
-    INF_LIMITER               : (ida_ida.inf_get_limiter,               ida_ida.inf_set_limiter),
-    INF_LISTNAMES             : (ida_ida.inf_get_listnames,             ida_ida.inf_set_listnames),
-    INF_LONG_DEMNAMES         : (ida_ida.inf_get_long_demnames,         ida_ida.inf_set_long_demnames),
-    INF_LOWOFF                : (ida_ida.inf_get_lowoff,                ida_ida.inf_set_lowoff),
-    INF_MAIN                  : (ida_ida.inf_get_main,                  ida_ida.inf_set_main),
-    INF_MARGIN                : (ida_ida.inf_get_margin,                ida_ida.inf_set_margin),
-    INF_MAXREF                : (ida_ida.inf_get_maxref,                ida_ida.inf_set_maxref),
-    INF_MAX_AUTONAME_LEN      : (ida_ida.inf_get_max_autoname_len,      ida_ida.inf_set_max_autoname_len),
-    INF_MAX_EA                : (ida_ida.inf_get_max_ea,                ida_ida.inf_set_max_ea),
-    INF_MIN_EA                : (ida_ida.inf_get_min_ea,                ida_ida.inf_set_min_ea),
-    INF_MODEL                 : (ida_ida.inf_get_cc_cm,                 ida_ida.inf_set_cc_cm),
-    INF_NAMETYPE              : (ida_ida.inf_get_nametype,              ida_ida.inf_set_nametype),
-    INF_NETDELTA              : (ida_ida.inf_get_netdelta,              ida_ida.inf_set_netdelta),
-    INF_OMAX_EA               : (ida_ida.inf_get_omax_ea,               ida_ida.inf_set_omax_ea),
-    INF_OMIN_EA               : (ida_ida.inf_get_omin_ea,               ida_ida.inf_set_omin_ea),
-    INF_OSTYPE                : (ida_ida.inf_get_ostype,                ida_ida.inf_set_ostype),
-    INF_OUTFLAGS              : (ida_ida.inf_get_outflags,              ida_ida.inf_set_outflags),
-    INF_PREFFLAG              : (ida_ida.inf_get_prefflag,              ida_ida.inf_set_prefflag),
-    INF_PRIVRANGE_END_EA      : (ida_ida.inf_get_privrange_end_ea,      ida_ida.inf_set_privrange_end_ea),
-    INF_PRIVRANGE_START_EA    : (ida_ida.inf_get_privrange_start_ea,    ida_ida.inf_set_privrange_start_ea),
-    INF_PROCNAME              : (ida_ida.inf_get_procname,              ida_ida.inf_set_procname),
-    INF_REFCMTNUM             : (ida_ida.inf_get_refcmtnum,             ida_ida.inf_set_refcmtnum),
-    INF_SHORT_DEMNAMES        : (ida_ida.inf_get_short_demnames,        ida_ida.inf_set_short_demnames),
-    INF_SPECSEGS              : (ida_ida.inf_get_specsegs,              ida_ida.inf_set_specsegs),
-    INF_START_CS              : (ida_ida.inf_get_start_cs,              ida_ida.inf_set_start_cs),
-    INF_START_EA              : (ida_ida.inf_get_start_ea,              ida_ida.inf_set_start_ea),
-    INF_START_IP              : (ida_ida.inf_get_start_ip,              ida_ida.inf_set_start_ip),
-    INF_START_PRIVRANGE       : (ida_ida.inf_get_privrange_start_ea,    ida_ida.inf_set_privrange_start_ea),
-    INF_START_SP              : (ida_ida.inf_get_start_sp,              ida_ida.inf_set_start_sp),
-    INF_START_SS              : (ida_ida.inf_get_start_ss,              ida_ida.inf_set_start_ss),
-    INF_STRLIT_BREAK          : (ida_ida.inf_get_strlit_break,          ida_ida.inf_set_strlit_break),
-    INF_STRLIT_FLAGS          : (ida_ida.inf_get_strlit_flags,          ida_ida.inf_set_strlit_flags),
-    INF_STRLIT_PREF           : (ida_ida.inf_get_strlit_pref,           ida_ida.inf_set_strlit_pref),
-    INF_STRLIT_SERNUM         : (ida_ida.inf_get_strlit_sernum,         ida_ida.inf_set_strlit_sernum),
-    INF_STRLIT_ZEROES         : (ida_ida.inf_get_strlit_zeroes,         ida_ida.inf_set_strlit_zeroes),
-    INF_STRTYPE               : (ida_ida.inf_get_strtype,               ida_ida.inf_set_strtype),
-    INF_TYPE_XREFNUM          : (ida_ida.inf_get_type_xrefnum,          ida_ida.inf_set_type_xrefnum),
-    INF_VERSION               : (ida_ida.inf_get_version,               ida_ida.inf_set_version),
-    INF_XREFFLAG              : (ida_ida.inf_get_xrefflag,              ida_ida.inf_set_xrefflag),
-    INF_XREFNUM               : (ida_ida.inf_get_xrefnum,               ida_ida.inf_set_xrefnum),
+    INF_ABIBITS: _inf_acc("abibits"),
+    INF_AF: _inf_acc("af"),
+    INF_AF2: _inf_acc("af2"),
+    INF_APPCALL_OPTIONS: _inf_acc("appcall_options"),
+    INF_APPTYPE: _inf_acc("apptype"),
+    INF_ASMTYPE: _inf_acc("asmtype"),
+    INF_BASEADDR: _inf_acc("baseaddr"),
+    INF_BIN_PREFIX_SIZE: _inf_acc("bin_prefix_size"),
+    INF_CC_CM: _inf_acc("cc_cm"),
+    INF_CC_DEFALIGN: _inf_acc("cc_defalign"),
+    INF_CC_ID: _inf_acc("cc_id"),
+    INF_CC_SIZE_B: _inf_acc("cc_size_b"),
+    INF_CC_SIZE_E: _inf_acc("cc_size_e"),
+    INF_CC_SIZE_I: _inf_acc("cc_size_i"),
+    INF_CC_SIZE_L: _inf_acc("cc_size_l"),
+    INF_CC_SIZE_LDBL: _inf_acc("cc_size_ldbl"),
+    INF_CC_SIZE_LL: _inf_acc("cc_size_ll"),
+    INF_CC_SIZE_S: _inf_acc("cc_size_s"),
+    INF_CMTFLAG: (
+        ida_ida.inf_get_cmtflg,
+        ida_ida.inf_set_cmtflg),
+    INF_CMT_INDENT: _inf_acc("cmt_indent"),
+    INF_DATABASE_CHANGE_COUNT: (
+        ida_ida.inf_get_database_change_count,
+        ida_ida.inf_set_database_change_count),
+    INF_DATATYPES: _inf_acc("datatypes"),
+    INF_DEMNAMES: _inf_acc("demnames"),
+    INF_END_PRIVRANGE: (
+        ida_ida.inf_get_privrange_end_ea,
+        ida_ida.inf_set_privrange_end_ea),
+    INF_FILETYPE: _inf_acc("filetype"),
+    INF_GENFLAGS: _inf_acc("genflags"),
+    INF_HIGHOFF: _inf_acc("highoff"),
+    INF_INDENT: _inf_acc("indent"),
+    INF_LENXREF: _inf_acc("lenxref"),
+    INF_LFLAGS: _inf_acc("lflags"),
+    INF_LIMITER: _inf_acc("limiter"),
+    INF_LISTNAMES: _inf_acc("listnames"),
+    INF_LONG_DEMNAMES: _inf_acc("long_demnames"),
+    INF_LOWOFF: _inf_acc("lowoff"),
+    INF_MAIN: _inf_acc("main"),
+    INF_MARGIN: _inf_acc("margin"),
+    INF_MAXREF: _inf_acc("maxref"),
+    INF_MAX_AUTONAME_LEN: (
+        ida_ida.inf_get_max_autoname_len,
+        ida_ida.inf_set_max_autoname_len),
+    INF_MAX_EA: _inf_acc("max_ea"),
+    INF_MIN_EA: _inf_acc("min_ea"),
+    INF_MODEL: _inf_acc("cc_cm"),
+    INF_NAMETYPE: _inf_acc("nametype"),
+    INF_NETDELTA: _inf_acc("netdelta"),
+    INF_OMAX_EA: _inf_acc("omax_ea"),
+    INF_OMIN_EA: _inf_acc("omin_ea"),
+    INF_OSTYPE: _inf_acc("ostype"),
+    INF_OUTFLAGS: _inf_acc("outflags"),
+    INF_PREFFLAG: _inf_acc("prefflag"),
+    INF_PRIVRANGE_END_EA: (
+        ida_ida.inf_get_privrange_end_ea,
+        ida_ida.inf_set_privrange_end_ea),
+    INF_PRIVRANGE_START_EA: (
+        ida_ida.inf_get_privrange_start_ea,
+        ida_ida.inf_set_privrange_start_ea),
+    INF_PROCNAME: _inf_acc("procname"),
+    INF_REFCMTNUM: _inf_acc("refcmtnum"),
+    INF_SHORT_DEMNAMES: (
+        ida_ida.inf_get_short_demnames,
+        ida_ida.inf_set_short_demnames),
+    INF_SPECSEGS: _inf_acc("specsegs"),
+    INF_START_CS: _inf_acc("start_cs"),
+    INF_START_EA: _inf_acc("start_ea"),
+    INF_START_IP: _inf_acc("start_ip"),
+    INF_START_PRIVRANGE: (
+        ida_ida.inf_get_privrange_start_ea,
+        ida_ida.inf_set_privrange_start_ea),
+    INF_START_SP: _inf_acc("start_sp"),
+    INF_START_SS: _inf_acc("start_ss"),
+    INF_STRLIT_BREAK: _inf_acc("strlit_break"),
+    INF_STRLIT_FLAGS: _inf_acc("strlit_flags"),
+    INF_STRLIT_PREF: _inf_acc("strlit_pref"),
+    INF_STRLIT_SERNUM: _inf_acc("strlit_sernum"),
+    INF_STRLIT_ZEROES: _inf_acc("strlit_zeroes"),
+    INF_STRTYPE: _inf_acc("strtype"),
+    INF_TYPE_XREFNUM: _inf_acc("type_xrefnum"),
+    INF_VERSION: _inf_acc("version"),
+    INF_XREFFLAG: _inf_acc("xrefflag"),
+    INF_XREFNUM: _inf_acc("xrefnum"),
 }
 
 def get_inf_attr(attr):
@@ -2122,12 +2378,11 @@ def sel2para(sel):
     """
     s = ida_pro.sel_pointer()
     base = ida_pro.ea_pointer()
-    res,tmp = ida_segment.getn_selector(sel, s.cast(), base.cast())
+    res, _tmp = ida_segment.getn_selector(sel, s.cast(), base.cast())
 
     if not res:
         return sel
-    else:
-        return base.value()
+    return base.value()
 
 
 def find_selector(val):
@@ -2155,11 +2410,7 @@ def get_first_seg():
     :returns: address of the start of the first segment
         BADADDR - no segments are defined
     """
-    seg = ida_segment.get_first_seg()
-    if not seg:
-        return BADADDR
-    else:
-        return seg.start_ea
+    return ida_segment.get_first_segment_ea()
 
 
 def get_next_seg(ea):
@@ -2171,11 +2422,7 @@ def get_next_seg(ea):
     :returns: start of the next segment
              BADADDR - no next segment
     """
-    nextseg = ida_segment.get_next_seg(ea)
-    if not nextseg:
-        return BADADDR
-    else:
-        return nextseg.start_ea
+    return ida_segment.get_next_segment_ea(ea)
 
 
 def get_segm_start(ea):
@@ -2187,12 +2434,10 @@ def get_segm_start(ea):
     :returns: start of segment
              BADADDR - the specified address doesn't belong to any segment
     """
-    seg = ida_segment.getseg(ea)
-
-    if not seg:
+    si = ida_segment.segment_info_t()
+    if not ida_segment.get_segment_info(si, ea):
         return BADADDR
-    else:
-        return seg.start_ea
+    return si.start_ea
 
 
 def get_segm_end(ea):
@@ -2204,12 +2449,10 @@ def get_segm_end(ea):
     :returns: end of segment (an address past end of the segment)
              BADADDR - the specified address doesn't belong to any segment
     """
-    seg = ida_segment.getseg(ea)
-
-    if not seg:
+    si = ida_segment.segment_info_t()
+    if not ida_segment.get_segment_info(si, ea):
         return BADADDR
-    else:
-        return seg.end_ea
+    return si.end_ea
 
 
 def get_segm_name(ea):
@@ -2220,17 +2463,8 @@ def get_segm_name(ea):
 
     :returns: "" - no segment at the specified address
     """
-    seg = ida_segment.getseg(ea)
-
-    if not seg:
-        return ""
-    else:
-        name = ida_segment.get_segm_name(seg)
-
-        if not name:
-            return ""
-        else:
-            return name
+    name = ida_segment.get_segment_name(ea)
+    return name if name else ""
 
 
 def add_segm_ex(startea, endea, base, use32, align, comb, flags):
@@ -2252,41 +2486,51 @@ def add_segm_ex(startea, endea, base, use32, align, comb, flags):
 
     :returns: 0-failed, 1-ok
     """
-    s = ida_segment.segment_t()
-    s.start_ea = startea
-    s.end_ea   = endea
-    s.sel      = ida_segment.setup_selector(base)
-    s.bitness  = use32
-    s.align    = align
-    s.comb     = comb
-    return ida_segment.add_segm_ex(s, "", "", flags)
+    si = ida_segment.segment_info_t()
+    si.start_ea = startea
+    si.end_ea   = endea
+    si.set_sel(ida_segment.setup_selector(base))
+    si.set_bitness(use32)
+    si.set_align(align)
+    si.set_comb(comb)
+    return ida_segment.add_segment_ex(si, flags)
 
-ADDSEG_NOSREG  = ida_segment.ADDSEG_NOSREG  # set all default segment register values
-                                            # to BADSELs
-                                            # (undefine all default segment registers)
-ADDSEG_OR_DIE  = ida_segment. ADDSEG_OR_DIE # qexit() if can't add a segment
-ADDSEG_NOTRUNC = ida_segment.ADDSEG_NOTRUNC # don't truncate the new segment at the beginning
-                                            # of the next segment if they overlap.
-                                            # destroy/truncate old segments instead.
-ADDSEG_QUIET   = ida_segment.ADDSEG_QUIET   # silent mode, no "Adding segment..." in the messages window
-ADDSEG_FILLGAP = ida_segment.ADDSEG_FILLGAP # If there is a gap between the new segment
-                                            # and the previous one, and this gap is less
-                                            # than 64K, then fill the gap by extending the
-                                            # previous segment and adding .align directive
-                                            # to it. This way we avoid gaps between segments.
-                                            # Too many gaps lead to a virtual array failure.
-                                            # It cannot hold more than ~1000 gaps.
-ADDSEG_SPARSE  = ida_segment.ADDSEG_SPARSE  # Use sparse storage method for the new segment
+# set all default segment register values
+# to BADSELs
+# (undefine all default segment registers)
+ADDSEG_NOSREG  = ida_segment.ADDSEG_NOSREG
+# qexit() if can't add a segment
+ADDSEG_OR_DIE  = ida_segment.ADDSEG_OR_DIE
+# don't truncate the new segment at the beginning
+# of the next segment if they overlap.
+# destroy/truncate old segments instead.
+ADDSEG_NOTRUNC = ida_segment.ADDSEG_NOTRUNC
+# silent mode, no "Adding segment..."
+# in the messages window
+ADDSEG_QUIET   = ida_segment.ADDSEG_QUIET
+# If there is a gap between the new segment
+# and the previous one, and this gap is less
+# than 64K, then fill the gap by extending the
+# previous segment and adding .align directive
+# to it. This way we avoid gaps between segments.
+# Too many gaps lead to a virtual array failure.
+# It cannot hold more than ~1000 gaps.
+ADDSEG_FILLGAP = ida_segment.ADDSEG_FILLGAP
+# Use sparse storage method for the new segment
+ADDSEG_SPARSE  = ida_segment.ADDSEG_SPARSE
 
 def AddSeg(startea, endea, base, use32, align, comb):
     return add_segm_ex(startea, endea, base, use32, align, comb, ADDSEG_NOSREG)
 
 del_segm = ida_segment.del_segm
 
-SEGMOD_KILL   = ida_segment.SEGMOD_KILL   # disable addresses if segment gets
-                                     # shrinked or deleted
-SEGMOD_KEEP   = ida_segment.SEGMOD_KEEP   # keep information (code & data, etc)
-SEGMOD_SILENT = ida_segment.SEGMOD_SILENT # be silent
+# disable addresses if segment gets
+# shrinked or deleted
+SEGMOD_KILL   = ida_segment.SEGMOD_KILL
+# keep information (code & data, etc)
+SEGMOD_KEEP   = ida_segment.SEGMOD_KEEP
+# be silent
+SEGMOD_SILENT = ida_segment.SEGMOD_SILENT
 
 
 def set_segment_bounds(ea, startea, endea, flags):
@@ -2313,12 +2557,7 @@ def set_segm_name(ea, name):
 
     :returns: success (boolean)
     """
-    seg = ida_segment.getseg(ea)
-
-    if not seg:
-        return False
-
-    return ida_segment.set_segm_name(seg, name)
+    return bool(ida_segment.set_segment_name(ea, name))
 
 
 def set_segm_class(ea, segclass):
@@ -2330,12 +2569,7 @@ def set_segm_class(ea, segclass):
 
     :returns: success (boolean)
     """
-    seg = ida_segment.getseg(ea)
-
-    if not seg:
-        return False
-
-    return ida_segment.set_segm_class(seg, segclass)
+    return bool(ida_segment.set_segment_class(ea, segclass))
 
 
 def set_segm_alignment(ea, alignment):
@@ -2350,22 +2584,33 @@ def set_segm_alignment(ea, alignment):
     return set_segm_attr(ea, SEGATTR_ALIGN, alignment)
 
 
-saAbs        = ida_segment.saAbs        # Absolute segment.
-saRelByte    = ida_segment.saRelByte    # Relocatable, byte aligned.
-saRelWord    = ida_segment.saRelWord    # Relocatable, word (2-byte, 16-bit) aligned.
-saRelPara    = ida_segment.saRelPara    # Relocatable, paragraph (16-byte) aligned.
-saRelPage    = ida_segment.saRelPage    # Relocatable, aligned on 256-byte boundary
-                                        # (a "page" in the original Intel specification).
-saRelDble    = ida_segment.saRelDble    # Relocatable, aligned on a double word
-                                        # (4-byte) boundary. This value is used by
-                                        # the PharLap OMF for the same alignment.
-saRel4K      = ida_segment.saRel4K      # This value is used by the PharLap OMF for
-                                        # page (4K) alignment. It is not supported
-                                        # by LINK.
-saGroup      = ida_segment.saGroup      # Segment group
-saRel32Bytes = ida_segment.saRel32Bytes # 32 bytes
-saRel64Bytes = ida_segment.saRel64Bytes # 64 bytes
-saRelQword   = ida_segment.saRelQword   # 8 bytes
+# Absolute segment.
+saAbs        = ida_segment.saAbs
+# Relocatable, byte aligned.
+saRelByte    = ida_segment.saRelByte
+# Relocatable, word (2-byte, 16-bit) aligned.
+saRelWord    = ida_segment.saRelWord
+# Relocatable, paragraph (16-byte) aligned.
+saRelPara    = ida_segment.saRelPara
+# Relocatable, aligned on 256-byte boundary
+# (a "page" in the original Intel specification).
+saRelPage    = ida_segment.saRelPage
+# Relocatable, aligned on a double word
+# (4-byte) boundary. This value is used by
+# the PharLap OMF for the same alignment.
+saRelDble    = ida_segment.saRelDble
+# This value is used by the PharLap OMF for
+# page (4K) alignment. It is not supported
+# by LINK.
+saRel4K      = ida_segment.saRel4K
+# Segment group
+saGroup      = ida_segment.saGroup
+# 32 bytes
+saRel32Bytes = ida_segment.saRel32Bytes
+# 64 bytes
+saRel64Bytes = ida_segment.saRel64Bytes
+# 8 bytes
+saRelQword   = ida_segment.saRelQword
 
 
 def set_segm_combination(segea, comb):
@@ -2380,15 +2625,21 @@ def set_segm_combination(segea, comb):
     return set_segm_attr(segea, SEGATTR_COMB, comb)
 
 
-scPriv   = ida_segment.scPriv   # Private. Do not combine with any other program
-                                # segment.
-scPub    = ida_segment.scPub    # Public. Combine by appending at an offset that
-                                # meets the alignment requirement.
-scPub2   = ida_segment.scPub2   # As defined by Microsoft, same as C=2 (public).
-scStack  = ida_segment.scStack  # Stack. Combine as for C=2. This combine type
-                                # forces byte alignment.
-scCommon = ida_segment.scCommon # Common. Combine by overlay using maximum size.
-scPub3   = ida_segment.scPub3   # As defined by Microsoft, same as C=2 (public).
+# Private. Do not combine with any other program
+# segment.
+scPriv   = ida_segment.scPriv
+# Public. Combine by appending at an offset that
+# meets the alignment requirement.
+scPub    = ida_segment.scPub
+# As defined by Microsoft, same as C=2 (public).
+scPub2   = ida_segment.scPub2
+# Stack. Combine as for C=2. This combine type
+# forces byte alignment.
+scStack  = ida_segment.scStack
+# Common. Combine by overlay using maximum size.
+scCommon = ida_segment.scCommon
+# As defined by Microsoft, same as C=2 (public).
+scPub3   = ida_segment.scPub3
 
 
 def set_segm_addressing(ea, bitness):
@@ -2400,14 +2651,7 @@ def set_segm_addressing(ea, bitness):
 
     :returns: success (boolean)
     """
-    seg = ida_segment.getseg(ea)
-
-    if not seg:
-        return False
-
-    seg.bitness = bitness
-
-    return True
+    return ida_segment.set_segment_addressing(ea, bitness)
 
 
 def selector_by_name(segname):
@@ -2418,12 +2662,13 @@ def selector_by_name(segname):
 
     :returns: segment selector or BADADDR
     """
-    seg = ida_segment.get_segm_by_name(segname)
-
-    if not seg:
+    seg_ea = ida_segment.get_segment_ea_by_name(segname)
+    if seg_ea == ida_idaapi.BADADDR:
         return BADADDR
-
-    return seg.sel
+    si = ida_segment.segment_info_t()
+    if not ida_segment.get_segment_info(si, seg_ea):
+        return BADADDR
+    return si.get_sel()
 
 
 def set_default_sreg_value(ea, reg, value):
@@ -2436,11 +2681,12 @@ def set_default_sreg_value(ea, reg, value):
     :param reg: name of segment register
     :param value: default value of the segment register. -1-undefined.
     """
-    seg = ida_segment.getseg(ea)
-    reg = ida_idp.str2sreg(reg);
+    reg = ida_idp.str2sreg(reg)
     if reg == -1:
         return False
-    return ida_segregs.set_default_sreg_value(seg, reg, value)
+    has_seg = ida_segment.get_segment_info(None, ea)
+    seg_ea = ea if has_seg else ida_idaapi.BADADDR
+    return ida_segregs.set_default_sreg_value_ea(seg_ea, reg, value)
 
 
 def set_segm_type(segea, segtype):
@@ -2452,13 +2698,11 @@ def set_segm_type(segea, segtype):
 
     :returns: !=0 - ok
     """
-    seg = ida_segment.getseg(segea)
-
-    if not seg:
+    si = ida_segment.segment_info_t()
+    if not ida_segment.get_segment_info(si, segea):
         return False
-
-    seg.type = segtype
-    return seg.update()
+    si.set_type(segtype)
+    return ida_segment.set_segment_info(si)
 
 
 SEG_NORM   = ida_segment.SEG_NORM
@@ -2472,10 +2716,12 @@ SEG_GRP    = ida_segment.SEG_GRP    # * group of segments
 SEG_NULL   = ida_segment.SEG_NULL   # zero-length segment
 SEG_UNDF   = ida_segment.SEG_UNDF   # undefined segment type
 SEG_BSS    = ida_segment.SEG_BSS    # uninitialized segment
-SEG_ABSSYM = ida_segment.SEG_ABSSYM # * segment with definitions of absolute symbols
-                                    #   no instructions are allowed
-SEG_COMM   = ida_segment.SEG_COMM   # * segment with communal definitions
-                                    #   no instructions are allowed
+# * segment with definitions of absolute symbols
+#   no instructions are allowed
+SEG_ABSSYM = ida_segment.SEG_ABSSYM
+# * segment with communal definitions
+#   no instructions are allowed
+SEG_COMM   = ida_segment.SEG_COMM
 SEG_IMEM   = ida_segment.SEG_IMEM   # internal processor memory & sfr (8051)
 
 
@@ -2486,12 +2732,19 @@ def get_segm_attr(segea, attr):
     :param segea: any address within segment
     :param attr: one of SEGATTR_... constants
     """
-    seg = ida_segment.getseg(segea)
-    assert seg, "could not find segment at 0x%x" % segea
-    if attr in [ SEGATTR_ES, SEGATTR_CS, SEGATTR_SS, SEGATTR_DS, SEGATTR_FS, SEGATTR_GS ]:
-        return ida_segment.get_defsr(seg, _SEGATTRMAP[attr][1])
-    else:
-        return _IDC_GetAttr(seg, _SEGATTRMAP, attr)
+    si = ida_segment.segment_info_t()
+    assert ida_segment.get_segment_info(si, segea), \
+        f"could not find segment at 0x{segea:x}"
+    if attr in _SEGATTR_DEFSR:
+        return si.get_defsr(_SEGATTR_DEFSR[attr])
+    if attr not in _SEGATTRMAP:
+        raise KeyError(
+            "attribute with offset %d not found,"
+            " check the offset and report"
+            " the problem" % attr)
+    getter, _ = _SEGATTRMAP[attr]
+    val = getattr(si, getter)
+    return val() if callable(val) else val
 
 
 def set_segm_attr(segea, attr, value):
@@ -2505,78 +2758,75 @@ def set_segm_attr(segea, attr, value):
            Also some of them should be modified using special functions
            like set_segm_addressing, etc.
     """
-    seg = ida_segment.getseg(segea)
-    assert seg, "could not find segment at 0x%x" % segea
-    if attr in [ SEGATTR_ES, SEGATTR_CS, SEGATTR_SS, SEGATTR_DS, SEGATTR_FS, SEGATTR_GS ]:
-        ida_segment.set_defsr(seg, _SEGATTRMAP[attr][1], value)
+    si = ida_segment.segment_info_t()
+    assert ida_segment.get_segment_info(si, segea), \
+        f"could not find segment at 0x{segea:x}"
+    if attr in _SEGATTR_DEFSR:
+        si.set_defsr(_SEGATTR_DEFSR[attr], value)
+    elif attr not in _SEGATTRMAP:
+        raise KeyError(
+            "attribute with offset %d not found,"
+            " check the offset and report"
+            " the problem" % attr)
     else:
-        _IDC_SetAttr(seg, _SEGATTRMAP, attr, value)
-    return seg.update()
+        _, setter = _SEGATTRMAP[attr]
+        if setter is None:
+            raise KeyError("attribute with offset %d is read-only" % attr)
+        getattr(si, setter)(value)
+    return ida_segment.set_segment_info(si)
 
 
 SEGATTR_START   =  0      # starting address
-SEGATTR_END     =  4      # ending address
-SEGATTR_ORGBASE = 16
-SEGATTR_ALIGN   = 20      # alignment
-SEGATTR_COMB    = 21      # combination
-SEGATTR_PERM    = 22      # permissions
-SEGATTR_BITNESS = 23      # bitness (0: 16, 1: 32, 2: 64 bit segment)
+SEGATTR_END     =  1      # ending address
+SEGATTR_ORGBASE =  2
+SEGATTR_ALIGN   =  3      # alignment
+SEGATTR_COMB    =  4      # combination
+SEGATTR_PERM    =  5      # permissions
+SEGATTR_BITNESS =  6      # bitness (0: 16, 1: 32, 2: 64 bit segment)
                           # Note: modifying the attribute directly does
                           #       not lead to the reanalysis of the segment.
                           #       Using set_segm_addressing() is more correct.
-SEGATTR_FLAGS   = 24      # segment flags
-SEGATTR_SEL     = 28      # segment selector
-SEGATTR_ES      = 32      # default ES value
-SEGATTR_CS      = 36      # default CS value
-SEGATTR_SS      = 40      # default SS value
-SEGATTR_DS      = 44      # default DS value
-SEGATTR_FS      = 48      # default FS value
-SEGATTR_GS      = 52      # default GS value
-SEGATTR_TYPE    = 96      # segment type
-SEGATTR_COLOR   = 100     # segment color
+SEGATTR_FLAGS   =  7      # segment flags
+SEGATTR_SEL     =  8      # segment selector
+SEGATTR_ES      =  9      # default ES value
+SEGATTR_CS      = 10      # default CS value
+SEGATTR_SS      = 11      # default SS value
+SEGATTR_DS      = 12      # default DS value
+SEGATTR_FS      = 13      # default FS value
+SEGATTR_GS      = 14      # default GS value
+SEGATTR_TYPE    = 15      # segment type
+SEGATTR_COLOR   = 16      # segment color
 
-# Redefining these for 64-bit
-if __EA64__:
-    SEGATTR_START   = 0
-    SEGATTR_END     = 8
-    SEGATTR_ORGBASE = 32
-    SEGATTR_ALIGN   = 40
-    SEGATTR_COMB    = 41
-    SEGATTR_PERM    = 42
-    SEGATTR_BITNESS = 43
-    SEGATTR_FLAGS   = 44
-    SEGATTR_SEL     = 48
-    SEGATTR_ES      = 56
-    SEGATTR_CS      = 64
-    SEGATTR_SS      = 72
-    SEGATTR_DS      = 80
-    SEGATTR_FS      = 88
-    SEGATTR_GS      = 96
-    SEGATTR_TYPE    = 184
-    SEGATTR_COLOR   = 188
+_SEGATTR_DEFSR = {
+    SEGATTR_ES : 0,
+    SEGATTR_CS : 1,
+    SEGATTR_SS : 2,
+    SEGATTR_DS : 3,
+    SEGATTR_FS : 4,
+    SEGATTR_GS : 5,
+}
 
+# Maps SEGATTR_* to (getter, setter) on segment_info_t.
+# getter is an attribute name (for range_t properties) or method name.
+# setter is None for read-only attributes.
 _SEGATTRMAP = {
-    SEGATTR_START   : (True, 'start_ea'),
-    SEGATTR_END     : (True, 'end_ea'),
-    SEGATTR_ORGBASE : (False, 'orgbase'),
-    SEGATTR_ALIGN   : (False, 'align'),
-    SEGATTR_COMB    : (False, 'comb'),
-    SEGATTR_PERM    : (False, 'perm'),
-    SEGATTR_BITNESS : (False, 'bitness'),
-    SEGATTR_FLAGS   : (False, 'flags'),
-    SEGATTR_SEL     : (False, 'sel'),
-    SEGATTR_ES      : (False, 0),
-    SEGATTR_CS      : (False, 1),
-    SEGATTR_SS      : (False, 2),
-    SEGATTR_DS      : (False, 3),
-    SEGATTR_FS      : (False, 4),
-    SEGATTR_GS      : (False, 5),
-    SEGATTR_TYPE    : (False, 'type'),
-    SEGATTR_COLOR   : (False, 'color'),
+    SEGATTR_START   : ('start_ea', None),
+    SEGATTR_END     : ('end_ea', None),
+    SEGATTR_ORGBASE : ('get_orgbase', 'set_orgbase'),
+    SEGATTR_ALIGN   : ('get_align', 'set_align'),
+    SEGATTR_COMB    : ('get_comb', 'set_comb'),
+    SEGATTR_PERM    : ('get_perm', 'set_perm'),
+    SEGATTR_BITNESS : ('get_bitness', 'set_bitness'),
+    SEGATTR_FLAGS   : ('get_flags', 'set_flags'),
+    SEGATTR_SEL     : ('get_sel', 'set_sel'),
+    SEGATTR_TYPE    : ('get_type', 'set_type'),
+    SEGATTR_COLOR   : ('get_color', 'set_color'),
 }
 
 # Valid segment flags
-SFL_COMORG   = 0x01       # IDP dependent field (IBM PC: if set, ORG directive is not commented out)
+# IDP dependent field
+# (IBM PC: if set, ORG directive is not commented out)
+SFL_COMORG   = 0x01
 SFL_OBOK     = 0x02       # orgbase is present? (IDP dependent field)
 SFL_HIDDEN   = 0x04       # is the segment hidden?
 SFL_DEBUG    = 0x08       # is the segment created for the debugger?
@@ -2597,10 +2847,7 @@ def move_segm(ea, to, flags):
 
     :returns: MOVE_SEGM_... error code
     """
-    seg = ida_segment.getseg(ea)
-    if not seg:
-        return MOVE_SEGM_PARAM
-    return ida_segment.move_segm(seg, to, flags)
+    return ida_segment.move_segment(ea, to, flags)
 
 
 MSF_SILENT    = 0x0001    # don't display a "please wait" box on the screen
@@ -2613,13 +2860,17 @@ MOVE_SEGM_PARAM       = -1     # The specified segment does not exist
 MOVE_SEGM_ROOM        = -2     # Not enough free room at the target address
 MOVE_SEGM_IDP         = -3     # IDP module forbids moving the segment
 MOVE_SEGM_CHUNK       = -4     # Too many chunks are defined, can't move
-MOVE_SEGM_LOADER      = -5     # The segment has been moved but the loader complained
+# The segment has been moved but the loader complained
+MOVE_SEGM_LOADER      = -5
 MOVE_SEGM_ODD         = -6     # Can't move segments by an odd number of bytes
-MOVE_SEGM_ORPHAN      = -7,    # Orphan bytes hinder segment movement
-MOVE_SEGM_DEBUG       = -8,    # Debugger segments cannot be moved
-MOVE_SEGM_SOURCEFILES = -9,    # Source files ranges of addresses hinder segment movement
-MOVE_SEGM_MAPPING     = -10,   # Memory mapping ranges of addresses hinder segment movement
-MOVE_SEGM_INVAL       = -11,   # Invalid argument (delta/target does not fit the address space)
+MOVE_SEGM_ORPHAN      = -7     # Orphan bytes hinder segment movement
+MOVE_SEGM_DEBUG       = -8     # Debugger segments cannot be moved
+# Source files ranges of addresses hinder segment movement
+MOVE_SEGM_SOURCEFILES = -9
+# Memory mapping ranges of addresses hinder segment movement
+MOVE_SEGM_MAPPING     = -10
+# Invalid argument (delta/target does not fit the address space)
+MOVE_SEGM_INVAL       = -11
 
 
 rebase_program = ida_segment.rebase_program
@@ -2686,26 +2937,37 @@ def get_xref_type():
 
     :returns: constants fl_* or dr_*
     """
-    raise DeprecatedIDCError("use XrefsFrom() XrefsTo() from idautils instead.")
+    raise DeprecatedIDCError(
+        "use XrefsFrom() XrefsTo()"
+        " from idautils instead.")
 
 
-#----------------------------------------------------------------------------
-#                            F I L E   I / O
-#----------------------------------------------------------------------------
+# -----------------------------------------------------------
+#                     F I L E   I / O
+# -----------------------------------------------------------
 def fopen(f, mode):
-    raise DeprecatedIDCError("fopen() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"fopen() deprecated. {_USE_PY_FILE}")
+
 
 def fclose(handle):
-    raise DeprecatedIDCError("fclose() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"fclose() deprecated. {_USE_PY_FILE}")
+
 
 def filelength(handle):
-    raise DeprecatedIDCError("filelength() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"filelength() deprecated. {_USE_PY_FILE}")
+
 
 def fseek(handle, offset, origin):
-    raise DeprecatedIDCError("fseek() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"fseek() deprecated. {_USE_PY_FILE}")
+
 
 def ftell(handle):
-    raise DeprecatedIDCError("ftell() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"ftell() deprecated. {_USE_PY_FILE}")
 
 
 def LoadFile(filepath, pos, ea, size):
@@ -2725,8 +2987,7 @@ def LoadFile(filepath, pos, ea, size):
         retval = ida_loader.file2base(li, pos, ea, ea+size, False)
         ida_diskio.close_linput(li)
         return retval
-    else:
-        return 0
+    return 0
 
 def loadfile(filepath, pos, ea, size): return LoadFile(filepath, pos, ea, size)
 
@@ -2742,48 +3003,72 @@ def SaveFile(filepath, pos, ea, size):
 
     :returns: 0 - error, 1 - ok
     """
-    if ( os.path.isfile(filepath) ):
+    if os.path.isfile(filepath):
         fp = ida_diskio.fopenM(filepath)
     else:
         fp = ida_diskio.fopenWB(filepath)
 
     if fp:
-        retval = ida_loader.base2file(fp, pos, ea, ea+size)
+        retval = ida_loader.base2file(
+            fp, pos, ea, ea+size)
         import ida_fpro
         ida_fpro.qfclose(fp)
         return retval
-    else:
-        return 0
+    return 0
 
-def savefile(filepath, pos, ea, size): return SaveFile(filepath, pos, ea, size)
+
+def savefile(filepath, pos, ea, size):
+    return SaveFile(filepath, pos, ea, size)
+
+
+_USE_PY_FILE = (
+    "Use Python file objects instead."
+)
 
 
 def fgetc(handle):
-    raise DeprecatedIDCError("fgetc() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"fgetc() deprecated. {_USE_PY_FILE}")
+
 
 def fputc(byte, handle):
-    raise DeprecatedIDCError("fputc() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"fputc() deprecated. {_USE_PY_FILE}")
+
 
 def fprintf(handle, format, *args):
-    raise DeprecatedIDCError("fprintf() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"fprintf() deprecated. {_USE_PY_FILE}")
+
 
 def readshort(handle, mostfirst):
-    raise DeprecatedIDCError("readshort() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"readshort() deprecated. {_USE_PY_FILE}")
+
 
 def readlong(handle, mostfirst):
-    raise DeprecatedIDCError("readlong() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"readlong() deprecated. {_USE_PY_FILE}")
+
 
 def writeshort(handle, word, mostfirst):
-    raise DeprecatedIDCError("writeshort() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"writeshort() deprecated. {_USE_PY_FILE}")
+
 
 def writelong(handle, dword, mostfirst):
-    raise DeprecatedIDCError("writelong() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"writelong() deprecated. {_USE_PY_FILE}")
+
 
 def readstr(handle):
-    raise DeprecatedIDCError("readstr() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"readstr() deprecated. {_USE_PY_FILE}")
+
 
 def writestr(handle, s):
-    raise DeprecatedIDCError("writestr() deprecated. Use Python file objects instead.")
+    raise DeprecatedIDCError(
+        f"writestr() deprecated. {_USE_PY_FILE}")
 
 # ----------------------------------------------------------------------------
 #                           F U N C T I O N S
@@ -2807,8 +3092,7 @@ def get_next_func(ea):
 
     if not func:
         return BADADDR
-    else:
-        return func.start_ea
+    return func.start_ea
 
 
 def get_prev_func(ea):
@@ -2824,8 +3108,7 @@ def get_prev_func(ea):
 
     if not func:
         return BADADDR
-    else:
-        return func.start_ea
+    return func.start_ea
 
 
 def get_func_attr(ea, attr):
@@ -2861,30 +3144,19 @@ def set_func_attr(ea, attr, value):
 
 
 FUNCATTR_START   =  0     # readonly: function start address
-FUNCATTR_END     =  4     # readonly: function end address
-FUNCATTR_FLAGS   =  8     # function flags
-FUNCATTR_FRAME   = 16     # readonly: function frame id
-FUNCATTR_FRSIZE  = 20     # readonly: size of local variables
-FUNCATTR_FRREGS  = 24     # readonly: size of saved registers area
-FUNCATTR_ARGSIZE = 28     # readonly: number of bytes purged from the stack
-FUNCATTR_FPD     = 32     # frame pointer delta
-FUNCATTR_COLOR   = 36     # function color code
-FUNCATTR_OWNER   = 16     # readonly: chunk owner (valid only for tail chunks)
-FUNCATTR_REFQTY  = 20     # readonly: number of chunk parents (valid only for tail chunks)
-
-# Redefining the constants for ea64
-if __EA64__:
-    FUNCATTR_START   =  0
-    FUNCATTR_END     =  8
-    FUNCATTR_FLAGS   = 16
-    FUNCATTR_FRAME   = 24
-    FUNCATTR_FRSIZE  = 32
-    FUNCATTR_FRREGS  = 40
-    FUNCATTR_ARGSIZE = 48
-    FUNCATTR_FPD     = 56
-    FUNCATTR_COLOR   = 64
-    FUNCATTR_OWNER   = 24
-    FUNCATTR_REFQTY  = 32
+FUNCATTR_END     =  1     # readonly: function end address
+FUNCATTR_FLAGS   =  2     # function flags
+FUNCATTR_FRAME   =  3     # readonly: function frame id
+FUNCATTR_FRSIZE  =  4     # readonly: size of local variables
+FUNCATTR_FRREGS  =  5     # readonly: size of saved registers area
+FUNCATTR_ARGSIZE =  6     # readonly: number of bytes purged from the stack
+FUNCATTR_FPD     =  7     # frame pointer delta
+FUNCATTR_COLOR   =  8     # function color code
+# readonly: chunk owner (valid only for tail chunks)
+FUNCATTR_OWNER   =  9
+# readonly: number of chunk parents
+# (valid only for tail chunks)
+FUNCATTR_REFQTY  = 10
 
 _FUNCATTRMAP = {
     FUNCATTR_START   : (True, 'start_ea'),
@@ -2913,39 +3185,47 @@ def get_func_flags(ea):
 
     if not func:
         return -1
-    else:
-        return func.flags
+    return func.flags
 
 
-FUNC_NORET         = ida_funcs.FUNC_NORET         # function doesn't return
-FUNC_FAR           = ida_funcs.FUNC_FAR           # far function
-FUNC_LIB           = ida_funcs.FUNC_LIB           # library function
-FUNC_STATIC        = ida_funcs.FUNC_STATICDEF     # static function
-FUNC_FRAME         = ida_funcs.FUNC_FRAME         # function uses frame pointer (BP)
-FUNC_USERFAR       = ida_funcs.FUNC_USERFAR       # user has specified far-ness
-                                                  # of the function
-FUNC_HIDDEN        = ida_funcs.FUNC_HIDDEN        # a hidden function
-FUNC_THUNK         = ida_funcs.FUNC_THUNK         # thunk (jump) function
-FUNC_BOTTOMBP      = ida_funcs.FUNC_BOTTOMBP      # BP points to the bottom of the stack frame
-FUNC_NORET_PENDING = ida_funcs.FUNC_NORET_PENDING # Function 'non-return' analysis
-                                                  # must be performed. This flag is
-                                                  # verified upon func_does_return()
-FUNC_SP_READY      = ida_funcs.FUNC_SP_READY      # SP-analysis has been performed
-                                                  # If this flag is on, the stack
-                                                  # change points should not be not
-                                                  # modified anymore. Currently this
-                                                  # analysis is performed only for PC
-FUNC_PURGED_OK     = ida_funcs.FUNC_PURGED_OK     # 'argsize' field has been validated.
-                                                  # If this bit is clear and 'argsize'
-                                                  # is 0, then we do not known the real
-                                                  # number of bytes removed from
-                                                  # the stack. This bit is handled
-                                                  # by the processor module.
-FUNC_TAIL          = ida_funcs.FUNC_TAIL          # This is a function tail.
-                                                  # Other bits must be clear
-                                                  # (except FUNC_HIDDEN)
-FUNC_LUMINA        = ida_funcs.FUNC_LUMINA        # Function info is provided by Lumina.
-FUNC_OUTLINE       = ida_funcs.FUNC_OUTLINE       # Outlined code, not a real function.
+# function doesn't return
+FUNC_NORET = ida_funcs.FUNC_NORET
+# far function
+FUNC_FAR = ida_funcs.FUNC_FAR
+# library function
+FUNC_LIB = ida_funcs.FUNC_LIB
+# static function
+FUNC_STATIC = ida_funcs.FUNC_STATICDEF
+# function uses frame pointer (BP)
+FUNC_FRAME = ida_funcs.FUNC_FRAME
+# user has specified far-ness of the function
+FUNC_USERFAR = ida_funcs.FUNC_USERFAR
+# a hidden function
+FUNC_HIDDEN = ida_funcs.FUNC_HIDDEN
+# thunk (jump) function
+FUNC_THUNK = ida_funcs.FUNC_THUNK
+# BP points to the bottom of the stack frame
+FUNC_BOTTOMBP = ida_funcs.FUNC_BOTTOMBP
+# Function 'non-return' analysis must be performed.
+# This flag is verified upon func_does_return()
+FUNC_NORET_PENDING = ida_funcs.FUNC_NORET_PENDING
+# SP-analysis has been performed.
+# If this flag is on, the stack change points should
+# not be modified anymore. Currently this analysis
+# is performed only for PC.
+FUNC_SP_READY = ida_funcs.FUNC_SP_READY
+# 'argsize' field has been validated. If this bit is
+# clear and 'argsize' is 0, then we do not know the
+# real number of bytes removed from the stack. This
+# bit is handled by the processor module.
+FUNC_PURGED_OK = ida_funcs.FUNC_PURGED_OK
+# This is a function tail.
+# Other bits must be clear (except FUNC_HIDDEN)
+FUNC_TAIL = ida_funcs.FUNC_TAIL
+# Function info is provided by Lumina.
+FUNC_LUMINA = ida_funcs.FUNC_LUMINA
+# Outlined code, not a real function.
+FUNC_OUTLINE = ida_funcs.FUNC_OUTLINE
 
 
 def set_func_flags(ea, flags):
@@ -2961,10 +3241,9 @@ def set_func_flags(ea, flags):
 
     if not func:
         return 0
-    else:
-        func.flags = flags
-        ida_funcs.update_func(func)
-        return 1
+    func.flags = flags
+    ida_funcs.update_func(func)
+    return 1
 
 
 def get_func_name(ea):
@@ -2980,8 +3259,7 @@ def get_func_name(ea):
 
     if not name:
         return ""
-    else:
-        return name
+    return name
 
 
 def get_func_cmt(ea, repeatable):
@@ -2998,13 +3276,11 @@ def get_func_cmt(ea, repeatable):
 
     if not func:
         return ""
-    else:
-        comment = ida_funcs.get_func_cmt(func, repeatable)
+    comment = ida_funcs.get_func_cmt(func, repeatable)
 
-        if not comment:
-            return ""
-        else:
-            return comment
+    if not comment:
+        return ""
+    return comment
 
 
 def set_func_cmt(ea, cmt, repeatable):
@@ -3015,13 +3291,15 @@ def set_func_cmt(ea, cmt, repeatable):
     :param cmt: a function comment line
     :param repeatable: 1: get repeatable comment
             0: get regular comment
+
+    :returns: True on success, False on failure,
+             or None if 'ea' does not belong to a function.
     """
     func = ida_funcs.get_func(ea)
 
     if not func:
         return None
-    else:
-        return ida_funcs.set_func_cmt(func, cmt, repeatable)
+    return ida_funcs.set_func_cmt(func, cmt, repeatable)
 
 
 def choose_func(title):
@@ -3064,14 +3342,13 @@ def find_func_end(ea):
             If a function end cannot be determined, the return BADADDR
             otherwise return the end address of the new function
     """
-    func = ida_funcs.func_t(ea)
+    func = ida_funcs.func_entry_info_t(ea)
 
-    res = ida_funcs.find_func_bounds(func, ida_funcs.FIND_FUNC_DEFINE)
+    res = ida_funcs.find_function_bounds(func, ida_funcs.FIND_FUNC_DEFINE)
 
     if res == ida_funcs.FIND_FUNC_UNDEF:
         return BADADDR
-    else:
-        return func.end_ea
+    return func.end_ea
 
 
 def get_frame_id(ea):
@@ -3144,8 +3421,7 @@ def get_frame_size(ea):
 
     if not func:
         return 0
-    else:
-        return ida_frame.get_frame_size(func)
+    return ida_frame.get_frame_size(func)
 
 
 def set_frame_size(ea, lvsize, frregs, argsize):
@@ -3182,7 +3458,8 @@ def get_spd(ea):
                i.e.the last address of the instruction+1
 
     :returns: The difference between the original SP upon
-             entering the function and SP for the specified address
+             entering the function and SP for the specified address,
+             or None if 'ea' does not belong to a function.
     """
     func = ida_funcs.get_func(ea)
 
@@ -3199,14 +3476,16 @@ def get_sp_delta(ea):
     :param ea: end address of the instruction
                i.e.the last address of the instruction+1
 
-    :returns: Get modification of SP made at the specified location
-             If the specified location doesn't contain a SP change point, return 0
-             Otherwise return delta of SP modification
+    :returns: Get modification of SP made at the
+             specified location.
+             If the specified location doesn't contain
+             a SP change point, return 0.
+             Otherwise return delta of SP modification.
     """
     func = ida_funcs.get_func(ea)
 
     if not func:
-        return None
+        return 0
 
     return ida_frame.get_sp_delta(func, ea)
 
@@ -3215,7 +3494,8 @@ def get_fchunk_attr(ea, attr):
     Get a function chunk attribute
 
     :param ea: any address in the chunk
-    :param attr: one of: FUNCATTR_START, FUNCATTR_END, FUNCATTR_OWNER, FUNCATTR_REFQTY
+    :param attr: one of: FUNCATTR_START, FUNCATTR_END,
+                 FUNCATTR_OWNER, FUNCATTR_REFQTY
 
     :returns: desired attribute or -1
     """
@@ -3258,8 +3538,7 @@ def get_next_fchunk(ea):
 
     if func:
         return func.start_ea
-    else:
-        return BADADDR
+    return BADADDR
 
 
 def get_prev_fchunk(ea):
@@ -3276,8 +3555,7 @@ def get_prev_fchunk(ea):
 
     if func:
         return func.start_ea
-    else:
-        return BADADDR
+    return BADADDR
 
 
 def append_func_tail(funcea, ea1, ea2):
@@ -3296,8 +3574,7 @@ def append_func_tail(funcea, ea1, ea2):
 
     if not func:
         return 0
-    else:
-        return ida_funcs.append_func_tail(func, ea1, ea2)
+    return ida_funcs.append_func_tail(func, ea1, ea2)
 
 
 def remove_fchunk(funcea, tailea):
@@ -3313,8 +3590,7 @@ def remove_fchunk(funcea, tailea):
 
     if not func:
         return 0
-    else:
-        return ida_funcs.remove_func_tail(func, tailea)
+    return ida_funcs.remove_func_tail(func, tailea)
 
 
 def set_tail_owner(tailea, funcea):
@@ -3332,8 +3608,7 @@ def set_tail_owner(tailea, funcea):
 
     if not tail:
         return False
-    else:
-        return ida_funcs.set_tail_owner(tail, funcea)
+    return ida_funcs.set_tail_owner(tail, funcea)
 
 
 def first_func_chunk(funcea):
@@ -3344,14 +3619,14 @@ def first_func_chunk(funcea):
 
     :returns: the function entry point or BADADDR
 
-    NOTE: This function returns the first (main) chunk of the specified function
+    NOTE: This function returns the first (main) chunk
+    of the specified function
     """
     func = ida_funcs.get_func(funcea)
     fci = ida_funcs.func_tail_iterator_t(func, funcea)
     if fci.main():
         return fci.chunk().start_ea
-    else:
-        return BADADDR
+    return BADADDR
 
 
 def next_func_chunk(funcea, tailea):
@@ -3383,8 +3658,7 @@ def next_func_chunk(funcea, tailea):
     # Return the next chunk, if there is one
     if found and next(fci):
         return fci.chunk().start_ea
-    else:
-        return BADADDR
+    return BADADDR
 
 
 
@@ -3431,10 +3705,10 @@ def get_min_spd_ea(func_ea):
     :param func_ea: function start
     :returns: BADDADDR - no such function
     """
-    pfn = ida_funcs.get_func(func_ea)
-    if not pfn:
+    stkpnts = ida_frame.stkpnts_t()
+    if not ida_frame.get_func_stkpnts(stkpnts, func_ea):
         return BADADDR
-    return ida_frame.get_min_spd_ea(pfn)
+    return min(stkpnts, key=lambda p: p.spd).ea
 
 recalc_spd = ida_frame.recalc_spd
 
@@ -3656,7 +3930,10 @@ def get_member_by_idx(sid, idx):
              otherwise returns the member ID.
     """
     tif = ida_typeinf.tinfo_t()
-    if idx >= 0 and tif.get_type_by_tid(sid) and tif.is_udt() and idx < tif.get_udt_nmembers():
+    if (idx >= 0
+            and tif.get_type_by_tid(sid)
+            and tif.is_udt()
+            and idx < tif.get_udt_nmembers()):
         return tif.get_udm_tid(idx)
     return -1
 
@@ -3866,7 +4143,9 @@ def add_struc(index, name, is_union):
     udt = ida_typeinf.udt_type_data_t()
     udt.is_union = is_union
     tif = ida_typeinf.tinfo_t()
-    if tif.create_udt(udt) and tif.set_named_type(None, name) == ida_typeinf.TERR_OK:
+    if (tif.create_udt(udt)
+            and tif.set_named_type(None, name)
+                == ida_typeinf.TERR_OK):
         return tif.get_tid()
     return BADADDR
 
@@ -3901,41 +4180,62 @@ def set_struc_cmt(sid, cmt, repeatable=True):
         return tif.set_type_cmt(cmt, not repeatable) == ida_typeinf.TERR_OK
 
 
-def add_struc_member(sid, name, offset, flag, typeid, nbytes, target=-1, tdelta=0, reftype=REF_OFF32):
+def add_struc_member(
+        sid, name, offset, flag, typeid, nbytes,
+        target=-1, tdelta=0, reftype=REF_OFF32):
     """
     Add structure member
 
     :param sid: structure type ID
     :param name: name of the new member
     :param offset: offset of the new member
-                   -1 means to add at the end of the structure
+                   -1 means to add at the end of the
+                   structure
     :param flag: type of the new member. Should be one of
-                 FF_BYTE..FF_PACKREAL (see above) combined with FF_DATA
-    :param typeid: if is_struct(flag) then typeid specifies the structure id for the member
-                   if is_off0(flag) then typeid specifies the offset base.
-                   if is_strlit(flag) then typeid specifies the string type (STRTYPE_...).
-                   if is_stroff(flag) then typeid specifies the structure id
-                   if is_enum(flag) then typeid specifies the enum id
-                   if is_custom(flags) then typeid specifies the dtid and fid: dtid|(fid<<16)
+                 FF_BYTE..FF_PACKREAL (see above)
+                 combined with FF_DATA
+    :param typeid: if is_struct(flag) then typeid
+                   specifies the structure id for the
+                   member.
+                   if is_off0(flag) then typeid specifies
+                   the offset base.
+                   if is_strlit(flag) then typeid specifies
+                   the string type (STRTYPE_...).
+                   if is_stroff(flag) then typeid specifies
+                   the structure id.
+                   if is_enum(flag) then typeid specifies
+                   the enum id.
+                   if is_custom(flags) then typeid
+                   specifies the dtid and fid:
+                   dtid|(fid<<16).
                    Otherwise typeid should be -1.
     :param nbytes: number of bytes in the new member
 
-    :param target: target address of the offset expr. You may specify it as
-                   -1, ida will calculate it itself
+    :param target: target address of the offset expr.
+                   You may specify it as -1, ida will
+                   calculate it itself
     :param tdelta: offset target delta. usually 0
     :param reftype: see REF_... definitions
 
-    NOTE: The remaining arguments are allowed only if is_off0(flag) and you want
-           to specify a complex offset expression
+    NOTE: The remaining arguments are allowed only if
+    is_off0(flag) and you want to specify a complex
+    offset expression
 
-    :returns: 0 - ok, otherwise error code (one of typeinf.TERR_*)
+    :returns: 0 - ok, otherwise error code
+              (one of typeinf.TERR_*)
 
     """
+    sname = ida_kernwin.str2user(name or "")
     if is_off0(flag):
-        return eval_idc('add_struc_member(%d, "%s", %d, %d, %d, %d, %d, %d, %d);' % (sid, ida_kernwin.str2user(name or ""), offset, flag, typeid, nbytes,
-                                                                               target, tdelta, reftype))
-    else:
-        return eval_idc('add_struc_member(%d, "%s", %d, %d, %d, %d);' % (sid, ida_kernwin.str2user(name or ""), offset, flag, typeid, nbytes))
+        return eval_idc(
+            f'add_struc_member({sid}, "{sname}",'
+            f' {offset}, {flag}, {typeid},'
+            f' {nbytes}, {target},'
+            f' {tdelta}, {reftype});')
+    return eval_idc(
+        f'add_struc_member({sid}, "{sname}",'
+        f' {offset}, {flag},'
+        f' {typeid}, {nbytes});')
 
 
 def del_struc_member(sid, member_offset):
@@ -3977,42 +4277,61 @@ def set_member_name(sid, member_offset, name):
         udm.offset = member_offset
         idx = tif.find_udm(udm, ida_typeinf.STRMEM_AUTO)
         if idx != -1:
-            return tif.rename_udm(idx, name) == ida_typeinf.TERR_OK
+            return (tif.rename_udm(idx, name)
+                    == ida_typeinf.TERR_OK)
     return False
 
 
-def set_member_type(sid, member_offset, flag, typeid, nitems, target=-1, tdelta=0, reftype=REF_OFF32):
+def set_member_type(
+        sid, member_offset, flag, typeid, nitems,
+        target=-1, tdelta=0, reftype=REF_OFF32):
     """
     Change structure member type
 
     :param sid: structure type ID
     :param member_offset: offset of the member
     :param flag: new type of the member. Should be one of
-                 FF_BYTE..FF_PACKREAL (see above) combined with FF_DATA
-    :param typeid: if is_struct(flag) then typeid specifies the structure id for the member
-                   if is_off0(flag) then typeid specifies the offset base.
-                   if is_strlit(flag) then typeid specifies the string type (STRTYPE_...).
-                   if is_stroff(flag) then typeid specifies the structure id
-                   if is_enum(flag) then typeid specifies the enum id
-                   if is_custom(flags) then typeid specifies the dtid and fid: dtid|(fid<<16)
+                 FF_BYTE..FF_PACKREAL (see above)
+                 combined with FF_DATA
+    :param typeid: if is_struct(flag) then typeid
+                   specifies the structure id for the
+                   member.
+                   if is_off0(flag) then typeid specifies
+                   the offset base.
+                   if is_strlit(flag) then typeid specifies
+                   the string type (STRTYPE_...).
+                   if is_stroff(flag) then typeid specifies
+                   the structure id.
+                   if is_enum(flag) then typeid specifies
+                   the enum id.
+                   if is_custom(flags) then typeid
+                   specifies the dtid and fid:
+                   dtid|(fid<<16).
                    Otherwise typeid should be -1.
     :param nitems: number of items in the member
 
-    :param target: target address of the offset expr. You may specify it as
-                   -1, ida will calculate it itself
+    :param target: target address of the offset expr.
+                   You may specify it as -1, ida will
+                   calculate it itself
     :param tdelta: offset target delta. usually 0
     :param reftype: see REF_... definitions
 
-    NOTE: The remaining arguments are allowed only if is_off0(flag) and you want
-           to specify a complex offset expression
+    NOTE: The remaining arguments are allowed only if
+    is_off0(flag) and you want to specify a complex
+    offset expression
 
     :returns: !=0 - ok.
     """
     if is_off0(flag):
-        return eval_idc('set_member_type(%d, %d, %d, %d, %d, %d, %d, %d);' % (sid, member_offset, flag, typeid, nitems,
-                                                                              target, tdelta, reftype))
-    else:
-        return eval_idc('set_member_type(%d, %d, %d, %d, %d);' % (sid, member_offset, flag, typeid, nitems))
+        return eval_idc(
+            f'set_member_type({sid},'
+            f' {member_offset}, {flag},'
+            f' {typeid}, {nitems}, {target},'
+            f' {tdelta}, {reftype});')
+    return eval_idc(
+        f'set_member_type({sid},'
+        f' {member_offset}, {flag},'
+        f' {typeid}, {nitems});')
 
 
 def set_member_cmt(sid, member_offset, comment, repeatable):
@@ -4033,7 +4352,9 @@ def set_member_cmt(sid, member_offset, comment, repeatable):
         udm.offset = member_offset
         idx = tif.find_udm(udm, ida_typeinf.STRMEM_AUTO)
         if idx != -1:
-            return tif.set_udm_cmt(idx, comment, not repeatable) == ida_typeinf.TERR_OK
+            return (tif.set_udm_cmt(
+                idx, comment, not repeatable)
+                == ida_typeinf.TERR_OK)
     return False
 
 
@@ -4050,7 +4371,9 @@ def expand_struc(sid, offset, delta, recalc=True):
     if tif.get_type_by_tid(sid) and tif.is_udt():
         udm = ida_typeinf.udm_t()
         udm.offset = offset*8
-        idx = tif.find_udm(udm, ida_typeinf.STRMEM_LOWBND|ida_typeinf.STRMEM_SKIP_GAPS)
+        find_flags = (ida_typeinf.STRMEM_LOWBND
+                      | ida_typeinf.STRMEM_SKIP_GAPS)
+        idx = tif.find_udm(udm, find_flags)
         if idx != -1:
             return tif.expand_udt(idx, delta) == ida_typeinf.TERR_OK
     return False
@@ -4085,7 +4408,9 @@ def get_enum_name(enum_id, flags=0):
     """
     tif = ida_typeinf.tinfo_t()
     if tif.get_type_by_tid(enum_id):
-        return tif.get_nice_type_name() if (flags & ENFL_REGEX) != 0 else tif.get_type_name()
+        if flags & ENFL_REGEX:
+            return tif.get_nice_type_name()
+        return tif.get_type_name()
     return None
 
 
@@ -4132,7 +4457,8 @@ def get_enum_width(enum_id):
 def get_enum_flag(enum_id):
     """
     Get flags determining the representation of the enum.
-    (currently they define the numeric base: octal, decimal, hex, bin) and signness.
+    (currently they define the numeric base: octal,
+    decimal, hex, bin) and signness.
 
     :param enum_id: enum TID
 
@@ -4145,13 +4471,13 @@ def get_enum_flag(enum_id):
         if radix == 1:
             F = ida_bytes.get_operand_flag(ida_bytes.FF_N_CHAR, 0)
         elif radix == 2:
-            F = ida_bytes.get_operand_flag(ida_bytes.FF_N_NUMB, 0);
+            F = ida_bytes.get_operand_flag(ida_bytes.FF_N_NUMB, 0)
         elif radix == 8:
-            F = ida_bytes.get_operand_flag(ida_bytes.FF_N_NUMO, 0);
+            F = ida_bytes.get_operand_flag(ida_bytes.FF_N_NUMO, 0)
         elif radix == 10:
-            F = ida_bytes.get_operand_flag(ida_bytes.FF_N_NUMD, 0);
+            F = ida_bytes.get_operand_flag(ida_bytes.FF_N_NUMD, 0)
         else:
-            F = ida_bytes.get_operand_flag(ida_bytes.FF_N_NUMH, 0);
+            F = ida_bytes.get_operand_flag(ida_bytes.FF_N_NUMH, 0)
         if tif.is_signed():
             F |= ida_bytes.FF_SIGN
     return F
@@ -4183,7 +4509,7 @@ def get_enum_member_enum(const_id):
     tif = ida_typeinf.tinfo_t()
     if tif.get_type_by_tid(const_id) and tif.is_enum():
         return tif.get_tid()
-    return BADADDR;
+    return BADADDR
 
 
 def get_enum_member(enum_id, value, serial, bmask):
@@ -4204,7 +4530,9 @@ def get_enum_member(enum_id, value, serial, bmask):
     tif = ida_typeinf.tinfo_t()
     tif.get_type_by_tid(enum_id)
     edm = ida_typeinf.edm_t()
-    if tif.get_type_by_tid(enum_id) and tif.find_edm(edm, value, bmask, serial) != -1:
+    if (tif.get_type_by_tid(enum_id)
+            and tif.find_edm(edm, value, bmask, serial)
+                != -1):
         return ida_typeinf.get_named_type_tid(edm.name)
     return -1
 
@@ -4239,7 +4567,7 @@ def get_last_bmask(enum_id):
     ei = ida_typeinf.enum_type_data_t()
     tif.get_enum_details(ei)
     m = -1
-    for (grp_start, grp_size) in ei.all_groups():
+    for (grp_start, _grp_size) in ei.all_groups():
         m = ei[grp_start].value & ei.calc_mask()
     return m
 
@@ -4262,7 +4590,7 @@ def get_next_bmask(enum_id, bmask):
     found = False
     vmask = ei.calc_mask()
     bmask &= vmask
-    for (grp_start, grp_size) in ei.all_groups():
+    for (grp_start, _grp_size) in ei.all_groups():
         m = ei[grp_start].value & vmask
         if not found and m == bmask:
             found = True
@@ -4289,10 +4617,12 @@ def get_prev_bmask(enum_id, bmask):
     prev_grp_start = -1
     vmask = ei.calc_mask()
     bmask &= vmask
-    for (grp_start, grp_size) in ei.all_groups():
+    for (grp_start, _grp_size) in ei.all_groups():
         m = ei[grp_start].value & vmask
         if m == bmask:
-            return ei[prev_grp_start].value & vmask if prev_grp_start != -1 else -1
+            if prev_grp_start != -1:
+                return ei[prev_grp_start].value & vmask
+            return -1
         prev_grp_start = grp_start
     return -1
 
@@ -4403,10 +4733,12 @@ def get_first_enum_member(enum_id, bmask=-1):
     Get first constant in the enum
 
     :param enum_id: id of enum
-    :param bmask: bitmask of the constant (ordinary enums accept only -1 as a bitmask)
+    :param bmask: bitmask of the constant
+                  (ordinary enums accept only -1)
 
-    :returns: value of constant or -1 if no constants are defined
-             All constants are sorted by their values as unsigned longs.
+    :returns: value of constant or -1 if no constants
+             are defined. All constants are sorted by
+             their values as unsigned longs.
     """
     if bmask < 0:
         bmask &= BADADDR
@@ -4425,7 +4757,8 @@ def get_last_enum_member(enum_id, bmask=-1):
     Get last constant in the enum
 
     :param enum_id: id of enum
-    :param bmask: bitmask of the constant (ordinary enums accept only -1 as a bitmask)
+    :param bmask: bitmask of the constant
+                  (ordinary enums accept only -1)
 
     :returns: value of constant or -1 if no constants are defined
              All constants are sorted by their values
@@ -4448,7 +4781,8 @@ def get_next_enum_member(enum_id, value, bmask=-1):
     Get next constant in the enum
 
     :param enum_id: id of enum
-    :param bmask: bitmask of the constant ordinary enums accept only -1 as a bitmask
+    :param bmask: bitmask of the constant
+                  (ordinary enums accept only -1)
     :param value: value of the current constant
 
     :returns: value of a constant with value higher than the specified
@@ -4582,7 +4916,9 @@ def add_enum(idx, name, flag):
     radix = 1 if ida_bytes.is_char0(flag) else ida_bytes.get_radix(flag, 0)
     ei.set_enum_radix(radix, (flag & ida_bytes.FF_SIGN) != 0)
     tif = ida_typeinf.tinfo_t()
-    if tif.create_enum(ei) and tif.set_named_type(None, name) == ida_typeinf.TERR_OK:
+    if (tif.create_enum(ei)
+            and tif.set_named_type(None, name)
+                == ida_typeinf.TERR_OK):
         return tif.get_tid()
     return BADADDR
 
@@ -4595,7 +4931,9 @@ def del_enum(enum_id):
 
     :returns: success
     """
-    return ida_typeinf.del_named_type(None, ida_typeinf.get_tid_name(enum_id), ida_typeinf.NTF_TYPE)
+    tname = ida_typeinf.get_tid_name(enum_id)
+    return ida_typeinf.del_named_type(
+        None, tname, ida_typeinf.NTF_TYPE)
 
 
 def set_enum_name(enum_id, name):
@@ -4627,7 +4965,12 @@ def set_enum_flag(enum_id, flag):
         radix = 1
     else:
         radix = ida_bytes.get_radix(flag, 0)
-    return tif.get_type_by_tid(enum_id) and tif.set_enum_radix(radix, (flag & ida_bytes.FF_SIGN) != 0) == ida_typeinf.TERR_OK;
+    is_signed = (flag & ida_bytes.FF_SIGN) != 0
+    return (
+        tif.get_type_by_tid(enum_id)
+        and tif.set_enum_radix(radix, is_signed)
+            == ida_typeinf.TERR_OK
+    )
 
 
 def set_enum_width(enum_id, nbytes):
@@ -4635,7 +4978,9 @@ def set_enum_width(enum_id, nbytes):
     Set the width of enum base type
 
     :param enum_id: enum TID
-    :param nbytes: width of enum base type, allowed values: 0 (unspecified),1,2,4,8,16,32,64
+    :param nbytes: width of enum base type, allowed
+                   values: 0 (unspecified),1,2,4,8,16,
+                   32,64
 
     :returns: success
     """
@@ -4667,7 +5012,13 @@ def set_enum_bf(enum_id, bf):
     :returns: success
     """
     tif = ida_typeinf.tinfo_t()
-    return tif.get_type_by_tid(enum_id) and tif.set_enum_is_bitmask(ida_typeinf.tinfo_t.ENUMBM_ON if bf else ida_typeinf.tinfo_t.ENUMBM_OFF) == ida_typeinf.TERR_OK
+    if not tif.get_type_by_tid(enum_id):
+        return False
+    bm = (ida_typeinf.tinfo_t.ENUMBM_ON
+          if bf
+          else ida_typeinf.tinfo_t.ENUMBM_OFF)
+    return (tif.set_enum_is_bitmask(bm)
+            == ida_typeinf.TERR_OK)
 
 
 def set_enum_cmt(enum_id, cmt, repeatable):
@@ -4780,8 +5131,7 @@ def __l2m1(v):
     """
     if v == ida_netnode.BADNODE:
         return -1
-    else:
-        return v
+    return v
 
 
 def __m1tol(v):
@@ -4792,8 +5142,7 @@ def __m1tol(v):
     """
     if v == -1:
         return ida_netnode.BADNODE
-    else:
-        return v
+    return v
 
 
 AR_LONG = ida_netnode.atag
@@ -4866,8 +5215,7 @@ def __GetArrayById(array_id):
         nodename = node.get_name()
         if nodename is None or not nodename.startswith(_IDC_ARRAY_PREFIX):
             return __dummy_netnode.instance
-        else:
-            return node
+        return node
     except TypeError:
         return __dummy_netnode.instance
     except NotImplementedError:
@@ -4886,8 +5234,7 @@ def create_array(name):
     res  = node.create(_IDC_ARRAY_PREFIX + name)
     if res == False:
         return -1
-    else:
-        return node.index()
+    return node.index()
 
 
 def get_array_id(name):
@@ -4899,7 +5246,9 @@ def get_array_id(name):
     :returns: -1 in case of failure (i.e., no array with that
              name exists), a valid array_id otherwise.
     """
-    return __l2m1(ida_netnode.netnode(_IDC_ARRAY_PREFIX + name, 0, False).index())
+    node = ida_netnode.netnode(
+        _IDC_ARRAY_PREFIX + name, 0, False)
+    return __l2m1(node.index())
 
 
 def rename_array(array_id, newname):
@@ -4964,11 +5313,10 @@ def get_array_element(tag, array_id, idx):
     node = __GetArrayById(array_id)
     if tag == AR_LONG:
         return node.altval(idx, tag)
-    elif tag == AR_STR:
+    if tag == AR_STR:
         res = node.supval(idx, tag)
         return 0 if res is None else res
-    else:
-        return 0
+    return 0
 
 
 def del_array_element(tag, array_id, idx):
@@ -4984,10 +5332,9 @@ def del_array_element(tag, array_id, idx):
     node = __GetArrayById(array_id)
     if tag == AR_LONG:
         return node.altdel(idx, tag)
-    elif tag == AR_STR:
+    if tag == AR_STR:
         return node.supdel(idx, tag)
-    else:
-        return 0
+    return 0
 
 
 def get_first_index(tag, array_id):
@@ -5003,10 +5350,9 @@ def get_first_index(tag, array_id):
     node = __GetArrayById(array_id)
     if tag == AR_LONG:
         return __l2m1(node.altfirst(tag))
-    elif tag == AR_STR:
+    if tag == AR_STR:
         return __l2m1(node.supfirst(tag))
-    else:
-        return -1
+    return -1
 
 
 def get_last_index(tag, array_id):
@@ -5022,10 +5368,9 @@ def get_last_index(tag, array_id):
     node = __GetArrayById(array_id)
     if tag == AR_LONG:
         return __l2m1(node.altlast(tag))
-    elif tag == AR_STR:
+    if tag == AR_STR:
         return __l2m1(node.suplast(tag))
-    else:
-        return -1
+    return -1
 
 
 def get_next_index(tag, array_id, idx):
@@ -5043,10 +5388,9 @@ def get_next_index(tag, array_id, idx):
     try:
         if tag == AR_LONG:
             return __l2m1(node.altnext(__m1tol(idx), tag))
-        elif tag == AR_STR:
+        if tag == AR_STR:
             return __l2m1(node.supnext(__m1tol(idx), tag))
-        else:
-            return -1
+        return -1
     except OverflowError:
         # typically: An index of -1 was passed.
         return -1
@@ -5067,10 +5411,9 @@ def get_prev_index(tag, array_id, idx):
     try:
         if tag == AR_LONG:
             return __l2m1(node.altprev(__m1tol(idx), tag))
-        elif tag == AR_STR:
+        if tag == AR_STR:
             return __l2m1(node.supprev(__m1tol(idx), tag))
-        else:
-            return -1
+        return -1
     except OverflowError:
         # typically: An index of -1 was passed.
         return -1
@@ -5101,7 +5444,7 @@ def get_hash_long(hash_id, key):
     :returns: the 32bit or 64bit value of the element, or 0 if no such
              element.
     """
-    return __GetArrayById(hash_id).hashval_long(key);
+    return __GetArrayById(hash_id).hashval_long(key)
 
 
 def set_hash_string(hash_id, key, value):
@@ -5127,7 +5470,7 @@ def get_hash_string(hash_id, key):
     :returns: the string value of the element, or None if no such
              element.
     """
-    return __GetArrayById(hash_id).hashstr_buf(key);
+    return __GetArrayById(hash_id).hashstr_buf(key)
 
 
 def del_hash_string(hash_id, key):
@@ -5198,7 +5541,7 @@ def get_prev_hash_key(hash_id, key):
 #                 S O U R C E   F I L E / L I N E   N U M B E R S
 #----------------------------------------------------------------------------
 add_sourcefile = ida_lines.add_sourcefile
-get_sourcefile = ida_lines.get_sourcefile
+get_sourcefile = ida_lines.get_sourcefile_by_ea
 del_sourcefile = ida_lines.del_sourcefile
 
 set_source_linnum = ida_nalt.set_source_linnum
@@ -5220,8 +5563,7 @@ def add_default_til(name):
     til = ida_typeinf.add_til(name, ida_typeinf.ADDTIL_DEFAULT)
     if til:
         return 1
-    else:
-        return 0
+    return 0
 
 
 def import_type(idx, type_name):
@@ -5253,11 +5595,15 @@ def get_type(ea):
 
 def sizeof(typestr):
     """
-    Returns the size of the type. It is equivalent to IDC's sizeof().
-    :param typestr: can be specified as a typeinfo tuple (e.g. the result of get_tinfo()),
+    Returns the size of the type. It is equivalent
+    to IDC's sizeof().
+
+    :param typestr: can be specified as a typeinfo tuple
+            (e.g. the result of get_tinfo()),
             serialized type byte string,
             or a string with C declaration (e.g. "int")
-    :returns: -1 if typestring is not valid or has no size. otherwise size of the type
+    :returns: -1 if typestring is not valid or has no
+             size. otherwise size of the type
     """
     if isinstance(typestr, tuple):
        if len(typestr) == 3:
@@ -5273,14 +5619,16 @@ def sizeof(typestr):
          tp  = typestr
     elif isinstance(typestr, str):
          # C declaration ?
-         name, tp, _ = parse_decl(typestr, 0)
+         _name, tp, _ = parse_decl(typestr, 0)
 
     # here, 'tp' should be the serialized type string
     if isinstance(tp, bytes):
        r = ida_typeinf.calc_type_size(None, tp)
        return -1 if r is None  else r
-    else:
-       raise TypeError("idc.sizeof(): expected type tuple, serialized type string, or C declaration")
+    raise TypeError(
+        "idc.sizeof(): expected type tuple,"
+        " serialized type string,"
+        " or C declaration")
 
 SizeOf = sizeof
 
@@ -5349,10 +5697,15 @@ PT_NDC      = ida_typeinf.PT_NDC      # don't decorate names
 PT_TYP      = ida_typeinf.PT_TYP      # return declared type information
 PT_VAR      = ida_typeinf.PT_VAR      # return declared object information
 PT_PACKMASK = ida_typeinf.PT_PACKMASK # mask for pack alignment values
-PT_HIGH     = ida_typeinf.PT_HIGH     # assume high level prototypes (with hidden args, etc)
-PT_LOWER    = ida_typeinf.PT_LOWER    # lower the function prototypes
-PT_REPLACE  = ida_typeinf.PT_REPLACE  # replace the old type (used in idc)
-PT_RAWARGS  = ida_typeinf.PT_RAWARGS  # leave argument names unchanged (do not remove underscores)
+# assume high level prototypes (with hidden args, etc)
+PT_HIGH     = ida_typeinf.PT_HIGH
+# lower the function prototypes
+PT_LOWER    = ida_typeinf.PT_LOWER
+# replace the old type (used in idc)
+PT_REPLACE  = ida_typeinf.PT_REPLACE
+# leave argument names unchanged
+# (do not remove underscores)
+PT_RAWARGS  = ida_typeinf.PT_RAWARGS
 
 PT_SILENT = PT_SIL # alias
 PT_PAKDEF = 0x0000 # default pack value
@@ -5363,8 +5716,10 @@ PT_PAK8   = 0x0040 # #pragma pack(8)
 PT_PAK16  = 0x0050 # #pragma pack(16)
 
 # idc.py-specific
-PT_FILE = 0x00010000 # input if a file name (otherwise contains type declarations)
-PT_STANDALONE = ida_typeinf.HTI_STANDALONE # parse standalone declaration, only for parse_decls()
+# input if a file name (otherwise contains type decls)
+PT_FILE = 0x00010000
+# parse standalone declaration, only for parse_decls()
+PT_STANDALONE = ida_typeinf.HTI_STANDALONE
 
 
 def SetType(ea, newtype):
@@ -5383,7 +5738,7 @@ def SetType(ea, newtype):
         pt = parse_decl(newtype, PT_SIL)
         if pt is None:
           # parsing failed
-          return None
+          return 0
     else:
         pt = None
     return apply_type(ea, pt, TINFO_DEFINITE)
@@ -5490,10 +5845,16 @@ PRTYPE_CPP     = 0x0010 # use c++ name (only for print_type())
 PRTYPE_DEF     = 0x0020 # tinfo_t: print definition, if available
 PRTYPE_NOARGS  = 0x0040 # tinfo_t: do not print function argument names
 PRTYPE_NOARRS  = 0x0080 # tinfo_t: print arguments with #FAI_ARRAY as pointers
-PRTYPE_NORES   = 0x0100 # tinfo_t: never resolve types (meaningful with PRTYPE_DEF)
-PRTYPE_RESTORE = 0x0200 # tinfo_t: print restored types for #FAI_ARRAY and #FAI_STRUCT
-PRTYPE_NOREGEX = 0x0400 # do not apply regular expressions to beautify name
-PRTYPE_COLORED = 0x0800 # add color tag COLOR_SYMBOL for any parentheses, commas and colons
+# tinfo_t: never resolve types (with PRTYPE_DEF)
+PRTYPE_NORES   = 0x0100
+# tinfo_t: print restored types for
+# #FAI_ARRAY and #FAI_STRUCT
+PRTYPE_RESTORE = 0x0200
+# do not apply regular expressions to beautify name
+PRTYPE_NOREGEX = 0x0400
+# add color tag COLOR_SYMBOL for parentheses,
+# commas and colons
+PRTYPE_COLORED = 0x0800
 PRTYPE_METHODS = 0x1000 # tinfo_t: print udt methods
 PRTYPE_1LINCMT = 0x2000 # print comments in one line mode
 
@@ -5523,13 +5884,11 @@ def update_hidden_range(ea, visible):
 
     :returns: != 0 - ok
     """
-    ha = ida_bytes.get_hidden_range(ea)
-
-    if not ha:
+    hri = ida_bytes.hidden_range_info_t()
+    if not ida_bytes.get_hidden_range_info(hri, ea):
         return 0
-    else:
-        ha.visible = visible
-        return ida_bytes.update_hidden_range(ha)
+    hri.set_visible(visible)
+    return ida_bytes.update_hidden_range_info(hri)
 
 
 del_hidden_range = ida_bytes.del_hidden_range
@@ -5638,25 +5997,37 @@ def resume_process():
     return wait_for_next_event(WFNE_CONT|WFNE_NOWAIT, 0)
 
 def send_dbg_command(cmd):
-    """Sends a command to the debugger module and returns the output string.
-    An exception will be raised if the debugger is not running or the current debugger does not export
-    the 'send_dbg_command' IDC command.
+    """Sends a command to the debugger module and
+    returns the output string.
+    An exception will be raised if the debugger is
+    not running or the current debugger does not
+    export the 'send_dbg_command' IDC command.
     """
-    s = eval_idc('send_dbg_command("%s");' % ida_kernwin.str2user(cmd))
+    s = eval_idc(
+        f'send_dbg_command'
+        f'("{ida_kernwin.str2user(cmd)}");')
     if s.startswith("IDC_FAILURE"):
-        raise Exception("Debugger command is available only when the debugger is active!")
+        raise Exception(
+            "Debugger command is available only"
+            " when the debugger is active!")
     return s
 
 # wfne flag is combination of the following:
-WFNE_ANY    = 0x0001 # return the first event (even if it doesn't suspend the process)
-                     # if the process is still running, the database
-                     # does not reflect the memory state. you might want
-                     # to call refresh_debugger_memory() in this case
-WFNE_SUSP   = 0x0002 # wait until the process gets suspended
-WFNE_SILENT = 0x0004 # 1: be slient, 0:display modal boxes if necessary
-WFNE_CONT   = 0x0008 # continue from the suspended state
-WFNE_NOWAIT = 0x0010 # do not wait for any event, immediately return DEC_TIMEOUT
-                     # (to be used with WFNE_CONT)
+
+# return the first event (even if it doesn't suspend
+# the process). if the process is still running, the
+# database does not reflect the memory state. you
+# might want to call refresh_debugger_memory()
+WFNE_ANY    = 0x0001
+# wait until the process gets suspended
+WFNE_SUSP   = 0x0002
+# 1: be silent, 0: display modal boxes if necessary
+WFNE_SILENT = 0x0004
+# continue from the suspended state
+WFNE_CONT   = 0x0008
+# do not wait for any event, immediately return
+# DEC_TIMEOUT (to be used with WFNE_CONT)
+WFNE_NOWAIT = 0x0010
 
 # debugger event codes
 NOTASK            = -2         # process does not exist
@@ -5869,7 +6240,8 @@ def get_event_exc_info():
 set_debugger_options = ida_dbg.set_debugger_options
 
 
-DOPT_SEGM_MSGS    = 0x00000001 # print messages on debugger segments modifications
+# print messages on debugger segments modifications
+DOPT_SEGM_MSGS    = 0x00000001
 DOPT_START_BPT    = 0x00000002 # break on process start
 DOPT_THREAD_MSGS  = 0x00000004 # print messages on thread start/exit
 DOPT_THREAD_BPT   = 0x00000008 # break on thread start/exit
@@ -5931,8 +6303,7 @@ def get_bpt_ea(n):
 
     if ida_dbg.getn_bpt(n, bpt):
         return bpt.ea
-    else:
-        return BADADDR
+    return BADADDR
 
 
 def get_bpt_attr(ea, bptattr):
@@ -5948,28 +6319,28 @@ def get_bpt_attr(ea, bptattr):
 
     if not ida_dbg.get_bpt(ea, bpt):
         return -1
-    else:
-        if bptattr == BPTATTR_EA:
-            return bpt.ea
-        if bptattr == BPTATTR_SIZE:
-            return bpt.size
-        if bptattr == BPTATTR_TYPE:
-            return bpt.type
-        if bptattr == BPTATTR_COUNT:
-            return bpt.pass_count
-        if bptattr == BPTATTR_FLAGS:
-            return bpt.flags
-        if bptattr == BPTATTR_COND:
-            return bpt.condition
-        if bptattr == BPTATTR_PID:
-            return bpt.pid
-        if bptattr == BPTATTR_TID:
-            return bpt.tid
-        return -1
+    if bptattr == BPTATTR_EA:
+        return bpt.ea
+    if bptattr == BPTATTR_SIZE:
+        return bpt.size
+    if bptattr == BPTATTR_TYPE:
+        return bpt.type
+    if bptattr == BPTATTR_COUNT:
+        return bpt.pass_count
+    if bptattr == BPTATTR_FLAGS:
+        return bpt.flags
+    if bptattr == BPTATTR_COND:
+        return bpt.condition
+    if bptattr == BPTATTR_PID:
+        return bpt.pid
+    if bptattr == BPTATTR_TID:
+        return bpt.tid
+    return -1
 
 
 BPTATTR_EA    =  1   # starting address of the breakpoint
-BPTATTR_SIZE  =  2   # size of the breakpoint (undefined for software breakpoint)
+# size of the breakpoint (undefined for software bpt)
+BPTATTR_SIZE  =  2
 
 # type of the breakpoint
 BPTATTR_TYPE  =  3
@@ -5979,21 +6350,29 @@ BPT_WRITE    = 1                     # Hardware: Write access
 BPT_RDWR     = 3                     # Hardware: Read/write access
 BPT_SOFT     = 4                     # Software breakpoint
 BPT_EXEC     = 8                     # Hardware: Execute instruction
-BPT_DEFAULT  = (BPT_SOFT|BPT_EXEC);  # Choose bpt type automatically
+BPT_DEFAULT  = BPT_SOFT | BPT_EXEC   # Choose bpt type auto
 
 BPTATTR_COUNT  =  4
 BPTATTR_FLAGS  =  5
 BPT_BRK        = 0x001 # the debugger stops on this breakpoint
-BPT_TRACE      = 0x002 # the debugger adds trace information when this breakpoint is reached
-BPT_UPDMEM     = 0x004 # refresh the memory layout and contents before evaluating bpt condition
+# the debugger adds trace info when this bpt
+# is reached
+BPT_TRACE      = 0x002
+# refresh the memory layout and contents before
+# evaluating bpt condition
+BPT_UPDMEM     = 0x004
 BPT_ENABLED    = 0x008 # enabled?
-BPT_LOWCND     = 0x010 # condition is calculated at low level (on the server side)
+# condition is calculated at low level
+# (on the server side)
+BPT_LOWCND     = 0x010
 BPT_TRACEON    = 0x020 # enable tracing when the breakpoint is reached
 BPT_TRACE_INSN = 0x040 #   instruction tracing
 BPT_TRACE_FUNC = 0x080 #   function tracing
 BPT_TRACE_BBLK = 0x100 #   basic block tracing
 
-BPTATTR_COND  =  6   # Breakpoint condition. NOTE: the return value is a string in this case
+# Breakpoint condition.
+# NOTE: the return value is a string in this case
+BPTATTR_COND  =  6
 BPTATTR_PID   =  7   # Brekapoint process id
 BPTATTR_TID   =  8   # Brekapoint thread id
 
@@ -6026,23 +6405,27 @@ def set_bpt_attr(address, bptattr, value):
 
     if not ida_dbg.get_bpt(address, bpt):
         return False
-    else:
-        if bptattr not in [ BPTATTR_SIZE, BPTATTR_TYPE, BPTATTR_FLAGS, BPTATTR_COUNT, BPTATTR_PID, BPTATTR_TID ]:
-            return False
-        if bptattr == BPTATTR_SIZE:
-            bpt.size = value
-        if bptattr == BPTATTR_TYPE:
-            bpt.type = value
-        if bptattr == BPTATTR_COUNT:
-            bpt.pass_count = value
-        if bptattr == BPTATTR_FLAGS:
-            bpt.flags = value
-        if bptattr == BPTATTR_PID:
-            bpt.pid = value
-        if bptattr == BPTATTR_TID:
-            bpt.tid = value
+    _settable_attrs = [
+        BPTATTR_SIZE, BPTATTR_TYPE,
+        BPTATTR_FLAGS, BPTATTR_COUNT,
+        BPTATTR_PID, BPTATTR_TID,
+    ]
+    if bptattr not in _settable_attrs:
+        return False
+    if bptattr == BPTATTR_SIZE:
+        bpt.size = value
+    if bptattr == BPTATTR_TYPE:
+        bpt.type = value
+    if bptattr == BPTATTR_COUNT:
+        bpt.pass_count = value
+    if bptattr == BPTATTR_FLAGS:
+        bpt.flags = value
+    if bptattr == BPTATTR_PID:
+        bpt.pid = value
+    if bptattr == BPTATTR_TID:
+        bpt.tid = value
 
-        return ida_dbg.update_bpt(bpt)
+    return ida_dbg.update_bpt(bpt)
 
 
 def set_bpt_cond(ea, cnd, is_lowcnd=0):
@@ -6112,9 +6495,15 @@ get_step_trace_options = ida_dbg.get_step_trace_options
 set_step_trace_options = ida_dbg.set_step_trace_options
 
 
-ST_OVER_DEBUG_SEG = 0x01 # step tracing will be disabled when IP is in a debugger segment
-ST_OVER_LIB_FUNC  = 0x02 # step tracing will be disabled when IP is in a library function
-ST_ALREADY_LOGGED = 0x04 # step tracing will be disabled when IP is already logged
+# step tracing will be disabled when IP is in
+# a debugger segment
+ST_OVER_DEBUG_SEG = 0x01
+# step tracing will be disabled when IP is in
+# a library function
+ST_OVER_LIB_FUNC  = 0x02
+# step tracing will be disabled when IP is
+# already logged
+ST_ALREADY_LOGGED = 0x04
 ST_SKIP_LOOPS     = 0x08 # step tracing will try to skip loops already recorded
 
 load_trace_file = ida_dbg.load_trace_file
@@ -6166,7 +6555,9 @@ def get_color(ea, what):
     :returns: color code in RGB (hex 0xBBGGRR)
     """
     if what not in [ CIC_ITEM, CIC_FUNC, CIC_SEGM ]:
-        raise ValueError("'what' must be one of CIC_ITEM, CIC_FUNC and CIC_SEGM")
+        raise ValueError(
+            "'what' must be one of CIC_ITEM,"
+            " CIC_FUNC and CIC_SEGM")
 
     if what == CIC_ITEM:
         return ida_nalt.get_item_color(ea)
@@ -6175,15 +6566,13 @@ def get_color(ea, what):
         func = ida_funcs.get_func(ea)
         if func:
             return func.color
-        else:
-            return DEFCOLOR
+        return DEFCOLOR
 
     if what == CIC_SEGM:
-        seg = ida_segment.getseg(ea)
-        if seg:
-            return seg.color
-        else:
-            return DEFCOLOR
+        si = ida_segment.segment_info_t()
+        if ida_segment.get_segment_info(si, ea):
+            return si.get_color()
+        return DEFCOLOR
 
 # color item codes:
 CIC_ITEM = 1         # one instruction or data
@@ -6204,7 +6593,9 @@ def set_color(ea, what, color):
     :returns: success (True or False)
     """
     if what not in [ CIC_ITEM, CIC_FUNC, CIC_SEGM ]:
-        raise ValueError("'what' must be one of CIC_ITEM, CIC_FUNC and CIC_SEGM")
+        raise ValueError(
+            "'what' must be one of CIC_ITEM,"
+            " CIC_FUNC and CIC_SEGM")
 
     if what == CIC_ITEM:
         return ida_nalt.set_item_color(ea, color)
@@ -6214,16 +6605,15 @@ def set_color(ea, what, color):
         if func:
             func.color = color
             return bool(ida_funcs.update_func(func))
-        else:
-            return False
+        return False
 
     if what == CIC_SEGM:
-        seg = ida_segment.getseg(ea)
-        if seg:
-            seg.color = color
-            return bool(seg.update())
-        else:
-            return False
+        si = ida_segment.segment_info_t()
+        if ida_segment.get_segment_info(si, ea):
+            si.set_color(color)
+            return bool(
+                ida_segment.set_segment_info(si))
+        return False
 
 
 #----------------------------------------------------------------------------
@@ -6243,7 +6633,7 @@ def force_bl_jump(ea):
 
     :returns: 1-ok, 0-failed
     """
-    return eval_idc("force_bl_jump(0x%x)"%ea)
+    return eval_idc(f"force_bl_jump(0x{ea:x})")
 
 
 def force_bl_call(ea):
@@ -6254,7 +6644,7 @@ def force_bl_call(ea):
 
     :returns: 1-ok, 0-failed
     """
-    return eval_idc("force_bl_call(0x%x)"%ea)
+    return eval_idc(f"force_bl_call(0x{ea:x})")
 
 
 #--------------------------------------------------------------------------
@@ -6267,8 +6657,12 @@ def set_flag(off, bit, value):
   set_inf_attr(off, v)
 
 # Convenience functions:
-def here(): return get_screen_ea()
-def is_mapped(ea): return (prev_addr(ea+1)==ea)
+def here():
+    return get_screen_ea()
+
+
+def is_mapped(ea):
+    return prev_addr(ea + 1) == ea
 
 ARGV = []
 """The command line arguments passed to IDA via the -S switch."""

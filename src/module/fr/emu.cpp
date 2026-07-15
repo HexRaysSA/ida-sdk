@@ -117,8 +117,8 @@ static void handle_operand(const insn_t &insn, const op_t &op)
         if ( ok && may_create_stkvars()
           && !is_defarg(get_flags(insn.ea), op.n) )
         {
-          func_t *pfn = get_func(insn.ea);
-          if ( pfn != nullptr && pfn->flags & FUNC_FRAME )
+          ea_t func_ea = get_func_start(insn.ea);
+          if ( func_ea != BADADDR && (get_func_flags(func_ea) & FUNC_FRAME) != 0 )
           {
             if ( insn.create_stkvar(op, op.value, 0) )
               op_stkvar(insn.ea, op.n);
@@ -168,13 +168,13 @@ int fr_t::emu(const insn_t &insn) const
 }
 
 // Create a function frame
-bool idaapi create_func_frame(func_t *pfn)
+bool idaapi create_func_frame(ea_t func_ea)
 {
   ushort savedreg_size = 0;
   uint32 args_size = 0;
   uint32 localvar_size;
 
-  ea_t ea = pfn->start_ea;
+  ea_t ea = func_ea;
 
   // detect multiple ``st Ri, @-R15'' instructions.
   insn_t insn;
@@ -232,8 +232,8 @@ bool idaapi create_func_frame(func_t *pfn)
   // XXX we don't care about near/far functions, because currently
   // we don't know how to detect them ;-)
 
-  pfn->flags |= FUNC_FRAME;
-  return add_frame(pfn, localvar_size, savedreg_size, args_size);
+  set_func_flag(func_ea, FUNC_FRAME);
+  return add_frame_ea(func_ea, localvar_size, savedreg_size, args_size);
 
 BAD_FUNC:
   return 0;

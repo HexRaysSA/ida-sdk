@@ -47,14 +47,16 @@ def accept_file(li, filename):
 
 
 def myAddSeg(startea, endea, base, use32, name, clas):
-    s = idaapi.segment_t()
+    s = idaapi.segment_info_t()
     s.start_ea = startea
     s.end_ea   = endea
-    s.sel      = idaapi.setup_selector(base)
-    s.bitness  = use32
-    s.align    = idaapi.saRelPara
-    s.comb     = idaapi.scPub
-    idaapi.add_segm_ex(s, name, clas, idaapi.ADDSEG_NOSREG|idaapi.ADDSEG_OR_DIE)
+    s.set_sel(idaapi.setup_selector(base))
+    s.set_bitness(use32)
+    s.set_align(idaapi.saRelPara)
+    s.set_comb(idaapi.scPub)
+    s.set_name(name)
+    s.set_sclass(clas)
+    idaapi.add_segment_ex(s, idaapi.ADDSEG_NOSREG|idaapi.ADDSEG_OR_DIE)
     idc.set_default_sreg_value(startea, "ds", idaapi.BADSEL)
 
 # -----------------------------------------------------------------------

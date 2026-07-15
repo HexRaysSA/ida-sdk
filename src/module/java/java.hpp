@@ -379,8 +379,8 @@ enum j_registers { Rvars=0, Roptop, Rframe, rVcs, rVds };
 //------------------------------------------------------------------------
 void  idaapi java_header(outctx_t &ctx);
 
-void  idaapi java_segstart(outctx_t &ctx, segment_t *seg);
-void  idaapi java_segend(outctx_t &ctx, segment_t *seg);
+void  idaapi java_segstart(outctx_t &ctx, ea_t seg_ea);
+void  idaapi java_segend(outctx_t &ctx, ea_t seg_ea);
 
 fpvalue_error_t idaapi j_realcvt(void *m, fpvalue_t *e, ushort swt);
 
@@ -629,7 +629,7 @@ struct java_t : public procmod_t
   bool sm_getinfo(const insn_t &insn, SMinfo *pinf);
   uchar *annot_elm(uchar *ptr, uint32 *psize, uchar is_array=0);
   uchar *annotation(uchar *p, uint32 *psize);
-  segment_t *getMySeg(ea_t ea, segment_t *seg = nullptr);
+  bool getMySeg(segment_info_t *si, ea_t ea = BADADDR);
   bool sm_chkargs(uchar **pptr, uint32 *pDopSize, ushort cnt);
   int sm_load(ushort declcnt, uint32 *pDopSize);
   NORETURN void loader_failure_bad_attr_decl_size(attr_parent_kind_t apk) const;
@@ -640,7 +640,7 @@ struct java_t : public procmod_t
   void xtrnRef(ea_t ea, const const_desc_t &opis) const;
   void xtrnRef_dscr(ea_t ea, const_desc_t *opis, uchar met=0);
   void deltry(uint bg, uint ic, uint ui, const const_desc_t &pco);
-  segment_t *_add_seg(int caller);
+  bool _add_seg(segment_info_t *si, int caller);
   void resizeLocVars(void) const;
   const char *CopyAttrToFile(const char *astr, uint32 size, ushort id);
   inline int strstrpos(const char *s1, const char *s2)

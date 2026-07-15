@@ -346,7 +346,7 @@ class Appcall__(object):
         # resolve and raise exception on error
         ea = self.__name_or_ea(name_or_ea)
         if ea == _ida_idaapi.BADADDR:
-            raise AttributeError("Undefined function " + name)
+            raise AttributeError("Undefined function " + name_or_ea)
         # Return the callable method
         return Appcall_callable__(ea)
 

@@ -536,6 +536,7 @@ non_fuzzable_funcs = [
     # do not call qwingraph
     ida_gdl.display_gdl,
     ida_gdl.gen_flow_graph,
+    ida_gdl.gen_flow_graph_ea,
     ida_gdl.gen_simple_call_chart,
     # do not execute system commands
     ida_expr.exec_system_script,

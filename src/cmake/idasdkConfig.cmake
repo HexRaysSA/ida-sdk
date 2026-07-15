@@ -439,40 +439,48 @@ function(_idasdk_define_addon kind target_name out_dir)
     endif()
 endfunction()
 
+# Guarded so a host project (e.g. the IDA build itself) that already defines
+# these keeps its own; standalone consumers get these.
 foreach(_pair "plugin;${IDA_PLUGIN_DIR}"
               "loader;${IDA_LOADER_DIR}"
               "procmod;${IDA_PROCMOD_DIR}"
               "idalib;${IDABIN}")
     list(GET _pair 0 _kind)
     list(GET _pair 1 _outdir)
-    cmake_language(EVAL CODE "
-        function(ida_add_${_kind} name)
-            _idasdk_define_addon(${_kind} \${name} \"${_outdir}\" \${ARGN})
-        endfunction()
-    ")
+    if(NOT COMMAND ida_add_${_kind})
+        cmake_language(EVAL CODE "
+            function(ida_add_${_kind} name)
+                _idasdk_define_addon(${_kind} \${name} \"${_outdir}\" \${ARGN})
+            endfunction()
+        ")
+    endif()
 endforeach()
 unset(_pair)
 unset(_kind)
 unset(_outdir)
 
-function(copy_cfg target src)
-    if(NOT EXISTS "${src}")
-        return()
-    endif()
-    cmake_path(GET src FILENAME _name)
-    add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${IDABIN}/cfg"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                "${src}" "${IDABIN}/cfg/${_name}")
-endfunction()
+if(NOT COMMAND copy_cfg)
+    function(copy_cfg target src)
+        if(NOT EXISTS "${src}")
+            return()
+        endif()
+        cmake_path(GET src FILENAME _name)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${IDABIN}/cfg"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${src}" "${IDABIN}/cfg/${_name}")
+    endfunction()
+endif()
 
-function(ida_disable_warnings target)
-    if(MSVC)
-        target_compile_options(${target} PRIVATE /W0)
-    else()
-        target_compile_options(${target} PRIVATE -w)
-    endif()
-endfunction()
+if(NOT COMMAND ida_disable_warnings)
+    function(ida_disable_warnings target)
+        if(MSVC)
+            target_compile_options(${target} PRIVATE /W0)
+        else()
+            target_compile_options(${target} PRIVATE -w)
+        endif()
+    endfunction()
+endif()
 
 # 5. SDK version probe (reads include/pro.h).
 block(SCOPE_FOR VARIABLES PROPAGATE

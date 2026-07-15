@@ -13,7 +13,7 @@
 
 #include "msdia.hpp"
 
-#include "../../ldr/pe/pe.h"
+#include <ldr/pe/pe.h>
 #include "pdblocal.cpp"
 
 //lint -esym(843, g_diadlls, g_pdb_errors, PathIsUNC) could be declared as const
@@ -467,7 +467,7 @@ static DWORD get_machine_type(DWORD dwMachType)
     case IMAGE_FILE_MACHINE_ARM:
       machine = CV_CFL_ARM6;
       break;
-    case PECPU_ARMV7:
+    case PECPU_ARMNT:
       machine = CV_CFL_ARM7;
       break;
     case PECPU_ARM64:

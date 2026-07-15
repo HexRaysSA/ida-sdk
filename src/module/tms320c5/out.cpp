@@ -378,16 +378,19 @@ void idaapi header(outctx_t &ctx)
 }
 
 //--------------------------------------------------------------------------
-//lint -e{818} seg could be const
-void tms320c5_t::segstart(outctx_t &ctx, segment_t *seg) const
+void tms320c5_t::segstart(outctx_t &ctx, ea_t seg_ea) const
 {
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
+
   qstring sname;
-  get_visible_segm_name(&sname, seg);
+  si.visible_name(&sname);
 
   ctx.gen_printf(DEFAULT_INDENT, COLSTR(".sect \"%s\"", SCOLOR_ASMDIR), sname.c_str());
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
-    ea_t org = seg->start_ea - get_segm_base(seg);
+    ea_t org = si.start_ea - si.base();
     if ( org != 0 )
     {
       char buf[MAX_NUMBUF];
@@ -424,13 +427,16 @@ void tms320c5_t::footer(outctx_t &ctx) const
 void tms320c5_t::tms_assumes(outctx_t &ctx) const
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *seg = getseg(ea);
-  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 || seg == nullptr )
+  segment_info_t si;
+  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0
+    || !get_segment_info(&si, ea) )
+  {
     return;
-  bool seg_started = (ea == seg->start_ea);
+  }
+  bool seg_started = (ea == si.start_ea);
 
-  if ( seg->type == SEG_XTRN
-    || seg->type == SEG_DATA
+  if ( si.get_type() == SEG_XTRN
+    || si.get_type() == SEG_DATA
     || (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 )
   {
     return;

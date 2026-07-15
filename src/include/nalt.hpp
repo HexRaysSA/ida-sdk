@@ -542,39 +542,40 @@ idaman void   ida_export del_str_type(ea_t ea);
 #define STRLYT_PASCAL1 1
 #define STRLYT_PASCAL2 2
 #define STRLYT_PASCAL4 3
+#define STRLYT_DECOMP  4
 #define STRLYT_MASK 0xFC
 #define STRLYT_SHIFT 2
 
 
 /// \defgroup STRTYPE_ String type codes
 ///@{
-///< Character-terminated string. The termination characters are kept in
-///< the next bytes of string type.
-#define STRTYPE_TERMCHR   (STRWIDTH_1B|STRLYT_TERMCHR<<STRLYT_SHIFT)
-///< C-style string
+#define STRTYPE_TERMCHR   (STRWIDTH_1B|STRLYT_TERMCHR<<STRLYT_SHIFT) ///< Character-terminated string. The termination characters are kept in the next bytes of string type.
+/// C-style string
 #define STRTYPE_C         STRTYPE_TERMCHR
-///< Zero-terminated 16-bit chars
+/// Zero-terminated 16-bit chars
 #define STRTYPE_C_16      (STRWIDTH_2B|STRLYT_TERMCHR<<STRLYT_SHIFT)
-///< Zero-terminated 32-bit chars
+/// Zero-terminated 32-bit chars
 #define STRTYPE_C_32      (STRWIDTH_4B|STRLYT_TERMCHR<<STRLYT_SHIFT)
-///< Pascal-style, one-byte length prefix
+/// Pascal-style, one-byte length prefix
 #define STRTYPE_PASCAL    (STRWIDTH_1B|STRLYT_PASCAL1<<STRLYT_SHIFT)
-///< Pascal-style, 16-bit chars, one-byte length prefix
+/// Pascal-style, 16-bit chars, one-byte length prefix
 #define STRTYPE_PASCAL_16 (STRWIDTH_2B|STRLYT_PASCAL1<<STRLYT_SHIFT)
-///< Pascal-style, 32-bit chars, one-byte length prefix
+/// Pascal-style, 32-bit chars, one-byte length prefix
 #define STRTYPE_PASCAL_32 (STRWIDTH_4B|STRLYT_PASCAL1<<STRLYT_SHIFT)
-///< Pascal-style, two-byte length prefix
+/// Pascal-style, two-byte length prefix
 #define STRTYPE_LEN2      (STRWIDTH_1B|STRLYT_PASCAL2<<STRLYT_SHIFT)
-///< Pascal-style, 16-bit chars, two-byte length prefix
+/// Pascal-style, 16-bit chars, two-byte length prefix
 #define STRTYPE_LEN2_16   (STRWIDTH_2B|STRLYT_PASCAL2<<STRLYT_SHIFT)
-///< Pascal-style, 32-bit chars, two-byte length prefix
+/// Pascal-style, 32-bit chars, two-byte length prefix
 #define STRTYPE_LEN2_32   (STRWIDTH_4B|STRLYT_PASCAL2<<STRLYT_SHIFT)
-///< Pascal-style, four-byte length prefix
+/// Pascal-style, four-byte length prefix
 #define STRTYPE_LEN4      (STRWIDTH_1B|STRLYT_PASCAL4<<STRLYT_SHIFT)
-///< Pascal-style, 16-bit chars, four-byte length prefix
+/// Pascal-style, 16-bit chars, four-byte length prefix
 #define STRTYPE_LEN4_16   (STRWIDTH_2B|STRLYT_PASCAL4<<STRLYT_SHIFT)
-///< Pascal-style, 32-bit chars, four-byte length prefix
+/// Pascal-style, 32-bit chars, four-byte length prefix
 #define STRTYPE_LEN4_32   (STRWIDTH_4B|STRLYT_PASCAL4<<STRLYT_SHIFT)
+/// Synthetic, decompiler generated string (0x10)
+#define STRTYPE_DECOMP    (STRWIDTH_1B|STRLYT_DECOMP<<STRLYT_SHIFT)
 ///@}
 
 /// \name Work with string type codes
@@ -1023,7 +1024,8 @@ struct refinfo_t
                                   ///< points to the middle of a segment
 #define REFINFO_SUBTRACT  0x0100  ///< the reference value is subtracted from the base value instead of (as usual) being added to it
 #define REFINFO_SIGNEDOP  0x0200  ///< the operand value is sign-extended (only supported for REF_OFF8/16/32/64)
-#define REFINFO_NO_ZEROS  0x0400  ///< an opval of 0 will be considered invalid
+#define REFINFO_IGNZERO   0x0400  ///< a value of 0 is acceptable (even when nothing exists at that address), and renders as a plain number
+#define REFINFO_NO_ZEROS  REFINFO_IGNZERO ///< deprecated alias for REFINFO_IGNZERO
 #define REFINFO_NO_ONES   0x0800  ///< an opval of ~0 will be considered invalid
 #define REFINFO_SELFREF   0x1000  ///< the self-based reference;
                                   ///< refinfo_t::base will be forced to the reference address
@@ -1047,7 +1049,8 @@ struct refinfo_t
   bool is_custom(void)    const { return (flags & REFINFO_CUSTOM) != 0; }
   bool is_subtract(void)  const { return (flags & REFINFO_SUBTRACT) != 0; }
   bool is_signed(void)    const { return (flags & REFINFO_SIGNEDOP) != 0; }
-  bool is_no_zeros(void)  const { return (flags & REFINFO_NO_ZEROS) != 0; }
+  bool is_ignore_zero(void) const { return (flags & REFINFO_IGNZERO) != 0; }
+  bool is_no_zeros(void)  const { return is_ignore_zero(); } ///< deprecated alias for is_ignore_zero()
   bool is_no_ones(void)   const { return (flags & REFINFO_NO_ONES) != 0; }
   bool is_selfref(void)   const { return (flags & REFINFO_SELFREF) != 0; }
   bool is_user(void)      const { return (flags & REFINFO_USER) != 0; }
@@ -1450,7 +1453,7 @@ inline ssize_t idaapi get_srcdbg_undesired_paths(qstring *out) { return getinf_s
 inline void idaapi set_srcdbg_undesired_paths(const char *paths) { setinf_buf(INF_SRCDBG_UNDESIRED, paths); }
 
 /// Get initial version of the database (numeric format like 700)
-inline ushort idaapi get_initial_idb_version() { return getinf(INF_INITIAL_VERSION); }
+inline ushort idaapi get_initial_idb_version() { return ushort(getinf(INF_INITIAL_VERSION)); }
 
 /// Get database creation timestamp
 inline time_t idaapi get_idb_ctime() { return getinf(INF_CTIME); }
@@ -1662,7 +1665,7 @@ inline ea_t get_gotea(void)
 }
 
 
-#ifndef BYTES_SOURCE    // undefined bit masks so no one can use them directly
+#ifndef IDA_KERNEL_PRIVATE_NALT_ACCESS    // undefined bit masks so no one can use them directly
 #undef AFL_LINNUM
 #undef AFL_USERSP
 #undef AFL_PUBNAM
@@ -1737,6 +1740,5 @@ inline ea_t get_gotea(void)
 #undef NSUP_MANUAL
 #undef NSUP_FTAILS
 #undef NSUP_GROUP
-#endif
-
+#endif // !IDA_KERNEL_PRIVATE_NALT_ACCESS
 #endif // NALT_HPP

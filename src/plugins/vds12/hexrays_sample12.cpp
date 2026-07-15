@@ -131,8 +131,8 @@ static void show_xrefs(ea_t ea, const gco_info_t &gco, const eavec_t &_xrefs, in
 bool idaapi plugin_ctx_t::run(size_t)
 {
   ea_t ea = get_screen_ea();
-  func_t *pfn = get_func(ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(ea);
+  if ( func_ea == BADADDR )
   {
     warning("Please position the cursor within a function");
     return true;
@@ -154,8 +154,8 @@ bool idaapi plugin_ctx_t::run(size_t)
 
   // generate microcode
   hexrays_failure_t hf;
-  mba_ranges_t mbr(pfn);
-  mba_t *mba = gen_microcode(mbr, &hf, nullptr, DECOMP_WARNINGS, MMAT_PREOPTIMIZED);
+  decomp_ranges_t dcr(func_ea);
+  mba_t *mba = gen_microcode(dcr, &hf, nullptr, DECOMP_WARNINGS, MMAT_PREOPTIMIZED);
   if ( mba == nullptr )
   {
     warning("%a: %s", hf.errea, hf.desc().c_str());
@@ -179,7 +179,7 @@ bool idaapi plugin_ctx_t::run(size_t)
   // we ignore eventual errors and try to show something even if we failed
   // to detect some calling conventions
   if ( ncalls < 0 )
-    msg("%a: failed to determine some calling conventions\n", pfn->start_ea);
+    msg("%a: failed to determine some calling conventions\n", func_ea);
 
   // prepare mlist for the current operand. we will use to to find references
   // to the current operand in the microcode. usually we do not use operands

@@ -25,6 +25,7 @@
 %ignore tns;
 %ignore get_frame_var;
 %ignore tinfo_get_func_frame;
+%ignore tinfo_get_func_frame_ea;
 
 %ignore til_t::syms;
 %ignore til_t::types;

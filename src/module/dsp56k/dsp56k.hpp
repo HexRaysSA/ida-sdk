@@ -207,8 +207,8 @@ struct dsp56k_t : public procmod_t
   void reset_ops(insn_t &insn);
   void add_near_ref(const insn_t &insn, const op_t &x, ea_t ea);
 
-  void segstart(outctx_t &ctx, segment_t *seg) const;
-  void segend(outctx_t &ctx, segment_t *seg) const;
+  void segstart(outctx_t &ctx, ea_t seg_ea) const;
+  void segend(outctx_t &ctx, ea_t seg_ea) const;
   void footer(outctx_t &ctx) const;
 
   void load_from_idb();

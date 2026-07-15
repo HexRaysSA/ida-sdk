@@ -57,10 +57,10 @@
 
 #include <expr.hpp>
 #include <loader.hpp>
-#include "../dbg_win.hpp"
-#include "../plugins/pdb/pdb.hpp"
+#include <dbg/dbg_win.hpp>
+#include <plugins/pdb/pdb.hpp>
 #include "win32_rpc.h"
-#include "dbg_rpc_hlp.h"
+#include <dbg/dbg_rpc_hlp.h>
 
 //--------------------------------------------------------------------------
 // Initialize Win32 debugger plugin

@@ -58,7 +58,6 @@ ea_t calc_mem(const insn_t &insn, ea_t ea); // map virtual to physical ea
 //------------------------------------------------------------------
 void idaapi i960_header(outctx_t &ctx);
 
-void idaapi i960_segend(outctx_t &ctx, segment_t *seg);
 void idaapi i960_assumes(outctx_t &ctx);         // function to produce assume directives
 
 int  idaapi is_align_insn(ea_t ea);
@@ -117,7 +116,7 @@ struct i960_t : public procmod_t
   void handle_operand(const insn_t &insn, const op_t &x, bool isload);
   int i960_emu(const insn_t &insn);
 
-  void i960_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void i960_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void i960_footer(outctx_t &ctx) const;
 
   void load_from_idb();

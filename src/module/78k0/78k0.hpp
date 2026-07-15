@@ -26,7 +26,7 @@ struct nec78k0_t : public procmod_t
   void N78K_header(outctx_t &ctx);
   int N78K_emu(const insn_t &insn);
   void handle_operand(const op_t &x, bool forced_op, bool isload, const insn_t &insn);
-  void N78K_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void N78K_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void N78K_footer(outctx_t &ctx) const;
 
   void load_from_idb();

@@ -203,7 +203,7 @@ void nec78k0s_t::nec78k0s_header(outctx_t &ctx)
 }
 
 //--------------------------------------------------------------------------
-void idaapi nec78k0s_segstart(outctx_t &, segment_t *)
+void idaapi nec78k0s_segstart(outctx_t &, ea_t)
 {
 }
 

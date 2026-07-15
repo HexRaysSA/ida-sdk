@@ -59,8 +59,10 @@ static void say_hello(size_t id, qthread_t tid, int cnt)
     {
       uint64 now = get_nsec_stamp();
       int64 delay = now - nsecs;
+      qthread_t cur = qthread_self();
       msg("Hello %d from thread %" FMT_Z ". tid=%p. current tid=%p (delay=%" FMT_64 "d)\n",
-          cnt, id, tid, qthread_self(), delay);
+          cnt, id, tid, cur, delay);
+      qthread_free(cur);
       return 0;
     }
     hello_t(size_t _id, qthread_t _tid, int _cnt) : id(_id), tid(_tid), cnt(_cnt)
@@ -94,6 +96,7 @@ static int idaapi thread_func(void *ud)
     int r = rand() % 1000;
     qsleep(r);
   }
+  qthread_free(tid);
   return 0;
 }
 
@@ -105,7 +108,9 @@ bool idaapi plugin_ctx_t::run(size_t)
     children[nchilds] = qthread_create(thread_func, (void *)(ssize_t)nchilds); nchilds++;
     children[nchilds] = qthread_create(thread_func, (void *)(ssize_t)nchilds); nchilds++;
     children[nchilds] = qthread_create(thread_func, (void *)(ssize_t)nchilds); nchilds++;
-    msg("Three new threads have been created. Main thread id %p\n", qthread_self());
+    qthread_t self = qthread_self();
+    msg("Three new threads have been created. Main thread id %p\n", self);
+    qthread_free(self);
     for ( int i=0; i < 5; i++ )
       say_hello(-1, 0, 0);
   }

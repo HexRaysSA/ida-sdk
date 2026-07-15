@@ -126,6 +126,9 @@ class MyUiHook(ida_kernwin.UI_Hooks):
     def get_custom_viewer_hint(self, viewer, place):
         self._log()
 
+    def about_to_exit(self):
+        self._log()
+
     def database_inited(self, is_new_database, idc_script):
         self._log()
 

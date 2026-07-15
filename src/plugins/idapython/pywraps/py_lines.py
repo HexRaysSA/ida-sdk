@@ -34,4 +34,6 @@ def COLSTR(str, tag):
     """
     return SCOLOR_ON + tag + str + SCOLOR_OFF + tag
 
+get_sourcefile = ida_idaapi._ida_deprecated(get_sourcefile, "get_sourcefile_by_ea")
+
 #</pycode(py_lines)>

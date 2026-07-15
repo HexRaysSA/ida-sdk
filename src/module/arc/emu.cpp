@@ -42,9 +42,9 @@ static bool is_stkptr(const insn_t &insn, int reg)
     return true;
   if ( reg == FP )
   {
-    func_t *pfn = get_func(insn.ea);
+    ea_t func_ea = get_func_start(insn.ea);
 
-    if ( pfn != nullptr && (pfn->flags & FUNC_FRAME) != 0 )
+    if ( func_ea != BADADDR && (get_func_flags(func_ea) & FUNC_FRAME) != 0 )
       return true;
   }
   return false;
@@ -69,8 +69,8 @@ void arc_t::handle_operand(const insn_t &insn, const op_t & x, bool loading)
              && (insn.Op2.is_reg(SP) || insn.Op2.is_reg(FP)) )
       {
         // add rx, sp, #imm
-        func_t *pfn = get_func(insn.ea);
-        if ( pfn != nullptr )
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( func_ea != BADADDR )
         {
           adiff_t sp_off = x.value;
           if ( insn.create_stkvar(x, sp_off, 0) )
@@ -148,8 +148,8 @@ void arc_t::handle_operand(const insn_t &insn, const op_t & x, bool loading)
       }
       else if ( is_stkptr(insn, x.phrase) && may_create_stkvars() && !is_defarg(F, x.n) )
       {
-        func_t *pfn = get_func(insn.ea);
-        if ( pfn != nullptr )
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( func_ea != BADADDR )
         {
           // if it's [sp, xxx] we make a stackvar out of it
           adiff_t sp_off = x.addr;
@@ -410,24 +410,20 @@ static bool is_const_seg(ea_t ea)
   }
   if ( names != nullptr )
   {
-    segment_t *seg = getseg(ea);
-    if ( seg != nullptr )
+    qstring segname;
+    if ( get_segment_name(&segname, ea) > 0 )
     {
-      qstring segname;
-      if ( get_segm_name(&segname, seg) > 0 )
-      {
-        for ( size_t i = 0; i < ncnt; i++ )
-          if ( segname == names[i] )
-            return true;
-      }
+      for ( size_t i = 0; i < ncnt; i++ )
+        if ( segname == names[i] )
+          return true;
     }
   }
 
   if ( segtype(ea) == SEG_CODE )
     return true;
 
-  segment_t *seg = getseg(ea);
-  if ( seg != nullptr && (seg->perm & (SEGPERM_WRITE|SEGPERM_READ)) == SEGPERM_READ )
+  segment_info_t si;
+  if ( get_segment_info(&si, ea) && (si.get_perm() & (SEGPERM_WRITE|SEGPERM_READ)) == SEGPERM_READ )
     return true;
 
   return false;
@@ -1478,9 +1474,9 @@ sval_t arc_t::calc_sp_delta(const insn_t &insn)
 
 //----------------------------------------------------------------------
 // Add a SP change point. We assume that SP is always divisible by 4
-inline void add_stkpnt(const insn_t &insn, func_t *pfn, sval_t v)
+inline void add_stkpnt(const insn_t &insn, ea_t func_ea, sval_t v)
 {
-  add_auto_stkpnt(pfn, insn.ea+insn.size, v);
+  add_func_auto_stkpnt(func_ea, insn.ea+insn.size, v);
 }
 
 //----------------------------------------------------------------------
@@ -1488,13 +1484,13 @@ inline void add_stkpnt(const insn_t &insn, func_t *pfn, sval_t v)
 // instruction modifies the SP.
 void arc_t::trace_sp(const insn_t &insn)
 {
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(insn.ea);
+  if ( func_ea == BADADDR )
     return;                     // no function -> we don't care about SP
 
   sval_t delta = calc_sp_delta(insn);
   if ( delta != 0 )
-    add_stkpnt(insn, pfn, delta);
+    add_stkpnt(insn, func_ea, delta);
 }
 
 //----------------------------------------------------------------------
@@ -1730,12 +1726,15 @@ int arc_t::emu(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
-bool idaapi create_func_frame(func_t * pfn)
+bool idaapi create_func_frame(ea_t func_ea)
 {
-  ea_t ea = pfn->start_ea;
+  func_entry_info_t fi;
+  if ( !get_func_entry_info(&fi, func_ea) )
+    return false;
+  ea_t ea = func_ea;
 
   insn_t insn;
-  for ( int i = 0; i < 10 && ea < pfn->end_ea; i++ )
+  for ( int i = 0; i < 10 && ea < fi.end_ea; i++ )
   {
     if ( !decode_insn(&insn, ea) )
       break;
@@ -1747,8 +1746,7 @@ bool idaapi create_func_frame(func_t * pfn)
       || insn.itype == ARC_enter
       && (insn.Op1.reglist & REGLIST_FP) != 0 )
     {
-      pfn->flags |= FUNC_FRAME;
-      update_func(pfn);
+      set_func_flag(func_ea, FUNC_FRAME);
     }
     // sub sp, sp
     if ( insn.itype == ARC_sub
@@ -1756,7 +1754,7 @@ bool idaapi create_func_frame(func_t * pfn)
       && insn.Op2.is_reg(SP)
       && insn.Op3.type == o_imm )
     {
-      return add_frame(pfn, insn.Op3.value, 0, 0);
+      return add_frame_ea(func_ea, insn.Op3.value, 0, 0);
     }
     ea += insn.size;
   }
@@ -1777,7 +1775,7 @@ int idaapi is_sp_based(const insn_t &insn, const op_t & x)
 }
 
 //----------------------------------------------------------------------
-int idaapi arc_get_frame_retsize(const func_t * /*pfn */ )
+int idaapi arc_get_frame_retsize(ea_t /*func_ea*/)
 {
   return 0;
 }
@@ -1822,12 +1820,12 @@ static bool can_be_data(ea_t target)
 {
   if ( (target & 3) == 0 )
   {
-    segment_t *seg = getseg(target);
-    if ( seg == nullptr )
+    segment_info_t si;
+    if ( !get_segment_info(&si, target) )
       return false;
-    if ( seg->start_ea == target )
+    if ( si.start_ea == target )
       return true;
-    ea_t prev = prev_head(target, seg->start_ea);
+    ea_t prev = prev_head(target, si.start_ea);
     if ( prev != BADADDR && is_data(get_flags32(prev)) )
       return true;
   }
@@ -1858,10 +1856,10 @@ bool arc_t::good_target(const insn_t &insn, ea_t target) const
       return false;
 
     // if we're referencing middle of a function, it should be the same function
-    func_t *pfn = get_func(target);
-    if ( pfn == nullptr && is_flow(F32) )
+    ea_t func_ea = get_func_start(target);
+    if ( func_ea == BADADDR && is_flow(F32) )
       return false;
-    if ( pfn != nullptr && pfn->start_ea != target && !func_contains(pfn, insn.ea) )
+    if ( func_ea != BADADDR && func_ea != target && !function_contains(func_ea, insn.ea) )
       return false;
 
     return true;
@@ -1889,11 +1887,11 @@ bool arc_t::copy_insn_optype(const insn_t &insn, const op_t &x, ea_t ea, void *v
     {
       // both are defined - check that the data types are the same
       // if not, copy insntype -> dwordtype
-      flags64_t fd = get_optype_flags0(F);
-      flags64_t fi = get_optype_flags0(x.n ? (iflag>>4) : iflag);
+      uint8 fd = get_optype_flags(F, 0);
+      uint8 fi = get_optype_flags(iflag, x.n);
       if ( fd != fi )
       {
-        F = (F ^ fd) | fi;
+        set_operand_flag(F, fi, 0);
         opinfo_t ti;
         get_opinfo(&ti, insn.ea, x.n, iflag);
         set_opinfo(ea, 0, F, &ti);
@@ -2221,14 +2219,14 @@ bool arc_t::arc_set_op_type(
     case o_reg:
       {
         uint32 r = x.reg;
-        func_t *pfn = get_func(insn.ea);
-        if ( pfn == nullptr )
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( func_ea == BADADDR )
           return false;
         bool ok;
         bool farref;
-        func_item_iterator_t fii;
+        function_item_iterator_t fii;
         insn_t insn1;
-        for ( ok=fii.set(pfn, insn.ea);
+        for ( ok=fii.set(func_ea, insn.ea);
               ok && (ok=fii.decode_preceding_insn(visited, &farref, &insn1)) != 0;
               )
         {

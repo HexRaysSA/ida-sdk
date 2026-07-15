@@ -243,17 +243,20 @@ void i51_t::i51_header(outctx_t &ctx)
 //--------------------------------------------------------------------------
 // generate start of a segment
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void i51_t::i51_segstart(outctx_t &ctx, segment_t *Sarea) const
+void i51_t::i51_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
   char buf[MAXSTR];
 
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
+
   qstring name;
-  get_visible_segm_name(&name, Sarea);
+  si.visible_name(&name);
 
   if ( ash.uflag & UAS_SECT )
   {
-    if ( Sarea->type == SEG_IMEM )
+    if ( si.get_type() == SEG_IMEM )
       ctx.flush_buf(".RSECT", DEFAULT_INDENT);
     else
       ctx.gen_printf(0, COLSTR("%s: .section", SCOLOR_ASMDIR), name.c_str());
@@ -267,7 +270,7 @@ void i51_t::i51_segstart(outctx_t &ctx, segment_t *Sarea) const
     if ( ash.uflag & UAS_SELSG )
       ctx.flush_buf(name.c_str(), DEFAULT_INDENT);
     if ( ash.uflag & UAS_CDSEG )
-      ctx.flush_buf(Sarea->type == SEG_IMEM
+      ctx.flush_buf(si.get_type() == SEG_IMEM
                   ? COLSTR("DSEG", SCOLOR_ASMDIR)
                   : COLSTR("CSEG", SCOLOR_ASMDIR),
                     DEFAULT_INDENT);
@@ -275,7 +278,7 @@ void i51_t::i51_segstart(outctx_t &ctx, segment_t *Sarea) const
   }
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
-    adiff_t org = ctx.insn_ea - get_segm_base(Sarea);
+    adiff_t org = ctx.insn_ea - si.base();
     if ( org != 0 )
     {
       btoa(buf, sizeof(buf), org);
@@ -337,15 +340,17 @@ void i51_t::do_out_equ(outctx_t &ctx, const char *name, const char *equ, uchar o
 int i51_t::out_equ(outctx_t &ctx)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *s = getseg(ea);
-  if ( s != nullptr && s->type == SEG_IMEM && ash.a_equ != nullptr )
+  segment_info_t si;
+  if ( !get_segment_info(&si, ea) )
+    return 0;
+  if ( si.get_type() == SEG_IMEM && ash.a_equ != nullptr )
   {
     qstring name = get_visible_name(ea);
     if ( !name.empty()
       && ((ash.uflag & UAS_PBYTNODEF) == 0 || !IsPredefined(name.begin())) )
     {
       get_colored_name(&name, ea);
-      uchar off = uchar(ea - get_segm_base(s));
+      uchar off = uchar(ea - si.base());
       do_out_equ(ctx, name.begin(), ash.a_equ, off);
       if ( (ash.uflag & UAS_AUBIT) == 0 && (off & 0xF8) == off )
       {
@@ -377,10 +382,10 @@ int i51_t::out_equ(outctx_t &ctx)
   }
   if ( (ash.uflag & UAS_NODS) != 0 )
   {
-    if ( s != nullptr && !is_loaded(ea) && s->type == SEG_CODE )
+    if ( !is_loaded(ea) && si.get_type() == SEG_CODE )
     {
       char buf[MAX_NUMBUF];
-      adiff_t org = ea - get_segm_base(s) + get_item_size(ea);
+      adiff_t org = ea - si.base() + get_item_size(ea);
       btoa(buf, sizeof(buf), org);
       ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s %s", SCOLOR_ASMDIR), ash.origin, buf);
       return 1;

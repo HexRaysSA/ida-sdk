@@ -18,7 +18,6 @@
 %ignore get_loader_name;
 %ignore load_nonbinary_file;
 %ignore impinfo_t;
-%ignore import_module;
 %ignore get_plugins;
 %ignore invoke_plugin;
 %ignore dbg_info_t;

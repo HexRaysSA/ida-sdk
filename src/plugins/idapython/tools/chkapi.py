@@ -344,7 +344,10 @@ def check_cpp(args):
 def check_python(args):
     types_coherence = {
         "func_t" : {"mustinherit" : "ida_range.range_t"},
+        "func_entry_info_t" : {"mustinherit" : "fchunk_info_t"},
+        "func_tail_info_t" : {"mustinherit" : "fchunk_info_t"},
         "hidden_range_t" : {"mustinherit" : "ida_range.range_t"},
+        "hidden_range_info_t" : {"mustinherit" : "ida_range.range_t"},
         "qbasic_block_t" : {"mustinherit" : "ida_range.range_t"},
         "regvar_t" : {"mustinherit" : "ida_range.range_t"},
         "segment_t" : {"mustinherit" : "ida_range.range_t"},

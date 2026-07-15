@@ -8,7 +8,7 @@
 #include "m65816.hpp"
 int data_id;
 
-#include "../../ldr/snes/addr.cpp"
+#include <ldr/snes/addr.cpp>
 //--------------------------------------------------------------------------
 static const char *const RegNames[] =
 {
@@ -180,24 +180,24 @@ ssize_t idaapi m65816_t::on_event(ssize_t msgid, va_list va)
       break;
     case processor_t::ev_newprc:
       break;
-    case processor_t::ev_creating_segm:
+    case processor_t::ev_creating_segment:
       {
-        segment_t *sptr = va_arg(va, segment_t *);
+        segment_info_t *si = va_arg(va, segment_info_t *);
 
         // detect SNES bank 0
-        if ( xlat(0) == (sptr->start_ea & 0xff0000) )
+        if ( xlat(0) == (si->start_ea & 0xff0000) )
         {
           // initial bank must be $00 (especially important on HiROM)
           // Example: Donkey Kong Country 2 - Emulation_mode_RESET
-          sptr->defsr[rB  - ph.reg_first_sreg] = 0;
-          sptr->defsr[rPB - ph.reg_first_sreg] = 0;
+          si->set_defsr(rB  - ph.reg_first_sreg, 0);
+          si->set_defsr(rPB - ph.reg_first_sreg, 0);
         }
         else
         {
           // otherwise, set the default bank number from EA
-          uint8 pb = sptr->start_ea >> 16;
-          sptr->defsr[rB  - ph.reg_first_sreg] = pb;
-          sptr->defsr[rPB - ph.reg_first_sreg] = pb;
+          uint8 pb = si->start_ea >> 16;
+          si->set_defsr(rB  - ph.reg_first_sreg, pb);
+          si->set_defsr(rPB - ph.reg_first_sreg, pb);
         }
       }
       break;
@@ -250,20 +250,22 @@ ssize_t idaapi m65816_t::on_event(ssize_t msgid, va_list va)
         }
         ioh.set_device_name(device_ptr, IORESP_ALL);
 
-        set_default_sreg_value(nullptr, rFm, 1);
-        set_default_sreg_value(nullptr, rFx, 1);
-        set_default_sreg_value(nullptr, rFe, 1);
-        set_default_sreg_value(nullptr, rD,  0);
+        set_default_sreg_value_ea(BADADDR, rFm, 1);
+        set_default_sreg_value_ea(BADADDR, rFx, 1);
+        set_default_sreg_value_ea(BADADDR, rFe, 1);
+        set_default_sreg_value_ea(BADADDR, rD,  0);
 
-        // see processor_t::ev_creating_segm for the following registers
-        //set_default_sreg_value(nullptr, rPB, 0);
-        //set_default_sreg_value(nullptr, rB,  0);
-        //set_default_sreg_value(nullptr, rDs, 0);
+        // see processor_t::ev_creating_segment for the following registers
+        //set_default_sreg_value_ea(BADADDR, rPB, 0);
+        //set_default_sreg_value_ea(BADADDR, rB,  0);
+        //set_default_sreg_value_ea(BADADDR, rDs, 0);
 
         if ( inf_get_start_ip() != BADADDR )
         {
           ea_t reset_ea = xlat(inf_get_start_ip());
-          ea_t sea = getseg(reset_ea)->start_ea;
+          segment_info_t si;
+          get_segment_info(&si, reset_ea);
+          ea_t sea = si.start_ea;
           split_sreg_range(reset_ea, rFm, get_sreg(sea, rFm), SR_auto);
           split_sreg_range(reset_ea, rFx, get_sreg(sea, rFx), SR_auto);
           split_sreg_range(reset_ea, rFe, get_sreg(sea, rFe), SR_auto);
@@ -382,11 +384,11 @@ ssize_t idaapi m65816_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        m65816_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        m65816_segstart(*ctx, ea);
         return 1;
       }
 

@@ -87,7 +87,7 @@ uint32 Get_Data_16bits();
 void idaapi nec78k0s_header(outctx_t &ctx);
 void idaapi nec78k0s_footer(outctx_t &ctx);
 
-void idaapi nec78k0s_segstart(outctx_t &ctx, segment_t *seg);
+void idaapi nec78k0s_segstart(outctx_t &ctx, ea_t seg_ea);
 
 int  idaapi ana(insn_t *_insn);
 int  idaapi emu(const insn_t &insn);

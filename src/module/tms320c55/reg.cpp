@@ -361,10 +361,10 @@ ssize_t idaapi tms320c55_t::on_event(ssize_t msgid, va_list va)
         helper.supset(-1, ioh.device.c_str());
         save_idpflags();
         {
-          set_default_sreg_value(nullptr, ARMS, 0);
-          set_default_sreg_value(nullptr, CPL, 1);
+          set_default_sreg_value_ea(BADADDR, ARMS, 0);
+          set_default_sreg_value_ea(BADADDR, CPL, 1);
           for ( int i = DP; i <= rVds; i++ )
-            set_default_sreg_value(nullptr, i, 0);
+            set_default_sreg_value_ea(BADADDR, i, 0);
         }
         static const char *const informations =
           "AUTOHIDE REGISTRY\n"
@@ -430,21 +430,16 @@ ssize_t idaapi tms320c55_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
-      {
-        outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        segend(*ctx, seg);
-        return 1;
-      }
+    case processor_t::ev_out_segment_end:
+      return 1;
 
     case processor_t::ev_out_assumes:
       {
@@ -485,10 +480,10 @@ ssize_t idaapi tms320c55_t::on_event(ssize_t msgid, va_list va)
         return can_have_type(*op) ? 1 : -1;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 

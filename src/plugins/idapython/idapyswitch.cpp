@@ -22,6 +22,10 @@
 #include <prodir.h>
 #include <diskio.hpp>
 #include <network.hpp>
+#include <parsejson.hpp>
+#include <expr.hpp>
+
+idcfuncs_t idc_func_table;
 
 #define EXIT_CODE_FORCE_PATH_FAILED 110
 
@@ -46,6 +50,7 @@ struct user_args_t
   bool verbose = false;
   bool dry_run = false;
   bool auto_apply = false;
+  bool idalib = false;
 #ifdef __UNIX__
   bool ignore_python_config = false;
 #endif
@@ -235,14 +240,11 @@ struct pyver_tool_t
         const pylib_entry_t &e0,
         const pylib_entry_t &e1)
   {
-    if ( e0.preferred )
-      return true;
-    if ( e1.preferred )
-      return false;
-    int rc = e0.version.compare(e1.version);
-    if ( rc > 0 )
-      return true;
-    return false;
+    // preferred entries first (comparing both flags keeps this a valid
+    // strict weak ordering), then highest version first
+    if ( e0.preferred != e1.preferred )
+      return e0.preferred;
+    return e0.version.compare(e1.version) > 0;
   }
 
   bool path_to_pylib_entry(
@@ -425,6 +427,363 @@ static void set_preferred_pylib_version(pylib_entries_t *result)
 
 #endif
 
+//-------------------------------------------------------------------------
+// Remove ANSI escape sequences (e.g., \x1b[36m...\x1b[39m) from a string
+static void strip_ansi(qstring *s)
+{
+  while ( true )
+  {
+    size_t esc = s->find('\x1b');
+    if ( esc == qstring::npos )
+      break;
+    size_t end = s->find('m', esc);
+    if ( end == qstring::npos )
+      break;
+    s->remove(esc, end - esc + 1);
+  }
+}
+
+//-------------------------------------------------------------------------
+// Run a command and return its output as lines, with ANSI codes stripped.
+// Returns non-zero on failure.
+static int run_command(const char *cmd, qstrvec_t *lines, qstring *errbuf)
+{
+  out_verb("Running: \"%s\"\n", cmd);
+#ifdef __NT__
+  FILE *fp = _popen(cmd, "r");
+#else
+  FILE *fp = popen(cmd, "r");
+#endif
+  if ( fp == nullptr )
+  {
+    errbuf->sprnt("Command \"%s\" couldn't be run", cmd);
+    return -1;
+  }
+
+  bytevec_t outbuf;
+  uchar buf[MAXSTR];
+  ssize_t nread;
+  for ( ; ; )
+  {
+    nread = qfread(fp, buf, sizeof(buf));
+    if ( nread > 0 )
+      outbuf.append(buf, nread);
+    else
+      break;
+  }
+
+#ifdef __NT__
+  int rc = _pclose(fp);
+#else
+  int rc = pclose(fp);
+#endif
+  if ( rc != 0 )
+  {
+    const char *out = outbuf.empty() ? "<empty>" : (const char *)outbuf.begin();
+    errbuf->sprnt("Error calling \"%s\"; output is: %s", cmd, out);
+    return rc;
+  }
+
+  // Split into lines and strip ANSI codes
+  qstring all((const char *)outbuf.begin(), outbuf.size());
+  all.split(lines, "\n", SSF_DROP_EMPTY);
+  for ( auto &line : *lines )
+    strip_ansi(&line);
+
+  return 0;
+}
+
+//-------------------------------------------------------------------------
+// Parse the output of "uv python list" and call process_install_dir
+// for each unique cpython installation root found.
+// Output format: "cpython-3.14.0-linux-x86_64-gnu  /path [-> target]"
+//lint -esym(528, scan_uv_python_list) not referenced
+template <typename F>
+static void scan_uv_python_list(F process_install_dir)
+{
+  qstrvec_t lines;
+  qstring errbuf;
+  // Run from filesystem root so relative paths become absolute
+#ifdef __NT__
+  const char *cmd = "cmd /c \"cd \\ && uv --color never python list"
+                    " --only-installed --all-versions 2>nul\"";
+#else
+  const char *cmd = "cd / && uv --color never python list"
+                    " --only-installed --all-versions 2>/dev/null";
+#endif
+  if ( run_command(cmd, &lines, &errbuf) != 0 )
+    return;
+
+  qstrvec_t install_dirs;
+  for ( const qstring &line : lines )
+  {
+    // Filter: only cpython, skip freethreaded builds (not supported)
+    if ( !line.starts_with("cpython-") )
+      continue;
+    if ( line.find("+freethreaded") != qstring::npos )
+      continue;
+
+    // Extract path after the tag
+    size_t path_start = line.find(' ');
+    if ( path_start == qstring::npos )
+      continue;
+    while ( path_start < line.length() && qisspace(line[path_start]) )
+      ++path_start;
+
+    // Handle " -> target" symlink annotation (Unix only).
+    // The target may be relative to the source's directory, so resolve it.
+    qstring path;
+    size_t arrow = line.find(" -> ", path_start);
+    if ( arrow != qstring::npos )
+    {
+      qstring target = line.substr(arrow + 4);
+      if ( qisabspath(target.c_str()) )
+      {
+        path = target;
+      }
+      else
+      {
+        // resolve relative target against the source path's directory
+        qstring srcpath = line.substr(path_start, arrow - path_start);
+        char srcdir[QMAXPATH];
+        qdirname(srcdir, sizeof(srcdir), srcpath.c_str());
+        char joined[QMAXPATH];
+        qmakepath(joined, sizeof(joined), srcdir, target.c_str(), nullptr);
+        qmake_full_path(joined, sizeof(joined), joined);
+        path = joined;
+      }
+    }
+    else
+    {
+      path = line.substr(path_start);
+    }
+
+    // Derive install root: up 2 levels on Unix (bin/python), 1 on Windows
+    char install_dir[QMAXPATH];
+    qdirname(install_dir, sizeof(install_dir), path.c_str());
+#ifndef __NT__
+    qdirname(install_dir, sizeof(install_dir), install_dir);
+#endif
+
+    if ( !install_dirs.has(install_dir) && qisdir(install_dir) )
+    {
+      out_verb("Found uv install dir: %s\n", install_dir);
+      install_dirs.push_back(install_dir);
+    }
+  }
+
+  for ( const qstring &dir : install_dirs )
+    process_install_dir(dir.c_str());
+}
+
+//-------------------------------------------------------------------------
+// Read ~/.conda/environments.txt and call process_env_dir
+// for each conda environment root directory found.
+// Conda maintains this file as a registry of all known environments.
+const char *get_homedir(void); // diskio.hpp, internal
+
+//lint -esym(528, scan_conda_envs) not referenced
+template <typename F>
+static void scan_conda_envs(F process_env_dir)
+{
+  char path[QMAXPATH];
+#ifdef __NT__
+  // on Windows, get_homedir() returns "My Documents" (CSIDL_PERSONAL),
+  // but conda stores environments.txt under the user profile root
+  if ( !get_special_folder(path, sizeof(path), CSIDL_PROFILE) )
+    return;
+#else
+  qstrncpy(path, get_homedir(), sizeof(path));
+#endif
+  qmakepath(path, sizeof(path), path, ".conda", nullptr);
+  qmakepath(path, sizeof(path), path, "environments.txt", nullptr);
+
+  FILE *fp = qfopen(path, "r");
+  if ( fp == nullptr )
+    return;
+
+  qstring env_dir;
+  while ( qgetline(&env_dir, fp) >= 0 )
+  {
+    env_dir.trim2();
+    if ( !env_dir.empty() && qisdir(env_dir.c_str()) )
+    {
+      out_verb("Found conda env: %s\n", env_dir.c_str());
+      process_env_dir(env_dir.c_str());
+    }
+  }
+  qfclose(fp);
+}
+
+//-------------------------------------------------------------------------
+// Rewrite `path` to the user-facing IDA install dir for idalib, if it differs
+// from the plain idadir() value. On macOS this maps ida.app/Contents/MacOS to
+// the ida.app bundle root; on other platforms it's a no-op. Defined in the
+// platform-specific idapyswitch_{linux,mac,win}.cpp file.
+static void platform_normalize_install_dir(char *path, size_t bufsize);
+
+//-------------------------------------------------------------------------
+static bool get_current_install_dir(qstring *out, qstring *errbuf)
+{
+  const char *dir = idadir(nullptr);
+  if ( dir == nullptr || dir[0] == '\0' )
+  {
+    errbuf->sprnt("couldn't determine IDA installation directory");
+    return false;
+  }
+
+  char full[QMAXPATH];
+  if ( qmake_full_path(full, sizeof(full), dir) == nullptr )
+    qstrncpy(full, dir, sizeof(full));
+
+  platform_normalize_install_dir(full, sizeof(full));
+
+  *out = full;
+  return true;
+}
+
+//-------------------------------------------------------------------------
+static bool get_idalib_config_path(qstring *out, qstring *errbuf)
+{
+  const char *user_dir = get_user_idadir();
+  if ( user_dir == nullptr || user_dir[0] == '\0' )
+  {
+    errbuf->sprnt("couldn't determine IDA user directory");
+    return false;
+  }
+
+  if ( !qisdir(user_dir) && qmkdir(user_dir, 0777) != 0 && !qisdir(user_dir) )
+  {
+    errbuf->sprnt("couldn't create IDA user directory \"%s\": %s",
+                  user_dir, winerr(errno));
+    return false;
+  }
+
+  char path[QMAXPATH];
+  qmakepath(path, sizeof(path), user_dir, "ida-config.json", nullptr);
+  *out = path;
+  return true;
+}
+
+//-------------------------------------------------------------------------
+static bool load_or_create_idalib_config(
+        jvalue_t *config,
+        const char *path,
+        qstring *errbuf)
+{
+  if ( !qfileexist(path) )
+  {
+    config->set_obj(new jobj_t);
+    return true;
+  }
+
+  if ( parse_json_file(config, path, errbuf) != eOk )
+    return false;
+
+  if ( config->type() != JT_OBJ )
+  {
+    errbuf->sprnt("%s doesn't contain a JSON object", path);
+    return false;
+  }
+  return true;
+}
+
+//-------------------------------------------------------------------------
+static jobj_t &get_or_create_obj(jobj_t *parent, const char *key)
+{
+  jvalue_t *value = parent->get_value_or_new(key);
+  if ( value->type() != JT_OBJ )
+    value->set_obj(new jobj_t);
+  return value->obj();
+}
+
+//-------------------------------------------------------------------------
+// Write `config` to `path` atomically: write to a sibling .tmp file, then
+// rename over the destination. This avoids leaving a truncated or partially
+// written file visible to readers (e.g. the idapro Python package loading
+// ida-config.json concurrently).
+static bool write_json_file(
+        const char *path,
+        const jvalue_t &config,
+        qstring *errbuf)
+{
+  qstring serialized;
+  if ( !serialize_json(&serialized, config, SJF_PRETTY) )
+  {
+    errbuf->sprnt("couldn't serialize JSON");
+    return false;
+  }
+  serialized.append('\n');
+
+  qstring tmp_path;
+  tmp_path.sprnt("%s.tmp", path);
+
+  FILE *fp = qfopen(tmp_path.c_str(), "w");
+  if ( fp == nullptr )
+  {
+    errbuf->sprnt("couldn't open %s for writing: %s",
+                  tmp_path.c_str(), winerr(errno));
+    return false;
+  }
+  bool ok = qfwrite(fp, serialized.c_str(), serialized.length())
+         == ssize_t(serialized.length());
+  if ( !ok )
+    errbuf->sprnt("couldn't write %s: %s", tmp_path.c_str(), winerr(errno));
+  qfclose(fp);
+
+  if ( !ok || qrename(tmp_path.c_str(), path) != 0 )
+  {
+    if ( ok )
+      errbuf->sprnt("couldn't rename %s to %s: %s",
+                    tmp_path.c_str(), path, winerr(errno));
+    qunlink(tmp_path.c_str());
+    return false;
+  }
+  return true;
+}
+
+//-------------------------------------------------------------------------
+static bool update_idalib_config(qstring *errbuf)
+{
+  if ( args.dry_run )
+  {
+    out_verb("Dry-run: not updating ida-config.json for idalib\n");
+    return true;
+  }
+
+  qstring install_dir;
+  if ( !get_current_install_dir(&install_dir, errbuf) )
+    return false;
+
+  qstring config_path;
+  if ( !get_idalib_config_path(&config_path, errbuf) )
+    return false;
+
+  jvalue_t config;
+  if ( !load_or_create_idalib_config(&config, config_path.c_str(), errbuf) )
+    return false;
+
+  jobj_t &root = config.obj();
+  jobj_t &paths = get_or_create_obj(&root, "Paths");
+  paths.put("ida-install-dir", install_dir);
+
+  if ( !write_json_file(config_path.c_str(), config, errbuf) )
+    return false;
+
+  out_verb("Updated idalib configuration %s: %s\n",
+           config_path.c_str(), install_dir.c_str());
+  return true;
+}
+
+//-------------------------------------------------------------------------
+static void update_idalib_config_or_warn(void)
+{
+  qstring errbuf;
+  if ( !update_idalib_config(&errbuf) )
+    out("Warning: failed to update ida-config.json for idalib: %s\n",
+        errbuf.c_str());
+}
+
 #ifdef __LINUX__
 #  include "idapyswitch_linux.cpp"
 #else
@@ -440,6 +799,7 @@ static void set_verbose(const char *, void *) { args.verbose = true; }
 static void set_auto_apply(const char *, void *) { args.auto_apply = true; }
 static void set_dry_run(const char *, void *) { args.dry_run = true; }
 static void set_force_path(const char *arg, void *) { args.force_path = arg; }
+static void set_idalib(const char *, void *) { args.idalib = true; }
 #ifdef __UNIX__
 static void set_ignore_python_config(const char *, void *) { args.ignore_python_config = true; }
 #endif
@@ -463,6 +823,7 @@ static const cliopt_t _opts[] =
     set_force_path,
     1
   },
+  { 0, "idalib", nullptr, set_idalib, 0 },
 
 #ifdef __UNIX__
   { 'k', "ignore-python-config", "Do not use python-config to find out the preferred version number", set_ignore_python_config, 0 },
@@ -550,6 +911,8 @@ int main(int argc, const char **argv)
             "Applying \"%s\" (extracted from path \"%s\") failed: %s\n",
             entry.str(&buf), path, errbuf.c_str());
     }
+    if ( args.idalib )
+      update_idalib_config_or_warn();
   }
   else
   {
@@ -568,13 +931,36 @@ int main(int argc, const char **argv)
       else
       {
         out("The following Python installations were found:\n");
+        int numw = nentries >= 100 ? 3 : nentries >= 10 ? 2 : 1;
+        int prefw = 0;
+        int revw = 0;
+        int raww = 0;
+        for ( size_t i = 0; i < nentries; ++i )
+        {
+          const pylib_version_t &v = entries.entries[i].version;
+          buf.sprnt("%d.%d", v.major, v.minor);
+          if ( buf.length() > prefw )
+            prefw = buf.length();
+          buf.sprnt("%d%s", v.revision, v.modifiers.c_str());
+          if ( buf.length() > revw )
+            revw = buf.length();
+          if ( v.raw.length() > raww )
+            raww = v.raw.length();
+        }
         for ( size_t i = 0; i < nentries; ++i )
         {
           out_ident_inc_t iinc;
           const pylib_entry_t &e = entries.entries[i];
-          out("#%" FMT_Z ": %s (%s)\n",
-              i,
-              e.version.str(&buf),
+          buf.sprnt("%d.%d", e.version.major, e.version.minor);
+          qstring buf2;
+          buf2.sprnt("%d%s", e.version.revision, e.version.modifiers.c_str());
+          qstring buf3;
+          buf3.sprnt("('%s')", e.version.raw.c_str());
+          out("#%*" FMT_Z ": %*s.%-*s %-*s  (%s)\n",
+              numw, i,
+              prefw, buf.c_str(),
+              revw, buf2.c_str(),
+              raww + 4, buf3.c_str(),
               !e.paths.empty() ? e.paths[0].c_str() : "<unavailable path>");
         }
 
@@ -601,6 +987,8 @@ int main(int argc, const char **argv)
               "Apply failed: %s\n",
               errbuf.c_str());
       }
+      if ( args.idalib )
+        update_idalib_config_or_warn();
     }
     else
     {

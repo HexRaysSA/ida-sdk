@@ -97,9 +97,8 @@ int get_signed(int byte, int mask);
 ea_t map_port(ea_t from);
 int calc_outf(const op_t &x);
 //------------------------------------------------------------------
-void idaapi f2mc_segend(outctx_t &ctx, segment_t *seg);
 
-bool idaapi create_func_frame(func_t *pfn);
+bool idaapi create_func_frame(ea_t func_ea);
 int  idaapi is_sp_based(const insn_t &insn, const op_t &x);
 
 //------------------------------------------------------------------
@@ -145,7 +144,8 @@ struct f2mc_t : public procmod_t
   void f2mc_header(outctx_t &ctx);
   void f2mc_assumes(outctx_t &ctx);
   void print_segment_register(outctx_t &ctx, int reg, sel_t value);
-  void f2mc_segstart(outctx_t &ctx, segment_t *Srange) const;
+  void f2mc_segstart(outctx_t &ctx, ea_t seg_ea) const;
+  void f2mc_segend(outctx_t &ctx, ea_t) const;
   void f2mc_footer(outctx_t &ctx) const;
 
   void save_idpflags() { helper.altset(-1, idpflags); }

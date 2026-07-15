@@ -6,6 +6,9 @@ import glob
 
 from argparse import ArgumentParser
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _writeutil import write_if_different
+
 parser = ArgumentParser()
 parser.add_argument("-i", "--input", required=True)
 parser.add_argument("-o", "--output", required=True)
@@ -14,31 +17,26 @@ args = parser.parse_args()
 
 
 with open(args.input) as fin:
-    with open(args.output, "w") as fout:
-        parts = []
+    parts = []
 
-        def add_imports_from_dep(depname):
-            DEPNAME = depname.upper()
-            for dep in glob.glob(os.path.join(args.sdk, "%s.*" % depname)):
-                parts.append("  #ifdef HAS_DEP_ON_INTERFACE_%s" % DEPNAME)
-                parts.append("  %import \"{0}.i\"".format(depname))
-                parts.append("  #else")
-                parts.append("  %import \"{0}\"".format(os.path.basename(dep)))
-                parts.append("  #endif")
-                parts.append("")
+    def add_imports_from_dep(depname):
+        DEPNAME = depname.upper()
+        for dep in glob.glob(os.path.join(args.sdk, "%s.*" % depname)):
+            parts.append("  #ifdef HAS_DEP_ON_INTERFACE_%s" % DEPNAME)
+            parts.append("  %import \"{0}.i\"".format(depname))
+            parts.append("  #else")
+            parts.append("  %import \"{0}\"".format(os.path.basename(dep)))
+            parts.append("  #endif")
+            parts.append("")
 
-        parts.append("#if defined(IDA_MODULE_PRO)")
-        parts.append("// nothing; has to be handled in pro.i")
-        parts.append("#else")
-        required_headers = ["pro", "ida", "xref", "typeinf", "enum", "netnode", "range", "lines", "kernwin", "bytes", "auto", "nalt", "idd", "idp", "gdl"]
-        # required_headers = ["pro", "ida", "xref", "typeinf", "enum", "netnode", "range", "lines", "kernwin", "bytes", "auto", "nalt", "idd", "idp", "dirtree"]
-        for rh in required_headers:
-            add_imports_from_dep(rh)
-        parts.append("#endif")
+    parts.append("#if defined(IDA_MODULE_PRO)")
+    parts.append("// nothing; has to be handled in pro.i")
+    parts.append("#else")
+    required_headers = ["pro", "ida", "xref", "typeinf", "enum", "netnode", "range", "lines", "kernwin", "bytes", "auto", "nalt", "idd", "idp", "gdl"]
+    # required_headers = ["pro", "ida", "xref", "typeinf", "enum", "netnode", "range", "lines", "kernwin", "bytes", "auto", "nalt", "idd", "idp", "dirtree"]
+    for rh in required_headers:
+        add_imports_from_dep(rh)
+    parts.append("#endif")
 
-        # Can't use string.Template here, because it's a nightmare
-        # to use with a file that has many '$' is it.
-        template = fin.read()
-        result = template.replace("${ALL_IMPORTS}", "\n".join(parts))
-
-        fout.write(result)
+    template = fin.read()
+    write_if_different(args.output, template.replace("${ALL_IMPORTS}", "\n".join(parts)))

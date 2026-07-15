@@ -16,6 +16,25 @@ int data_id;
 // It will create a node for this purpose
 static const char node_name[] = "$ debugger idc file";
 
+//--------------------------------------------------------------------------
+// MERGE
+# define IDI_FIELD(name, offset, width, flag, mask, tag, vmap) \
+       { name, offset, width, mask, tag, nullptr, nullptr, flag }
+static const idbattr_info_t idpopts_info[] =
+{
+  IDI_FIELD("debugger_idc_file", 0, 0, (IDI_VALOBJ|IDI_CSTR), 0, 0, nullptr),
+};
+
+SIMPLE_MODDATA_DIFF_HELPER(plugin_helper, "ex_debidc", node_name, idpopts_info);
+
+//--------------------------------------------------------------------------
+void create_merge_handlers(merge_data_t &md)
+{
+  DEFINE_PLUGIN_MH_PARAMS("EH_DEBIDC", MH_TERSE);
+  create_std_modmerge_handlers(mhp, data_id, plugin_helper);
+}
+// END OF MERGE
+//--------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------
 struct plugin_ctx_t;
@@ -69,6 +88,15 @@ static void set_idc_name(const char *idc)
 //--------------------------------------------------------------------------
 ssize_t idaapi idp_listener_t::on_event(ssize_t code, va_list va)
 {
+  switch ( code )
+  {
+    case processor_t::ev_create_merge_handlers:
+      {
+        merge_data_t *md = va_arg(va, merge_data_t *);
+        create_merge_handlers(*md);
+      }
+      break;
+  }
   return 0;
 }
 

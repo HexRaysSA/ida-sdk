@@ -77,7 +77,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [{{e.file_name}}](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/{{e.path}}) | {{' '.join(e.keywords)}} | {{l.label}} |
+| [{{e.file_name}}](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/{{e.path}}) | {{' '.join(e.keywords)}} | {{l.label}} |
 
    % if e.uses:
 **APIs Used:**

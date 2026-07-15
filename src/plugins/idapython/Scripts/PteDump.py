@@ -77,8 +77,9 @@ def DumpPTE(ea1, ea2):
         ea1 += PG
 
 def DumpSegPTE(ea):
-    s = ida_segment.getseg(ea)
-    DumpPTE(s.start_ea, s.end_ea)
+    si = ida_segment.segment_info_t()
+    if ida_segment.get_segment_info(si, ea):
+        DumpPTE(si.start_ea, si.end_ea)
 
 DumpSegPTE(here())
 

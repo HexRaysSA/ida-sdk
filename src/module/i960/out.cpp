@@ -166,8 +166,7 @@ void out_i960_t::out_insn(void)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void i960_t::i960_segstart(outctx_t &ctx, segment_t *Sarea) const
+void i960_t::i960_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
   const char *const predefined[] =
   {
@@ -181,18 +180,19 @@ void i960_t::i960_segstart(outctx_t &ctx, segment_t *Sarea) const
 //    ".bss",     // bss (block started by storage) section, which loads zero-initialized data
   };
 
-  if ( is_spec_segm(Sarea->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME|GSI_SCLASS) )
+    return;
+  if ( is_spec_segm(si.get_type()) )
     return;
 
-  qstring sname;
-  qstring sclas;
-  get_segm_name(&sname, Sarea);
-  get_segm_class(&sclas, Sarea);
+  qstring sname = si.get_name();
+  qstring sclas = si.get_sclass();
 
   if ( sname == ".bss" )
   {
     int align = 0;
-    switch ( Sarea->align )
+    switch ( si.get_align() )
     {
       case saAbs:        align = 0;  break;
       case saRelByte:    align = 0;  break;
@@ -206,7 +206,7 @@ void i960_t::i960_segstart(outctx_t &ctx, segment_t *Sarea) const
       case saRel64Bytes: align = 6;  break;
       case saRelQword:   align = 3;  break;
     };
-    asize_t size = Sarea->type == SEG_NULL ? 0 : Sarea->size();
+    asize_t size = si.get_type() == SEG_NULL ? 0 : si.size();
     char buf[MAX_NUMBUF];
     btoa(buf, sizeof(buf), size);
     validate_name(&sname, VNT_IDENT);
@@ -223,11 +223,6 @@ void i960_t::i960_segstart(outctx_t &ctx, segment_t *Sarea) const
                      ash.cmnt,
                      sname.c_str());
   }
-}
-
-//--------------------------------------------------------------------------
-void idaapi i960_segend(outctx_t &, segment_t *)
-{
 }
 
 //--------------------------------------------------------------------------

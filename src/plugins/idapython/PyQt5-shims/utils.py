@@ -23,8 +23,7 @@ USER_CFG = USER_CFG_FOLDER / "idapython.cfg"
 DIRECTIVE = "IDAPYTHON_USE_PYQT5_SHIM"
 ENABLE_FLAG = os.environ.get(DIRECTIVE)
 
-MIGRATION_URL = "https://docs.hex-rays.com/" \
-    "user-guide/plugins/migrating-pyqt5-code-to-pyside6"
+MIGRATION_URL = "https://docs.hex-rays.com/developer/publishing-plugins/how-tos/migrating-pyqt5-code-to-pyside6"
 MIGRATION_MSG = f"More information here {MIGRATION_URL}"
 
 _BITWISE_WARNING = "This bitwise operation relies on a PyQt5 shim feature. " \

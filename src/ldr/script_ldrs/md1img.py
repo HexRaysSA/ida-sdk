@@ -60,15 +60,17 @@ def read_section(li):
 
 # -----------------------------------------------------------------------
 def map_section(offset: int, data: bytes, name: str, clas: str, file_pos: int):
-    segment = idaapi.segment_t()
+    segment = idaapi.segment_info_t()
     segment.start_ea = offset
     segment.end_ea   = offset + len(data)
-    segment.sel      = idaapi.setup_selector(0)
-    segment.perm     = 0b111
-    segment.bitness  = 1
-    segment.align    = idaapi.saAbs
-    segment.comb     = idaapi.scPub
-    idaapi.add_segm_ex(segment, name, clas, idaapi.ADDSEG_NOSREG|idaapi.ADDSEG_OR_DIE)
+    segment.set_sel(idaapi.setup_selector(0))
+    segment.set_perm(0b111)
+    segment.set_bitness(1)
+    segment.set_align(idaapi.saAbs)
+    segment.set_comb(idaapi.scPub)
+    segment.set_name(name)
+    segment.set_sclass(clas)
+    idaapi.add_segment_ex(segment, idaapi.ADDSEG_NOSREG|idaapi.ADDSEG_OR_DIE)
     ida_loader.mem2base(data, offset, file_pos)
 
 # -----------------------------------------------------------------------

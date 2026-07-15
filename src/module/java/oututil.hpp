@@ -94,8 +94,8 @@ public:
   uchar out_field_type(void);
   uchar out_includes(uval_t node, uchar pos);
   void java_header(void);
-  void java_segstart(segment_t *seg);
-  void java_segend(segment_t *seg);
+  void java_segstart(ea_t seg_ea);
+  void java_segend(ea_t seg_ea);
   void java_data(bool /*analyze_only*/);
 
   // map.cpp

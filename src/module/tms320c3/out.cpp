@@ -329,10 +329,13 @@ void tms320c3x_t::print_segment_register(outctx_t &ctx, int reg, sel_t value)
 void tms320c3x_t::assumes(outctx_t &ctx)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *seg = getseg(ea);
-  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 || seg == nullptr )
+  segment_info_t si;
+  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0
+    || !get_segment_info(&si, ea) )
+  {
     return;
-  bool seg_started = (ea == seg->start_ea);
+  }
+  bool seg_started = (ea == si.start_ea);
 
   for ( int i = ph.reg_first_sreg; i <= ph.reg_last_sreg; ++i )
   {
@@ -353,31 +356,30 @@ void tms320c3x_t::assumes(outctx_t &ctx)
 }
 
 //--------------------------------------------------------------------------
-//lint -e{818} seg could be const
-void tms320c3x_t::segstart(outctx_t &ctx, segment_t *seg) const
+void tms320c3x_t::segstart(outctx_t &ctx, ea_t seg_ea) const
 {
-  if ( is_spec_segm(seg->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_SCLASS) )
     return;
 
-  qstring sclas;
-  get_segm_class(&sclas, seg);
+  if ( is_spec_segm(si.get_type()) )
+    return;
 
-  if ( sclas == "CODE" )
+  const char *sclas = si.get_sclass();
+  if ( sclas == nullptr )
+    return;
+
+  if ( streq(sclas, "CODE") )
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".text", SCOLOR_ASMDIR));
-  else if ( sclas == "DATA" )
+  else if ( streq(sclas, "DATA") )
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".data", SCOLOR_ASMDIR));
 
-  if ( seg->orgbase != 0 )
+  if ( si.get_orgbase() != 0 )
   {
     char buf[MAX_NUMBUF];
-    btoa(buf, sizeof(buf), seg->orgbase);
+    btoa(buf, sizeof(buf), si.get_orgbase());
     ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s %s", SCOLOR_ASMDIR), ash.origin, buf);
   }
-}
-
-//--------------------------------------------------------------------------
-void idaapi segend(outctx_t &, segment_t *)
-{
 }
 
 //--------------------------------------------------------------------------

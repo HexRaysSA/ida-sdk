@@ -13,6 +13,7 @@
 
 class plugin_t;
 struct plugmod_t;
+struct dbctx_t;
 
 /*! \file ida.hpp
 
@@ -159,6 +160,7 @@ struct idainfo
 #define LFLG_ILP32      0x00001000      ///< 64-bit instructions with 64-bit registers,
                                         ///< but 32-bit pointers and address space.
                                         ///< this bit is mutually exclusive with LFLG_64BIT
+#define LFLG_IS_EXE_DLL 0x00002000      ///< Is dynamic library that can also be executed standalone?
 ///@}
 
 /// \defgroup IDB_ IDB pack modes
@@ -238,7 +240,8 @@ struct idainfo
 #define AF2_MACRO       0x00000004      ///< Try to combine several instructions
                                         ///< into a macro instruction
 #define AF2_MERGESTR    0x00000008      ///< Merge string literals created using data xrefs
-/// remaining 28 bits are reserved
+#define AF2_HFOUTLINE   0x00000010      ///< Automatically hide outlined functions
+/// remaining 27 bits are reserved
 ///@}
   uval_t baseaddr;                      ///< base address of the program (in paragraphs)
   sel_t start_ss;                       ///< selector of the initial stack segment
@@ -436,6 +439,7 @@ struct idainfo
   uint32 appcall_options;               ///< appcall options, see idd.hpp
   EA64_ALIGN(padding);
 
+  friend struct idainfo_internal_t;
 };
 
 enum inftag_t
@@ -637,6 +641,8 @@ inline bool inf_is_ilp32() { return (getinf(INF_LFLAGS) & (LFLG_PC_FLAT|LFLG_64B
 inline bool inf_set_ilp32(bool _v=true) { return setinf_flag(INF_LFLAGS, LFLG_ILP32, _v); }
 inline bool inf_is_dll(void) { return getinf_flag(INF_LFLAGS, LFLG_IS_DLL); }
 inline bool inf_set_dll(bool _v=true) { return setinf_flag(INF_LFLAGS, LFLG_IS_DLL, _v); }
+inline bool inf_is_exe_dll(void) { return getinf_flag(INF_LFLAGS, LFLG_IS_EXE_DLL); }
+inline bool inf_set_exe_dll(bool _v=true) { return setinf_flag(INF_LFLAGS, LFLG_IS_EXE_DLL, _v); }
 inline bool inf_is_flat_off32(void) { return getinf_flag(INF_LFLAGS, LFLG_FLAT_OFF32); }
 inline bool inf_set_flat_off32(bool _v=true) { return setinf_flag(INF_LFLAGS, LFLG_FLAT_OFF32, _v); }
 inline bool inf_is_be(void) { return getinf_flag(INF_LFLAGS, LFLG_MSF); }
@@ -675,6 +681,11 @@ inline void inf_set_app_bitness(uint bitness) // bitness: 16, 32, or 64
     case 16: inf_set_32bit(false); break;
     default: INTERR(2781);
   }
+}
+
+inline int inf_get_effective_addrsize()
+{
+  return inf_is_64bit() ? 8 : inf_is_16bit() ? 2 : 4;
 }
 
 inline uint32 inf_get_database_change_count() { return uint32(getinf(INF_DATABASE_CHANGE_COUNT)); }
@@ -772,6 +783,8 @@ inline bool inf_macros_enabled(void) { return getinf_flag(INF_AF2, AF2_MACRO); }
 inline bool inf_set_macros_enabled(bool _v=true) { return setinf_flag(INF_AF2, AF2_MACRO, _v); }
 inline bool inf_merge_strlits(void) { return getinf_flag(INF_AF2, AF2_MERGESTR); }
 inline bool inf_set_merge_strlits(bool _v=true) { return setinf_flag(INF_AF2, AF2_MERGESTR, _v); }
+inline bool inf_hide_outlined(void) { return getinf_flag(INF_AF2, AF2_HFOUTLINE); }
+inline bool inf_set_hide_outlined(bool _v=true) { return setinf_flag(INF_AF2, AF2_HFOUTLINE, _v); }
 
 inline uval_t inf_get_baseaddr() { return uval_t(getinf(INF_BASEADDR)); }
 inline bool inf_set_baseaddr(uval_t _v) { return setinf(INF_BASEADDR, ssize_t(_v)); }
@@ -1143,7 +1156,8 @@ inline ea_t idaapi to_ea(sel_t reg_cs, uval_t reg_ip)
 
 //-------------------------------------------------------------------------
 /// helper class to support 32-bit addresses in ida64
-
+/// \note for old databases EA_SIZE may be 8 even for 32-bit applications.
+/// check inf_is_64bit() to get the actual size.
 struct ea_helper_t
 {
   const uval_t mask32 = 0xFFFFFFFF;

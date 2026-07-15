@@ -127,6 +127,9 @@ static ssize_t idaapi notify(void *, int msgid, va_list)
   return 0;
 }
 
+static void gnu_func_header(outctx_t &ctx, ea_t func_ea);
+static void gnu_func_footer(outctx_t &ctx, ea_t func_ea);
+
 ssize_t idaapi fr_t::on_event(ssize_t msgid, va_list va)
 {
   switch ( msgid )
@@ -172,11 +175,27 @@ ssize_t idaapi fr_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_function_header:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        fr_segstart(*ctx, seg);
+        ea_t func_ea = va_arg(va, ea_t);
+        gnu_func_header(*ctx, func_ea);
+        return 1;
+      }
+
+    case processor_t::ev_out_function_footer:
+      {
+        outctx_t *ctx = va_arg(va, outctx_t *);
+        ea_t func_ea = va_arg(va, ea_t);
+        gnu_func_footer(*ctx, func_ea);
+        return 1;
+      }
+
+    case processor_t::ev_out_segment_start:
+      {
+        outctx_t *ctx = va_arg(va, outctx_t *);
+        ea_t ea = va_arg(va, ea_t);
+        fr_segstart(*ctx, ea);
         return 1;
       }
 
@@ -215,10 +234,10 @@ ssize_t idaapi fr_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 
@@ -275,25 +294,23 @@ ssize_t idaapi fr_t::on_event(ssize_t msgid, va_list va)
 
 //-----------------------------------------------------------------------
 // gets a function's name
-//lint -e{818} could be declared const
-static bool fr_get_func_name(qstring *name, func_t *pfn)
+static bool fr_get_func_name(qstring *name, ea_t func_ea)
 {
-  ea_t ea = pfn->start_ea;
-  if ( get_demangled_name(name, ea, inf_get_long_demnames(), DEMNAM_NAME) <= 0 )
+  if ( get_demangled_name(name, func_ea, inf_get_long_demnames(), DEMNAM_NAME) <= 0 )
     return false;
 
-  tag_addr(name, ea, true);
+  tag_addr(name, func_ea, true);
   return true;
 }
 
 //-----------------------------------------------------------------------
 // prints function header
-static void idaapi gnu_func_header(outctx_t &ctx, func_t *pfn)
+static void gnu_func_header(outctx_t &ctx, ea_t func_ea)
 {
-  ctx.gen_func_header(pfn);
+  ctx.gen_function_header(func_ea);
 
   qstring namebuf;
-  if ( fr_get_func_name(&namebuf, pfn) )
+  if ( fr_get_func_name(&namebuf, func_ea) )
   {
     const char *name = namebuf.begin();
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".type %s, @function", SCOLOR_ASMDIR), name);
@@ -304,10 +321,10 @@ static void idaapi gnu_func_header(outctx_t &ctx, func_t *pfn)
 
 //-----------------------------------------------------------------------
 // prints function footer
-static void idaapi gnu_func_footer(outctx_t &ctx, func_t *pfn)
+static void gnu_func_footer(outctx_t &ctx, ea_t func_ea)
 {
   qstring namebuf;
-  if ( fr_get_func_name(&namebuf, pfn) )
+  if ( fr_get_func_name(&namebuf, func_ea) )
   {
     const char *name = namebuf.begin();
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".size %s, .-%s", SCOLOR_ASMDIR), name, name);
@@ -348,8 +365,8 @@ static const asm_t gnu_asm =
   "equ",        // Equ
   nullptr,         // seg prefix
   "$",          // current IP (instruction pointer) symbol in assembler
-  gnu_func_header,     // func_header
-  gnu_func_footer,     // func_footer
+  nullptr,             // func_header
+  nullptr,             // func_footer
   ".globl",     // public
   nullptr,         // weak
   nullptr,         // extrn

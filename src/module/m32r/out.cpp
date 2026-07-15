@@ -237,11 +237,13 @@ void out_m32r_t::out_insn(void)
 //----------------------------------------------------------------------------
 // generate segment header
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void idaapi m32r_segstart(outctx_t &ctx, segment_t *Sarea)
+void idaapi m32r_segstart(outctx_t &ctx, ea_t seg_ea)
 {
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
   qstring sname;
-  get_visible_segm_name(&sname, Sarea);
+  si.visible_name(&sname);
   char *segname = sname.begin();
 
   if ( !sname.empty() && *segname == '_' )

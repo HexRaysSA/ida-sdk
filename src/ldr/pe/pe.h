@@ -66,7 +66,7 @@ struct peheader_tpl
 
 #define PECPU_ARM     0x01C0    // ARM
 #define PECPU_ARMI    0x01C2    // ARM with Thumb
-#define PECPU_ARMV7   0x01C4    // ARMv7 (or higher) Thumb mode only
+#define PECPU_ARMNT   0x01C4    // Windows on ARM (Thumb-2, AAPCS-VFP/hardfloat). Matches IMAGE_FILE_MACHINE_ARMNT in winnt.h.
 
 #define PECPU_AM33    0x01D3    // Matsushita (Panasonic) AM33/MN10300
 
@@ -122,7 +122,7 @@ struct peheader_tpl
   {
     return machine == PECPU_ARM
         || machine == PECPU_ARMI
-        || machine == PECPU_ARMV7;
+        || machine == PECPU_ARMNT;
   }
 
   bool has_code16_bit(void) const

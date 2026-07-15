@@ -508,11 +508,14 @@ void out_st9_t::out_insn(void)
 //--------------------------------------------------------------------------
 // Generate a segment header
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void st9_t::st9_segstart(outctx_t &ctx, segment_t *Sarea) const
+void st9_t::st9_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
+  segment_info_t seg;
+  if ( !get_segment_info(&seg, seg_ea, GSI_NAME) )
+    return;
+
   qstring sname;
-  get_visible_segm_name(&sname, Sarea);
+  seg.visible_name(&sname);
 
   const char *segname = sname.c_str();
   if ( *segname == '_' )
@@ -523,7 +526,7 @@ void st9_t::st9_segstart(outctx_t &ctx, segment_t *Sarea) const
   else
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".section .%s", SCOLOR_ASMDIR), segname);
 
-  ea_t orgbase = ctx.insn_ea - get_segm_para(Sarea);
+  ea_t orgbase = ctx.insn_ea - seg.para();
 
   if ( orgbase != 0 )
   {
@@ -537,11 +540,11 @@ void st9_t::st9_segstart(outctx_t &ctx, segment_t *Sarea) const
 void st9_t::st9_assumes(outctx_t &ctx)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *sega = getseg(ea);
+  segment_info_t sega;
 
-  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 || sega == nullptr )
+  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 || !get_segment_info(&sega, ea) )
     return;
-  bool seg_started = (ea == sega->start_ea);
+  bool seg_started = (ea == sega.start_ea);
 
   for ( int i = rRW; i <= rDPR3; ++i )
   {

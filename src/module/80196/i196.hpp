@@ -19,6 +19,24 @@
 #define o_indexed       o_idpspec2      // addr[value]
 #define o_bit           o_idpspec3
 
+//-------------------------------------------------------------------------
+inline bool is_ext_insn(const insn_t &insn)
+{
+  switch ( insn.itype )
+  {
+    case I196_ebmovi:      // Extended interruptable block move
+    case I196_ebr:         // Extended branch indirect
+    case I196_ecall:       // Extended call
+    case I196_ejmp:        // Extended jump
+    case I196_eld:         // Extended load word
+    case I196_eldb:        // Extended load byte
+    case I196_est:         // Extended store word
+    case I196_estb:        // Extended store byte
+      return true;
+  }
+  return false;
+}
+
 //------------------------------------------------------------------------
 
 enum i196_registers { rVcs, rVds, WSR, WSR1 };
@@ -44,7 +62,7 @@ void idaapi out_insn(outctx_t &ctx, bool use_alternative_mnem);
 void idaapi i196_header(outctx_t &ctx);
 void idaapi i196_footer(outctx_t &ctx);
 
-void idaapi i196_segend(outctx_t &ctx, segment_t *seg);
+void idaapi i196_segend(outctx_t &ctx, ea_t seg_ea);
 
 //------------------------------------------------------------------------
 struct i196_t : public procmod_t
@@ -81,10 +99,12 @@ struct i196_t : public procmod_t
   int ld_st(insn_t &insn, ushort itype, char dtype, bool indirect, op_t &reg, op_t &mem);
   int ana(insn_t *_insn);
 
+  bool is_sane_insn(const insn_t &insn) const;
+
   void handle_operand(const insn_t &insn, const op_t &x, int isload);
   int emu(const insn_t &insn);
 
-  void i196_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void i196_segstart(outctx_t &ctx, ea_t seg_ea) const;
 };
 
 #endif

@@ -514,31 +514,31 @@ void out_tms320c6_t::out_insn(void)
 }
 
 //--------------------------------------------------------------------------
-//lint -e{818} seg could be const
-void idaapi segstart(outctx_t &ctx, segment_t *seg)
+void idaapi segstart(outctx_t &ctx, ea_t seg_ea)
 {
-  if ( is_spec_segm(seg->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
     return;
 
-  qstring sname;
-  get_segm_name(&sname, seg);
-
-  if ( sname == ".bss" )
+  if ( is_spec_segm(si.get_type()) )
     return;
-  if ( sname == ".text" || sname == ".data" )
+
+  const char *sname = si.get_name();
+  if ( sname == nullptr )
+    return;
+
+  if ( streq(sname, ".bss") )
+    return;
+  if ( streq(sname, ".text") || streq(sname, ".data") )
   {
-    ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s", SCOLOR_ASMDIR), sname.c_str());
+    ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s", SCOLOR_ASMDIR), sname);
   }
   else
   {
-    validate_name(&sname, VNT_IDENT);
-    ctx.gen_printf(DEFAULT_INDENT, COLSTR(".sect \"%s\"", SCOLOR_ASMDIR), sname.c_str());
+    qstring validated_name(sname);
+    validate_name(&validated_name, VNT_IDENT);
+    ctx.gen_printf(DEFAULT_INDENT, COLSTR(".sect \"%s\"", SCOLOR_ASMDIR), validated_name.c_str());
   }
-}
-
-//--------------------------------------------------------------------------
-void idaapi segend(outctx_t &, segment_t *)
-{
 }
 
 //--------------------------------------------------------------------------
@@ -565,11 +565,11 @@ void tms6_t::footer(outctx_t &ctx) const
 void idaapi data(outctx_t &ctx, bool analyze_only)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *s = getseg(ea);
-  if ( s != nullptr )
+  segment_info_t si;
+  if ( get_segment_info(&si, ea, GSI_NAME) )
   {
-    qstring sname;
-    if ( get_segm_name(&sname, s) > 0 && sname == ".bss" )
+    const char *sname = si.get_name();
+    if ( sname != nullptr && streq(sname, ".bss") )
     {
       qstring name;
       if ( get_colored_name(&name, ea) <= 0 )

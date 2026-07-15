@@ -34,8 +34,9 @@ class painter_t(QtCore.QObject):
 
     def add_random_item(self):
         R = random.random
-        s = ida_segment.getnseg(int(ida_segment.get_segm_qty() * R()))
-        ea = s.start_ea + int((s.end_ea - s.start_ea) * R())
+        si = ida_segment.segment_info_t()
+        ida_segment.get_segment_info_by_num(si, int(ida_segment.get_segm_qty() * R()))
+        ea = si.start_ea + int((si.end_ea - si.start_ea) * R())
         radius = 4 + int(R() * 8)
         color = QtGui.QColor(int(255 * R()), int(255 * R()), int(255 * R()))
         self.add_item(ea, radius, color)

@@ -3,8 +3,16 @@
 #include <frame.hpp>
 %}
 
+%template(regargs_t) qvector<regarg_t>;
+
 // FIXME: Are these really useful?
 %ignore iterate_func_chunks;
+
+// Split the deprecated func_t* overloads from the ea_t ones so that
+// pywraps/py_funcs.py can route deprecated callers to a warning-emitting
+// dispatcher via `_deprecated_overload`.
+%rename(_is_visible_func_pfn) is_visible_func(func_t *);
+%rename(_is_finally_visible_func_pfn) is_finally_visible_func(func_t *);
 
 // Kernel-only & unexported symbols
 %ignore determine_rtl;
@@ -182,7 +190,7 @@
 //<typemaps(funcs)>
 //</typemaps(funcs)>
 
-%apply ea_t *result { ea_t *fptr }; // calc_thunk_func_target()
+%apply ea_t *result { ea_t *fptr }; // calc_thunk_func_target(), calc_thunk_function_target()
 %apply ea_t *appended_ea { ea_t *fptr };
 
 %include "funcs.hpp"

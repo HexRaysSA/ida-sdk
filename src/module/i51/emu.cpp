@@ -138,11 +138,11 @@ static void add_stkpnt(const insn_t &insn, sval_t v)
   if ( !may_trace_sp() )
     return;
 
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(insn.ea);
+  if ( func_ea == BADADDR )
     return;
 
-  add_auto_stkpnt(pfn, insn.ea+insn.size, v);
+  add_func_auto_stkpnt(func_ea, insn.ea+insn.size, v);
 }
 
 //----------------------------------------------------------------------

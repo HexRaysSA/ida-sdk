@@ -164,7 +164,7 @@ struct z80_t : public procmod_t
   inline bool isFunny(void) { return (ash.uflag & UAS_FUNNY) != 0; }
   void i5_header(outctx_t &ctx);
   void i5_footer(outctx_t &ctx);
-  void i5_segstart(outctx_t &ctx, segment_t *);
+  void i5_segstart(outctx_t &ctx, ea_t seg_ea);
 
   // ana.cpp
   int  i5_ana(insn_t *_insn);

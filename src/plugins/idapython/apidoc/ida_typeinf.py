@@ -84,6 +84,54 @@ calling tinfo_t::is_typeref.
 
    For type operations, see :mod:`ida_domain.types`."""
 
+def get_abi_name() -> Union[str, None]:
+    """
+    Get the current ABI name.
+
+    :returns: the ABI name, or None if no ABI is set.
+    """
+    pass
+
+def create_numbered_type_name(ord: int) -> Union[str, None]:
+    """
+    Create anonymous name for a numbered type.
+
+    This name can be used to reference a numbered type by its ordinal.
+    Ordinal names have the format ``'#' + set_de(ord)``.
+
+    :param ord: the ordinal
+    :returns: the ordinal name, or None on error.
+    """
+    pass
+
+def decorate_name(*args) -> Union[str, None]:
+    """
+    Decorate/undecorate a C symbol name.
+
+    This function has the following signatures:
+
+        1. decorate_name(name: str, should_decorate: bool) -> Union[str, None]
+        2. decorate_name(name: str, should_decorate: bool, cc: int,
+                         type: tinfo_t = None) -> Union[str, None]
+
+    :param name: name of symbol
+    :param should_decorate: True to decorate, False to undecorate
+    :param cc: calling convention (form 2)
+    :param type: type info (form 2, may be None)
+    :returns: the (un)decorated name, or None on failure.
+    """
+    pass
+
+def print_type(ea: ida_idaapi.ea_t, prtype_flags: int) -> Union[str, None]:
+    """
+    Get the type declaration for the specified address.
+
+    :param ea: address
+    :param prtype_flags: combination of PRTYPE_... flags
+    :returns: the type declaration, or None if the address has no type.
+    """
+    pass
+
 def calc_type_size(til: til_t, type: bytes):
     """
     Returns the size of a type
@@ -434,6 +482,37 @@ class tinfo_t(object):
         """
         pass
 
+    def get_type_cmt(self) -> Union[str, None]:
+        """
+        Get the type comment.
+
+        :returns: the regular or repeatable comment, or None if there is no
+                  comment.
+        """
+        pass
+
+    def get_next_type_name(self) -> Union[str, None]:
+        """
+        In the case of a typedef chain (TYPE1 -> TYPE2 -> TYPE3 ... TYPEn),
+        return the name of the next type in the chain (TYPE2).
+
+        :returns: the next type name in the chain, or None if there is no
+                  chain.
+        """
+        pass
+
+    def requires_qualifier(self, name: str, offset: int) -> Union[str, None]:
+        """
+        Check whether a field name requires a full qualifier because it is
+        not unique within the type.
+
+        :param name: field name
+        :param offset: field offset in bits
+        :returns: a qualifier string (possibly empty) if the name is not
+                  unique, or None if the name is already unique.
+        """
+        pass
+
 class edm_t(object):
     def __init__(self, *args):
         """
@@ -587,18 +666,36 @@ def get_numbered_type(til: til_t, ordinal: int) -> Union[Tuple[bytes, bytes, str
     """
     pass
 
-def idc_get_local_type_raw(ordinal) -> Tuple[bytes, bytes]:
+def idc_get_local_type_raw(ordinal) -> Union[Tuple[bytes, bytes], None]:
     """
     """
     pass
 
-def idc_parse_decl(til: til_t, decl: str, flags: int) -> Tuple[str, bytes, bytes]:
+def idc_parse_decl(til: til_t, decl: str, flags: int) -> Union[Tuple[str, bytes, bytes], None]:
     """
     """
     pass
 
-def idc_print_type(type: bytes, fields: bytes, name: str, flags: int) -> str:
+def idc_print_type(type: bytes, fields: bytes, name: str, flags: int) -> Union[str, None]:
     """
+    """
+    pass
+
+def parse_decl(out_tif: tinfo_t, til: til_t, decl: str, pt_flags: int) -> Union[str, None]:
+    """
+    Parse ONE declaration.
+
+    If the input string contains more than one declaration, the first complete
+    type declaration (PT_TYP) or the last variable declaration (PT_VAR) will
+    be used.
+
+    :param out_tif: (output) receives the parsed type info
+    :param til: type library to use. May be None
+    :param decl: C declaration to parse
+    :param pt_flags: combination of PT_... bits
+    :returns: the declared name on success (may be empty), or None if the
+              declaration is bad. On failure, an error message is displayed
+              unless PT_SIL is set.
     """
     pass
 

@@ -164,9 +164,8 @@ const char *f2mc_iohandler_t::iocallback(const ioports_t &iop, const char *line)
   {
     if ( (respect_info & IORESP_INT) != 0 )
     {
-      segment_t *s = getseg(ea1);
       ea_t proc;
-      if ( s != nullptr )
+      if ( segtype(ea1) != SEG_UNDF )
       {
         create_dword(ea1, 4);
         proc = get_dword(ea1);
@@ -348,14 +347,18 @@ ssize_t idaapi f2mc_t::on_event(ssize_t msgid, va_list va)
       break;
 
     case processor_t::ev_newfile:   // new file loaded
-      set_segm_name(get_first_seg(), "CODE");
-      choose_and_set_device(IORESP_ALL);
-      for ( int i = DTB; i <= rVds; i++ )
       {
-        for ( segment_t *s=get_first_seg(); s != nullptr; s=get_next_seg(s->start_ea) )
-          set_default_sreg_value(s, i, 0);
+        ea_t first_seg = get_first_segment_ea();
+        if ( first_seg != BADADDR )
+          set_segment_name(first_seg, "CODE");
+        choose_and_set_device(IORESP_ALL);
+        for ( int i = DTB; i <= rVds; i++ )
+        {
+          for ( ea_t seg_ea=get_first_segment_ea(); seg_ea != BADADDR; seg_ea = get_next_segment_ea(seg_ea) )
+            set_default_sreg_value_ea(seg_ea, i, 0);
+        }
+        save_idpflags();
       }
-      save_idpflags();
       break;
 
     case processor_t::ev_ending_undo:
@@ -383,7 +386,7 @@ ssize_t idaapi f2mc_t::on_event(ssize_t msgid, va_list va)
             error("interr: setprc");
         }
         ioh.device.qclear();
-        if ( get_first_seg() != nullptr )
+        if ( get_first_segment_ea() != BADADDR )
           choose_device();
       }
       break;
@@ -402,19 +405,19 @@ ssize_t idaapi f2mc_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        f2mc_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        f2mc_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
+    case processor_t::ev_out_segment_end:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        f2mc_segend(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        f2mc_segend(*ctx, ea);
         return 1;
       }
 
@@ -460,10 +463,10 @@ ssize_t idaapi f2mc_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 

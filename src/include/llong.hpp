@@ -43,11 +43,15 @@ inline constexpr int32  high(const int64 &x)  { return uint32(x>>32); }
 //---------------------------------------------------------------------------
 //      128 BIT NUMBERS
 //---------------------------------------------------------------------------
-#if !defined(__HAS_INT128__) && defined(__SIZEOF_INT128__)
+#ifndef __HAS_INT128__
+#ifdef __SIZEOF_INT128__
 #  define __HAS_INT128__ 1
-#endif
+#else
+#  define __HAS_INT128__ 0
+#endif // __SIZEOF_INT128__
+#endif // __HAS_INT128__
 
-#ifdef __HAS_INT128__
+#if __HAS_INT128__
 typedef unsigned __int128 uint128;
 typedef          __int128 int128;
 
@@ -280,7 +284,7 @@ inline uint128 operator-(const uint128 &x)
 }
 
 #endif // ifdef __cplusplus
-#endif // ifdef __HAS_INT128__
+#endif // if __HAS_INT128__
 
 idaman THREAD_SAFE void ida_export swap128(uint128 *x);
 

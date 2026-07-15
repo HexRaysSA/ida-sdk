@@ -14,3 +14,9 @@ it necessary.
    with IDAPython for advanced use cases.
 
    For database operations, see :mod:`ida_domain.database`."""
+
+def inf_get_nametype() -> int:
+    pass
+
+def inf_set_nametype(_v: int) -> bool:
+    pass

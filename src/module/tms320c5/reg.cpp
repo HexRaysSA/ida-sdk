@@ -107,45 +107,42 @@ ssize_t idaapi tms320c5_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_newfile:
       {
         inf_set_wide_high_byte_first(true);
-        segment_t *sptr = get_first_seg();
-        ea_t codeseg;
-        if ( sptr != nullptr )
+        ea_t codeseg = get_first_segment_ea();
+        if ( codeseg != BADADDR )
         {
-          codeseg = sptr->start_ea;
-          if ( codeseg-get_segm_base(sptr) == 0 )
+          if ( codeseg - get_segment_base(codeseg) == 0 )
           {
-            inf_set_start_ea(sptr->start_ea);
+            inf_set_start_ea(codeseg);
             inf_set_start_ip(0);
           }
         }
-        else
-        {
-          codeseg = BADADDR;
-        }
-        set_segm_class(sptr, "CODE");
-        set_segm_name(sptr,"cseg");
+        set_segment_class(codeseg, "CODE");
+        set_segment_name(codeseg, "cseg");
         sel_t sel;
         ea_t data_start;
-        segment_t *s1 = get_next_seg(codeseg);
-        if ( s1 == nullptr )
+        ea_t s1_ea = get_next_segment_ea(codeseg);
+        if ( s1_ea == BADADDR )
         {
-          segment_t s;
+          segment_info_t si;
           uint32 size = 64 * 1024;
-          s.start_ea = find_free_chunk(0, size, 0xF);
-          s.end_ea = s.start_ea + size;
-          s.sel   = ushort(s.start_ea >> 4);
-          s.align = saRelByte;
-          s.comb  = scPub;
-          add_segm_ex(&s, "dseg", nullptr, ADDSEG_NOSREG);
-          sel = s.sel;
-          data_start = s.start_ea;
+          si.start_ea = find_free_chunk(0, size, 0xF);
+          si.end_ea = si.start_ea + size;
+          si.set_sel(ushort(si.start_ea >> 4));
+          si.set_align(saRelByte);
+          si.set_comb(scPub);
+          si.set_name("dseg");
+          add_segment_ex(&si, ADDSEG_NOSREG);
+          sel = si.get_sel();
+          data_start = si.start_ea;
         }
         else
         {
-          sel = s1->sel;
-          data_start = s1->start_ea;
+          segment_info_t si;
+          get_segment_info(&si, s1_ea);
+          sel = si.get_sel();
+          data_start = si.start_ea;
         }
-        set_default_sreg_value(getseg(codeseg), rVds, sel);
+        set_default_sreg_value_ea(codeseg, rVds, sel);
         split_sreg_range(inf_get_start_ea(), rDP, 0, SR_auto);
         inf_set_nametype(NM_NAM_OFF);
 
@@ -188,11 +185,11 @@ ssize_t idaapi tms320c5_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        segstart(*ctx, ea);
         return 1;
       }
 

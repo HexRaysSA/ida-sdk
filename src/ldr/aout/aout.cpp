@@ -11,7 +11,7 @@
 //#define DEBUG
 #include "aout.h"
 #include "common.cpp"
-#include "../../module/sparc/notify_codes.hpp"
+#include <module/sparc/notify_codes.hpp>
 
 class aout_t
 {
@@ -129,7 +129,7 @@ static void create32(
   if ( !add_segm(sel, start_ea, end_ea, name, classname, ADDSEG_SPARSE) )
     loader_failure();
   if ( ph.id == PLFM_386 )
-    set_segm_addressing(getseg(start_ea), 1);
+    set_segment_addressing(start_ea, 1);
 }
 
 //--------------------------------------------------------------------------
@@ -197,11 +197,11 @@ static void do_fixup(uint32 where, uint32 delta, uint32 target, fixup_type_t typ
   if ( external )
     target -= delta;
 
-  segment_t *s = getseg(target);
-  if ( s != nullptr )
+  segment_info_t si;
+  if ( get_segment_info(&si, target) )
   {
-    fd.sel = s->sel;
-    fd.off = target - get_segm_base(s);
+    fd.sel = si.get_sel();
+    fd.off = target - si.base();
   }
   else
   {
@@ -220,8 +220,7 @@ static void do_relocation_sparc(
         uint32 len,
         int seg)
 {
-  const segment_t *seg_p = getnseg(seg);
-  if ( seg_p == nullptr )
+  if ( !get_segment_info_by_num(nullptr, seg) )
   {
     msg("relocation data for missing segment %d ignored\n", seg);
     return;
@@ -438,12 +437,12 @@ void load_syms(linput_t *li, aout_t &ctx)
     if ( sym->n_type == N_EXT )
     {
       sym->n_value = extern_base + (i_extern * 4);
-      if ( getseg(sym->n_value) )
+      if ( get_segment_info(nullptr, sym->n_value) )
         put_dword(sym->n_value, 0);
       i_extern++;
     }
 
-    if ( getseg(sym->n_value) != nullptr )
+    if ( get_segment_info(nullptr, sym->n_value) )
     {
       if ( sym->n_un.n_strx < tabsize )
       {

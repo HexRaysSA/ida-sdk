@@ -26,9 +26,11 @@ class TextStream:
 
     def advance_to_newline(self):
         p = self.point
-        while self.text[p] != '\n':
+        n = self.maxpoint
+        while p < n and self.text[p] != '\n':
             p += 1
-        p += 1
+        if p < n:               # consume the newline when present; tolerate EOF
+            p += 1               # (a final line without a trailing '\n')
         self.line_nr += 1
         self.char_nr = 0
         self.point = p

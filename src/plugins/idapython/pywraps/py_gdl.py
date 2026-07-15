@@ -91,4 +91,6 @@ class FlowChart(object):
 
 FC_PREDS = 0 # obsolete bit, do not use
 
+gen_flow_graph = ida_idaapi._ida_deprecated(gen_flow_graph, "gen_flow_graph_ea")
+
 #</pycode(py_gdl)>

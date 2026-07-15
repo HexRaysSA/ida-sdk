@@ -309,6 +309,7 @@ inline bool is_branch(const insn_t &insn)
     case ARC_br:
     case ARC_bbit0:
     case ARC_bbit1:
+    case ARC_dbnz:
       return true;
   }
 #ifndef NDEBUG
@@ -505,15 +506,14 @@ void idaapi arc_header(outctx_t &ctx)
 //--------------------------------------------------------------------------
 // generate start of a segment
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void arc_t::arc_segstart(outctx_t &ctx, segment_t *Sarea) const
+void arc_t::arc_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
   qstring name;
-  get_visible_segm_name(&name, Sarea);
+  get_segment_name(&name, seg_ea, GN_VISIBLE);
   ctx.gen_printf(0, COLSTR(".section %s", SCOLOR_ASMDIR), name.c_str());
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
-    adiff_t org = ctx.insn_ea - get_segm_base(Sarea);
+    adiff_t org = ctx.insn_ea - get_segment_base(seg_ea);
 
     if ( org != 0 )
     {

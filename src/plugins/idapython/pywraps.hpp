@@ -111,6 +111,7 @@ static const char S_ON_REFRESH[]             = "OnRefresh";
 static const char S_ON_EXECUTE_LINE[]        = "OnExecuteLine";
 static const char S_ON_SELECT_LINE[]         = "OnSelectLine";
 static const char S_ON_SELECTION_CHANGE[]    = "OnSelectionChange";
+static const char S_ON_CHECKED_LINE[]        = "OnCheckedLine";
 static const char S_ON_GET_ICON[]            = "OnGetIcon";
 static const char S_ON_GET_LINE_ATTR[]       = "OnGetLineAttr";
 static const char S_ON_GET_SIZE[]            = "OnGetSize";
@@ -501,6 +502,7 @@ idaman Py_ssize_t ida_export pyvar_walk_seq(
         size_t maxsize=size_t(-1));
 
 // Converts a vector to a Python list object
+idaman ref_t ida_export PyW_IntVecToPyList(const intvec_t &vec);
 idaman ref_t ida_export PyW_SizeVecToPyList(const sizevec_t &vec);
 idaman ref_t ida_export PyW_UvalVecToPyList(const uvalvec_t &vec);
 idaman ref_t ida_export PyW_StrVecToPyList(const qstrvec_t &vec);
@@ -510,6 +512,7 @@ idaman ref_t ida_export PyW_TidVecToPyList(const qvector<tid_t> &vec);
 // An exception will be raised in case:
 //  - py_list is not a sequence
 //  - a member of py_list cannot be converted to the numeric target type
+idaman Py_ssize_t ida_export PyW_PySeqToIntVec(intvec_t *out, PyObject *py_list, size_t maxsize=size_t(-1));
 idaman Py_ssize_t ida_export PyW_PySeqToSizeVec(sizevec_t *out, PyObject *py_list, size_t maxsize=size_t(-1));
 idaman Py_ssize_t ida_export PyW_PySeqToEaVec(eavec_t *out, PyObject *py_list, size_t maxsize=size_t(-1));
 idaman Py_ssize_t ida_export PyW_PySeqToStrVec(qstrvec_t *out, PyObject *py_list, size_t maxsize=size_t(-1));
@@ -885,6 +888,7 @@ struct idapython_plugin_t : public plugmod_t, public event_listener_t
   bool initialized;
   bool owning_interpreter;
   bool ui_ready;
+  bool banner_printed;
 #ifdef TESTABLE_BUILD
   int user_code_lenient;
 #endif
@@ -1005,17 +1009,13 @@ struct idapython_plugin_t : public plugmod_t, public event_listener_t
     return get_instance()->_cli_execute_line(line);
   }
 
-  static bool idaapi cli_find_completions(
-        qstrvec_t *out_completions,
-        qstrvec_t *out_hints,
-        qstrvec_t *out_docs,
-        int *out_match_start,
-        int *out_match_end,
+  static bool idaapi cli_find_completions_ex(
+        cli_completions_t *out,
         const char *line,
-        int x)
+        int x,
+        size_t max_count)
   {
-    return get_instance()->_cli_find_completions(out_completions, out_hints, out_docs,
-                                                 out_match_start, out_match_end, line, x);
+    return get_instance()->_cli_find_completions_ex(out, line, x, max_count);
   }
 
   static bool idaapi exec_script(
@@ -1081,14 +1081,11 @@ private:
 
   bool _cli_execute_line(
         const char *line);
-  bool _cli_find_completions(
-        qstrvec_t *out_completions,
-        qstrvec_t *out_hints,
-        qstrvec_t *out_docs,
-        int *out_match_start,
-        int *out_match_end,
+  bool _cli_find_completions_ex(
+        cli_completions_t *out,
         const char *line,
-        int x);
+        int x,
+        size_t max_count);
 
   bool _handle_file(
         const char *path,
@@ -1379,12 +1376,8 @@ idaman void ida_export idapython_hide_wait_box();
 #define hide_wait_box USE_IDAPYTHON_HIDE_WAIT_BOX
 
 //-------------------------------------------------------------------------
-idaman bool ida_export idapython_convert_cli_completions(
-        qstrvec_t *out_completions,
-        qstrvec_t *out_hints,
-        qstrvec_t *out_docs,
-        int *out_match_start,
-        int *out_match_end,
+idaman bool ida_export idapython_convert_cli_completions_ex(
+        cli_completions_t *out,
         ref_t py_res);
 
 //-------------------------------------------------------------------------
@@ -1440,7 +1433,7 @@ idaman bool DLLVAR idapython_hexrays_exiting;
 #define DCLVL_SIMPLE 1
 #define DCLVL_FULL 2
 #define MODULE_NAME   "Hex-Rays Decompiler" // Copied from vd/hexrays.cpp
-idaman void ida_export debug_hexrays_ctree(int level, const char *format, ...);
+idaman AS_PRINTF(2, 3) void ida_export debug_hexrays_ctree(int level, const char *format, ...);
 void *idaapi idapython_dummy_hexdsp(int code, ...);
 
 //-------------------------------------------------------------------------

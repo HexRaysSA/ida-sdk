@@ -1,8 +1,8 @@
 #ifndef __TILFUNCS__
 #define __TILFUNCS__
 
-#include "../../plugins/pdb/pdb.hpp"
-#include "../../plugins/pdb/msdia.hpp"
+#include <plugins/pdb/pdb.hpp>
+#include <plugins/pdb/msdia.hpp>
 
 #define SEM_NO_WAIT     0
 

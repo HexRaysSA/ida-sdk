@@ -884,7 +884,7 @@ class ebc_processor_t(processor_t):
     # Processor module callbacks
     #
     # ----------------------------------------------------------------------
-    def ev_get_frame_retsize(self, frsize, pfn):
+    def ev_get_function_retsize(self, frsize, func_ea):
         ida_pro.int_pointer.frompointer(frsize).assign(16)
         return 1
 
@@ -977,11 +977,11 @@ class ebc_processor_t(processor_t):
                 if is_reg(insn.Op1, self.ireg_SP):
                     pass
                 else:
-                    pfn = get_func(insn.ea)
+                    func_ea = get_func_start(insn.ea)
                     # [SP+var_x] (indirect)
                     # SP+var_x   (direct)
                     flag = STKVAR_VALID_SIZE if (op.specval & self.FLo_INDIRECT) else 0
-                    if pfn and insn.create_stkvar(op, op.addr, flag):
+                    if func_ea != BADADDR and insn.create_stkvar(op, op.addr, flag):
                         op_stkvar(insn.ea, op.n)
         elif optype == o_mem:
             if insn.itype == self.itype_MOVREL:
@@ -999,11 +999,11 @@ class ebc_processor_t(processor_t):
             insn.add_cref(op.addr, op.offb, fl)
 
     # ----------------------------------------------------------------------
-    def add_stkpnt(self, insn, pfn, v):
-        if pfn:
+    def add_stkpnt(self, insn, func_ea, v):
+        if func_ea != BADADDR:
             end = insn.ea + insn.size
             if not is_fixed_spd(end):
-                ida_frame.add_auto_stkpnt(pfn, end, v)
+                ida_frame.add_func_auto_stkpnt(func_ea, end, v)
 
     # ----------------------------------------------------------------------
     def trace_sp(self, insn):
@@ -1011,8 +1011,8 @@ class ebc_processor_t(processor_t):
         Trace the value of the SP and create an SP change point if the current
         instruction modifies the SP.
         """
-        pfn = get_func(insn.ea)
-        if not pfn:
+        func_ea = get_func_start(insn.ea)
+        if func_ea == BADADDR:
             return
         if is_reg(insn.Op1, self.ireg_SP) and insn.itype in [self.itype_MOVbw, self.itype_MOVww,
                                               self.itype_MOVdw, self.itype_MOVqw, self.itype_MOVbd,
@@ -1022,13 +1022,13 @@ class ebc_processor_t(processor_t):
             # MOVqw         SP, SP+0x30
             if insn.Op2.type == o_displ and insn.Op2.phrase == self.ireg_SP and (insn.Op2.specval & self.FLo_INDIRECT) == 0:
                 spofs = SIGNEXT(insn.Op2.addr, self.PTRSZ*8)
-                self.add_stkpnt(insn, pfn, spofs)
+                self.add_stkpnt(insn, func_ea, spofs)
         elif insn.itype in [self.itype_PUSH, self.itype_PUSHn]:
             spofs = self.dt_to_bits(insn.Op1.dtype) // 8
-            self.add_stkpnt(insn, pfn, -spofs)
+            self.add_stkpnt(insn, func_ea, -spofs)
         elif insn.itype in [self.itype_POP, self.itype_POPn]:
             spofs = self.dt_to_bits(insn.Op1.dtype) // 8
-            self.add_stkpnt(insn, pfn, spofs)
+            self.add_stkpnt(insn, func_ea, spofs)
 
 
     # ----------------------------------------------------------------------

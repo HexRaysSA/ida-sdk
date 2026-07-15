@@ -207,12 +207,12 @@ struct tms320c54_t : public procmod_t
   int emu(const insn_t &insn);
   void handle_operand(const insn_t &insn, const op_t &x, flags64_t F, bool use);
   ea_t calc_data_mem(const insn_t &insn, ea_t ea, bool is_mem) const;
-  bool create_func_frame(func_t *pfn) const;
+  bool create_func_frame(ea_t func_ea) const;
   regnum_t get_mapped_register(ea_t ea) const;
 
   void assumes(outctx_t &ctx);
   void print_segment_register(outctx_t &ctx, int reg, sel_t value);
-  void segstart(outctx_t &ctx, segment_t *seg) const;
+  void segstart(outctx_t &ctx, ea_t seg_ea) const;
   void footer(outctx_t &ctx) const;
   void gen_stkvar_def(outctx_t &ctx, const udm_t *stkvar, sval_t v) const;
 
@@ -232,11 +232,9 @@ const char *get_cond8(char value);
 //------------------------------------------------------------------
 void idaapi header(outctx_t &ctx);
 
-void idaapi segend(outctx_t &ctx, segment_t *seg);
-
 void idaapi data(ea_t ea);
 
-int idaapi tms_get_frame_retsize(const func_t *pfn);
+int idaapi tms_get_frame_retsize(ea_t func_ea);
 int idaapi is_align_insn(ea_t ea);
 bool is_basic_block_end(const insn_t &insn); // 0-no, 2-yes
 

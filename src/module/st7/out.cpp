@@ -157,14 +157,16 @@ void out_st7_t::out_insn(void)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, seg) could be made const
-void idaapi st7_segstart(outctx_t &ctx, segment_t *seg)
+void idaapi st7_segstart(outctx_t &ctx, ea_t seg_ea)
 {
-  if ( is_spec_segm(seg->type) )
+  segment_info_t seg;
+  if ( !get_segment_info(&seg, seg_ea, GSI_NAME|GSI_SCLASS) )
+    return;
+  if ( is_spec_segm(seg.get_type()) )
     return;
 
   const char *align;
-  switch ( seg->align )
+  switch ( seg.get_align() )
   {
     case saAbs:        align = "at: ";  break;
     case saRelByte:    align = "byte";  break;
@@ -178,27 +180,26 @@ void idaapi st7_segstart(outctx_t &ctx, segment_t *seg)
   if ( align == nullptr )
   {
     ctx.gen_cmt_line("Segment alignment '%s' cannot be represented in assembly",
-                     get_segment_alignment(seg->align));
+                     get_segment_alignment(seg.get_align()));
     align = "";
   }
 
   qstring sname;
-  qstring sclas;
-  get_visible_segm_name(&sname, seg);
-  get_segm_class(&sclas, seg);
+  seg.visible_name(&sname);
+  const char *sclas = seg.get_sclass();
 
   ctx.out_printf(SCOLOR_ON SCOLOR_ASMDIR "%-*s segment %s ",
                  inf_get_indent()-1,
                  sname.c_str(),
                  align);
-  if ( seg->align == saAbs )
+  if ( seg.get_align() == saAbs )
   {
-    ea_t absbase = get_segm_base(seg);
+    ea_t absbase = seg.base();
     ctx.out_btoa(absbase);
     ctx.out_char(' ');
   }
   const char *comb;
-  switch ( seg->comb )
+  switch ( seg.get_comb() )
   {
     case scPub:
     case scPub2:
@@ -209,17 +210,12 @@ void idaapi st7_segstart(outctx_t &ctx, segment_t *seg)
   if ( comb == nullptr )
   {
     ctx.gen_cmt_line("Segment combination '%s' cannot be represented in assembly",
-                     get_segment_combination(seg->comb));
+                     get_segment_combination(seg.get_comb()));
     comb = "";
   }
-  ctx.out_printf("%s '%s'", comb, sclas.c_str());
+  ctx.out_printf("%s '%s'", comb, sclas);
   ctx.out_tagoff(COLOR_ASMDIR);
   ctx.flush_outbuf(0);
-}
-
-//--------------------------------------------------------------------------
-void idaapi st7_segend(outctx_t &, segment_t *)
-{
 }
 
 //--------------------------------------------------------------------------

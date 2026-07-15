@@ -27,15 +27,15 @@ static const char wanted_name[] = "Remote Windows debugger";
 #include <kernwin.hpp>
 #include <network.hpp>
 #include <dbg.hpp>
-#include "dbg_plugmod.hpp"
+#include <dbg/dbg_plugmod.hpp>
 
 #include "w32sehch.h"
-#include "dbg_rpc_client.h"
-#include "rpc_debmod.h"
-#include "pc_regs.hpp"
-#include "deb_pc.hpp"
+#include <dbg/dbg_rpc_client.h>
+#include <dbg/rpc_debmod.h>
+#include <dbg/pc_regs.hpp>
+#include <dbg/deb_pc.hpp>
 
-#include "common_stub_impl.cpp"
+#include <dbg/common_stub_impl.cpp>
 #include "win32_local_impl.cpp"
 
 class win32_rpc_debmod_t : public rpc_debmod_t
@@ -183,4 +183,4 @@ static bool register_idc_funcs(bool reg)
   return add_idc_funcs(idcfuncs, qnumber(idcfuncs), reg);
 }
 
-#include "common_local_impl.cpp"
+#include <dbg/common_local_impl.cpp>

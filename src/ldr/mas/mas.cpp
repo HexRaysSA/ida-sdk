@@ -313,8 +313,8 @@ static bool process_record(linput_t *li, const uchar record_type, bool load)
           msg("MAS: detected entry point : 0x%X\n", entry_point);
 #endif
           inf_set_start_ip(entry_point);      // entry point
-          segment_t *s = getseg(entry_point);
-          inf_set_start_cs(s ? s->sel : 0);  // selector of code
+          segment_info_t si;
+          inf_set_start_cs(get_segment_info(&si, entry_point) ? si.get_sel() : 0);  // selector of code
         }
       }
       break;

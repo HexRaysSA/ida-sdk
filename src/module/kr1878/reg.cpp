@@ -180,19 +180,17 @@ static const asm_t *const asms[] = { &motasm, &gas, nullptr };
 //----------------------------------------------------------------------
 static ea_t AdditionalSegment(int size, int offset, const char *name)
 {
-  segment_t s;
-  s.start_ea = find_free_chunk(0x100000, size, 0xF);
-  s.end_ea   = s.start_ea + size;
-  s.sel     = allocate_selector((s.start_ea-offset) >> 4);
-  s.type    = SEG_DATA;
-  add_segm_ex(&s, name, "DATA", ADDSEG_NOSREG|ADDSEG_OR_DIE);
-  return s.start_ea - offset;
+  segment_info_t si;
+  si.start_ea = find_free_chunk(0x100000, size, 0xF);
+  si.end_ea   = si.start_ea + size;
+  si.set_sel(allocate_selector((si.start_ea-offset) >> 4));
+  si.set_type(SEG_DATA);
+  si.set_name(name);
+  si.set_sclass("DATA");
+  add_segment_ex(&si, ADDSEG_NOSREG|ADDSEG_OR_DIE);
+  return si.start_ea - offset;
 }
 
-inline ea_t get_start(const segment_t *s)
-{
-  return s ? s->start_ea : BADADDR;
-}
 
 //--------------------------------------------------------------------------
 const ioport_t *kr1878_t::find_port(ea_t address)
@@ -252,7 +250,7 @@ static bool idaapi can_have_type(const op_t &)
 //----------------------------------------------------------------------
 void kr1878_t::load_from_idb()
 {
-  xmem = get_start(get_segm_by_name("MEM"));
+  xmem = get_segment_ea_by_name("MEM");
   if ( helper.supstr(&device, -1) > 0 )
     read_kr1878_cfg();
 }
@@ -294,15 +292,15 @@ ssize_t idaapi kr1878_t::on_event(ssize_t msgid, va_list va)
           add_entry(ea, ea, ints[i].name, true);
         }
 
-        segment_t *s0 = get_first_seg();
-        if ( s0 != nullptr )
+        ea_t s0_ea = get_first_segment_ea();
+        if ( s0_ea != BADADDR )
         {
-          segment_t *s1 = get_next_seg(s0->start_ea);
-          set_segm_name(s0, "CODE");
+          ea_t s1_ea = get_next_segment_ea(s0_ea);
+          set_segment_name(s0_ea, "CODE");
           for ( int i = as; i <= vDS; i++ )
           {
-            set_default_sreg_value(s0, i, BADSEL);
-            set_default_sreg_value(s1, i, BADSEL);
+            set_default_sreg_value_ea(s0_ea, i, BADSEL);
+            set_default_sreg_value_ea(s1_ea, i, BADSEL);
           }
         }
         xmem = AdditionalSegment(0x100, 0, "MEM");
@@ -354,19 +352,19 @@ ssize_t idaapi kr1878_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        kr1878_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        kr1878_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
+    case processor_t::ev_out_segment_end:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        kr1878_segend(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        kr1878_segend(*ctx, ea);
         return 1;
       }
 

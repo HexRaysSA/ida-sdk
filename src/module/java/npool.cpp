@@ -1612,9 +1612,14 @@ duplerr_w:
             errtrunc();
           FileSize -= curSeg.CodeSize;
           {
-            segment_t *S = _add_seg(-1);  // expand size
+            segment_info_t si;
+            _add_seg(&si, -1);  // expand size
             if ( curSeg.DataSize )
-              set_default_sreg_value(S, rVds, _add_seg(2)->sel); // create data segment
+            {
+              segment_info_t data_si;
+              _add_seg(&data_si, 2); // create data segment
+              set_default_sreg_value_ea(si.start_ea, rVds, data_si.get_sel());
+            }
           }
         }
 
@@ -2177,11 +2182,6 @@ bad:
 //      - load it into the database using file2base(),mem2base()
 //        or allocate addresses by enable_flags() and fill them
 //        with values using putByte(), putWord(), putLong()
-//      - (if createsegs) create segments using
-//          add_segm(segment_t *,const char *name,const char *sclass,int flags)
-//        or
-//          add_segm(uint short,ea_t,ea_t,char *,char *)
-//        see segment.hpp for explanations
 //      - set up inf_get_start_ip(),startCS to the starting address
 //      - set up inf_get_min_ea(),inf_get_max_ea()
 //
@@ -2248,7 +2248,7 @@ BAD_VERSION:
   XtrnNode.create();
   make_NameChars(/*on_load=*/ true);  // initialize and set 'load extension'
   const uint nconstants = load_constants_pool();
-  if ( !_add_seg(0) )
+  if ( !_add_seg(nullptr, 0) )
   {
     XtrnNode.kill();
   }
@@ -2286,7 +2286,7 @@ BAD_VERSION:
   qfseek(fp, i, SEEK_CUR);
   curClass.FieldCnt = read2();
   qfseek(fp, -2 - qoff64_t(i), SEEK_CUR);
-  _add_seg(3);          // class segment
+  _add_seg(nullptr, 3);          // class segment
   enableExt_NameChar();
   if ( curClass.This.Dscr )
   {
@@ -2399,7 +2399,7 @@ BAD_VERSION:
       load_msg("Illegal Method#%u Attribute 0x%04x\n", i, curSeg.id.access);
 //      curSeg.id.extflg |= EFL_ACCESS;
 
-    _add_seg(1);  // create code segment // this for strnRef_dscr
+    _add_seg(nullptr, 1);  // create code segment // this for strnRef_dscr
     curSeg.id.name = read2();
     if ( !CheckFieldName(lm_normal, curSeg.id.name, nullptr) )
       curSeg.id.extflg |= EFL_NAME;
@@ -2468,8 +2468,8 @@ BAD_VERSION:
     ea_t ea = curSeg.start_ea;
     show_addr(ea);
     ea_t end = ea + curSeg.CodeSize;
-    segment_t *s = getseg(ea);
-    if ( s == nullptr || end < ea || end > s->end_ea )
+    segment_info_t si;
+    if ( !get_segment_info(&si, ea) || end < ea || end > si.end_ea )
       loader_failure("Bad method %u code size 0x%X", i, curSeg.CodeSize);
     if ( !curSeg.CodeSize )
     {

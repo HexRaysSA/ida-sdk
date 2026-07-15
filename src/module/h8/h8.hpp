@@ -175,14 +175,12 @@ const uint16 aux_long = 3;              // .l postfix
 ea_t calc_mem(const insn_t &insn, ea_t ea); // map virtual to physical ea
 ea_t calc_mem_sbr_based(const insn_t &insn, ea_t ea); // map virtual @aa:8 physical ea
 
-void idaapi h8_segend(outctx_t &ctx, segment_t *seg);
 
 int  idaapi h8_is_align_insn(ea_t ea);
-bool idaapi create_func_frame(func_t *pfn);
+bool idaapi create_func_frame(ea_t func_ea);
 int  idaapi is_sp_based(const insn_t &insn, const op_t &x);
 bool idaapi is_return_insn(const insn_t &insn);
 
-int is_jump_func(const func_t *pfn, ea_t *jump_target);
 int may_be_func(const insn_t &insn);           // can a function start here?
 int is_sane_insn(const insn_t &insn, int nocrefs);
 bool idaapi h8_is_switch(switch_info_t *si, const insn_t &insn);
@@ -267,7 +265,7 @@ struct h8_t : public procmod_t
   bool op_phrase(const insn_t &insn, op_t &x, uint8 reg, int pht, op_dtype_t dtype=dt_byte);
   bool op_displ_regidx(insn_t &insn, op_t &x, uint8 selector, bool is_32, uint8 reg);
   int emu(const insn_t &insn);
-  int h8_get_frame_retsize(const func_t *);
+  int h8_get_frame_retsize(ea_t func_ea);
   int h8sx_7C(insn_t &insn);
   int h8sx_7D(insn_t &insn);
   bool h8sx_010_01dd(insn_t &insn, uint16 postfix);
@@ -294,7 +292,7 @@ struct h8_t : public procmod_t
   bool get_op_value(uval_t *value, const insn_t &_insn, const op_t &x) const;
   bool spoils(const insn_t &insn, int reg) const;
   void check_base_reg_change_value(const insn_t &insn) const;
-  void h8_segstart(outctx_t &ctx, segment_t *Srange) const;
+  void h8_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void h8_gen_stkvar_def(outctx_t &ctx, const udm_t *stkvar, sval_t v) const;
   void h8_footer(outctx_t &ctx) const;
 

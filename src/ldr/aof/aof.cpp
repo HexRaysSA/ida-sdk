@@ -111,25 +111,24 @@ static void create32(
 {
   set_selector(sel, 0);
 
-  segment_t s;
-  s.sel     = sel;
-  s.start_ea = start_ea;
-  s.end_ea   = end_ea;
-  s.align   = saRelByte;
-  s.comb    = scPub;
-  s.bitness = 1; // 32-bit
+  segment_info_t si;
+  si.start_ea = start_ea;
+  si.end_ea   = end_ea;
+  si.set_sel(sel);
+  si.set_align(saRelByte);
+  si.set_comb(scPub);
+  si.set_bitness(1); // 32-bit
+  si.set_name(name);
+  si.set_sclass(classname);
 
-  if ( !add_segm_ex(&s, name, classname, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+  if ( !add_segment_ex(&si, ADDSEG_NOSREG|ADDSEG_SPARSE) )
     loader_failure();
 }
 
 //--------------------------------------------------------------------------
 static ea_t get_area_base(int idx)
 {
-  segment_t *s = get_segm_by_sel(idx+1);
-  if ( s == nullptr )
-    return BADADDR;
-  return s->start_ea;
+  return get_segment_ea_by_sel(idx+1);
 }
 
 //--------------------------------------------------------------------------
@@ -164,10 +163,13 @@ static ea_t create_spec_seg(
     ea = find_free_chunk(inf_get_max_ea(), nelem, 0xFFF);
     (*nsegs)++;
     create32(*nsegs, ea, ea+nelem, name, CLASS_DATA);
-    segment_t *s = getseg(ea);
-    s->type = seg_type;
-    s->update();
-    set_arm_segm_flags(s->start_ea, 2 << SEGFL_SHIFT); // alignment
+    segment_info_t si;
+    if ( get_segment_info(&si, ea) )
+    {
+      si.set_type(seg_type);
+      set_segment_info(&si);
+    }
+    set_arm_segm_flags(ea, 2 << SEGFL_SHIFT); // alignment
   }
   return ea;
 }
@@ -380,7 +382,6 @@ void idaapi load_file(linput_t *li, ushort /*neflag*/, const char * /*fileformat
       classname = CLASS_DATA;
     create32(i+1, ea, ea+ah->size, name, classname);
 
-    segment_t *s = getseg(ea);
     ushort sflags = (ah->flags & 0x1F) << SEGFL_SHIFT;       // alignment
     if ( ah->flags & AREA_BASED )
       sflags |= (SEGFL_BASED|ah->get_based_reg());
@@ -394,14 +395,18 @@ void idaapi load_file(linput_t *li, ushort /*neflag*/, const char * /*fileformat
       sflags |= SEGFL_INTER;
     if ( ah->flags & AREA_COMMON )
       sflags |= SEGFL_COMDEF;
-    if ( ah->flags & (AREA_COMMON|AREA_COMREF) )
-      s->comb = scCommon;
-    if ( ah->flags & AREA_RDONLY )
-      s->perm = SEGPERM_READ;
-    if ( ah->flags & AREA_ABS )
-      s->align = saAbs;
-    s->update();
-    set_arm_segm_flags(s->start_ea, sflags);
+    segment_info_t si;
+    if ( get_segment_info(&si, ea) )
+    {
+      if ( ah->flags & (AREA_COMMON|AREA_COMREF) )
+        si.set_comb(scCommon);
+      if ( ah->flags & AREA_RDONLY )
+        si.set_perm(SEGPERM_READ);
+      if ( ah->flags & AREA_ABS )
+        si.set_align(saAbs);
+      set_segment_info(&si);
+    }
+    set_arm_segm_flags(ea, sflags);
 
     if ( i == 0 )
     {
@@ -588,11 +593,11 @@ void idaapi load_file(linput_t *li, ushort /*neflag*/, const char * /*fileformat
         if ( rvalue == BADADDR )
           loader_failure("Bad reference to area %" FMT_Z " at file offset %" FMT_64 "x", sid, qltell(li)-sizeof(reloc_t));
       }
-      segment_t *s = getseg(target);
-      if ( s == nullptr )
+      segment_info_t si;
+      if ( !get_segment_info(&si, target) )
         loader_failure("Can't find area for relocation target %a at %" FMT_64 "x", target, qltell(li)-sizeof(reloc_t));
-      fd.sel = s->sel;
-      fd.off = target - get_segm_base(s);
+      fd.sel = si.get_sel();
+      fd.off = target - si.base();
       if ( (r.type & RF_R) != 0 )
       {
         if ( (r.type & RF_A) != 0 )

@@ -48,12 +48,12 @@ struct md5_t
     return true;
   }
 
-
 protected:
   void assign(const md5_t &r) { memmove(hash, r.hash, sizeof(hash)); }
 };
 DECLARE_TYPE_AS_MOVABLE(md5_t);
 typedef qvector<md5_t> md5_vec_t;
+
 
 struct md5_size_t
 {

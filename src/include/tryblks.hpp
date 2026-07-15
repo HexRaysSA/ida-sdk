@@ -110,7 +110,6 @@ public:
   bool is_seh(void) const { return kind == TB_SEH; }
   bool is_cpp(void) const { return kind == TB_CPP; }
 
-
   //-------------------------------------------------------------------------
   tryblk_t &operator=(const tryblk_t &r)
   {

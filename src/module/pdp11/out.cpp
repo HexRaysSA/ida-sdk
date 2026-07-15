@@ -204,24 +204,26 @@ void idaapi pdp_header(outctx_t &ctx)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, seg) could be made const
-void pdp11_t::pdp_segstart(outctx_t &ctx, segment_t *seg)
+void pdp11_t::pdp_segstart(outctx_t &ctx, ea_t seg_ea)
 {
-  if ( seg->type == SEG_IMEM )
+  segment_info_t seg;
+  if ( !get_segment_info(&seg, seg_ea, GSI_NAME) )
+    return;
+  if ( seg.get_type() == SEG_IMEM )
   {
     ctx.flush_buf(COLSTR(".ASECT", SCOLOR_ASMDIR), DEFAULT_INDENT);
   }
   else
   {
     qstring sname;
-    get_visible_segm_name(&sname, seg);
+    seg.visible_name(&sname);
     ctx.out_printf(COLSTR(".PSECT %s", SCOLOR_ASMDIR), sname.c_str());
-    if ( seg->ovrname != 0 )
+    if ( seg.ovrname() != 0 )
     {
       char bseg[MAX_NUMBUF];
       char breg[MAX_NUMBUF];
-      btoa(bseg, sizeof(bseg), seg->ovrname & 0xFFFF, 10);
-      btoa(breg, sizeof(breg), seg->ovrname >> 16, 10);
+      btoa(bseg, sizeof(bseg), seg.ovrname() & 0xFFFF, 10);
+      btoa(breg, sizeof(breg), seg.ovrname() >> 16, 10);
       ctx.out_printf(
                 COLSTR(" %s Overlay Segment %s, Region %s", SCOLOR_AUTOCMT),
                 ash.cmnt, bseg, breg);
@@ -231,13 +233,13 @@ void pdp11_t::pdp_segstart(outctx_t &ctx, segment_t *seg)
 
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
-    size_t org = size_t(ctx.insn_ea-get_segm_base(seg));
-    if ( org != 0 && org != ml.asect_top && seg->comorg() )
+    size_t org = size_t(ctx.insn_ea - seg.base());
+    if ( org != 0 && org != ml.asect_top && seg.comorg() )
     {
       ctx.out_tagon(COLOR_ASMDIR);
       ctx.out_line(ash.origin);
       ctx.out_line(ash.a_equ);
-      if ( seg->type != SEG_IMEM )
+      if ( seg.get_type() != SEG_IMEM )
       {
         ctx.out_line(ash.origin);
         ctx.out_char('+');
@@ -276,11 +278,11 @@ void pdp11_t::pdp_footer(outctx_t &ctx) const
 //--------------------------------------------------------------------------
 bool pdp11_t::out_equ(outctx_t &ctx, ea_t ea) const
 {
-  segment_t *s = getseg(ea);
+  segment_info_t s;
   char buf[MAXSTR];
-  if ( s != nullptr )
+  if ( get_segment_info(&s, ea) )
   {
-    if ( s->type != SEG_IMEM && !is_loaded(ea) )
+    if ( s.get_type() != SEG_IMEM && !is_loaded(ea) )
     {
       char num[MAX_NUMBUF];
       btoa(num, sizeof(num), get_item_size(ea));

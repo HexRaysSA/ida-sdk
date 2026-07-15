@@ -143,6 +143,9 @@
 
 %predefine_uint32_macro(AF_FINAL, 0x80000000);
 
+%apply uchar { char nametype };
+%typemap(out) char inf_get_nametype = unsigned char;
+
 %include "ida.hpp"
 /* %include "config.hpp" */
 

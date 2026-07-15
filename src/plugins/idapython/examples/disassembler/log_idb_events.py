@@ -72,13 +72,25 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
     def changing_segm_class(self, segment):
         return self._log()
 
+    def changing_segment_class(self, seg_start_ea):
+        return self._log()
+
     def changing_segm_end(self, segment, new_end, flags):
+        return self._log()
+
+    def changing_segment_end(self, seg_start_ea, new_end, segmod_flags):
         return self._log()
 
     def changing_segm_name(self, segment, old_name):
         return self._log()
 
+    def changing_segment_name(self, seg_start_ea, oldname):
+        return self._log()
+
     def changing_segm_start(self, segment, new_start, flags):
+        return self._log()
+
+    def changing_segment_start(self, seg_start_ea, new_start, segmod_flags):
         return self._log()
 
     def changing_struc_cmt(self, tid, is_repeatable, comment):
@@ -102,7 +114,13 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
     def deleting_func(self, pfn):
         return self._log()
 
+    def deleting_function(self, func_ea):
+        return self._log()
+
     def deleting_func_tail(self, pfn, tail):
+        return self._log()
+
+    def deleting_function_tail(self, func_ea, tail):
         return self._log()
 
     def deleting_segm(self, start_ea):
@@ -156,7 +174,13 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
     def frame_deleted(self, pfn):
         return self._log()
 
+    def function_frame_deleted(self, func_ea):
+        return self._log()
+
     def func_added(self, pfn):
+        return self._log()
+
+    def function_added(self, func_ea):
         return self._log()
 
     def func_deleted(self, func_ea):
@@ -165,13 +189,25 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
     def func_noret_changed(self, pfn):
         return self._log()
 
+    def function_noret_changed(self, func_ea):
+        return self._log()
+
     def func_tail_appended(self, pfn, tail):
+        return self._log()
+
+    def function_tail_appended(self, func_ea, tail):
         return self._log()
 
     def func_tail_deleted(self, pfn, tail_ea):
         return self._log()
 
+    def function_tail_deleted(self, func_ea, tail_ea):
+        return self._log()
+
     def func_updated(self, pfn):
+        return self._log()
+
+    def function_updated(self, fchunk_ea):
         return self._log()
 
     def idasgn_loaded(self, sig_name):
@@ -219,10 +255,19 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
     def segm_added(self, segment):
         return self._log()
 
+    def segment_added(self, seg_start_ea):
+        return self._log()
+
     def segm_attrs_updated(self, segment):
         return self._log()
 
+    def segment_attrs_updated(self, seg_start_ea):
+        return self._log()
+
     def segm_class_changed(self, segment, sclass):
+        return self._log()
+
+    def segment_class_changed(self, seg_start_ea, sclass):
         return self._log()
 
     def segm_deleted(self, start_ea, end_ea, flags):
@@ -231,19 +276,34 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
     def segm_end_changed(self, segment, old_end):
         return self._log()
 
+    def segment_end_changed(self, seg_start_ea, oldend):
+        return self._log()
+
     def segm_moved(self, _from, to, size, changed_netmap):
         return self._log()
 
     def segm_name_changed(self, segment, name):
         return self._log()
 
+    def segment_name_changed(self, seg_start_ea, name):
+        return self._log()
+
     def segm_start_changed(self, segment, old_start):
+        return self._log()
+
+    def segment_start_changed(self, seg_start_ea, oldstart):
         return self._log()
 
     def set_func_end(self, pfn, new_end):
         return self._log()
 
+    def set_function_end(self, fchunk, new_end):
+        return self._log()
+
     def set_func_start(self, pfn, new_start):
+        return self._log()
+
+    def set_function_start(self, fchunk, new_start):
         return self._log()
 
     def sgr_changed(self, start_ea, end_ea, regnum, value, old_value, tag):
@@ -255,13 +315,22 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
     def stkpnts_changed(self, pfn):
         return self._log()
 
+    def function_stkpnts_changed(self, func_ea):
+        return self._log()
+
     def struc_member_changed(self, sptr, mptr):
         return self._log()
 
     def tail_owner_changed(self, tail, owner_func, old_owner):
         return self._log()
 
+    def function_tail_owner_changed(self, tail, owner_func_ea, old_owner_ea):
+        return self._log()
+
     def thunk_func_created(self, pfn):
+        return self._log()
+
+    def thunk_function_created(self, func_ea):
         return self._log()
 
     def ti_changed(self, ea, _type, fnames):
@@ -297,6 +366,9 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
     def frame_deleted(self, pfn):
         return self._log()
 
+    def function_frame_deleted(self, func_ea):
+        return self._log()
+
     def frame_udm_created(self, func_ea, udm):
         return self._log()
 
@@ -322,6 +394,9 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
         return self._log()
 
     def lt_edm_changed(self, enumname, tid, edmold, edmnew):
+        return self._log()
+
+    def moving_range_cmt(self, kind, oldea, newea, is_repeatable):
         return self._log()
 
 idb_hooks = idb_logger_hooks_t()

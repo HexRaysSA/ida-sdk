@@ -84,6 +84,7 @@ idaman bool ida_export split_sreg_range(
 
 
 /// Set default value of a segment register for a segment.
+/// \deprecated Use set_default_sreg_value_ea()
 /// \param sg     pointer to segment structure
 ///               if nullptr, then set the register for all segments
 /// \param rg     number of segment register
@@ -91,7 +92,18 @@ idaman bool ida_export split_sreg_range(
 ///               if value of the register is unknown at the specified address.
 /// \return success
 
-idaman bool ida_export set_default_sreg_value(segment_t *sg, int rg, sel_t value);
+idaman DEPRECATED bool ida_export set_default_sreg_value(segment_t *sg, int rg, sel_t value);
+
+
+/// Set default value of a segment register for a segment.
+/// \param seg_ea  any address within the segment,
+///                if BADADDR, then set the register for all segments
+/// \param rg      number of segment register
+/// \param value   its default value. this value will be used by get_sreg()
+///                if value of the register is unknown at the specified address.
+/// \return success
+
+idaman bool ida_export set_default_sreg_value_ea(ea_t seg_ea, int rg, sel_t value);
 
 
 /// Set the segment register value at the next instruction.

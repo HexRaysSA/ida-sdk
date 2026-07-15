@@ -125,10 +125,10 @@ enum processor_subtype_t
 
 // exporting our routines
 void idaapi m32r_footer(outctx_t &ctx);
-void idaapi m32r_segstart(outctx_t &ctx, segment_t *seg);
+void idaapi m32r_segstart(outctx_t &ctx, ea_t seg_ea);
 int idaapi emu(const insn_t &insn);
-bool idaapi create_func_frame(func_t *pfn);
-int  idaapi m32r_get_frame_retsize(const func_t *pfn);
+bool idaapi create_func_frame(ea_t func_ea);
+int  idaapi m32r_get_frame_retsize(ea_t func_ea);
 int  idaapi is_sp_based(const insn_t &insn, const op_t &op);
 bool idaapi can_have_type(const op_t &op);
 int m32r_create_switch_xrefs(ea_t insn_ea, const switch_info_t &si);

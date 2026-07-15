@@ -178,7 +178,7 @@ static special_func_t check_name(
 struct check_bytes_t
 {
   qstring *name;
-  func_t *fn;
+  func_entry_info_t *fn;
 
   insn_t start_insn;
   bool start_insn_valid() const { return start_insn.size != 0; }
@@ -186,11 +186,11 @@ struct check_bytes_t
   ea_t start;
   ea_t end;
 
-  check_bytes_t(qstring *_name, func_t *_fn, ea_t _start)
+  check_bytes_t(qstring *_name, func_entry_info_t *_fn, ea_t _start)
     : name(_name), fn(_fn), start(_start)
   {
-    const segment_t *seg = getseg(start);
-    end = seg == nullptr ? start : seg->end_ea;
+    segment_info_t si;
+    end = get_segment_info(&si, start) ? si.end_ea : start;
     decode_insn(&start_insn, start);
   }
 
@@ -905,7 +905,7 @@ bool check_bytes_t::check_ghs_callt_load()
 }
 
 //-------------------------------------------------------------------------
-static bool check_thunk(qstring *name, func_t *fn, ea_t ea, bool is_callt)
+static bool check_thunk(qstring *name, func_entry_info_t *fn, ea_t ea, bool is_callt)
 {
   check_bytes_t bytes(name, fn, ea);
   if ( !bytes.start_insn_valid() )
@@ -925,27 +925,28 @@ static bool check_thunk(qstring *name, func_t *fn, ea_t ea, bool is_callt)
 }
 
 //-------------------------------------------------------------------------
-static void mark_function(func_t *pfn, const qstring &name)
+static void mark_function(func_entry_info_t *fi, const qstring &name)
 {
   // remove hindering functions with dummy names (i.e. IDA-recognized)
-  // for each chunk in the FN range
-  ea_t ea = pfn->start_ea;
-  const func_t *fch = get_fchunk(ea);
-  if ( fch == nullptr )
-    fch = get_next_fchunk(ea);
-  while ( fch != nullptr && fch->start_ea < pfn->end_ea )
+  // for each chunk in the FI range
+  ea_t ea = fi->start_ea;
+  fchunk_info_t fci;
+  ea_t chunk_ea = get_fchunk_info(&fci, ea) ? fci.start_ea : get_next_fchunk_ea(ea);
+  while ( chunk_ea != BADADDR && chunk_ea < fi->end_ea )
   {
-    ea_t func_ea = is_func_tail(fch) ? fch->owner : fch->start_ea;
-    fch = get_next_fchunk(fch->start_ea); // before del_func!
-    if ( has_dummy_name(get_flags32(func_ea)) )
-      del_func(func_ea);
+    ea_t owner = get_tail_owner(chunk_ea);
+    ea_t fea = owner != BADADDR ? owner : chunk_ea;
+    ea_t next_chunk_ea = get_next_fchunk_ea(chunk_ea); // before del_func!
+    if ( has_dummy_name(get_flags32(fea)) )
+      del_func(fea);
+    chunk_ea = next_chunk_ea;
   }
   // change the name before creating the function
-  // (to avoid unnecessary check_thunk() during creation_
+  // (to avoid unnecessary check_thunk() during creation)
   set_name(ea, name.begin(), SN_FORCE|SN_MULTI);
-  pfn->flags |= FUNC_LIB | FUNC_THUNK;
+  fi->set_flags(fi->get_flags() | FUNC_LIB | FUNC_THUNK);
   create_insn(ea);
-  add_func_ex(pfn);
+  add_function_ex(fi);
 }
 
 //-------------------------------------------------------------------------
@@ -963,7 +964,7 @@ static special_func_t check_name_or_thunk(
     if ( res != SPF_NONE )
       return res;
   }
-  func_t fn;
+  func_entry_info_t fn;
   if ( check_thunk(&name, &fn, ea, is_callt) )
   {
     special_func_t res = check_name(regs, spf_feature, name.begin());
@@ -1213,10 +1214,10 @@ bool nec850_t::is_special_return_func(const insn_t &insn) const
 //-------------------------------------------------------------------------
 void nec850_t::check_call_table(ea_t start_ea) const
 {
-  const segment_t *seg = getseg(start_ea);
-  if ( seg == nullptr )
+  segment_info_t si;
+  if ( !get_segment_info(&si, start_ea) )
     return;
-  size_t n = (seg->end_ea - start_ea) / 2;
+  size_t n = (si.end_ea - start_ea) / 2;
   if ( n > 64 ) // the call table has no more than 64 entries
     n = 64;
   for ( size_t i = 0; i < n; ++i )

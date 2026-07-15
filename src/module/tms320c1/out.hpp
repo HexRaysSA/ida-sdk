@@ -35,8 +35,8 @@
 #ifndef _IDP_TMS320C1X_OUT_H
 #define _IDP_TMS320C1X_OUT_H
 
-void idaapi outSegStart(outctx_t &, segment_t *);
-void idaapi outSegEnd(outctx_t &, segment_t *);
+void idaapi outSegStart(outctx_t &, ea_t seg_ea);
+void idaapi outSegEnd(outctx_t &, ea_t seg_ea);
 void idaapi outHeader(outctx_t &);
 void idaapi outFooter(outctx_t &);
 bool idaapi outOp(outctx_t &ctx, const op_t &op);

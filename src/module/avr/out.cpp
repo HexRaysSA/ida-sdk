@@ -9,7 +9,7 @@
  */
 
 #include "avr.hpp"
-#include "../../ldr/elf/elfr_avr.h"
+#include <ldr/elf/elfr_avr.h>
 
 //----------------------------------------------------------------------
 class out_avr_t : public outctx_t
@@ -211,34 +211,32 @@ void out_avr_t::out_insn(void)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void avr_t::avr_segstart(outctx_t &ctx, segment_t *Sarea) const
+void avr_t::avr_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
-  if ( is_spec_segm(Sarea->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME|GSI_SCLASS) || is_spec_segm(si.get_type()) )
     return;
   qstring sname;
-  qstring sclas;
-  get_visible_segm_name(&sname, Sarea);
-  get_segm_class(&sclas, Sarea);
+  si.visible_name(&sname);
   ctx.gen_printf(0,
                  COLSTR("%s", SCOLOR_ASMDIR) " " COLSTR("%s %s", SCOLOR_AUTOCMT),
-                 sclas == "CODE"
+                 streq(si.get_sclass(), "CODE")
                ? ".CSEG"
-               : sclas == "DATA"
+               : streq(si.get_sclass(), "DATA")
                ? ".DSEG"
                : ".ESEG",
                  ash.cmnt,
                  sname.c_str());
-  if ( Sarea->orgbase != 0 )
+  if ( si.get_orgbase() != 0 )
   {
     char buf[MAX_NUMBUF];
-    btoa(buf, sizeof(buf), Sarea->orgbase);
+    btoa(buf, sizeof(buf), si.get_orgbase());
     ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s %s", SCOLOR_ASMDIR), ash.origin, buf);
   }
 }
 
 //--------------------------------------------------------------------------
-void idaapi avr_segend(outctx_t &, segment_t *)
+void idaapi avr_segend(outctx_t &, ea_t)
 {
 }
 

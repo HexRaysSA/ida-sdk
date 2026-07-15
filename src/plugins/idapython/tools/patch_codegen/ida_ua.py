@@ -1,0 +1,20 @@
+{
+    "repl_line" : [
+        ('    offb: "char" = property(_ida_ua.op_t_offb_get, _ida_ua.op_t_offb_set)',
+         '    offb: int = property(_ida_ua.op_t_offb_get, _ida_ua.op_t_offb_set)'),
+        ('    offo: "char" = property(_ida_ua.op_t_offo_get, _ida_ua.op_t_offo_set)',
+         '    offo: int = property(_ida_ua.op_t_offo_get, _ida_ua.op_t_offo_set)'),
+        ('    specflag1: "char" = property(_ida_ua.op_t_specflag1_get, _ida_ua.op_t_specflag1_set)',
+         '    specflag1: int = property(_ida_ua.op_t_specflag1_get, _ida_ua.op_t_specflag1_set)'),
+        ('    specflag2: "char" = property(_ida_ua.op_t_specflag2_get, _ida_ua.op_t_specflag2_set)',
+         '    specflag2: int = property(_ida_ua.op_t_specflag2_get, _ida_ua.op_t_specflag2_set)'),
+        ('    specflag3: "char" = property(_ida_ua.op_t_specflag3_get, _ida_ua.op_t_specflag3_set)',
+         '    specflag3: int = property(_ida_ua.op_t_specflag3_get, _ida_ua.op_t_specflag3_set)'),
+        ('    specflag4: "char" = property(_ida_ua.op_t_specflag4_get, _ida_ua.op_t_specflag4_set)',
+         '    specflag4: int = property(_ida_ua.op_t_specflag4_get, _ida_ua.op_t_specflag4_set)'),
+        ('    segpref: "char" = property(_ida_ua.insn_t_segpref_get, _ida_ua.insn_t_segpref_set)',
+         '    segpref: int = property(_ida_ua.insn_t_segpref_get, _ida_ua.insn_t_segpref_set)'),
+        ('    insnpref: "char" = property(_ida_ua.insn_t_insnpref_get, _ida_ua.insn_t_insnpref_set)',
+         '    insnpref: int = property(_ida_ua.insn_t_insnpref_get, _ida_ua.insn_t_insnpref_set)'),
+    ],
+}

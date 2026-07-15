@@ -86,9 +86,10 @@ linput_t *CheckExternOverlays(void)
     return nullptr;
   }
 
-  for ( segment_t *s = get_first_seg(); s != nullptr; s = get_next_seg(s->start_ea) )
+  for ( ea_t ea = get_first_segment_ea();
+        ea != BADADDR;
+        ea = get_next_segment_ea(ea) )
   {
-    ea_t ea = s->start_ea;
     if ( isStubPascal(ea) )
     {
       switch ( ask_yn(ASKBTN_NO,
@@ -133,23 +134,25 @@ static void removeBytes(void)
     if ( ea >= inf_get_omax_ea() )
       break;
 
-    segment_t *sptr = getnseg(i);
+    segment_info_t sptr;
+    if ( !get_segment_info_by_num(&sptr, i) )
+      break;
 
-    if ( ea < sptr->start_ea )
+    if ( ea < sptr.start_ea )
     {
       show_addr(ea);
       deb(IDA_DEBUG_LDR,
           "Deleting bytes at %a..%a (they do not belong to any segment)...\n",
           ea,
-          sptr->start_ea);
-      if ( disable_flags(ea,sptr->start_ea) )
+          sptr.start_ea);
+      if ( disable_flags(ea, sptr.start_ea) )
       {
         warning("Maximal number of segments is reached, some bytes are out of segments");
         return;
       }
       CheckCtrlBrk();
     }
-    ea = sptr->end_ea;
+    ea = sptr.end_ea;
   }
 }
 
@@ -212,7 +215,7 @@ static void load_overlay(
         linput_t *li,
         uint32 exeinfo,
         ea_t stubEA,
-        segment_t *s,
+        segment_info_t *s,
         qoff64_t fboff)
 {
   ea_t entEA = stubEA + sizeof(stub_t);
@@ -238,7 +241,7 @@ static void load_overlay(
           : FILEREG_PATCHABLE);
   if ( waszero )
   {
-    s->type = SEG_NULL;
+    s->set_type(SEG_NULL);
     stub.codesize = 0;
   }
 
@@ -249,8 +252,8 @@ static void load_overlay(
     put_byte(entEA, 0xEA);     // jmp far
     ushort offset = get_word(entEA+2);
     put_word(entEA+1, offset); // offset
-    put_word(entEA+3, s->sel); // selector
-    auto_make_proc(to_ea(sel2para(s->sel), offset));
+    put_word(entEA+3, s->get_sel()); // selector
+    auto_make_proc(to_ea(sel2para(s->get_sel()), offset));
     entEA += sizeof(ovrentry_t);
     CheckCtrlBrk();
   }
@@ -302,44 +305,44 @@ static void load_overlay(
 //------------------------------------------------------------------------
 static void add_seg16(ea_t ea)
 {
-  segment_t s;
-  s.sel     = ea >> 4;
+  segment_info_t s;
+  s.set_sel(ea >> 4);
   s.start_ea = ea;
   s.end_ea   = BADADDR;
-  s.align   = saRelByte;
-  s.comb    = scPub;
-  add_segm_ex(&s, nullptr, nullptr, ADDSEG_NOSREG | ADDSEG_SPARSE);
+  s.set_align(saRelByte);
+  s.set_comb(scPub);
+  add_segment_ex(&s, ADDSEG_NOSREG | ADDSEG_SPARSE);
 }
 
 //------------------------------------------------------------------------
 static sel_t AdjustStub(ea_t ea) // returns prev stub
 {
-  segment_t *seg = getseg(ea);
+  segment_info_t seg;
+  bool seg_ok = get_segment_info(&seg, ea);
 
-  if ( seg == nullptr || ea != seg->start_ea )
+  if ( !seg_ok || ea != seg.start_ea )
     add_seg16(ea);
 
   ushort nentries = get_word(ea+12);
   uint32 segsize = sizeof(stub_t) + nentries * sizeof(ovrentry_t);
-  seg = getseg(ea);
-  if ( seg == nullptr )
+  seg_ok = get_segment_info(&seg, ea);
+  if ( !seg_ok )
     return BADSEL;
 
-  asize_t realsize = seg->end_ea - seg->start_ea;
+  asize_t realsize = seg.end_ea - seg.start_ea;
   if ( segsize > realsize )
     return BADSEL;      // this stub is bad
 
   if ( segsize != realsize )
   {
-    ea_t next = seg->start_ea + segsize;
+    ea_t next = seg.start_ea + segsize;
 
-    set_segm_end(seg->start_ea, next, 0);
+    set_segm_end(seg.start_ea, next, 0);
     next += 0xF;
     next &= ~0xF;
     if ( is_mapped(next) )
     {
-      segment_t *s = getseg(next);
-      if ( s == nullptr )
+      if ( !get_segment_info(nullptr, next) )
         add_seg16(next);
     }
   }
@@ -358,10 +361,10 @@ void LoadPascalOverlays(linput_t *li)
     if ( isStubPascal(ea) )
     {
       AdjustStub(ea);
-      segment_t *s = getseg(ea);
-      if ( s != nullptr )
+      segment_info_t si;
+      if ( get_segment_info(&si, ea) )
       {
-        ea = s->end_ea;
+        ea = si.end_ea;
         ea += 0xF;
         CheckCtrlBrk();
         continue;
@@ -372,26 +375,28 @@ void LoadPascalOverlays(linput_t *li)
   //-
   ea_t ea;
   int i = 0;
-  for ( segment_t *s0 = get_first_seg(); s0 != nullptr; s0 = get_next_seg(ea), ++i )
+  for ( ea = get_first_segment_ea();
+        ea != BADADDR;
+        ea = get_next_segment_ea(ea), ++i )
   {
-    ea = s0->start_ea;
-
     if ( get_byte(ea) != 0xCD || get_byte(ea+1) != 0x3F )
       continue;
-    set_segm_class(s0, stub_class);
+    set_segment_class(ea, stub_class);
     char sname[32];
     qsnprintf(sname, sizeof(sname), stub_name_fmt, i);
-    set_segm_name(s0, sname);
+    set_segment_name(ea, sname);
 
-    segment_t s;
-    s.comb = scPub;
-    s.align = saRelPara;
+    segment_info_t s;
+    s.set_comb(scPub);
+    s.set_align(saRelPara);
     s.start_ea = (inf_get_max_ea() + 0xF) & ~0xF;
-    s.sel = setup_selector(s.start_ea >> 4);
+    s.set_sel(setup_selector(s.start_ea >> 4));
     // 04.06.99 ig: what is exeinfo and why it is passed as 0 here?
     load_overlay(li, 0/*???*/, ea, &s, ovr_off); // i
     qsnprintf(sname, sizeof(sname), ovr_name_fmt, i);
-    if ( !add_segm_ex(&s, sname, ovr_class, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+    s.set_name(sname);
+    s.set_sclass(ovr_class);
+    if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
       loader_failure();
     describeStub(ea);
     CheckCtrlBrk();
@@ -471,55 +476,57 @@ sel_t LoadCppOverlays(linput_t *li)
     si.seg += (ushort)inf_get_baseaddr();
 
     const char *sclass = nullptr;
-    segment_t s;      // i initialize segment_t with 0s
-    s.align  = saRelByte;
-    s.comb   = scPub;
+    segment_info_t s;
+    s.set_align(saRelByte);
+    s.set_comb(scPub);
     if ( si.seg == inf_get_start_ss() )
     {
       sclass = CLASS_STACK;
-      s.type = SEG_DATA;
-      s.comb = scStack;
+      s.set_type(SEG_DATA);
+      s.set_comb(scStack);
     }
     if ( si.flags & SI_COD )
     {
       sclass = CLASS_CODE;
-      s.type = SEG_CODE;
+      s.set_type(SEG_CODE);
     }
     if ( si.flags & SI_DAT )
     {
       sclass = CLASS_BSS;
-      s.type = SEG_DATA;
-      dseg   = si.seg;
+      s.set_type(SEG_DATA);
+      dseg = si.seg;
     }
-    s.name = 0;
     if ( si.flags & SI_OVR )
     {
-      s.align = saRelPara;
+      s.set_align(saRelPara);
       s.start_ea = (inf_get_max_ea() + 0xF) & ~0xF;
-      s.sel = setup_selector(s.start_ea >> 4);
+      s.set_sel(setup_selector(s.start_ea >> 4));
       // i end_ea is set in load_overlay()
       load_overlay(li, fbov.exeinfo, to_ea(si.seg, 0), &s, ovr_off);
-      if ( s.type != SEG_NULL )
-        s.type = SEG_CODE;
+      if ( s.get_type() != SEG_NULL )
+        s.set_type(SEG_CODE);
       char sname[32];
       qsnprintf(sname, sizeof(sname), ovr_name_fmt, i);
-      if ( !add_segm_ex(&s, sname, ovr_class, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+      s.set_name(sname);
+      s.set_sclass(ovr_class);
+      if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
         loader_failure();
-      s.name = 0;
-      s.type = SEG_NORM;        // undefined segment type
+      s.set_name(nullptr);
+      s.set_type(SEG_NORM);        // undefined segment type
       sclass = stub_class;
     }
-    s.sel      = si.seg;
-    s.start_ea = to_ea(s.sel, si.minoff);
-    s.end_ea   = to_ea(s.sel, si.maxoff);
-    if ( !add_segm_ex(&s, nullptr, sclass, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+    s.set_sel(si.seg);
+    s.start_ea = to_ea(s.get_sel(), si.minoff);
+    s.end_ea   = to_ea(s.get_sel(), si.maxoff);
+    s.set_sclass(sclass);
+    if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
       loader_failure();
     if ( si.flags & SI_OVR )
     {
       describeStub(s.start_ea);
       char sname[32];
       qsnprintf(sname, sizeof(sname), stub_name_fmt, i);
-      set_segm_name(&s, sname);
+      set_segment_name(s.start_ea, sname);
     }
     CheckCtrlBrk();
   }
@@ -608,12 +615,12 @@ static void LoadMsOvrData(linput_t *li, uint Count, bool Dynamic)
     if ( msnode.supval(i, &o, sizeof(o)) != sizeof(o) )
       continue;
 
-    segment_t s;
-    s.comb    = scPub;
-    s.align   = saRelPara;
+    segment_info_t s;
+    s.set_comb(scPub);
+    s.set_align(saRelPara);
     s.start_ea = (inf_get_max_ea() + 0xF) & ~0xF;
-    s.sel = setup_selector(s.start_ea >> 4);
-    msnode.altset(i, s.sel);
+    s.set_sel(setup_selector(s.start_ea >> 4));
+    msnode.altset(i, s.get_sel());
     s.end_ea = s.start_ea + ((uint32)o.Mpara << 4);
     file2base(li,
               o.bpos + o.Hsiz*16LL,
@@ -622,7 +629,9 @@ static void LoadMsOvrData(linput_t *li, uint Count, bool Dynamic)
               FILEREG_PATCHABLE);
     char sname[32];
     qsnprintf(sname, sizeof(sname), ovr_name_fmt, i);
-    if ( !add_segm_ex(&s, sname, ovr_class, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+    s.set_name(sname);
+    s.set_sclass(ovr_class);
+    if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
       loader_failure();
 
     qlseek(li, o.bpos + o.Toff);
@@ -669,7 +678,7 @@ interr:
   ea_t dstea, sea, ea = inf_get_min_ea();
   uint AddSkip, Count = *Cnt;
   uint i, j;  // watcom ...
-  segment_t *s;
+  segment_info_t s;
 
   msg("Searching the overlay reference data table...\n");
   while ( ea + sizeof(src) < inf_get_max_ea()
@@ -681,10 +690,9 @@ interr:
                             BIN_SEARCH_CASE | BIN_SEARCH_NOBREAK | BIN_SEARCH_FORWARD)) != BADADDR )
   {
     ea = sea + sizeof(uint32);
-    s = getseg(ea);
-    if ( s == nullptr
-      || ea - s->start_ea < sizeof(uint32)*(Count+1)
-      || ea + (2*sizeof(uint32) * Count) > s->end_ea )
+    if ( !get_segment_info(&s, ea)
+      || ea - s.start_ea < sizeof(uint32)*(Count+1)
+      || ea + (2*sizeof(uint32) * Count) > s.end_ea )
     {
 nextfndadd:
       ea += sizeof(uint32);
@@ -701,7 +709,7 @@ nextfnd:
       if ( pos == 0 )
       {
         ++AddSkip;
-        if ( ea + (2*sizeof(uint32) * (Count+AddSkip-i)) > s->end_ea )
+        if ( ea + (2*sizeof(uint32) * (Count+AddSkip-i)) > s.end_ea )
           goto nextfnd;
       }
       else
@@ -748,7 +756,7 @@ found:
   ea = sea - ((Count-1) * sizeof(ushort)) - 1;  // -1 -- unification
   do
   {
-    ea = bin_search(s->start_ea,
+    ea = bin_search(s.start_ea,
                     ea+1,
                     (uchar *)src,
                     nullptr,
@@ -911,20 +919,22 @@ badmemtb:
   dstea += i + (AddSkip * sizeof(uint32));
   create_dword(dstea, i);
   force_name(dstea, "ovr_memsiz_tbl");
-  return s->sel;
+  return s.get_sel();
 }
 
 //------------------------------------------------------------------------
-static segment_t *MsOvrStubSeg(uint *stub_cnt, ea_t r_top, sel_t dseg)
+static ea_t MsOvrStubSeg(uint *stub_cnt, ea_t r_top, sel_t dseg)
 {
   msg("Searching for the stub segment...\n");
   int count = get_segm_qty();
   for ( int i = 0; i < count; ++i )
   {
-    segment_t *seg = getnseg(i);
-    if ( seg->sel == dseg )
+    segment_info_t seg;
+    if ( !get_segment_info_by_num(&seg, i) )
       continue;
-    ea_t ea = seg->start_ea;
+    if ( seg.get_sel() == dseg )
+      continue;
+    ea_t ea = seg.start_ea;
     uchar buf[3*sizeof(ushort)];
 
     if ( ea >= r_top )
@@ -937,7 +947,7 @@ static segment_t *MsOvrStubSeg(uint *stub_cnt, ea_t r_top, sel_t dseg)
 
     uint  cnt = 0;
     uchar frs = (uchar)-1;
-    while ( (ea += sizeof(buf)) < seg->end_ea - sizeof(buf) )
+    while ( (ea += sizeof(buf)) < seg.end_ea - sizeof(buf) )
     {
       if ( (frs = get_byte(ea)) != 0xCD || get_byte(ea+1) != 0x3F )
         break;
@@ -950,19 +960,19 @@ static segment_t *MsOvrStubSeg(uint *stub_cnt, ea_t r_top, sel_t dseg)
     if ( !frs && cnt >= ref_oi_cnt )
     {
       *stub_cnt = cnt;
-      return seg;
+      return seg.start_ea;
     }
   }
-  return nullptr;
+  return BADADDR;
 }
 
 //------------------------------------------------------------------------
-static void CreateMsStubProc(segment_t *s, uint stub_cnt)
+static void CreateMsStubProc(ea_t seg_ea, uint stub_cnt)
 {
-  ea_t ea = s->start_ea;
+  ea_t ea = seg_ea;
 
-  set_segm_name(s, "STUB");
-  set_segm_class(s, CLASS_CODE);
+  set_segment_name(seg_ea, "STUB");
+  set_segment_class(seg_ea, CLASS_CODE);
   create_byte(ea, 3*sizeof(ushort));
   ea += 3*sizeof(ushort);
   msg("Patching the overlay stub-segment...\n");
@@ -998,7 +1008,9 @@ badref:
       CheckCtrlBrk();
     }
   }
-  create_align(ea, s->end_ea - ea, 0);
+  segment_info_t si;
+  if ( get_segment_info(&si, seg_ea) )
+    create_align(ea, si.end_ea - ea, 0);
 }
 
 //------------------------------------------------------------------------
@@ -1026,10 +1038,10 @@ sel_t LoadMsOverlays(linput_t *li, bool PossibleDynamic)
     if ( ref_oi_cnt != (uint)-1 )
     {
       uint stub_cnt;
-      segment_t *s = MsOvrStubSeg(&stub_cnt, r_top, dseg);
+      ea_t stub_ea = MsOvrStubSeg(&stub_cnt, r_top, dseg);
 
-      if ( s != nullptr )
-        CreateMsStubProc(s, stub_cnt);
+      if ( stub_ea != BADADDR )
+        CreateMsStubProc(stub_ea, stub_cnt);
       else
         ask_for_feedback("The overlay-manager segment not found");
     }

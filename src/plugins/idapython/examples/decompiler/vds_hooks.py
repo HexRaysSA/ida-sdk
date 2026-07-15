@@ -75,10 +75,16 @@ class vds_hooks_t(ida_hexrays.Hexrays_Hooks):
     def flowchart(self, fc, mba, reachable_blocks, decomp_flags):
         return self._log()
 
+    def flowchart_ea(self, fc, mba, reachable_blocks, decomp_flags):
+        return self._log()
+
     def stkpnts(self, mba, stkpnts):
         return self._log()
 
     def prolog(self, mba, fc, reachable_blocks, decomp_flags):
+        return self._log()
+
+    def prolog_ea(self, mba, fc, reachable_blocks, decomp_flags):
         return self._log()
 
     def mba_maturity(self, mba, reqmat):
@@ -186,7 +192,13 @@ class vds_hooks_t(ida_hexrays.Hexrays_Hooks):
     def inlining_func(self, cdg, blk, mbr):
         return self._log()
 
+    def inlining_function(self, cdg, blk, mbr):
+        return self._log()
+
     def inlined_func(self, cdg, blk, mbr, i1, i2):
+        return self._log()
+
+    def inlined_function(self, cdg, blk, mbr, i1, i2):
         return self._log()
 
     def pre_structural(self, ctrl_graph, cfunc, cfg):

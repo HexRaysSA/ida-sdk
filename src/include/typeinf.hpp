@@ -683,32 +683,34 @@ idaman bool ida_export append_argloc(qtype *out, const argloc_t &vloc); ///< Ser
 /// It can be used, for example, to check the return location of a function that cannot return a value in the stack
 idaman bool ida_export extract_argloc(argloc_t *vloc, const type_t **ptype, bool forbid_stkoff);
 
-idaman const type_t *ida_export resolve_typedef(const til_t *til, const type_t *type);
+idaman DEPRECATED const type_t *ida_export resolve_typedef(const til_t *til, const type_t *type);
+
+/// Get the resolved base type.
+/// \param til  type information library or nullptr
+/// \param type type string
+/// \return resolved base type
+idaman type_t ida_export get_realtype(const til_t *til, const type_t *type);
 
 // low level functions to be used in predicate_t::should_display()
 // in other places please use tinfo_t
 inline bool is_restype_void(const til_t *til, const type_t *type)
 {
-  type = resolve_typedef(til, type);
-  return type != nullptr && is_type_void(*type);
+  return is_type_void(get_realtype(til, type));
 }
 
 inline bool is_restype_enum(const til_t *til, const type_t *type)
 {
-  type = resolve_typedef(til, type);
-  return type != nullptr && is_type_enum(*type);
+  return is_type_enum(get_realtype(til, type));
 }
 
 inline bool is_restype_struni(const til_t *til, const type_t *type)
 {
-  type = resolve_typedef(til, type);
-  return type != nullptr && is_type_struni(*type);
+  return is_type_struni(get_realtype(til, type));
 }
 
 inline bool is_restype_struct(const til_t *til, const type_t *type)
 {
-  type = resolve_typedef(til, type);
-  return type != nullptr && is_type_struct(*type);
+  return is_type_struct(get_realtype(til, type));
 }
 
 // Get a base type for the specified size.
@@ -716,7 +718,7 @@ inline bool is_restype_struct(const til_t *til, const type_t *type)
 // \param size size in bytes; should be 1,2,4,8,16 or sizeof(floating point)
 // \return BT_INT.. or BT_FLOAT... or BT_UNK
 
-idaman type_t ida_export get_scalar_bt(int size);
+idaman type_t ida_export get_scalar_bt(size_t size);
 
 
 //------------------------------------------------------------------------
@@ -901,6 +903,7 @@ const callcnv_t  CM_CC_SPECIAL  = 0xF0;  ///< usercall: locations of all argumen
 const callcnv_t  CM_CC_LAST_USERCALL = 0xFF;
 
 const callcnv_t  CM_CC_GOSTK         = 0x100; ///< (Go) arguments and return value in stack
+const callcnv_t  CM_CC_RUST          = 0x101; ///< (Rust) arguments and return value follow the Rust ABI
 
 const callcnv_t  CM_CC_FIRST_PLAIN_CUSTOM = 0x200; // please note that variadic or usercall
                                                    // codes have their own ranges
@@ -1286,7 +1289,7 @@ public:
   void align_reg_high(size_t size, size_t _slotsize)
   {
     if ( is_reg1() )
-      _set_reg1(reg1(), size < _slotsize ? _slotsize - size : 0);
+      _set_reg1(reg1(), size < _slotsize ? int(_slotsize - size) : 0);
   }
 
   /// Set stack offset to align to the upper part of _SLOTSIZE
@@ -1294,7 +1297,7 @@ public:
   {
     if ( is_stkoff() )
     {
-      sval_t off = align_down(stkoff(), _slotsize);
+      sval_t off = align_down(stkoff(), int(_slotsize));
       if ( size < _slotsize )
         off += _slotsize - size;
       _set_stkoff(off);
@@ -1489,6 +1492,12 @@ inline constexpr bool is_golang_cc(callcnv_t cc)
   return cc == CM_CC_GOLANG || cc == CM_CC_GOSTK;
 }
 
+/// Rust language calling convention?
+inline constexpr bool is_rust_cc(callcnv_t cc)
+{
+  return cc == CM_CC_RUST;
+}
+
 /// Is custom calling convention?
 inline bool is_custom_callcnv(callcnv_t cc)
 {
@@ -1678,7 +1687,7 @@ struct custom_callcnv_t
   DECLARE_COMPARISONS(custom_callcnv_t);
 #endif
 };
-DECLARE_TYPE_AS_MOVABLE(custom_callcnv_t);
+// Not movable: polymorphic interface object, not intended for bytewise relocation.
 
 /// Register a calling convention
 /// \param ccinf description of the custom calling convention.
@@ -1751,7 +1760,7 @@ class callregs_t
   }
   void calc_nregs()
   {
-    nregs = gpregs.size();
+    nregs = int(gpregs.size());
     if ( policy == ARGREGS_INDEPENDENT
       || policy == ARGREGS_FP_MASKS_GP
       || policy == ARGREGS_RISCV )
@@ -1840,7 +1849,7 @@ public:
   static int findreg(const intvec_t &regs, int r)
   {
     intvec_t::const_iterator p = regs.find(r);
-    return p == regs.end() ? -1 : (p-regs.begin());
+    return p == regs.end() ? -1 : int(p-regs.begin());
   }
 
   /// Get register indexes within GP/FP arrays.
@@ -2014,6 +2023,18 @@ inline void switch_to_golang()
   if ( default_compiler() == COMP_UNK )
     set_compiler_id(COMP_GNU);
 }
+
+
+/// is RUST calling convention used by default?
+inline bool use_rust_cc()
+{
+  return is_rust_cc(inf_get_callcnv());
+}
+
+
+/// switch to RUST calling convention (to be used as default CC)
+idaman void ida_export switch_to_rust();
+
 
 ///@} CC_funcs
 ///@} CC
@@ -2299,6 +2320,13 @@ idaman int ida_export get_named_type(
 ///@}
 
 
+// Tag to denote a regular comment in serialized form.
+// If a comment has it as its first character, it is a regular comment,
+// otherwise it is a repeatable comment. The comments returned by
+// ::get_named_type and ::get_numbered_type may have this symbol.
+#define TPOS_REGCMT '\x06'
+
+
 /// See get_named_type() above.
 /// \note If the value in the 'ti' library is 32-bit, it will
 /// be sign-extended before being stored in the 'value' pointer.
@@ -2400,9 +2428,10 @@ idaman const char *ida_export next_named_type(
 /// Copy a named type from one til to another.
 /// This function will copy the specified type and all dependent types
 /// from the source type library to the destination library.
-/// \param dsttil Destination til. It must have original types enabled
+/// \param dsttil Destination til. It must have ordinal types enabled
 /// \param srctil Source til.
-/// \param name   name of the type to copy
+/// \param name   name of the type to copy,
+///               can not be an ordinal name \ref is_ordinal_name()
 /// \return ordinal number of the copied type. 0 means error
 idaman uint32 ida_export copy_named_type(
         til_t *dsttil,
@@ -2650,7 +2679,7 @@ inline THREAD_SAFE void align_size(size_t &cur_tot_size, size_t elem_size, size_
   size_t al = elem_size;
   if ( algn != 0 && algn < al )
     al = algn;
-  cur_tot_size = align_up(cur_tot_size, al);
+  cur_tot_size = align_up(cur_tot_size, int(al));
 }
 
 /// Dereference a pointer.
@@ -3025,6 +3054,7 @@ decl tid_t ida_export get_tinfo_tid(tinfo_t *tif, bool force_tid); \
 decl ssize_t ida_export get_tinfo_by_edm_name(tinfo_t *tif, const til_t *til, const char *mname); \
 decl ssize_t ida_export get_frame_var(tinfo_t *tif, sval_t *actval, const insn_t &insn, const op_t *x, sval_t v); \
 decl bool ida_export tinfo_get_func_frame(tinfo_t *tif, const func_t *pfn); \
+decl bool ida_export tinfo_get_func_frame_ea(tinfo_t *tif, ea_t func_ea); \
 decl bool ida_export tinfo_t__build_anon_type_name(qstring *out, const tinfo_t &tif); \
 
 DECLARE_TINFO_HELPERS(idaman)
@@ -3115,6 +3145,7 @@ class tinfo_t // #tinfo_t #tif
     GTA_ENUM_WIDTH,     ///< enum: get enum width \ref enum_type_data_t::calc_nbytes()
     GTA_ENUM_REPR,      ///< enum: get enum value representation
     GTA_UDT_BITS,       ///< udt: get udt_type_data_t::taudt_bits
+    GTA_IS_ANON_NAME,   ///< is anonymous type name?
   };
   enum sta_prop_t       ///< set type property
   {
@@ -3332,7 +3363,7 @@ public:
   }
 
   /// Get type sign
-  type_sign_t get_sign() const { return get_tinfo_property(typid, GTA_TYPE_SIGN); }
+  type_sign_t get_sign() const { return type_sign_t(get_tinfo_property(typid, GTA_TYPE_SIGN)); }
 
   /// Is this a signed type?
   bool is_signed() const { return get_sign() == type_signed; }
@@ -3399,10 +3430,10 @@ public:
   tid_t force_tid() { return get_tinfo_tid(this, true); }
 
   /// Get type ordinal (only if the type was created as a numbered type, 0 if none)
-  uint32 get_ordinal() const { return get_tinfo_property(typid, GTA_ORDINAL); }
+  uint32 get_ordinal() const { return uint32(get_tinfo_property(typid, GTA_ORDINAL)); }
 
   /// Get final type ordinal (0 if none)
-  uint32 get_final_ordinal() const { return get_tinfo_property(typid, GTA_FINAL_ORDINAL); }
+  uint32 get_final_ordinal() const { return uint32(get_tinfo_property(typid, GTA_FINAL_ORDINAL)); }
 
   /// Get the type library for tinfo_t
   til_t *get_til() const { til_t *til; get_tinfo_pdata(&til, typid, GTP_TIL); return til; }
@@ -3419,7 +3450,7 @@ public:
   /// Get type of a forward declaration.
   /// For a forward declaration this function returns its base type.
   /// In other cases it returns ::BT_UNK
-  type_t get_forward_type() const { return get_tinfo_property(typid, GTA_FORWARD_TYPE); }
+  type_t get_forward_type() const { return type_t(get_tinfo_property(typid, GTA_FORWARD_TYPE)); }
   bool is_forward_struct() const { return is_type_struct(get_forward_type()); }
   bool is_forward_union() const { return is_type_union(get_forward_type()); }
   bool is_forward_enum() const { return is_type_enum(get_forward_type()); }
@@ -3431,7 +3462,7 @@ public:
 
   /// Get type comment
   /// \return 0-failed, 1-returned regular comment, 2-returned repeatable comment
-  int get_type_cmt(qstring *out) const { return has_details() ? get_tinfo_pdata(out, typid, GTP_COMMENT) : 0; }
+  int get_type_cmt(qstring *out) const { return has_details() ? int(get_tinfo_pdata(out, typid, GTP_COMMENT)) : 0; }
 
   /// Get type comment only if it is repeatable
   bool get_type_rptcmt(qstring *out) const { return has_details() && get_tinfo_pdata(out, typid, GTP_RPTCMT); }
@@ -3568,7 +3599,7 @@ public:
   bool is_varmember() const { return get_tinfo_property(typid, GTA_IS_VARMEMBER) != 0; }
 
   /// ::BT_PTR & ::BT_ARRAY: get size of pointed object or array element. On error returns -1
-  int get_ptrarr_objsize() const { return get_tinfo_property(typid, GTA_PTRARR_SIZE); }
+  int get_ptrarr_objsize() const { return int(get_tinfo_property(typid, GTA_PTRARR_SIZE)); }
 
   /// ::BT_PTR & ::BT_ARRAY: get the pointed object or array element.
   /// If the current type is not a pointer or array, return empty type info.
@@ -3594,7 +3625,7 @@ public:
   tinfo_t get_final_element() const { tinfo_t r; r.typid = get_tinfo_property(typid, GTA_FINAL_ELEM); return r; }
 
   /// ::BT_ARRAY: get number of elements (-1 means error)
-  int get_array_nelems() const { return get_tinfo_property(typid, GTA_ARRAY_NELEMS); }
+  int get_array_nelems() const { return int(get_tinfo_property(typid, GTA_ARRAY_NELEMS)); }
 
   /// ::BT_FUNC or ::BT_PTR ::BT_FUNC: Get type of n-th arg (-1 means return type, see get_rettype())
   tinfo_t get_nth_arg(int n) const
@@ -3609,7 +3640,7 @@ public:
   tinfo_t get_rettype() const { return get_nth_arg(-1); }
 
   /// ::BT_FUNC or ::BT_PTR ::BT_FUNC: Calculate number of arguments (-1 - error)
-  int get_nargs() const { return get_tinfo_property(typid, GTA_FUNC_NARGS); }
+  int get_nargs() const { return int(get_tinfo_property(typid, GTA_FUNC_NARGS)); }
 
   /// ::BT_FUNC or ::BT_PTR ::BT_FUNC: Get calling convention
   callcnv_t get_cc() const { return (callcnv_t)get_tinfo_property(typid, GTA_FUNC_CC); }
@@ -3618,7 +3649,7 @@ public:
   bool is_purging_cc() const { return ::is_purging_cc(get_cc()); } ///< \tinfocc{is_purging_cc}
 
   /// ::BT_FUNC: Calculate number of purged bytes
-  int calc_purged_bytes() const { return get_tinfo_property(typid, GTA_PURGED_BYTES); }
+  int calc_purged_bytes() const { return int(get_tinfo_property(typid, GTA_PURGED_BYTES)); }
 
   /// ::BT_FUNC: Is high level type?
   bool is_high_func() const { return get_tinfo_property(typid, GTA_IS_HIGH_TYPE) != 0; }
@@ -3710,7 +3741,7 @@ public:
   inline int get_udm_by_offset(udm_t *out, uint64 offset) const;
 
   /// Get number of udt members. -1-error
-  int get_udt_nmembers() const { return get_tinfo_property(typid, GTA_UDT_NMEMBERS); }
+  int get_udt_nmembers() const { return int(get_tinfo_property(typid, GTA_UDT_NMEMBERS)); }
 
   /// Is an empty struct/union? (has no fields)
   bool is_empty_udt() const { return get_udt_nmembers() == 0; }
@@ -3719,7 +3750,7 @@ public:
   bool is_small_udt() const { return get_tinfo_property(typid, GTA_IS_SMALL_UDT) != 0; }
 
   /// Get udt_type_data_t::taudt_bits
-  uint32 get_udt_taudt_bits() const { return get_tinfo_property(typid, GTA_UDT_BITS); }
+  uint32 get_udt_taudt_bits() const { return uint32(get_tinfo_property(typid, GTA_UDT_BITS)); }
 
   /// Is an unaligned struct
   bool is_unaligned_struct() const { return (get_udt_taudt_bits() & TAUDT_UNALIGNED) != 0; }
@@ -3768,6 +3799,9 @@ public:
   /// We assume that types with names are anonymous if the name starts with $
   bool is_anonymous_udt() const { return get_tinfo_property(typid, GTA_IS_ANON_UDT) != 0; }
 
+  /// Is an anonymous type?
+  bool is_anonymous_type_name() const { return get_tinfo_property(typid, GTA_IS_ANON_NAME) != 0; }
+
   /// Has a vftable?
   bool has_vftable() const { return get_tinfo_property(typid, GTA_HAS_VFTABLE) != 0; }
 
@@ -3793,7 +3827,7 @@ public:
   /// Get enum constant radix
   /// \return radix or 1 for BTE_CHAR
   /// \ref enum_type_data_t::get_enum_radix()
-  int get_enum_radix() const { return get_tinfo_property(typid, GTA_ENUM_RADIX); }
+  int get_enum_radix() const { return int(get_tinfo_property(typid, GTA_ENUM_RADIX)); }
 
   /// Set the representation of enum members.
   /// \param repr       \ref value_repr_t
@@ -3802,7 +3836,7 @@ public:
   /// Get enum width
   /// \return width of enum base type in bytes, 0 - unspecified, or -1
   /// \ref enum_type_data_t::calc_nbytes()
-  int get_enum_width() const { return get_tinfo_property(typid, GTA_ENUM_WIDTH); }
+  int get_enum_width() const { return int(get_tinfo_property(typid, GTA_ENUM_WIDTH)); }
   uint64 calc_enum_mask() const { return make_mask<uint64>(get_enum_width()*8); }
 
   /// Get enum member by its name
@@ -4068,7 +4102,7 @@ public:
   /// If the type has no alias, return 0.
   uint32 get_alias_target() const
   {
-    return get_tinfo_property(typid, GTA_ALIAS);
+    return uint32(get_tinfo_property(typid, GTA_ALIAS));
   }
   bool is_aliased() const { return get_alias_target() != 0; }
 
@@ -4305,8 +4339,13 @@ public:
   tinfo_code_t set_iface(bool on=true) { return tinfo_code_t(set_tinfo_property4(this, STA_IFACE, on, 0, 0, 0)); }
 
   /// Create a tinfo_t object for the function frame
+  /// \deprecated use get_function_frame
   /// \param pfn  function
-  bool get_func_frame(const func_t *pfn) { return tinfo_get_func_frame(this, pfn); }
+  DEPRECATED bool get_func_frame(const func_t *pfn) { return pfn != nullptr && tinfo_get_func_frame_ea(this, pfn->start_ea); }
+
+  /// Create a tinfo_t object for the function frame
+  /// \param func_ea any address inside function
+  bool get_function_frame(ea_t func_ea) { return tinfo_get_func_frame_ea(this, func_ea); }
 
   /// Is a function frame?
   bool is_frame() const { return get_frame_func() != BADADDR; }
@@ -4702,7 +4741,7 @@ struct array_type_data_t // #array
   tinfo_t elem_type;    ///< element type
   uint32 base;          ///< array base
   uint32 nelems;        ///< number of elements
-  array_type_data_t(size_t b=0, size_t n=0) : base(b), nelems(n) {} ///< Constructor
+  array_type_data_t(uint32 b=0, uint32 n=0) : base(b), nelems(n) {} ///< Constructor
   DEFINE_MEMORY_ALLOCATION_FUNCS()
   void swap(array_type_data_t &r) { qswap(*this, r); } ///< set this = r and r = this
 };
@@ -4727,9 +4766,15 @@ struct funcarg_t
                            ///< see "__org_typedef" or "__org_arrdim" type attributes
                            ///< to determine the original type
 #define FAI_UNUSED  0x0010 ///< argument is not used by the function
+#define FAI_SWIFTSELF 0x0020 ///< implicit Swift `self` arg, bound to the
+                              ///< SwiftSelf register (X20/R13). At most one
+                              ///< funcarg per function. Source: `__swiftself`.
 ///@}
 
   funcarg_t() = default;
+
+  /// \return true if this funcarg is the implicit Swift `self` (X20/R13-bound).
+  bool is_swiftself() const { return (flags & FAI_SWIFTSELF) != 0; }
 
   /// Create a function argument, with the specified name and arbitrary type.
   ///
@@ -4803,7 +4848,17 @@ struct func_type_data_t : public funcargvec_t // #func
 #define FTI_CONST    0x0400 ///< const member function
 #define FTI_CTOR     0x0800 ///< constructor
 #define FTI_DTOR     0x1000 ///< destructor
-#define FTI_ALL      0x1FFF ///< all defined bits
+#define FTI_SYNCHRONIZED 0x2000 ///< synchronized (Java)
+#define FTI_SWIFTASYNC 0x4000 ///< Swift `async` function: implicit
+                            ///< AsyncContext pointer in the swiftasync
+                            ///< register (X22/R14). See vdswift.cpp for the
+                            ///< ::__swift_get_async_context() surfacing.
+#define FTI_SWIFTTHROWS 0x8000 ///< Swift `throws` function: errors
+                            ///< propagate via the SwiftError register
+                            ///< (X21/R12). See vdswift.cpp for the
+                            ///< ::__swift_get_error / ::__swift_set_error
+                            ///< surfacing.
+#define FTI_ALL     0xFFFF  ///< all defined bits
 ///@}
   callcnv_t _new_callcnv = 0;// Do not access directly, use get_cc/set_cc
   tinfo_t rettype;          ///< return type
@@ -4825,9 +4880,13 @@ struct func_type_data_t : public funcargvec_t // #func
   bool is_const() const       { return (flags & FTI_CONST) != 0; }
   bool is_ctor() const        { return (flags & FTI_CTOR) != 0; }
   bool is_dtor() const        { return (flags & FTI_DTOR) != 0; }
+  bool is_synchronized() const { return (flags & FTI_SYNCHRONIZED) != 0; }
+  bool is_swiftasync() const  { return (flags & FTI_SWIFTASYNC) != 0; }
+  bool is_swiftthrows() const { return (flags & FTI_SWIFTTHROWS) != 0; }
   int get_call_method() const { return flags & FTI_CALLTYPE; }
   bool is_vararg_cc() const   { return ::is_vararg_cc(get_cc()); }
   bool is_golang_cc() const   { return ::is_golang_cc(get_cc()); }
+  bool is_rust_cc() const     { return ::is_rust_cc(get_cc()); }
   bool is_swift_cc() const    { return ::is_swift_cc(get_cc()); }
   bool is_user_cc() const     { return ::is_user_cc(get_explicit_cc()); }
 
@@ -4842,6 +4901,7 @@ struct func_type_data_t : public funcargvec_t // #func
 #define CC_ALLOW_REGHOLES  0x04 ///< allow holes in register argument list?
 #define CC_HAS_ELLIPSIS    0x08 ///< function has a variable list of arguments?
 #define CC_GOLANG_OK       0x10 ///< can use __golang calling convention
+#define CC_RUST_OK         0x20 ///< can use __rust calling convention
   /// Dump information that is not always visible in the function prototype.
   ///   (argument locations, return location, total stkarg size)
   bool dump(qstring *out, int praloc_bits=PRALOC_STKOFF) const
@@ -4863,6 +4923,7 @@ struct func_type_data_t : public funcargvec_t // #func
   }
 
 };
+DECLARE_TYPE_AS_MOVABLE(func_type_data_t);
 
 //-------------------------------------------------------------------------
 /// Function index for the 'format' attribute.
@@ -5154,7 +5215,7 @@ struct enum_type_data_t : public edmvec_t // #enum
       size_t sz = size();
       for ( size_t idx=0; idx < sz; ++idx )
       {
-        int code = v(idx, 0, sz);
+        int code = v(idx, 0, int(sz));
         if ( code != 0 )
           return code;
       }
@@ -5324,6 +5385,7 @@ public:
   DECLARE_COMPARISONS(value_repr_t);
 #endif
 };
+DECLARE_TYPE_AS_MOVABLE(value_repr_t);
 
 //-------------------------------------------------------------------------
 /// An object to represent struct or union members
@@ -5658,20 +5720,6 @@ struct bitfield_type_data_t // #bitfield
 };
 DECLARE_TYPE_AS_MOVABLE(bitfield_type_data_t);
 
-//--------------------------------------------------------------------------
-// This tag can be used at the beginning of
-//   udm_t::cmt
-//   funcarg_t::cmt
-//   edm_t::cmt
-// to specify the line number where it is defined.
-// Example: "\x05123." means the line number 123
-#define TPOS_LNNUM  "\x05"
-
-// Tag to denote a regular comment in serialized form.
-// If a comment has it as its first character, it is a regular comment,
-// otherwise it is a repeatable comment. The comments returned by
-// ::get_named_type and ::get_numbered_type may have this symbol.
-#define TPOS_REGCMT '\x06'
 
 //-------------------------------------------------------------------------
 /// Is bitmask one bit?
@@ -6142,6 +6190,18 @@ idaman bool ida_export apply_tinfo_to_stkarg(
         const char *name);
 
 //------------------------------------------------------------------------
+/// A single stkarg-store action returned by \ref processor_t::get_stkarg_parts.
+/// The slot width is taken from \insn_t{ops}[dst].dtype (or \c slot_size
+/// when dst == -1, i.e. push semantics).
+struct stkarg_part_t
+{
+  int src;       ///< source operand index in \insn_t{ops}
+  int dst;       ///< destination operand index, or -1 for push semantics
+  sval_t off;    ///< when dst != -1, stack offset for this part (used in
+                 ///<   place of \insn_t{ops}[dst].addr); ignored for push
+};
+
+//------------------------------------------------------------------------
 // Helper struct for the processor modules: process call arguments
 struct argtinfo_helper_t
 {
@@ -6295,6 +6355,39 @@ idaman void ida_export end_type_updating(update_type_t utp);
 //-------------------------------------------------------------------------
 /// \defgroup type_helpers Local types information and manipulation helpers
 ///@{
+
+/// Result of resolve_field_path(): resolved leaf info plus disambiguation context.
+struct field_path_t
+{
+  tinfo_t top_tif;            ///< top-level type (after resolving first segment)
+  tinfo_t leaf_tif;           ///< type of the leaf member (== top_tif if path is just a type name)
+  tid_t leaf_udm_tid;         ///< TID of the leaf member, or BADADDR if path is just
+                              ///< a type name (no member at the end of the path)
+  uint64 cumul_bitoff;        ///< cumulative bit offset of the leaf member from top of top_tif
+  qvector<tid_t> stroff_path; ///< ready-to-use op_stroff() path: top_tif's TID at [0], followed
+                              ///< by one member TID per union descent (in order). Pass directly to
+                              ///< op_stroff(). Empty only if top_tif has no TID (e.g. type not
+                              ///< imported into local types yet).
+};
+
+/// Resolve a dotted field path like "Top.Field1.Field2.Leaf".
+///
+/// The first segment must be a registered TIL type name (a type, not a member).
+/// Each subsequent segment is looked up as a member in the current type. Every
+/// segment must be spelled out explicitly.
+///
+/// On success, \p out is filled with the leaf info plus the chain of union
+/// selections needed to disambiguate the path for op_stroff().
+///
+/// \param[out] out         result; cleared on entry
+/// \param til              type library; nullptr means current idati
+/// \param dotted_path      dotted field path
+/// \return true on success
+idaman bool ida_export resolve_field_path(
+        field_path_t *out,
+        const til_t *til,
+        const char *dotted_path);
+
 
 /// Get named local type TID
 /// \param name  type name

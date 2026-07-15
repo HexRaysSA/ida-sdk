@@ -165,14 +165,14 @@ namespace nec850_module_t
   // get usage of the R2 register
   inline reg_usage_t get_r2_register()
   {
-    QASSERT(0, PH.id == PLFM_NEC_V850X);
+    QASSERT(3480, PH.id == PLFM_NEC_V850X);
     return reg_usage_t(processor_t::notify(idp_ev(ev_get_r2_register)));
   }
 
   // set usage of the R2 register
   inline void set_r2_register(reg_usage_t usage)
   {
-    QASSERT(0, PH.id == PLFM_NEC_V850X);
+    QASSERT(3481, PH.id == PLFM_NEC_V850X);
     processor_t::notify(idp_ev(ev_set_r2_register), usage);
   }
 

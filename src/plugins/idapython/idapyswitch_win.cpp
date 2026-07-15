@@ -1,5 +1,10 @@
 #include "../../pro/registry.cpp"
 
+//-------------------------------------------------------------------------
+static void platform_normalize_install_dir(char *, size_t)
+{
+}
+
 #define PYTHON3_DLL "python3.dll"
 
 //-------------------------------------------------------------------------
@@ -165,19 +170,24 @@ static bool is_python3Y_dll_file_name(const char *fname)
 
 #include <exehdr.h>
 
-#include "../../ldr/pe/pe.h"
-#include "../../ldr/pe/common.cpp"
+#include <ldr/pe/pe.h>
+#include <ldr/pe/common.cpp>
 
 //-------------------------------------------------------------------------
-static bool check_dll_x86_64(const char *path)
+static bool check_dll_machine(const char *path)
 {
   linput_t *linput = open_linput(path, /*remote=*/ false);
   if ( linput == nullptr )
     return false;
   linput_janitor_t lj(linput);
   pe_loader_t pl;
+#ifdef __ARM__
+  return pl.read_header(linput, /*silent=*/ true)
+      && pl.pe.machine == PECPU_ARM64;
+#else
   return pl.read_header(linput, /*silent=*/ true)
       && pl.pe.machine == PECPU_AMD64;
+#endif
 }
 
 //-------------------------------------------------------------------------
@@ -216,7 +226,13 @@ static bool probe_python_install_dir_from_dll_path(
       if ( extract_version_from_dll(&tmp, path) )
         *out_version = tmp;
 
-      if ( out_version->major < args.major_version || out_version->minor < args.minor_version )
+      if ( out_version->modifiers.find('t') != qstring::npos )
+      {
+        out_verb("Skipping %s: freethreaded python is not supported\n", dll_path);
+        continue;
+      }
+
+      if ( out_version->major != args.major_version || out_version->minor < args.minor_version )
       {
         out_verb("Unsupported python version %s (%d.%d+ is required)",
                       out_version->str(&verbuf), args.major_version, args.minor_version);
@@ -246,10 +262,14 @@ static bool probe_python_install_dir_from_dll_path(
     return false;
   }
 
-  if ( !check_dll_x86_64(found_python3_dll.c_str())
-    || !check_dll_x86_64(found_python3Y_dll.c_str()) )
+  if ( !check_dll_machine(found_python3_dll.c_str())
+    || !check_dll_machine(found_python3Y_dll.c_str()) )
   {
-    errbuf->sprnt("DLLs in directory \"%s\" do not have the x86_64 architecture", dir);
+#ifdef __ARM__
+    errbuf->sprnt("DLLs in directory \"%s\" are not ARM64", dir);
+#else
+    errbuf->sprnt("DLLs in directory \"%s\" are not AMD64", dir);
+#endif
     return false;
   }
 
@@ -287,7 +307,7 @@ static bool has_appx_path(qstrvec_t paths)
 // AppStore Python on Windows 10 (dll can't be loaded from outside of Appx package)
 static bool bad_entry(const pylib_entry_t &e)
 {
-  if ( e.version.major < args.major_version || e.version.minor < args.minor_version )
+  if ( e.version.major != args.major_version || e.version.minor < args.minor_version )
   {
     qstring verbuf;
     out("Unsupported python version %s (%d.%d+ is required)\n",
@@ -364,7 +384,11 @@ static void enum_python_key(pylib_entries_t *result, const HKEY hkey, qstring *_
       bool ok = read_string(&sysver, ihkey, PYTHON_SYSVER_SUBKEY);
       ok = ok && parse_python_version_str(&version, sysver.c_str());
       qstring arch;
+#ifdef __ARM__
+      if ( read_string(&arch, ihkey, PYTHON_SYSARCH_SUBKEY) && arch != "ARM64" )
+#else
       if ( read_string(&arch, ihkey, PYTHON_SYSARCH_SUBKEY) && arch != "64bit" )
+#endif
         ok = false;
       if ( ok )
       {
@@ -470,6 +494,56 @@ void pyver_tool_t::do_find_python_libs(pylib_entries_t *result) const
     }
   }
 
+  //
+  // Scan uv-managed Python installations
+  //
+  scan_uv_python_list([result, &errbuf, &verbuf](const char *version_dir)
+  {
+    char probe[QMAXPATH];
+    qmakepath(probe, sizeof(probe), version_dir, PYTHON3_DLL, nullptr);
+    if ( !qfileexist(probe) )
+      return;
+
+    // Check if already found by registry scan
+    for ( const pylib_entry_t &e : result->entries )
+      if ( e.paths.has(probe) )
+        return;
+
+    pylib_version_t version;
+    qstrvec_t paths;
+    if ( probe_python_install_dir_from_dll_path(&paths, &version, probe, &errbuf) )
+    {
+      out_verb("Found uv Python: %s (version: %s)\n", probe, version.str(&verbuf));
+      pylib_entry_t &e = result->add_entry(version, paths);
+      e.display_name.sprnt("uv Python %s", version.str(&verbuf));
+    }
+  });
+
+  //
+  // Scan conda-managed Python environments
+  //
+  scan_conda_envs([result, &errbuf, &verbuf](const char *env_dir)
+  {
+    char probe[QMAXPATH];
+    qmakepath(probe, sizeof(probe), env_dir, PYTHON3_DLL, nullptr);
+    if ( !qfileexist(probe) )
+      return;
+
+    // Check if already found
+    for ( const pylib_entry_t &e : result->entries )
+      if ( e.paths.has(probe) )
+        return;
+
+    pylib_version_t version;
+    qstrvec_t paths;
+    if ( probe_python_install_dir_from_dll_path(&paths, &version, probe, &errbuf) )
+    {
+      out_verb("Found conda Python: %s (version: %s)\n", probe, version.str(&verbuf));
+      pylib_entry_t &e = result->add_entry(version, paths);
+      e.display_name.sprnt("conda Python %s", version.str(&verbuf));
+    }
+  });
+
   remove_bad_entries(result);
 
   //
@@ -481,7 +555,8 @@ void pyver_tool_t::do_find_python_libs(pylib_entries_t *result) const
     out_verb("Previously-used DLL: \"%s\"\n", existing.c_str());
     pylib_version_t version;
     qstrvec_t paths;
-    if ( probe_python_install_dir_from_dll_path(
+    if ( qfileexist(existing.c_str())
+      && probe_python_install_dir_from_dll_path(
                  &paths,
                  &version,
                  existing.c_str(),

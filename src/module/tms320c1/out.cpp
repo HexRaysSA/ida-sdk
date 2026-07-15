@@ -47,7 +47,7 @@
 //
 // Generate assembly text before the start of a segment.
 //
-void idaapi outSegStart(outctx_t &ctx, segment_t *)
+void idaapi outSegStart(outctx_t &ctx, ea_t)
 {
   ctx.gen_cmt_line("A segment starts here.");
 }
@@ -59,7 +59,7 @@ void idaapi outSegStart(outctx_t &ctx, segment_t *)
 //
 // Generate assembly text after the end of a segment.
 //
-void idaapi outSegEnd(outctx_t &ctx, segment_t *)
+void idaapi outSegEnd(outctx_t &ctx, ea_t)
 {
   ctx.gen_cmt_line("A segment ends here.");
 }

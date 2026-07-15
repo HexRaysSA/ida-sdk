@@ -9,7 +9,7 @@
  */
 
 #include "avr.hpp"
-#include "../../ldr/elf/elfr_avr.h"
+#include <ldr/elf/elfr_avr.h>
 
 //------------------------------------------------------------------------
 static void set_immd_bit(const insn_t &insn, int n)

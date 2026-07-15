@@ -61,12 +61,11 @@ void interr(const insn_t &insn, const char *module);
 
 void idaapi kr1878_header(outctx_t &ctx);
 
-void idaapi kr1878_segend(outctx_t &ctx, segment_t *seg);
+void idaapi kr1878_segend(outctx_t &ctx, ea_t seg_ea);
 
 int  idaapi is_align_insn(ea_t ea);
 int  idaapi is_sp_based(const insn_t &insn, const op_t &x);
 
-int is_jump_func(const func_t *pfn, ea_t *jump_target);
 int is_sane_insn(const insn_t &insn, int nocrefs);
 int may_be_func(const insn_t &insn);           // can a function start here?
 
@@ -112,7 +111,7 @@ struct kr1878_t : public procmod_t
 
   void kr1878_assumes(outctx_t &ctx);
   void print_segment_register(outctx_t &ctx, int reg, sel_t value);
-  void kr1878_segstart(outctx_t &ctx, segment_t *Srange) const;
+  void kr1878_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void kr1878_footer(outctx_t &ctx) const;
 
   void load_from_idb();

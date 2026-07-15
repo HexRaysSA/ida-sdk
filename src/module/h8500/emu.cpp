@@ -59,14 +59,14 @@ int idaapi is_sp_based(const insn_t &, const op_t &x)
 //----------------------------------------------------------------------
 static void add_stkpnt(const insn_t &insn, sval_t value)
 {
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(insn.ea);
+  if ( func_ea == BADADDR )
     return;
 
   if ( value & 1 )
     value++;
 
-  add_auto_stkpnt(pfn, insn.ea+insn.size, value);
+  add_func_auto_stkpnt(func_ea, insn.ea+insn.size, value);
 }
 
 //----------------------------------------------------------------------
@@ -179,11 +179,11 @@ static void trace_sp(const insn_t &insn)
 static sval_t calc_func_call_delta(const insn_t &insn, ea_t callee)
 {
   sval_t delta;
-  func_t *pfn = get_func(callee);
-  if ( pfn != nullptr )
+  func_entry_info_t fi;
+  if ( get_func_entry_info(&fi, callee) )
   {
-    delta = pfn->argsize;
-    if ( (pfn->flags & FUNC_FAR) != 0 && insn.Op1.type == o_near )
+    delta = fi.get_argsize();
+    if ( (fi.get_flags() & FUNC_FAR) != 0 && insn.Op1.type == o_near )
       delta += 2; // function will pop the code segment
   }
   else
@@ -208,8 +208,8 @@ static bool handle_function_call(const insn_t &insn, ea_t callee)
     funcflow = false;
   if ( inf_should_trace_sp() )
   {
-    func_t *caller = get_func(insn.ea);
-    if ( func_contains(caller, insn.ea+insn.size) )
+    ea_t caller_ea = get_func_start(insn.ea);
+    if ( caller_ea != BADADDR && function_contains(caller_ea, insn.ea+insn.size) )
     {
       sval_t delta = calc_func_call_delta(insn, callee);
       if ( delta != 0 )
@@ -257,10 +257,10 @@ void h8500_t::handle_operand(const insn_t &insn, const op_t &x, bool is_forced, 
           && may_create_stkvars()
           && !is_defarg(F, x.n) )
         {
-          func_t *pfn = get_func(insn.ea);
-          if ( pfn != nullptr
+          ea_t func_ea = get_func_start(insn.ea);
+          if ( func_ea != BADADDR
             && (issp(x.phrase)
-             || isbp(x.phrase) && (pfn->flags & FUNC_FRAME) != 0) )
+             || isbp(x.phrase) && (get_func_flags(func_ea) & FUNC_FRAME) != 0) )
           {
             if ( insn.create_stkvar(x, x.addr, STKVAR_VALID_SIZE) )
               op_stkvar(insn.ea, x.n);
@@ -362,16 +362,16 @@ SPLIT:
 //
   if ( may_trace_sp() )
   {
-    func_t *pfn = get_func(insn.ea);
-    if ( pfn != nullptr )
+    ea_t func_ea = get_func_start(insn.ea);
+    if ( func_ea != BADADDR )
     {
-      if ( (pfn->flags & FUNC_USERFAR) == 0
-        && (pfn->flags & FUNC_FAR) == 0
+      uint64 fflags = get_func_flags(func_ea);
+      if ( (fflags & FUNC_USERFAR) == 0
+        && (fflags & FUNC_FAR) == 0
         && is_far_ending(insn) )
       {
-        pfn->flags |= FUNC_FAR;
-        update_func(pfn);
-        reanalyze_callers(pfn->start_ea, 0);
+        set_func_flags(func_ea, fflags | FUNC_FAR);
+        reanalyze_callers(func_ea, 0);
       }
       if ( !flow )
         recalc_spd(insn.ea);     // recalculate SP register for the next insn
@@ -384,13 +384,6 @@ SPLIT:
     add_cref(insn.ea, insn.ea+insn.size, fl_F);
 
   return 1;
-}
-
-//----------------------------------------------------------------------
-int is_jump_func(const func_t * /*pfn*/, ea_t *jump_target)
-{
-  *jump_target = BADADDR;
-  return 0; // means "don't know"
 }
 
 //----------------------------------------------------------------------
@@ -440,20 +433,24 @@ int idaapi is_align_insn(ea_t ea)
 }
 
 //----------------------------------------------------------------------
-int idaapi h8500_get_frame_retsize(const func_t *pfn)
+int idaapi h8500_get_frame_retsize(ea_t func_ea)
 {
-  return pfn == nullptr ?        0
-       : pfn->flags & FUNC_FAR ? 4
-       :                         2;
+  return func_ea == BADADDR                        ? 0
+       : (get_func_flags(func_ea) & FUNC_FAR) != 0 ? 4
+       :                                             2;
 }
 
 //----------------------------------------------------------------------
-static uval_t find_ret_purged(const func_t *pfn)
+static uval_t find_ret_purged(ea_t func_ea)
 {
+  func_entry_info_t fi;
+  if ( !get_func_entry_info(&fi, func_ea) )
+    return 0;
+
   uval_t argsize = 0;
-  ea_t ea = pfn->start_ea;
+  ea_t ea = fi.start_ea;
   insn_t insn;
-  while ( ea < pfn->end_ea )
+  while ( ea < fi.end_ea )
   {
     decode_insn(&insn, ea);
     if ( insn.itype == H8500_rtd || insn.itype == H8500_prtd )
@@ -461,30 +458,34 @@ static uval_t find_ret_purged(const func_t *pfn)
       argsize = insn.Op1.value;
       break;
     }
-    ea = next_that(ea, pfn->end_ea, f_is_code);
+    ea = next_that(ea, fi.end_ea, f_is_code);
   }
 
   // could not find any ret instructions
   // but the function ends with a jump
-  if ( ea >= pfn->end_ea
+  if ( ea >= fi.end_ea
     && (insn.itype == H8500_jmp || insn.itype == H8500_pjmp) )
   {
     ea_t target = calc_mem(insn, insn.Op1);
-    pfn = get_func(target);
-    if ( pfn != nullptr )
-      argsize = pfn->argsize;
+    func_entry_info_t tfi;
+    if ( get_func_entry_info(&tfi, target) )
+      argsize = tfi.get_argsize();
   }
 
   return argsize;
 }
 
 //----------------------------------------------------------------------
-static void setup_far_func(func_t *pfn)
+static void setup_far_func(ea_t func_ea)
 {
-  if ( (pfn->flags & FUNC_FAR) == 0 )
+  uint64 fflags = get_func_flags(func_ea);
+  if ( (fflags & FUNC_FAR) == 0 )
   {
-    ea_t ea1 = pfn->start_ea;
-    ea_t ea2 = pfn->end_ea;
+    func_entry_info_t fi;
+    if ( !get_func_entry_info(&fi, func_ea) )
+      return;
+    ea_t ea1 = fi.start_ea;
+    ea_t ea2 = fi.end_ea;
     while ( ea1 < ea2 )
     {
       if ( is_code(get_flags32(ea1)) )
@@ -493,8 +494,7 @@ static void setup_far_func(func_t *pfn)
         decode_insn(&insn, ea1);
         if ( is_far_ending(insn) )
         {
-          pfn->flags |= FUNC_FAR;
-          update_func(pfn);
+          set_func_flags(func_ea, fflags | FUNC_FAR);
           break;
         }
       }
@@ -504,13 +504,10 @@ static void setup_far_func(func_t *pfn)
 }
 
 //----------------------------------------------------------------------
-bool idaapi create_func_frame(func_t *pfn)
+bool idaapi create_func_frame(ea_t func_ea)
 {
-  if ( pfn != nullptr )
-  {
-    setup_far_func(pfn);
-    uval_t argsize = find_ret_purged(pfn);
-    add_frame(pfn, 0, 0, argsize);
-  }
+  setup_far_func(func_ea);
+  uval_t argsize = find_ret_purged(func_ea);
+  add_frame_ea(func_ea, 0, 0, argsize);
   return true;
 }

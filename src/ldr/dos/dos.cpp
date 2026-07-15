@@ -156,22 +156,25 @@ int CheckCtrlBrk(void)
 //-------------------------------------------------------------------------
 void add_segm_by_selector(sel_t base, const char *sclass)
 {
-  segment_t *ptr = get_segm_by_sel(base);
-
-  if ( ptr == nullptr || ptr->sel != base )
+  ea_t seg_ea = get_segment_ea_by_sel(base);
+  segment_info_t si;
+  if ( seg_ea == BADADDR
+    || !get_segment_info(&si, seg_ea)
+    || si.get_sel() != base )
   {
     ea_t ea = sel2ea(base);
     if ( ea > inf_get_omax_ea() )
       inf_set_omax_ea(ea);
 
-    segment_t s;
-    s.sel     = base;
+    segment_info_t s;
+    s.set_sel(base);
     s.start_ea = sel2ea(base);
     s.end_ea   = inf_get_omax_ea();
-    s.align   = saRelByte;
-    s.comb    = sclass != nullptr && streq(sclass, "STACK") ? scStack : scPub;
-    add_segm_ex(&s, nullptr, sclass, ADDSEG_SPARSE | ADDSEG_NOSREG);
-    set_default_sreg_value(getseg(s.start_ea), R_ds, BADSEL);
+    s.set_align(saRelByte);
+    s.set_comb(sclass != nullptr && streq(sclass, "STACK") ? scStack : scPub);
+    s.set_sclass(sclass);
+    add_segment_ex(&s, ADDSEG_SPARSE | ADDSEG_NOSREG);
+    set_default_sreg_value_ea(s.start_ea, R_ds, BADSEL);
   }
 }
 
@@ -218,34 +221,35 @@ static void create_msdos_segments(bool com_mode, netnode ovr_info)
     set_segm_start(inf_get_omin_ea(), inf_get_omin_ea(), SEGMOD_KILL);
     inf_set_min_ea(inf_get_omin_ea());
 
-    segment_t *s = getseg(inf_get_min_ea());
-    if ( s )
+    segment_info_t s;
+    if ( get_segment_info(&s, inf_get_min_ea()) )
     {
-      s->set_comorg();    // i display ORG directive
-      s->update();
+      s.set_comorg();    // i display ORG directive
+      set_segment_info(&s);
     }
   }
   if ( inf_get_start_ss() != BADSEL && inf_get_start_ss() != inf_get_start_cs() )
     add_segm_by_selector(inf_get_start_ss(), CLASS_STACK);
   else // specify the sp value for the first segment
-    set_default_sreg_value(get_segm_by_sel(inf_get_start_cs()), R_ss, inf_get_start_cs());
+    set_default_sreg_value_ea(get_segment_ea_by_sel(inf_get_start_cs()), R_ss, inf_get_start_cs());
   doRelocs(inf_get_baseaddr(), true, ovr_info);
 
   ea_t ea = inf_get_omin_ea();
   ea_t omea = inf_get_omax_ea();
   for ( int i = 0; ea < omea; )
   {
-    segment_t *sptr = getnseg(i);
-    if ( sptr == nullptr || ea < sptr->start_ea )
+    segment_info_t sptr;
+    bool sptr_ok = get_segment_info_by_num(&sptr, i);
+    if ( !sptr_ok || ea < sptr.start_ea )
     {
       msg("Dummy segment at 0x%a (next segment at 0x%a)\n",
           ea,
-          sptr == nullptr ? BADADDR : sptr->start_ea);
+          !sptr_ok ? BADADDR : sptr.start_ea);
       add_segm_by_selector(unsigned(ea>>4), "DUMMY");
     }
     else
     {
-      ea = sptr->end_ea;
+      ea = sptr.end_ea;
       if ( !is_mapped(ea) )
         ea = next_addr(ea);
       ++i;
@@ -284,8 +288,7 @@ static ea_t FindDseg(void)
       && ((code = get_byte(dea+5)) & 0x8F) == 6
       && ((code>>3) & 7) == reg)) )
   {
-    segment_t *s = get_segm_by_sel(get_word(dea + 1));
-    return s == nullptr ? BADADDR : s->start_ea;
+    return get_segment_ea_by_sel(get_word(dea + 1));
   }
   //
   //      Watcom startup
@@ -296,8 +299,7 @@ static ea_t FindDseg(void)
     if ( get_byte(dea + 0) == 0xFB       // sti
       && get_byte(dea + 1) == 0xB9 )     // mov cx, ???
     {
-      segment_t *s = get_segm_by_sel(get_word(dea + 2));
-      return s == nullptr ? BADADDR : s->start_ea;
+      return get_segment_ea_by_sel(get_word(dea + 2));
     }
   }
   //
@@ -331,11 +333,12 @@ static ea_t FindDseg(void)
 //--------------------------------------------------------------------------
 static void setup_default_ds_register(sel_t ds_value)
 {
-  segment_t *dseg;
+  segment_info_t si;
 
   if ( ds_value != BADSEL )
   {
-    dseg = get_segm_by_sel(ds_value);
+    if ( !get_segment_info(&si, get_segment_ea_by_sel(ds_value)) )
+      return;
     goto setname;
   }
   msg("Searching for the data segment...\n");
@@ -346,15 +349,15 @@ static void setup_default_ds_register(sel_t ds_value)
         ea_t dataea = FindDseg();
         if ( dataea == BADADDR )
           return;
-        dseg = getseg(dataea);
-        if ( dseg == nullptr )
+        if ( !get_segment_info(&si, dataea) )
           return;
       }
-      dseg->align = saRelPara;
-      ds_value = dseg->sel;
+      si.set_align(saRelPara);
+      ds_value = si.get_sel();
 setname:
-      set_segm_class(dseg, CLASS_DATA);
-      set_segm_name(dseg, "dseg");
+      si.set_sclass(CLASS_DATA);
+      si.set_name("dseg");
+      set_segment_info(&si);
       break;
     case f_COM:
       ds_value = find_selector(inf_get_start_cs());
@@ -547,9 +550,10 @@ void idaapi load_file(linput_t *li, ushort neflag, const char *fileformatname)
   setup_default_ds_register(dseg);  // former SRcreate()
   if ( dseg != BADSEL && ovr_type == ovr_ms )
   {
-    segment_t *s = get_segm_by_sel(find_selector(inf_get_start_cs()));
-    if ( s != nullptr )
-      set_default_sreg_value(s, ph.reg_data_sreg, s->sel);
+    ea_t seg_ea = get_segment_ea_by_sel(find_selector(inf_get_start_cs()));
+    segment_info_t si;
+    if ( seg_ea != BADADDR && get_segment_info(&si, seg_ea) )
+      set_default_sreg_value_ea(seg_ea, ph.reg_data_sreg, si.get_sel());
   }
   inf_set_start_ea((inf_get_start_ip() == BADADDR)
                  ? BADADDR
@@ -688,12 +692,13 @@ static int idaapi move_segm(ea_t from, ea_t to, asize_t /*size*/, const char * /
     // job by rebasing each segment.
     for ( int i = 0; i < get_segm_qty(); ++i )
     {
-      segment_t *seg = getnseg(i);
-      ea_t curbase = get_segm_base(seg); // Returns base in EA
+      segment_info_t si;
+      if ( !get_segment_info_by_num(&si, i) )
+        continue;
+      ea_t curbase = si.base(); // Returns base in EA
       ea_t newbase = curbase + delta;
-      set_segm_base(seg, newbase >> 4);  // Expects base in Paragraphs
+      set_segment_base_ea(si.start_ea, newbase >> 4);  // Expects base in Paragraphs
       segmap[curbase >> 4] = newbase >> 4;
-      seg->update();
     }
 
     // fix up segment registers
@@ -720,10 +725,11 @@ static int idaapi move_segm(ea_t from, ea_t to, asize_t /*size*/, const char * /
             if ( sra.tag == SR_auto )
             {
              // SR_auto at segment start? set it as default sreg for the segment
-              segment_t *seg = getseg(sra.start_ea);
-              if ( seg != nullptr && seg->start_ea == sra.start_ea )
+              segment_info_t seg;
+              if ( get_segment_info(&seg, sra.start_ea)
+                && seg.start_ea == sra.start_ea )
               {
-                set_default_sreg_value(seg, sr, p->second);
+                set_default_sreg_value_ea(sra.start_ea, sr, p->second);
                 continue;
               }
             }
@@ -737,24 +743,31 @@ static int idaapi move_segm(ea_t from, ea_t to, asize_t /*size*/, const char * /
     // update default segreg values for segments
     for ( int i = 0; i < get_segm_qty(); ++i )
     {
-      segment_t *seg = getnseg(i);
+      segment_info_t si;
+      if ( !get_segment_info_by_num(&si, i) )
+        continue;
 
+      bool updated = false;
       for ( int sr = ph.reg_first_sreg; sr < ph.reg_last_sreg; ++sr )
       {
         if ( sr == ph.reg_code_sreg )
           continue;
 
-        sel_t reg = seg->defsr[sr - ph.reg_first_sreg];
+        sel_t reg = si.get_defsr(sr - ph.reg_first_sreg);
         if ( reg != BADSEL )
         {
           // does the selector value match a previous segment base?
           std::map<ea_t, ea_t>::const_iterator p = segmap.find(reg);
           // replace it with the new base if so.
           if ( p != segmap.end() )
-            seg->defsr[sr - ph.reg_first_sreg] = p->second;
+          {
+            si.set_defsr(sr - ph.reg_first_sreg, p->second);
+            updated = true;
+          }
         }
       }
-      seg->update();
+      if ( updated )
+        set_segment_info(&si);
     }
 
     // Record the new image base address.

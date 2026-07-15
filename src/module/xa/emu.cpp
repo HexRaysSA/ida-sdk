@@ -17,7 +17,7 @@ static void create_ext_ram_seg(ea_t &v)
     return;
   }
 
-  if ( v && getseg(v) == nullptr )
+  if ( v && !get_segment_info(nullptr, v) )
   {
     ea_t start = v & 0xFFFF0000;
 
@@ -185,8 +185,8 @@ void xa_t::handle_operand(insn_t &insn, const op_t &x, bool loading)
         && x.indreg == rR7
         && (x.n != 1 || !check_insn(insn, 0, XA_lea, o_reg, rR7, o_void, BADADDR)) )
       {
-        func_t *pfn = get_func(insn.ea);
-        if ( pfn != nullptr )
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( func_ea != BADADDR )
         {
           insn_t saved = insn;
           int n = x.n;
@@ -527,11 +527,11 @@ BAD_LOGIC:
 //----------------------------------------------------------------------
 static bool add_stkpnt(const insn_t &insn, sval_t delta)
 {
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(insn.ea);
+  if ( func_ea == BADADDR )
     return false;
 
-  return add_auto_stkpnt(pfn, insn.ea+insn.size, delta);
+  return add_func_auto_stkpnt(func_ea, insn.ea+insn.size, delta);
 }
 
 //----------------------------------------------------------------------
@@ -654,7 +654,7 @@ int xa_t::emu(const insn_t &_insn)
       if ( insn.Op1.type == o_phrase
         && (insn.Op1.phrase == fRlistL || insn.Op1.phrase == fRlistH) )
       {
-        func_t *pfn = get_func(insn.ea);
+        ea_t func_ea = get_func_start(insn.ea);
         int bits = 0, firstreg = 0;
 
         for ( int bit = 7; bit >= 0; bit-- )
@@ -665,7 +665,7 @@ int xa_t::emu(const insn_t &_insn)
             firstreg = bit;
           }
         }
-        if ( bits && may_trace_sp() && pfn && !get_sp_delta(pfn, insn.ea) )
+        if ( bits && may_trace_sp() && func_ea != BADADDR && !get_func_sp_delta(func_ea, insn.ea) )
           add_stkpnt(insn, insn.itype == XA_push ? -2*bits : 2*bits);
 
         if ( insn.itype == XA_push
@@ -689,8 +689,8 @@ int xa_t::emu(const insn_t &_insn)
       }
       else if ( insn.Op1.type == o_mem )
       {
-        func_t *pfn = get_func(insn.ea);
-        if ( may_trace_sp() && pfn && !get_sp_delta(pfn, insn.ea) )
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( may_trace_sp() && func_ea != BADADDR && !get_func_sp_delta(func_ea, insn.ea) )
           add_stkpnt(insn, insn.itype == XA_push ? -2 : 2);
       }
       else
@@ -708,13 +708,13 @@ int xa_t::emu(const insn_t &_insn)
       {
         if ( insn.Op2.type == o_imm )
         {
-          func_t *pfn = get_func(insn.ea);
+          ea_t func_ea = get_func_start(insn.ea);
 
           sval_t offset = (insn.Op2.value < 0x8000 || insn.Op2.value > 0x80000000)
                         ? insn.Op2.value
                         : insn.Op2.value - 0x10000;
 
-          if ( may_trace_sp() && pfn && !get_sp_delta(pfn, insn.ea) )
+          if ( may_trace_sp() && func_ea != BADADDR && !get_func_sp_delta(func_ea, insn.ea) )
             add_stkpnt(insn, insn.itype == XA_sub ? -offset : offset);
         }
         else
@@ -730,8 +730,8 @@ int xa_t::emu(const insn_t &_insn)
       {
         if ( insn.Op2.type == o_displ && insn.Op2.indreg == rR7 )
         {
-          func_t *pfn = get_func(insn.ea);
-          if ( pfn && !get_sp_delta(pfn, insn.ea) )
+          ea_t func_ea = get_func_start(insn.ea);
+          if ( func_ea != BADADDR && !get_func_sp_delta(func_ea, insn.ea) )
             add_stkpnt(insn, insn.Op2.addr);
         }
         else
@@ -770,9 +770,9 @@ int xa_t::emu(const insn_t &_insn)
 
 //----------------------------------------------------------------------
 // Special functions for Hisoft XA C compiler
-bool xa_t::xa_create_func(func_t *pfn) const
+bool xa_t::xa_create_func(ea_t func_ea) const
 {
-  ea_t prologue = pfn->start_ea;
+  ea_t prologue = func_ea;
   bool prologue_at_end = false;
   uval_t frsize = 0;
   ushort regs = 0;
@@ -837,10 +837,10 @@ bool xa_t::xa_create_func(func_t *pfn) const
       prologue += insn.size;
     } while ( more );
   }
-  add_frame(pfn, frsize, regs, 0);
+  add_frame_ea(func_ea, frsize, regs, 0);
   if ( prologue_at_end )
   {
-    decode_insn(&insn, pfn->start_ea);
+    decode_insn(&insn, func_ea);
     add_stkpnt(insn, 0-frsize-regs);
   }
 
@@ -984,10 +984,9 @@ bool xa_t::xa_is_switch(switch_info_t *si, const insn_t &_insn)
 
 //----------------------------------------------------------------------
 //lint -esym(714,xa_frame_retsize)
-//lint -esym(818,pfn)
-int xa_t::xa_frame_retsize(const func_t *pfn)
+int xa_t::xa_frame_retsize(ea_t func_ea)
 {
-  return pfn->is_far() ? 2 : 4;
+  return (get_func_flags(func_ea) & FUNC_FAR) != 0 ? 2 : 4;
 }
 
 //----------------------------------------------------------------------

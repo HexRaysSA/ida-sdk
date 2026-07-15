@@ -30,7 +30,11 @@ def decompile(ea, hf=None, flags=0):
     :param flags: decomp_flags bitwise combination of `DECOMP_...` bits
     :returns: the decompilation result (a `ida_hexrays.cfunc_t` wrapper), or None
     """
-    return decompile_func(ea, hf, flags)
+    if hasattr(ea, "start_ea"):
+        func_ea = ea.start_ea
+    else:
+        func_ea = ea
+    return decompile_function(func_ea, hf, flags)
 
 # ---------------------------------------------------------------------
 # listify all list types
@@ -454,4 +458,21 @@ _map_as_dict(_ida_hexrays, user_iflags_t, 'user_iflags', citem_locator_t, int)
 _map_as_dict(_ida_hexrays, user_unions_t, 'user_unions', ida_idaapi.integer_types, ida_pro.intvec_t)
 _map_as_dict(_ida_hexrays, eamap_t, 'eamap', ida_idaapi.long_type, cinsnptrvec_t)
 _map_as_dict(_ida_hexrays, boundaries_t, 'boundaries', cinsn_t, ida_range.rangeset_t)
+
+mba_t.inline_func = ida_idaapi._ida_deprecated(mba_t.inline_func, "mba_t.inline_function")
+decompile_func = ida_idaapi._ida_deprecated(decompile_func, "decompile_function")
+
+# gen_microcode / create_empty_mba: route by first-arg type, warn on the
+# deprecated mba_ranges_t overload only. The _mbr-suffixed symbols come from
+# %rename in swig/hexrays.i.
+gen_microcode = ida_idaapi._deprecated_overload(
+    "gen_microcode",
+    gen_microcode, mba_ranges_t, _gen_microcode_mbr,
+    "gen_microcode(mba_ranges_t)",
+    "gen_microcode(decomp_ranges_t)")
+create_empty_mba = ida_idaapi._deprecated_overload(
+    "create_empty_mba",
+    create_empty_mba, mba_ranges_t, _create_empty_mba_mbr,
+    "create_empty_mba(mba_ranges_t)",
+    "create_empty_mba(decomp_ranges_t)")
 #</pycode(py_hexrays)>

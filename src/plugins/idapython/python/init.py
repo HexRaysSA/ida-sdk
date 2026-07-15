@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------
 # IDAPython - Python plugin for Interactive Disassembler
 #
-# Copyright (c) The IDAPython Team <idapython@googlegroups.com>
+# Copyright (c) The IDAPython Team <https://github.com/HexRaysSA/ida-sdk/issues>
 #
 # All rights reserved.
 #
@@ -44,6 +44,9 @@ lib_dynload = os.path.join(IDAPYTHON_DYNLOAD_BASE, "python")
 sys.path.insert(0, os.path.join(lib_dynload, "lib-dynload"))
 sys.path.insert(0, lib_dynload)
 
+# Show deprecation warnings from ida_* modules (PEP 565)
+warnings.filterwarnings("default", category=DeprecationWarning, module=r"ida_.*")
+
 # We want all ida_* modules to be available
 all_mods = "${MODULES}"
 
@@ -51,19 +54,22 @@ for mod in all_mods.split(","):
     try:
         # Import module and make it visible at global scope
         globals()[f"ida_{mod}"] = __import__(f"ida_{mod}")
+    except ModuleNotFoundError:
+        # Module not present in this installation. Skip silently.
+        continue
     except ImportError as e:
-        print("Import failed: %s. Current sys.path:" % str(e))
+        # Module is present but failed to load — most often a missing
+        # native dependency (e.g. _ida_*.pyd can't bind to ida.dll /
+        # idapython3.dll because of an ABI mismatch). Log and carry on
+        # so the rest of IDAPython stays available.
+        print("Cannot load module ida_%s: %s" % (mod, e))
         for p in sys.path:
             print("\t%s" % p)
-        raise
     except Exception as e:
-        print("Cannot load module ida_%s: %s" % (mod, str(e)))
+        # Any other exception during module init — log and continue.
+        print("Cannot load module ida_%s: %s" % (mod, e))
         import traceback
         traceback.print_exc()
-        raise
-    except ModuleNotFoundError as e:
-        # Silently skip modules not present in current installation
-        continue
 
 # -----------------------------------------------------------------------
 # Take over the standard text outputs
@@ -103,7 +109,7 @@ def runscript(script):
 def print_banner():
     banner = [
       "Python %s " % sys.version,
-      "IDAPython" + (" 64-bit" if ida_idaapi.__EA64__ else "") + " v%d.%d.%d (c) The IDAPython Team <idapython@googlegroups.com>" % IDAPYTHON_VERSION
+      "IDAPython" + (" 64-bit" if ida_idaapi.__EA64__ else "") + " v%d.%d.%d (c) The IDAPython Team <https://github.com/HexRaysSA/ida-sdk/issues>" % IDAPYTHON_VERSION
     ]
     sepline = '-' * (max([len(s) for s in banner])+1)
 
@@ -164,11 +170,19 @@ if IDAPYTHON_IDAUSR_SYSPATH:
             sys.path.append(one)
 
 if IDAPYTHON_COMPAT_AUTOIMPORT_MODULES:
-    # Import all the required modules
-    from idaapi import get_user_idadir, cvar, Appcall, Form
-    from idc      import *
-    from idautils import *
-    import idaapi
+    # Import all the required modules. These compatibility wrappers
+    # re-import every ida_* module via `from ida_X import *`; if any
+    # of those modules failed to load above (e.g. ABI mismatch, missing
+    # native dependency), the wrapper raises ImportError. Catch it so
+    # the rest of init.py — and any IDAPython subset that DID load —
+    # remains usable.
+    try:
+        from idaapi import get_user_idadir, cvar, Appcall, Form
+        from idc      import *
+        from idautils import *
+        import idaapi
+    except ImportError as e:
+        print("Compatibility auto-import partially failed: %s" % e)
 
 # In Python3, some modules (e.g., subprocess) will load the 'signal'
 # module which, upon loading, will registers default handlers for some
@@ -191,5 +205,30 @@ if sys.version_info.major >= 3:
 userrc = os.path.join(ida_diskio.get_user_idadir(), "idapythonrc.py")
 if os.path.exists(userrc):
     ida_idaapi.IDAPython_ExecScript(userrc, globals())
+
+# -----------------------------------------------------------------------
+# Exit-time cleanup of Python-held Qt widgets.
+# Called from the ui_about_to_exit handler
+# while QApplication is still alive. Force-destroys
+# PySide-created top-level widgets still owned by Python so their
+# C++ peers are destroyed now instead of after ~QApplication runs.
+def _ida_pyside_cleanup():
+    try:
+        from PySide6 import QtWidgets
+        import shiboken6
+    except ImportError:
+        return
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        return
+    for w in list(app.topLevelWidgets()):
+        if not shiboken6.isValid(w):
+            continue
+        if not shiboken6.ownedByPython(w):
+            continue
+        try:
+            shiboken6.delete(w)
+        except Exception:
+            pass
 
 # All done, ready to rock.

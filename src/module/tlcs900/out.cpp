@@ -246,20 +246,22 @@ void tlcs900_t::T900_header(outctx_t &ctx)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void tlcs900_t::T900_segstart(outctx_t &ctx, segment_t *Sarea) const
+void tlcs900_t::T900_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
-  const char *SegType = Sarea->type == SEG_CODE ? "CSEG"
-                      : Sarea->type == SEG_DATA ? "DSEG"
-                      :                           "RSEG";
+  segment_info_t seg;
+  if ( !get_segment_info(&seg, seg_ea, GSI_NAME) )
+    return;
+  const char *SegType = seg.get_type() == SEG_CODE ? "CSEG"
+                      : seg.get_type() == SEG_DATA ? "DSEG"
+                      :                              "RSEG";
   // "RSEG <NAME>"
   qstring sn;
-  get_visible_segm_name(&sn, Sarea);
+  seg.visible_name(&sn);
   ctx.gen_printf(-1, "%s %s ", SegType, sn.c_str());
   // non-zero offset - "ORG XXXX"
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
-    ea_t org = ctx.insn_ea - get_segm_base(Sarea);
+    ea_t org = ctx.insn_ea - seg.base();
     if ( org != 0 )
     {
       char bufn[MAX_NUMBUF];

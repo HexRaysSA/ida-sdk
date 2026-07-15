@@ -97,7 +97,7 @@ struct sam8_t : public procmod_t
 
   void handle_operand(const insn_t &insn, const op_t &x, bool loading);
   int emu(const insn_t &insn);
-  void sam8_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void sam8_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void sam8_footer(outctx_t &ctx) const;
 };
 #endif

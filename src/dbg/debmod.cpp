@@ -966,10 +966,10 @@ bool debmod_t::handle_lowcnd(lowcnd_t *lc, debug_event_t *event, int elc_flags)
 
 //--------------------------------------------------------------------------
 // return lowcnd_t if its condition is not satisfied
+//lint -esym(1762, debmod_t::get_failed_lowcnd) could be made const
 lowcnd_t *debmod_t::get_failed_lowcnd(thid_t tid, ea_t ea)
 {
 #ifndef ENABLE_LOWCNDS
-  //lint -esym(1762, debmod_t::get_failed_lowcnd) could be made const
   qnotused(tid);
   qnotused(ea);
 #else

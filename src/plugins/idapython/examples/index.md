@@ -74,7 +74,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 </tr>
 <tr>
   <td>Intermediate</td>
-  <td><ul><li><a href='#actions'>Custom actions, with icons & tooltips</a></li><li><a href='#choose'>Show tabular data</a></li><li><a href='#choose_multi'>Show tabular data, with multiple selection</a></li><li><a href='#custom_viewer'>Create custom listings in IDA</a></li><li><a href='#func_chooser'>Implement an alternative "Functions" window</a></li><li><a href='#jump_next_comment'>Implement a "jump to next comment" action within IDA's listing</a></li><li><a href='#lines_rendering'>Dynamically colorize [parts of] lines</a></li><li><a href='#log_misc_events'>React to UI events/notifications</a></li><li><a href='#paint_over_navbar'>Paint on top of the navigation band</a></li><li><a href='#save_and_restore_listing_pos'>Save, and then restore, positions in a listing</a></li><li><a href='#show_selected_strings'>Retrieve the selection from the "Strings" window</a></li><li><a href='#sync_two_graphs'>Follow the movements of one graph, in another</a></li><li><a href='#trigger_actions_programmatically'>Trigger actions programmatically</a></li></ul></td>
+  <td><ul><li><a href='#actions'>Custom actions, with icons & tooltips</a></li><li><a href='#choose'>Show tabular data</a></li><li><a href='#choose_multi'>Show tabular data, with multiple selection</a></li><li><a href='#choose_with_checkboxes'>A flat list, with checkboxes</a></li><li><a href='#custom_viewer'>Create custom listings in IDA</a></li><li><a href='#func_chooser'>Implement an alternative "Functions" window</a></li><li><a href='#jump_next_comment'>Implement a "jump to next comment" action within IDA's listing</a></li><li><a href='#lines_rendering'>Dynamically colorize [parts of] lines</a></li><li><a href='#log_misc_events'>React to UI events/notifications</a></li><li><a href='#open_ida_link'>Navigate to entities using ida:// links</a></li><li><a href='#paint_over_navbar'>Paint on top of the navigation band</a></li><li><a href='#save_and_restore_listing_pos'>Save, and then restore, positions in a listing</a></li><li><a href='#show_selected_strings'>Retrieve the selection from the "Strings" window</a></li><li><a href='#sync_two_graphs'>Follow the movements of one graph, in another</a></li><li><a href='#trigger_actions_programmatically'>Trigger actions programmatically</a></li></ul></td>
 </tr>
 <tr>
   <td>Advanced</td>
@@ -98,7 +98,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 
 <tr>
   <td>Beginner</td>
-  <td><ul><li><a href='#dump_flowchart'>Dump function flowchart</a></li><li><a href='#install_user_defined_prefix'>Insert information into listing prefixes</a></li><li><a href='#list_imports'>Enumerate file imports</a></li><li><a href='#list_patched_bytes'>Enumerate patched bytes</a></li><li><a href='#list_problems'>Enumerate known problems</a></li><li><a href='#list_segment_functions'>List segment functions (and cross-references to them)</a></li><li><a href='#list_segment_functions_using_idautils'>List all functions (and cross-references) in segment</a></li><li><a href='#list_strings'>Dump the strings that are present in the file</a></li><li><a href='#produce_lst_file'>Produce disassembly listing for the entire file</a></li></ul></td>
+  <td><ul><li><a href='#dump_flowchart'>Dump function flowchart</a></li><li><a href='#dump_flowchart_ea'>Dump function flowchart, new API</a></li><li><a href='#install_user_defined_prefix'>Insert information into listing prefixes</a></li><li><a href='#indexer_substring_search'>Search the IDA indexer (substring match)</a></li><li><a href='#list_imports'>Enumerate file imports</a></li><li><a href='#list_patched_bytes'>Enumerate patched bytes</a></li><li><a href='#list_problems'>Enumerate known problems</a></li><li><a href='#list_segment_functions'>List segment functions (and cross-references to them)</a></li><li><a href='#list_segment_functions_using_idautils'>List all functions (and cross-references) in segment</a></li><li><a href='#list_strings'>Dump the strings that are present in the file</a></li><li><a href='#produce_lst_file'>Produce disassembly listing for the entire file</a></li></ul></td>
 </tr>
 <tr>
   <td>Intermediate</td>
@@ -126,7 +126,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 
 <tr>
   <td>Beginner</td>
-  <td><ul><li><a href='#produce_c_file'>Produce C listing for the entire file</a></li><li><a href='#serialize'>Serialize and deserialize the decompilation output</a></li><li><a href='#vds1'>Decompile & print current function</a></li><li><a href='#vds13'>Generate microcode for the selected range of instructions</a></li><li><a href='#vds7'>Dump statement blocks</a></li><li><a href='#vds_create_hint'>Provide custom decompiler hints</a></li></ul></td>
+  <td><ul><li><a href='#produce_c_file'>Produce C listing for the entire file</a></li><li><a href='#serialize'>Serialize and deserialize the decompilation output</a></li><li><a href='#serialize_minsn'>Serialize and deserialize a microcode instruction (minsn_t)</a></li><li><a href='#vds1'>Decompile & print current function</a></li><li><a href='#vds13'>Generate microcode for the selected range of instructions</a></li><li><a href='#vds7'>Dump statement blocks</a></li><li><a href='#vds_create_hint'>Provide custom decompiler hints</a></li></ul></td>
 </tr>
 <tr>
   <td>Intermediate</td>
@@ -243,7 +243,7 @@ callback.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [add_hotkey.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/add_hotkey.py) | actions | Beginner |
+| [add_hotkey.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/add_hotkey.py) | actions | Beginner |
 
 **APIs Used:**
 * `ida_kernwin.add_hotkey`
@@ -264,7 +264,7 @@ Notes:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [add_menus.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/misc/add_menus.py) | actions | Beginner |
+| [add_menus.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/misc/add_menus.py) | actions | Beginner |
 
 **APIs Used:**
 * `ida_kernwin.AST_ENABLE_ALWAYS`
@@ -288,7 +288,7 @@ database.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [colorize_disassembly.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/colorize_disassembly.py) | coloring idc | Beginner |
+| [colorize_disassembly.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/colorize_disassembly.py) | coloring idc | Beginner |
 
 **APIs Used:**
 * `idc.CIC_FUNC`
@@ -309,7 +309,7 @@ The key, is overriding `ida_kernwin.UI_Hooks.get_chooser_item_attrs`
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [func_chooser_coloring.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/uihooks/func_chooser_coloring.py) | UI_Hooks | Beginner |
+| [func_chooser_coloring.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/uihooks/func_chooser_coloring.py) | UI_Hooks | Beginner |
 
 **APIs Used:**
 * `ida_funcs.get_func`
@@ -327,7 +327,7 @@ regular Qt widgets.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [populate_pluginform_with_pyqt_widgets.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/pyqt/populate_pluginform_with_pyqt_widgets.py) |  | Beginner |
+| [populate_pluginform_with_pyqt_widgets.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/pyqt/populate_pluginform_with_pyqt_widgets.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_kernwin.PluginForm`
@@ -342,7 +342,7 @@ otherwise do it.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [prevent_jump.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/uihooks/prevent_jump.py) | UI_Hooks | Beginner |
+| [prevent_jump.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/uihooks/prevent_jump.py) | UI_Hooks | Beginner |
 
 **APIs Used:**
 * `ida_kernwin.UI_Hooks`
@@ -355,7 +355,7 @@ Register (possibly repeating) timers.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [register_timer.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/register_timer.py) |  | Beginner |
+| [register_timer.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/register_timer.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_kernwin.register_timer`
@@ -368,7 +368,7 @@ Using the progress dialog (aka 'wait box') primitives.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [show_and_hide_waitbox.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/waitbox/show_and_hide_waitbox.py) | actions | Beginner |
+| [show_and_hide_waitbox.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/waitbox/show_and_hide_waitbox.py) | actions | Beginner |
 
 **APIs Used:**
 * `ida_hexrays.decompile`
@@ -395,7 +395,7 @@ to be available (through their
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [actions.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/actions.py) | actions ctxmenu UI_Hooks | Intermediate |
+| [actions.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/actions.py) | actions ctxmenu UI_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_kernwin.AST_DISABLE_FOR_WIDGET`
@@ -423,7 +423,7 @@ In addition, registers a couple actions that can be applied to it.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [choose.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/tabular_views/custom/choose.py) | actions chooser ctxmenu | Intermediate |
+| [choose.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/tabular_views/custom/choose.py) | actions chooser ctxmenu | Intermediate |
 
 **APIs Used:**
 * `Choose`
@@ -451,7 +451,7 @@ Similar to <a class="ex_link" href="#choose">choose</a>, but with multiple selec
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [choose_multi.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/tabular_views/custom/choose_multi.py) | actions chooser | Intermediate |
+| [choose_multi.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/tabular_views/custom/choose_multi.py) | actions chooser | Intermediate |
 
 **APIs Used:**
 * `Choose`
@@ -459,6 +459,30 @@ Similar to <a class="ex_link" href="#choose">choose</a>, but with multiple selec
 * `Choose.CHCOL_HEX`
 * `Choose.CH_MULTI`
 * `Choose.NOTHING_CHANGED`
+
+***
+
+
+### A flat list, with checkboxes {#choose_with_checkboxes}
+Shows how to subclass the ida_kernwin.Choose class to
+show data organized in a simple table, and react to
+"checked state" events.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [choose_with_checkboxes.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/tabular_views/custom/choose_with_checkboxes.py) | actions chooser | Intermediate |
+
+**APIs Used:**
+* `Choose`
+* `Choose.ALL_CHANGED`
+* `Choose.NOTHING_CHANGED`
+* `ida_kernwin.CHCOL_CHECKBOX`
+* `ida_kernwin.CHITEM_CHKST_CHECKED`
+* `ida_kernwin.CH_CAN_DEL`
+* `ida_kernwin.CH_CAN_INS`
+* `ida_kernwin.CH_CAN_REFRESH`
+* `ida_kernwin.CH_RESTORE`
+* `ida_kernwin.ask_str`
 
 ***
 
@@ -473,7 +497,7 @@ freshly-created widget (using `ida_kernwin.attach_action_to_popup`.)
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [custom_viewer.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/listings/custom_viewer.py) | actions ctxmenu listing | Intermediate |
+| [custom_viewer.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/listings/custom_viewer.py) | actions ctxmenu listing | Intermediate |
 
 **APIs Used:**
 * `ida_kernwin.AST_ENABLE_ALWAYS`
@@ -504,7 +528,7 @@ IDA, with a custom widget.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [func_chooser.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/tabular_views/custom/func_chooser.py) | chooser functions | Intermediate |
+| [func_chooser.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/tabular_views/custom/func_chooser.py) | chooser functions | Intermediate |
 
 **APIs Used:**
 * `ida_funcs.get_func_name`
@@ -538,7 +562,7 @@ addresses, comments, prefixes, instruction mnemonics, ...)
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [jump_next_comment.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/listings/jump_next_comment.py) | actions idaview | Intermediate |
+| [jump_next_comment.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/listings/jump_next_comment.py) | actions idaview | Intermediate |
 
 **APIs Used:**
 * `ida_bytes.next_head`
@@ -573,7 +597,7 @@ glyphs, not the whole line.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [lines_rendering.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/uihooks/lines_rendering.py) | UI_Hooks | Intermediate |
+| [lines_rendering.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/uihooks/lines_rendering.py) | UI_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_bytes.next_head`
@@ -611,10 +635,45 @@ dump their information to the "Output" window
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [log_misc_events.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/uihooks/log_misc_events.py) | UI_Hooks | Intermediate |
+| [log_misc_events.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/uihooks/log_misc_events.py) | UI_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_kernwin.UI_Hooks`
+
+***
+
+
+### Navigate to entities using ida:// links {#open_ida_link}
+Demonstrates ``ida_kernwin.open_ida_link()`` which provides URL-style
+navigation within the current IDB. The function accepts URIs of the
+form ``ida:///resource?params`` and navigates to the matching entity,
+optionally opening a specific view.
+
+Nine resource types are supported: functions, addresses, strings,
+segments, names, imports, exports, types, and bookmarks.
+
+Most resources use ``rva=`` or ``ea=`` to specify the target address.
+The ``types`` resource uses ``name=`` instead. An optional ``view=``
+parameter selects which view to open (e.g., ``view=pseudocode``).
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [open_ida_link.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/open_ida_link.py) | links navigation | Intermediate |
+
+**APIs Used:**
+* `ida_entry.get_entry`
+* `ida_entry.get_entry_ordinal`
+* `ida_entry.get_entry_qty`
+* `ida_funcs.get_next_func`
+* `ida_idaapi.BADADDR`
+* `ida_kernwin.open_ida_link`
+* `ida_nalt.enum_import_names`
+* `ida_nalt.get_imagebase`
+* `ida_nalt.get_import_module_qty`
+* `ida_name.get_nlist_ea`
+* `ida_segment.get_first_seg`
+* `ida_strlist.get_strlist_item`
+* `ida_strlist.string_info_t`
 
 ***
 
@@ -626,14 +685,15 @@ and then add our own markers on top.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [paint_over_navbar.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/pyqt/paint_over_navbar.py) |  | Intermediate |
+| [paint_over_navbar.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/pyqt/paint_over_navbar.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_kernwin.PluginForm.FormToPyQtWidget`
 * `ida_kernwin.get_navband_pixel`
 * `ida_kernwin.open_navband_window`
 * `ida_segment.get_segm_qty`
-* `ida_segment.getnseg`
+* `ida_segment.get_segment_info_by_num`
+* `ida_segment.segment_info_t`
 * `idc.here`
 
 ***
@@ -652,7 +712,7 @@ Note that, contrary to actual bookmarks, this example:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [save_and_restore_listing_pos.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/listings/save_and_restore_listing_pos.py) | actions listing | Intermediate |
+| [save_and_restore_listing_pos.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/listings/save_and_restore_listing_pos.py) | actions listing | Intermediate |
 
 **APIs Used:**
 * `ida_kernwin.AST_DISABLE_FOR_WIDGET`
@@ -684,7 +744,7 @@ by querying the IDB (`ida_bytes.get_strlit_contents`)
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [show_selected_strings.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/tabular_views/string_window/show_selected_strings.py) | actions ctxmenu | Intermediate |
+| [show_selected_strings.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/tabular_views/string_window/show_selected_strings.py) | actions ctxmenu | Intermediate |
 
 **APIs Used:**
 * `ida_bytes.get_strlit_contents`
@@ -716,7 +776,7 @@ show the same contents as "IDA View-A", slightly zoomed out.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [sync_two_graphs.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/graphs/sync_two_graphs.py) | graph idaview | Intermediate |
+| [sync_two_graphs.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/graphs/sync_two_graphs.py) | graph idaview | Intermediate |
 
 **APIs Used:**
 * `ida_graph.GLICTL_CENTER`
@@ -752,7 +812,7 @@ menu, so as to keep focus on "IDA View-A" and have the
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [trigger_actions_programmatically.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/trigger_actions_programmatically.py) | actions | Intermediate |
+| [trigger_actions_programmatically.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/trigger_actions_programmatically.py) | actions | Intermediate |
 
 **APIs Used:**
 * `ida_kernwin.ask_yn`
@@ -772,7 +832,7 @@ simpler types of inputs might can be retrieved by using
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [askusingform.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/forms/askusingform.py) | forms | Advanced |
+| [askusingform.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/forms/askusingform.py) | forms | Advanced |
 
 **APIs Used:**
 * `ida_kernwin.Choose`
@@ -806,7 +866,7 @@ There are 2 ways to use this example:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [auto_instantiate_widget_plugin.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/auto_instantiate_widget_plugin.py) | desktop plugin UI_Hooks | Advanced |
+| [auto_instantiate_widget_plugin.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/auto_instantiate_widget_plugin.py) | desktop plugin UI_Hooks | Advanced |
 
 **APIs Used:**
 * `ida_idaapi.plugin_t`
@@ -837,7 +897,7 @@ across 4 predefined colors (and return to the "no color" state.)
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [colorize_disassembly_on_the_fly.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/colorize_disassembly_on_the_fly.py) | coloring UI_Hooks | Advanced |
+| [colorize_disassembly_on_the_fly.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/colorize_disassembly_on_the_fly.py) | coloring UI_Hooks | Advanced |
 
 **APIs Used:**
 * `ida_kernwin.AST_DISABLE_FOR_WIDGET`
@@ -869,7 +929,7 @@ It provides an example tab completion support.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [custom_cli.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/custom_cli.py) |  | Advanced |
+| [custom_cli.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/custom_cli.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_idaapi.NW_CLOSEIDB`
@@ -888,7 +948,7 @@ show how to write actions that can be performed on those.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [custom_graph_with_actions.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/graphs/custom_graph_with_actions.py) | actions graph View_Hooks | Advanced |
+| [custom_graph_with_actions.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/graphs/custom_graph_with_actions.py) | actions graph View_Hooks | Advanced |
 
 **APIs Used:**
 * `ida_funcs.get_func`
@@ -926,7 +986,7 @@ After running this script:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [dump_selection.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/dump_selection.py) |  | Advanced |
+| [dump_selection.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/dump_selection.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_kernwin.ACF_HAS_SELECTION`
@@ -970,7 +1030,7 @@ A few notes:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [inject_command.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/pyqt/inject_command.py) |  | Advanced |
+| [inject_command.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/pyqt/inject_command.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_kernwin.PluginForm.TWidgetToPyQtWidget`
@@ -996,7 +1056,7 @@ then add our own markers along.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [paint_over_graph.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/pyqt/paint_over_graph.py) | ctxmenu UI_Hooks | Advanced |
+| [paint_over_graph.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/pyqt/paint_over_graph.py) | ctxmenu UI_Hooks | Advanced |
 
 **APIs Used:**
 * `ida_gdl.edge_t`
@@ -1025,7 +1085,7 @@ view (and thus possibly its graph), in Python.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [wrap_idaview.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/ui/idaview/wrap_idaview.py) | graph idaview | Advanced |
+| [wrap_idaview.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/ui/idaview/wrap_idaview.py) | graph idaview | Advanced |
 
 **APIs Used:**
 * `ida_graph.NIF_BG_COLOR`
@@ -1049,12 +1109,29 @@ Dumps the current function's flowchart, using 2 methods:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [dump_flowchart.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/dump_flowchart.py) |  | Beginner |
+| [dump_flowchart.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/dump_flowchart.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_funcs.get_func`
 * `ida_gdl.FlowChart`
 * `ida_gdl.qflow_chart_t`
+* `ida_kernwin.get_screen_ea`
+
+***
+
+
+### Dump function flowchart, new API {#dump_flowchart_ea}
+Dumps the current function's flowchart, using 2 methods:
+
+  * the low-level `ida_gdl.qflow_chart_ea_t` type
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [dump_flowchart_ea.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/dump_flowchart_ea.py) |  | Beginner |
+
+**APIs Used:**
+* `ida_funcs.get_func_start`
+* `ida_gdl.qflow_chart_ea_t`
 * `ida_kernwin.get_screen_ea`
 
 ***
@@ -1068,7 +1145,7 @@ information (e.g., '.text:08047718'), but it is possible to
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [install_user_defined_prefix.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/install_user_defined_prefix.py) | plugin | Beginner |
+| [install_user_defined_prefix.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/install_user_defined_prefix.py) | plugin | Beginner |
 
 **APIs Used:**
 * `ida_idaapi.PLUGIN_KEEP`
@@ -1079,12 +1156,41 @@ information (e.g., '.text:08047718'), but it is possible to
 ***
 
 
+### Search the IDA indexer (substring match) {#indexer_substring_search}
+Search for functions, named locations, local types, segments, and
+function comments using the IDA indexer. The indexer performs fast
+substring matching across all indexed data simultaneously, or can be
+narrowed to a single sub-index (e.g. `SUBIDX_FUNCTIONS`).
+
+The indexer must be enabled when the database is opened:
+`idat -dENABLE_INDEXER=YES <binary>`.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [indexer_substring_search.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/indexer_substring_search.py) | indexer, search, functions, names, segments, types, comments | Beginner |
+
+**APIs Used:**
+* `ida_indexer.indexer_is_enabled`
+* `ida_indexer.indexer_match_all`
+* `ida_indexer.indexer_match`
+* `ida_indexer.match_config_t`
+* `ida_indexer.STR_MATCH`
+* `ida_indexer.SUBIDX_FUNCTIONS`
+* `ida_indexer.SUBIDX_LTYPES`
+* `ida_indexer.SUBIDX_NAMES`
+* `ida_indexer.SUBIDX_SEGMENTS`
+* `ida_indexer.SUBIDX_FUNCTION_COMMENTS`
+* `ida_indexer.SUBIDX_REPEATABLE_FUNCTION_COMMENTS`
+
+***
+
+
 ### Enumerate file imports {#list_imports}
 Using the API to enumerate file imports.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_imports.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/list_imports.py) |  | Beginner |
+| [list_imports.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/list_imports.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_nalt.enum_import_names`
@@ -1100,7 +1206,7 @@ that were patched using IDA.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_patched_bytes.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/list_patched_bytes.py) |  | Beginner |
+| [list_patched_bytes.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/list_patched_bytes.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_bytes.visit_patched_bytes`
@@ -1115,7 +1221,7 @@ encountered during analysis.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_problems.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/list_problems.py) |  | Beginner |
+| [list_problems.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/list_problems.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_ida.inf_get_min_ea`
@@ -1148,14 +1254,15 @@ all the cross-references to them.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_segment_functions.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/list_segment_functions.py) | xrefs | Beginner |
+| [list_segment_functions.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/list_segment_functions.py) | xrefs | Beginner |
 
 **APIs Used:**
 * `ida_funcs.get_func`
 * `ida_funcs.get_func_name`
 * `ida_funcs.get_next_func`
 * `ida_kernwin.get_screen_ea`
-* `ida_segment.getseg`
+* `ida_segment.get_segment_info`
+* `ida_segment.segment_info_t`
 * `ida_xref.xrefblk_t`
 
 ***
@@ -1170,13 +1277,14 @@ higher-level `idautils` module.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_segment_functions_using_idautils.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/list_segment_functions_using_idautils.py) | xrefs | Beginner |
+| [list_segment_functions_using_idautils.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/list_segment_functions_using_idautils.py) | xrefs | Beginner |
 
 **APIs Used:**
 * `ida_funcs.get_func_name`
 * `ida_idaapi.BADADDR`
 * `ida_kernwin.get_screen_ea`
-* `ida_segment.getseg`
+* `ida_segment.get_segment_info`
+* `ida_segment.segment_info_t`
 * `idautils.CodeRefsTo`
 * `idautils.Functions`
 
@@ -1190,7 +1298,7 @@ this will not require that the "Strings" window is opened & available.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_strings.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/list_strings.py) |  | Beginner |
+| [list_strings.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/list_strings.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_nalt.STRTYPE_C`
@@ -1216,7 +1324,7 @@ where:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [produce_lst_file.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/produce_lst_file.py) |  | Beginner |
+| [produce_lst_file.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/produce_lst_file.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_auto.auto_wait`
@@ -1241,7 +1349,7 @@ See Linux/arch/arm/include/asm/bug.h for more info
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [ana_emu_out.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/ana_emu_out.py) | IDP_Hooks | Intermediate |
+| [ana_emu_out.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/ana_emu_out.py) | IDP_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_bytes.get_wide_dword`
@@ -1264,7 +1372,7 @@ We add support for assembling the following pseudo instructions:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [assemble.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/assemble.py) | IDP_Hooks | Intermediate |
+| [assemble.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/assemble.py) | IDP_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_idp.IDP_Hooks`
@@ -1282,7 +1390,7 @@ the previous and next extra comments.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [dump_extra_comments.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/dump_extra_comments.py) | ctxmenu | Intermediate |
+| [dump_extra_comments.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/dump_extra_comments.py) | ctxmenu | Intermediate |
 
 **APIs Used:**
 * `ida_kernwin.AST_DISABLE_FOR_WIDGET`
@@ -1309,7 +1417,7 @@ the function we are currently looking at.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [dump_func_info.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/dump_func_info.py) |  | Intermediate |
+| [dump_func_info.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/dump_func_info.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_funcs.FUNC_FRAME`
@@ -1334,7 +1442,7 @@ the line sections.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [dump_line_sections.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/dump_line_sections.py) |  | Intermediate |
+| [dump_line_sections.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/dump_line_sections.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_kernwin.AST_DISABLE_FOR_WIDGET`
@@ -1363,7 +1471,7 @@ default 1-byte-per-char encoding, or as UTF-16.)
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [find_string.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/find_string.py) |  | Intermediate |
+| [find_string.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/find_string.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_bytes.BIN_SEARCH_FORWARD`
@@ -1397,7 +1505,7 @@ IDB events, and if it is a function prototype that changed, print it.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [func_ti_changed_listener.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/func_ti_changed_listener.py) | IDB_Hooks | Intermediate |
+| [func_ti_changed_listener.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/func_ti_changed_listener.py) | IDB_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_funcs.get_func_name`
@@ -1415,7 +1523,7 @@ type.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_bookmarks.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/list_bookmarks.py) | bookmarks | Intermediate |
+| [list_bookmarks.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/list_bookmarks.py) | bookmarks | Intermediate |
 
 **APIs Used:**
 * `ida_kernwin.AST_DISABLE_FOR_WIDGET`
@@ -1454,7 +1562,7 @@ In addition, one can use:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_function_items.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/list_function_items.py) | funcs iterator | Intermediate |
+| [list_function_items.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/list_function_items.py) | funcs iterator | Intermediate |
 
 **APIs Used:**
 * `ida_bytes.get_flags`
@@ -1478,7 +1586,7 @@ dump their information to the "Output" window
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [log_idb_events.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/log_idb_events.py) | IDB_Hooks | Intermediate |
+| [log_idb_events.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/log_idb_events.py) | IDB_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_idp.IDB_Hooks`
@@ -1492,7 +1600,7 @@ dump their information to the "Output" window
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [log_idp_events.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/log_idp_events.py) | IDP_Hooks | Intermediate |
+| [log_idp_events.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/log_idp_events.py) | IDP_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_idp.IDP_Hooks`
@@ -1517,7 +1625,7 @@ frames, but we'll only record function prototypes changes.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [replay_prototypes_changes.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/replay_prototypes_changes.py) | IDB_Hooks | Intermediate |
+| [replay_prototypes_changes.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/replay_prototypes_changes.py) | IDB_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_funcs.get_func`
@@ -1544,7 +1652,7 @@ In this script, we show a way to add a new frame member (a pointer to
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [add_frame_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/add_frame_member.py) |  | Advanced |
+| [add_frame_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/add_frame_member.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_frame.add_frame_member`
@@ -1570,7 +1678,7 @@ one format for a specific 'custom data type'.)
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [custom_data_types_and_formats.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/custom_data_types_and_formats.py) |  | Advanced |
+| [custom_data_types_and_formats.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/custom_data_types_and_formats.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_bytes.data_format_t`
@@ -1660,7 +1768,7 @@ that "structure member path" that an operand was made pointing to.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_struct_accesses.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/list_struct_accesses.py) | bookmarks | Advanced |
+| [list_struct_accesses.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/list_struct_accesses.py) | bookmarks | Advanced |
 
 **APIs Used:**
 * `ida_bytes.get_full_flags`
@@ -1682,7 +1790,7 @@ an instruction's operand, or a data item.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [operand_changed.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/disassembler/operand_changed.py) | IDB_Hooks | Advanced |
+| [operand_changed.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/operand_changed.py) | IDB_Hooks | Advanced |
 
 **APIs Used:**
 * `ida_bytes.ALOPT_IGNCLT`
@@ -1728,7 +1836,7 @@ where:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [produce_c_file.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/produce_c_file.py) |  | Beginner |
+| [produce_c_file.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/produce_c_file.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_auto.auto_wait`
@@ -1753,7 +1861,7 @@ a pair of strings that can later be stored somewhere.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [serialize.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/serialize.py) |  | Beginner |
+| [serialize.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/serialize.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_hexrays.cfunc_t.deserialize`
@@ -1765,12 +1873,34 @@ a pair of strings that can later be stored somewhere.
 ***
 
 
+### Serialize and deserialize a microcode instruction (minsn_t) {#serialize_minsn}
+Generates microcode for the current function, takes its first
+instruction, serializes it to a byte string, and then deserializes
+those bytes back into a fresh minsn_t. equal_insns() is used to
+confirm the round trip preserves the structure.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [serialize_minsn.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/serialize_minsn.py) |  | Beginner |
+
+**APIs Used:**
+* `ida_funcs.get_func_start`
+* `ida_hexrays.decomp_ranges_t`
+* `ida_hexrays.gen_microcode`
+* `ida_hexrays.hexrays_failure_t`
+* `ida_hexrays.init_hexrays_plugin`
+* `ida_hexrays.minsn_t`
+* `ida_kernwin.get_screen_ea`
+
+***
+
+
 ### Decompile & print current function {#vds1}
 Decompile the function under the cursor
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds1.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds1.py) |  | Beginner |
+| [vds1.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds1.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_funcs.get_func`
@@ -1788,7 +1918,7 @@ Generates microcode for selection and dumps it to the output window.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds13.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds13.py) |  | Beginner |
+| [vds13.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds13.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_bytes.get_flags`
@@ -1812,7 +1942,7 @@ Using a `ida_hexrays.ctree_visitor_t`, search for
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds7.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds7.py) | Hexrays_Hooks | Beginner |
+| [vds7.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds7.py) | Hexrays_Hooks | Beginner |
 
 **APIs Used:**
 * `ida_hexrays.CMAT_BUILT`
@@ -1839,7 +1969,7 @@ If the object under the cursor is:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds_create_hint.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds_create_hint.py) | Hexrays_Hooks | Beginner |
+| [vds_create_hint.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds_create_hint.py) | Hexrays_Hooks | Beginner |
 
 **APIs Used:**
 * `ida_hexrays.Hexrays_Hooks`
@@ -1863,7 +1993,7 @@ with a special background color.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [colorize_pseudocode_lines.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/colorize_pseudocode_lines.py) | colors UI_Hooks | Intermediate |
+| [colorize_pseudocode_lines.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/colorize_pseudocode_lines.py) | colors UI_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_hexrays.get_widget_vdui`
@@ -1893,7 +2023,7 @@ idat -Ldecompile.log -Sdecompile_entry_points.py -c file
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [decompile_entry_points.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/decompile_entry_points.py) |  | Intermediate |
+| [decompile_entry_points.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/decompile_entry_points.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_auto.auto_wait`
@@ -1931,7 +2061,7 @@ To see this plugin in action please use arm64_brk.i64
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds10.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds10.py) | plugin | Intermediate |
+| [vds10.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds10.py) | plugin | Intermediate |
 
 **APIs Used:**
 * `ida_bytes.get_cmt`
@@ -1971,7 +2101,7 @@ this is how to inform the decompiler about them.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds21.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds21.py) | Hexrays_Hooks plugin | Intermediate |
+| [vds21.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds21.py) | Hexrays_Hooks plugin | Intermediate |
 
 **APIs Used:**
 * `ida_hexrays.Hexrays_Hooks`
@@ -2006,7 +2136,7 @@ This script loads information from the database without decompiling anything.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds4.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds4.py) |  | Intermediate |
+| [vds4.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds4.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_bytes.get_radix`
@@ -2037,7 +2167,7 @@ Note: this is rather crude, not quite "pythonic" code.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds6.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds6.py) | Hexrays_Hooks plugin | Intermediate |
+| [vds6.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds6.py) | Hexrays_Hooks plugin | Intermediate |
 
 **APIs Used:**
 * `ida_hexrays.Hexrays_Hooks`
@@ -2063,7 +2193,7 @@ in the context menu.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds8.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds8.py) | ctxmenu UI_Hooks | Intermediate |
+| [vds8.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds8.py) | ctxmenu UI_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_allins.ARM_svc`
@@ -2096,7 +2226,7 @@ subclassing `ida_hexrays.Hexrays_Hooks`
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds_hooks.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds_hooks.py) | Hexrays_Hooks | Intermediate |
+| [vds_hooks.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds_hooks.py) | Hexrays_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_hexrays.Hexrays_Hooks`
@@ -2113,7 +2243,7 @@ comments and/or types of local variables.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds_modify_user_lvars.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds_modify_user_lvars.py) |  | Intermediate |
+| [vds_modify_user_lvars.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds_modify_user_lvars.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_hexrays.modify_user_lvars`
@@ -2130,7 +2260,7 @@ processing of a notification triggered by that input
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [curpos_details.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/curpos_details.py) | Hexrays_Hooks | Advanced |
+| [curpos_details.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/curpos_details.py) | Hexrays_Hooks | Advanced |
 
 **APIs Used:**
 * `ida_hexrays.Hexrays_Hooks`
@@ -2164,7 +2294,7 @@ This improves the decompiler output in some cases.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds11.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds11.py) | plugin | Advanced |
+| [vds11.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds11.py) | plugin | Advanced |
 
 **APIs Used:**
 * `ida_hexrays.getf_reginsn`
@@ -2184,7 +2314,7 @@ current instruction.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds12.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds12.py) |  | Advanced |
+| [vds12.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds12.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_bytes.get_flags`
@@ -2231,7 +2361,7 @@ Place cursor on the union field and press Shift+T
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds17.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds17.py) | plugin | Advanced |
+| [vds17.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds17.py) | plugin | Advanced |
 
 **APIs Used:**
 * `ida_hexrays.USE_KEYBOARD`
@@ -2282,7 +2412,7 @@ To see this plugin in action please use be_ornot_be.idb
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds19.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds19.py) | plugin | Advanced |
+| [vds19.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds19.py) | plugin | Advanced |
 
 **APIs Used:**
 * `ida_hexrays.init_hexrays_plugin`
@@ -2330,7 +2460,7 @@ IDA, and the changes will be present.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds3.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds3.py) | ctxmenu Hexrays_Hooks IDP_Hooks plugin | Advanced |
+| [vds3.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds3.py) | ctxmenu Hexrays_Hooks IDP_Hooks plugin | Advanced |
 
 **APIs Used:**
 * `ida_hexrays.CMAT_FINAL`
@@ -2375,7 +2505,7 @@ request that ida displays that using `ida_gdl.display_gdl`.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds5.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds5.py) | ctxmenu Hexrays_Hooks plugin | Advanced |
+| [vds5.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds5.py) | ctxmenu Hexrays_Hooks plugin | Advanced |
 
 **APIs Used:**
 * `ida_gdl.display_gdl`
@@ -2421,7 +2551,7 @@ pressed in the Decompiler window.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [vds_xrefs.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/decompiler/vds_xrefs.py) | ctxmenu Hexrays_Hooks | Advanced |
+| [vds_xrefs.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/vds_xrefs.py) | ctxmenu Hexrays_Hooks | Advanced |
 
 **APIs Used:**
 * `ida_funcs.get_func_name`
@@ -2476,7 +2606,7 @@ To use this example:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [print_registers.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/debugger/misc/print_registers.py) |  | Beginner |
+| [print_registers.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/debugger/misc/print_registers.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_dbg.get_reg_vals`
@@ -2496,7 +2626,7 @@ symbols that the process being debugged, provides.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [show_debug_names.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/debugger/show_debug_names.py) |  | Beginner |
+| [show_debug_names.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/debugger/show_debug_names.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_dbg.DSTATE_SUSP`
@@ -2526,7 +2656,7 @@ To use this example:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [print_call_stack.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/debugger/misc/print_call_stack.py) |  | Intermediate |
+| [print_call_stack.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/debugger/misc/print_call_stack.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_dbg.collect_stack_trace`
@@ -2555,7 +2685,7 @@ registers-displaying widgets (e.g., "General registers")
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [registers_context_menu.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/debugger/misc/registers_context_menu.py) | ctxmenu UI_Hooks | Intermediate |
+| [registers_context_menu.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/debugger/misc/registers_context_menu.py) | ctxmenu UI_Hooks | Intermediate |
 
 **APIs Used:**
 * `ida_dbg.get_dbg_reg_info`
@@ -2585,7 +2715,7 @@ execution.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [automatic_steps.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/debugger/dbghooks/automatic_steps.py) | DBG_Hooks | Advanced |
+| [automatic_steps.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/debugger/dbghooks/automatic_steps.py) | DBG_Hooks | Advanced |
 
 **APIs Used:**
 * `ida_dbg.DBG_Hooks`
@@ -2610,7 +2740,7 @@ This script demonstrates using the low-level tracing hook
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [dbg_trace.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/debugger/dbghooks/dbg_trace.py) | DBG_Hooks | Advanced |
+| [dbg_trace.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/debugger/dbghooks/dbg_trace.py) | DBG_Hooks | Advanced |
 
 **APIs Used:**
 * `GENDSM_FORCE_CODE`
@@ -2670,7 +2800,7 @@ Note: the real body of code is in `simple_appcall_common.py`.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [simple_appcall_linux.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/debugger/appcall/simple_appcall_linux.py) |  | Advanced |
+| [simple_appcall_linux.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/debugger/appcall/simple_appcall_linux.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_dbg.DBG_Hooks`
@@ -2707,7 +2837,7 @@ Note: the real body of code is in `simple_appcall_common.py`.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [simple_appcall_win.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/debugger/appcall/simple_appcall_win.py) |  | Advanced |
+| [simple_appcall_win.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/debugger/appcall/simple_appcall_win.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_dbg.DBG_Hooks`
@@ -2731,7 +2861,7 @@ In this script, we create a structure using the "parsing" method.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [create_struct_by_parsing.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/create_struct_by_parsing.py) |  | Beginner |
+| [create_struct_by_parsing.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/create_struct_by_parsing.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_typeinf.tinfo_t`
@@ -2746,7 +2876,7 @@ remove all those that fall within a range.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [del_struct_members.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/del_struct_members.py) |  | Beginner |
+| [del_struct_members.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/del_struct_members.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_typeinf.STRMEM_OFFSET`
@@ -2763,7 +2893,7 @@ of an enumeration, and then iterate on it
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_enum_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/list_enum_member.py) |  | Beginner |
+| [list_enum_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/list_enum_member.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_kernwin.ask_str`
@@ -2778,7 +2908,7 @@ on the frame members.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_frame_info.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/list_frame_info.py) |  | Beginner |
+| [list_frame_info.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/list_frame_info.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_funcs.get_func`
@@ -2794,7 +2924,7 @@ We do this for all the functions found in the database.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_func_details.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/list_func_details.py) |  | Beginner |
+| [list_func_details.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/list_func_details.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_funcs.get_func`
@@ -2814,7 +2944,7 @@ local types.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_struct_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/list_struct_member.py) |  | Beginner |
+| [list_struct_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/list_struct_member.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_kernwin.ask_str`
@@ -2837,7 +2967,7 @@ local types.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_struct_xrefs.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/list_struct_xrefs.py) |  | Beginner |
+| [list_struct_xrefs.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/list_struct_xrefs.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_kernwin.choose_struct`
@@ -2858,7 +2988,7 @@ local types.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_union_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/list_union_member.py) |  | Beginner |
+| [list_union_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/list_union_member.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_kernwin.ask_str`
@@ -2885,7 +3015,7 @@ This script showcases the latter.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [mark_func_spoiled.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/mark_func_spoiled.py) |  | Beginner |
+| [mark_func_spoiled.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/mark_func_spoiled.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_funcs.get_func`
@@ -2915,7 +3045,7 @@ the type info there.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [apply_callee_tinfo.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/apply_callee_tinfo.py) |  | Intermediate |
+| [apply_callee_tinfo.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/apply_callee_tinfo.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_idaapi.BADADDR`
@@ -2937,7 +3067,7 @@ create_array tinfo_t method.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [create_array.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/create_array.py) |  | Intermediate |
+| [create_array.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/create_array.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_typeinf.BTF_INT`
@@ -2959,7 +3089,7 @@ made of three 'members' spanning it entirely:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [create_bfstruct.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/create_bfstruct.py) |  | Intermediate |
+| [create_bfstruct.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/create_bfstruct.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_typeinf.tinfo_t`
@@ -2975,7 +3105,7 @@ In this script, we create a bitmask enumeration member by member.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [create_bmenum.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/create_bmenum.py) |  | Intermediate |
+| [create_bmenum.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/create_bmenum.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_typeinf.BTE_BITMASK`
@@ -2994,7 +3124,7 @@ In this script:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [create_libssh2_til.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/create_libssh2_til.py) |  | Intermediate |
+| [create_libssh2_til.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/create_libssh2_til.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_typeinf.HTI_DCL`
@@ -3014,7 +3144,7 @@ In this script, we create a structure by building it member by member.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [create_struct_by_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/create_struct_by_member.py) |  | Intermediate |
+| [create_struct_by_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/create_struct_by_member.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_typeinf.BTF_UINT32`
@@ -3033,7 +3163,7 @@ members of different types.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [create_structure_programmatically.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/create_structure_programmatically.py) |  | Intermediate |
+| [create_structure_programmatically.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/create_structure_programmatically.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_typeinf.BTF_BYTE`
@@ -3067,7 +3197,7 @@ In this script, we create a union by building it member after member.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [create_union_by_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/create_union_by_member.py) |  | Intermediate |
+| [create_union_by_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/create_union_by_member.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_typeinf.BTF_CHAR`
@@ -3099,14 +3229,14 @@ a user shared data region in an ntdll IDB:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [create_user_shared_data.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/create_user_shared_data.py) |  | Intermediate |
+| [create_user_shared_data.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/create_user_shared_data.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_name.set_name`
-* `ida_segment.add_segm_ex`
+* `ida_segment.add_segment_ex`
 * `ida_segment.saRelPara`
 * `ida_segment.scPub`
-* `ida_segment.segment_t`
+* `ida_segment.segment_info_t`
 * `ida_segment.setup_selector`
 * `ida_typeinf.TINFO_DEFINITE`
 * `ida_typeinf.apply_tinfo`
@@ -3126,9 +3256,12 @@ You can test this example with the IDB at `../idbs/delphi6_lstrcatn.i64`
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [custom_calling_convention.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/custom_calling_convention.py) | types | Intermediate |
+| [custom_calling_convention.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/custom_calling_convention.py) | types | Intermediate |
 
 **APIs Used:**
+* `ida_hexrays.FD_BACKWARD`
+* `ida_hexrays.init_hexrays_plugin`
+* `ida_hexrays.m_mov`
 * `ida_hexrays.mop_t`
 * `ida_hexrays.reg2mreg`
 * `ida_ida.ABI_STACK_VARARGS`
@@ -3154,7 +3287,7 @@ in structures, from a structure name & (byte) offset.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [gap_size_align_snippet.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/gap_size_align_snippet.py) |  | Intermediate |
+| [gap_size_align_snippet.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/gap_size_align_snippet.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_range.rangeset_t`
@@ -3170,7 +3303,7 @@ This also works for variable sized types.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [get_best_fit_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/get_best_fit_member.py) |  | Intermediate |
+| [get_best_fit_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/get_best_fit_member.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_typeinf.tinfo_t`
@@ -3205,7 +3338,7 @@ shows how the API lets us "drill down" to retrieve that innermost member.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [get_innermost_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/get_innermost_member.py) |  | Intermediate |
+| [get_innermost_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/get_innermost_member.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_typeinf.get_idati`
@@ -3223,7 +3356,7 @@ The goal of this script is to demonstrate some usage of the type API.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [import_type_from_til.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/import_type_from_til.py) |  | Intermediate |
+| [import_type_from_til.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/import_type_from_til.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_kernwin.ask_str`
@@ -3239,7 +3372,7 @@ new member right before it
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [insert_struct_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/insert_struct_member.py) |  | Intermediate |
+| [insert_struct_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/insert_struct_member.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_typeinf.BT_INT`
@@ -3256,7 +3389,7 @@ next_to() (or higher level utilities such as idautils.XrefsTo)
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [list_stkvar_xrefs.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/list_stkvar_xrefs.py) | xrefs | Intermediate |
+| [list_stkvar_xrefs.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/list_stkvar_xrefs.py) | xrefs | Intermediate |
 
 **APIs Used:**
 * `ida_bytes.get_flags`
@@ -3289,7 +3422,7 @@ show how to programmatically modify them.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [modify_struct_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/modify_struct_member.py) |  | Intermediate |
+| [modify_struct_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/modify_struct_member.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_nalt.REFINFO_RVAOFF`
@@ -3313,7 +3446,7 @@ xref:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [print_stkvar_xrefs.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/print_stkvar_xrefs.py) |  | Intermediate |
+| [print_stkvar_xrefs.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/print_stkvar_xrefs.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_frame.build_stkvar_xrefs`
@@ -3342,7 +3475,7 @@ In this script, we:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [setpehdr.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/setpehdr.py) |  | Intermediate |
+| [setpehdr.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/setpehdr.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_bytes.create_struct`
@@ -3373,7 +3506,7 @@ This scripts skips array & pointer members (by calling
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [visit_tinfo.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/visit_tinfo.py) |  | Intermediate |
+| [visit_tinfo.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/visit_tinfo.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_netnode.BADNODE`
@@ -3403,7 +3536,7 @@ stack variable:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [change_stkvar_name.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/change_stkvar_name.py) |  | Advanced |
+| [change_stkvar_name.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/change_stkvar_name.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_frame.define_stkvar`
@@ -3438,7 +3571,7 @@ this, uses a stack variable of its caller.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [change_stkvar_type.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/change_stkvar_type.py) |  | Advanced |
+| [change_stkvar_type.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/change_stkvar_type.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_allins.NN_call`
@@ -3473,7 +3606,7 @@ In this script, we:
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [operand_to_struct_member.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/types/operand_to_struct_member.py) |  | Advanced |
+| [operand_to_struct_member.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/operand_to_struct_member.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_bytes.op_stroff`
@@ -3505,7 +3638,7 @@ IDAPython is done successfully initializing.
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [idapythonrc.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/misc/idapythonrc.py) |  | Beginner |
+| [idapythonrc.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/misc/idapythonrc.py) |  | Beginner |
 
 
 ***
@@ -3525,7 +3658,7 @@ After running this script, try switching to the IDC interpreter
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [extend_idc.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/misc/extend_idc.py) |  | Intermediate |
+| [extend_idc.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/misc/extend_idc.py) |  | Intermediate |
 
 **APIs Used:**
 * `ida_expr.VT_LONG`
@@ -3539,7 +3672,7 @@ For more infortmation see SDK/plugins/cvt64_sample example
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [py_cvt64_sample.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/misc/cvt64/py_cvt64_sample.py) |  | Advanced |
+| [py_cvt64_sample.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/misc/cvt64/py_cvt64_sample.py) |  | Advanced |
 
 **APIs Used:**
 * `ida_idaapi.BADADDR`
@@ -3567,7 +3700,7 @@ Also, see SDK/plugins/mex1 example
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [py_mex1.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/misc/merge/py_mex1.py) | IDP_Hooks plugin | Advanced |
+| [py_mex1.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/misc/merge/py_mex1.py) | IDP_Hooks plugin | Advanced |
 
 **APIs Used:**
 * `ida_funcs.get_func`
@@ -3633,7 +3766,7 @@ Also, see SDK/plugins/mex3 example
 
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
-| [py_mex3.py](https://github.com/HexRaysSA/ida-sdk/src/plugins/idapython/examples/misc/merge/py_mex3.py) | IDP_Hooks plugin | Advanced |
+| [py_mex3.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/misc/merge/py_mex3.py) | IDP_Hooks plugin | Advanced |
 
 **APIs Used:**
 * `ida_funcs.get_func`

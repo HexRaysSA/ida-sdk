@@ -8,6 +8,7 @@ global:
   PyW_GetStringAttr;
   PyW_IsSequenceType;
   PyW_ObjectToString;
+  PyW_PySeqToIntVec;
   PyW_PySeqToEaVec;
   PyW_PySeqToTidVec;
   PyW_PySeqToEa64Vec;
@@ -18,6 +19,7 @@ global:
   PyW_from_jobj_t;
   PyW_to_jobj_t;
   PyW_ShowCbErr;
+  PyW_IntVecToPyList;
   PyW_SizeVecToPyList;
   PyW_UvalVecToPyList;
   PyW_StrVecToPyList;
@@ -30,7 +32,7 @@ global:
   disable_script_timeout;
   enable_extlang_python;
   enable_python_cli;
-  idapython_convert_cli_completions;
+  idapython_convert_cli_completions_ex;
   idapython_hook_to_notification_point;
   idapython_unhook_from_notification_point;
   idapython_register_hook;

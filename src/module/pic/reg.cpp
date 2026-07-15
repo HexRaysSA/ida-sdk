@@ -185,15 +185,16 @@ void pic_t::create_mappings(void)
 //----------------------------------------------------------------------
 static ea_t AddSegment(ea_t start, size_t size, ea_t base, const char *name, uchar type)
 {
-  segment_t s;
-  s.start_ea = start;
-  s.end_ea   = start + size;
-  s.sel     = allocate_selector(base >> 4);
-  s.type    = type;
-  s.align   = saRelByte;
-  s.comb    = scPub;
-  add_segm_ex(&s, name, nullptr, ADDSEG_NOSREG|ADDSEG_OR_DIE);
-  return s.start_ea;
+  segment_info_t si;
+  si.start_ea = start;
+  si.end_ea   = start + size;
+  si.set_sel(allocate_selector(base >> 4));
+  si.set_type(type);
+  si.set_align(saRelByte);
+  si.set_comb(scPub);
+  si.set_name(name);
+  add_segment_ex(&si, ADDSEG_NOSREG|ADDSEG_OR_DIE);
+  return si.start_ea;
 }
 
 //----------------------------------------------------------------------
@@ -268,30 +269,31 @@ void pic_t::apply_symbols(void)
     for ( int i=0; i < ioh.ports.size(); i++ )
     {
       ea_t ea = calc_data_mem(ioh.ports[i].address);
-      segment_t *s = getseg(ea);
-      if ( s == nullptr && ea > dataseg )
+      segment_info_t s;
+      if ( !get_segment_info(&s, ea) && ea > dataseg )
       {
         // probably the default dataseg size (0x200) is too small for this device
-        s = getseg(dataseg);
-        if ( s == nullptr )
+        segment_info_t ds;
+        if ( !get_segment_info(&ds, dataseg) )
           return;
-        if ( s->size() == PIC_DATA_SIZE_SMALL )
+        if ( ds.size() == PIC_DATA_SIZE_SMALL )
           set_segm_end(dataseg, dataseg+PIC_DATA_SIZE_FULL, SEGMOD_KEEP);
-        s = getseg(ea);
+        get_segment_info(&s, ea);
       }
-      if ( s == nullptr || s->type != SEG_IMEM )
+      if ( !s.is_valid() || s.get_type() != SEG_IMEM )
         continue;
       create_byte(ea, 1);
       const char *name = ioh.ports[i].name.c_str();
       if ( !set_name(ea, name, SN_NOCHECK|SN_NOWARN|SN_NODUMMY) )
         set_cmt(ea, name, 0);
     }
-    for ( segment_t *d = getseg(dataseg); d != nullptr; d = get_next_seg(d->start_ea) )
+    for ( ea_t d_ea = dataseg; d_ea != BADADDR; d_ea = get_next_segment_ea(d_ea) )
     {
-      if ( d->type != SEG_IMEM )
+      segment_info_t d;
+      if ( !get_segment_info(&d, d_ea) || d.get_type() != SEG_IMEM )
         continue;
-      ea_t ea = d->start_ea;
-      ea_t dataend = d->end_ea;
+      ea_t ea = d.start_ea;
+      ea_t dataend = d.end_ea;
       while ( 1 )
       {
         ea = next_unknown(ea, dataend);
@@ -482,12 +484,13 @@ void pic_t::set_cpu(int n)
 }
 
 //----------------------------------------------------------------------
-void pic_t::check_pclath(segment_t *s) const
+void pic_t::check_pclath(ea_t seg_ea) const
 {
-  if ( s == nullptr )
+  segment_info_t s;
+  if ( !get_segment_info(&s, seg_ea) )
     return;
-  if ( s->defsr[PCLATH-ph.reg_first_sreg] == BADSEL )
-    s->defsr[PCLATH-ph.reg_first_sreg] = 0;
+  if ( s.get_defsr(PCLATH-ph.reg_first_sreg) == BADSEL )
+    set_default_sreg_value_ea(seg_ea, PCLATH, 0);
 }
 
 //----------------------------------------------------------------------
@@ -529,13 +532,12 @@ ssize_t idaapi pic_t::on_event(ssize_t msgid, va_list va)
 
     case processor_t::ev_newfile:   // new file loaded
       {
-        segment_t *s0 = get_first_seg();
-        if ( s0 != nullptr )
+        ea_t firstEA = get_first_segment_ea();
+        if ( firstEA != BADADDR )
         {
-          ea_t firstEA = s0->start_ea;
           if ( ptype == PIC12 || ptype == PIC14 )
           {
-            set_segm_name(s0, "CODE");
+            set_segment_name(firstEA, "CODE");
             dataseg = AdditionalSegment(PIC_DATA_SIZE_SMALL, 0, "DATA");
             setup_device(IORESP_INT|IORESP_PORT);
           }
@@ -543,19 +545,17 @@ ssize_t idaapi pic_t::on_event(ssize_t msgid, va_list va)
           {
             setup_device(IORESP_ALL);
           }
-          s0 = getseg(firstEA);
-          if ( s0 != nullptr )
+          if ( get_segment_info(nullptr, firstEA) )
           {
-            set_default_sreg_value(s0, BANK, 0);
-            set_default_sreg_value(s0, PCLATH, 0);
-            set_default_sreg_value(s0, PCLATU, 0);
+            set_default_sreg_value_ea(firstEA, BANK, 0);
+            set_default_sreg_value_ea(firstEA, PCLATH, 0);
+            set_default_sreg_value_ea(firstEA, PCLATU, 0);
           }
-          segment_t *s1 = getseg(dataseg);
-          if ( s1 != nullptr )
+          if ( get_segment_info(nullptr, dataseg) )
           {
-            set_default_sreg_value(s1, BANK, 0);
-            set_default_sreg_value(s1, PCLATH, 0);
-            set_default_sreg_value(s1, PCLATU, 0);
+            set_default_sreg_value_ea(dataseg, BANK, 0);
+            set_default_sreg_value_ea(dataseg, PCLATH, 0);
+            set_default_sreg_value_ea(dataseg, PCLATU, 0);
           }
         }
       }
@@ -571,8 +571,8 @@ ssize_t idaapi pic_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_oldfile:   // old file loaded
       load_from_idb();
       // init PCLATH for very old IDBs
-      check_pclath(get_first_seg());
-      check_pclath(getseg(dataseg));
+      check_pclath(get_first_segment_ea());
+      check_pclath(dataseg);
       break;
 
     case processor_t::ev_newprc:    // new processor type
@@ -600,21 +600,16 @@ ssize_t idaapi pic_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        pic_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        pic_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
-      {
-        outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        pic_segend(*ctx, seg);
-        return 1;
-      }
+    case processor_t::ev_out_segment_end:
+      return 1;
 
     case processor_t::ev_out_assumes:
       {
@@ -664,14 +659,14 @@ ssize_t idaapi pic_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 
-    case processor_t::ev_get_frame_retsize:
+    case processor_t::ev_get_function_retsize:
       {
         int *frsize = va_arg(va, int *);
         *frsize = 0;

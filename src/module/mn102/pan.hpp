@@ -52,7 +52,7 @@ struct mn102_t : public procmod_t
   int mn102_emu(const insn_t &insn);
 
   void mn102_header(outctx_t &ctx);
-  void mn102_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void mn102_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void mn102_footer(outctx_t &ctx) const;
 
   void load_from_idb();

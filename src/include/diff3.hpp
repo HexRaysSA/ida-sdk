@@ -306,6 +306,22 @@ private:
 };
 
 //------------------------------------------------------------------------
+typedef void (*diff_progress_cb_t)(diffpos_t pos, const diff_range_t &range, void *ud);
+
+/// Diff progress reporting state (shared between diff engines).
+/// Pass a pointer to perform_diff3() or to diff_engine_t::set_progress()
+/// to receive rate-limited progress notifications while diffing.
+struct diff_progress_t
+{
+  diff_progress_cb_t cb = nullptr;
+  void *ud = nullptr;
+  uint64 last_ns = 0;           ///< last notification timestamp (internal)
+
+  diff_progress_t() {}
+  diff_progress_t(diff_progress_cb_t _cb, void *_ud) : cb(_cb), ud(_ud) {}
+};
+
+//------------------------------------------------------------------------
 /// A difference engine.
 /// An abstract class that can perform a comparison.
 class diff_engine_t
@@ -314,13 +330,16 @@ class diff_engine_t
 protected:
   diff_source_t *src1;
   diff_source_t *src2;
+  diff_progress_t *progress = nullptr; ///< not owned; may be nullptr
 
 public:
   diff_engine_t(diff_source_t *_src1, diff_source_t *_src2)
     : src1(_src1), src2(_src2)
   {
   }
+  virtual ~diff_engine_t() {}
   virtual bool get_diff_regions(diff_regions_t *out) = 0;
+  virtual void set_progress(diff_progress_t *p) { progress = p; }
   diff_result_t perform_diff();
 };
 
@@ -366,16 +385,25 @@ public:
         diff_source_t *src2);
   virtual ~diff3_engine_t() {}
   virtual bool get_diff_regions(diff_regions_t *out) override;
+  virtual void set_progress(diff_progress_t *p) override
+  {
+    diff2_engine_t::set_progress(p);
+    de1.set_progress(p);
+    de2.set_progress(p);
+    de3.set_progress(p);
+  }
 };
 
 /// Perform 3-way difference
 /// \param base the base (common) source. if nullptr, then perform 2-way diff
 /// \param src1 the first source (and destination)
 /// \param src2 the second source
+/// \param progress optional pointer to progress-reporting state
 diff_result_t perform_diff3(
         diff_source_t *base,
         diff_source_t *src1,
-        diff_source_t *src2);
+        diff_source_t *src2,
+        diff_progress_t *progress=nullptr);
 
 qstrvec_t put_side_by_side(
         const char *const *headers,

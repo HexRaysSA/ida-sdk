@@ -1,8 +1,11 @@
 
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET
 import textwrap
+
+import doxygen_utils
 
 COMPOUND_KIND_CLASS = "class"
 COMPOUND_KIND_UNION = "union"
@@ -74,6 +77,9 @@ class base_text_collector_visitor_t(tree_visitor_t):
 
 
 class description_text_collector_visitor_t(base_text_collector_visitor_t):
+
+    def on_simplesect(self, tree, is_start):
+        return self.SKIP_TREE
 
     def on_para(self, tree, is_start):
         class para_text_collector_visitor_t(description_text_collector_visitor_t):
@@ -263,7 +269,7 @@ class documentable_t(object):
             def __init__(self, top_tag):
                 super(description_visitor_t, self).__init__(
                     passthrough_elements=top_tag,
-                    skip_elements=["parameterlist", "simplesect"])
+                    skip_elements=["parameterlist", "simplesect", "xrefsect"])
 
         dv = description_visitor_t(tree.tag)
         dv.visit(tree)
@@ -288,6 +294,7 @@ class documentable_t(object):
             return name_trees[0].text
 
     def load_section_functions(self, node):
+        # Process memberdef elements (direct definitions)
         for member_tree in node.findall("./memberdef[@kind='function']"):
             function_name = self._get_direct_child_name(member_tree)
             if function_name:
@@ -301,6 +308,24 @@ class documentable_t(object):
                              + f"\n\tdetailed: {fun_flavor.detailed_description}"
                              + f"\n\tprototype: {fun.compose_prototype_string(fun_flavor)}")
 
+        # Process member elements (references to group files, doxygen 1.16+)
+        for member_ref in node.findall("./member[@kind='function']"):
+            function_name = self._get_direct_child_name(member_ref)
+            refid = member_ref.attrib.get("refid")
+            if function_name and refid:
+                # Load the definition from the referenced group XML file
+                member_tree = self._load_member_from_group(refid)
+                if member_tree is not None:
+                    logger.debug(f"Found function (from group): {self.name}.{function_name}")
+                    fun = self.ensure_function(function_name)
+                    fun_flavor = fun.new_flavor()
+                    fun_flavor.load_tree(member_tree, fun)
+
+                    logger.debug(f"{fun.name}: loaded function flavor (from group) with"
+                                 + f"\n\tbrief: {fun_flavor.brief_description}"
+                                 + f"\n\tdetailed: {fun_flavor.detailed_description}"
+                                 + f"\n\tprototype: {fun.compose_prototype_string(fun_flavor)}")
+
     def load_section_variables(self, node):
         section_kind = node.attrib["kind"]
         memberdef_kind = {
@@ -310,6 +335,7 @@ class documentable_t(object):
             "public-attrib" : "variable",
             "public-static-attrib" : "variable",
         }[section_kind]
+        # Process memberdef elements (direct definitions)
         for member_tree in node.findall(f"./memberdef[@kind='{memberdef_kind}']"):
             var_name = self._get_direct_child_name(member_tree)
             if var_name:
@@ -317,14 +343,66 @@ class documentable_t(object):
                 v = self.ensure_variable(var_name)
                 v.load_tree(member_tree)
 
+        # Process member elements (references to group files, doxygen 1.16+)
+        for member_ref in node.findall(f"./member[@kind='{memberdef_kind}']"):
+            var_name = self._get_direct_child_name(member_ref)
+            refid = member_ref.attrib.get("refid")
+            if var_name and refid:
+                # Load the definition from the referenced group XML file
+                member_tree = self._load_member_from_group(refid)
+                if member_tree is not None:
+                    logger.debug(f"Found variable (from group): {self.name}.{var_name}")
+                    v = self.ensure_variable(var_name)
+                    v.load_tree(member_tree)
+
+    def _load_member_from_group(self, refid):
+        """
+        Load a memberdef from a group XML file given a refid.
+
+        Doxygen 1.16+ stores grouped defines in separate XML files
+        (e.g., group___d_e_c_o_m_p__.xml) and references them via refid
+        (e.g., "group___d_e_c_o_m_p___1gac6d1339ec4433df8f57ec2fcb9dac3ad").
+        """
+        # Extract group file name from refid
+        # The format is: <group_id>_1<member_hash> where member_hash starts with 'g'
+        # e.g., "group___d_e_c_o_m_p___1gac6d..." -> "group___d_e_c_o_m_p__"
+        match = re.match(r'^(group__.+)_1g[a-f0-9]+$', refid)
+        if not match:
+            return None
+
+        group_id = match.group(1)
+        group_path = os.path.join(opts.doxygen_xml, f"{group_id}.xml")
+        if not os.path.isfile(group_path):
+            return None
+
+        with open(group_path, "r") as f:
+            group_tree = ET.fromstring(f.read())
+
+        # Find the memberdef with the matching id
+        member_tree = group_tree.find(f".//memberdef[@id='{refid}']")
+        return member_tree
+
     def load_section_enums(self, node):
+        # Process memberdef elements (direct definitions)
         for enum_tree in node.findall(f"./memberdef[@kind='enum']"):
-            for enumvalue_tree in enum_tree.findall(f"./enumvalue"):
-                enumvalue_name = self._get_direct_child_name(enumvalue_tree)
-                if enumvalue_name:
-                    logger.debug(f"Found (enum-based) variable: {self.name}.{enumvalue_name}")
-                    v = self.ensure_variable(enumvalue_name)
-                    v.load_tree(enumvalue_tree)
+            self._load_enum_values(enum_tree)
+
+        # Process member elements (references to group files, doxygen 1.16+)
+        for member_ref in node.findall(f"./member[@kind='enum']"):
+            refid = member_ref.attrib.get("refid")
+            if refid:
+                enum_tree = self._load_member_from_group(refid)
+                if enum_tree is not None:
+                    self._load_enum_values(enum_tree)
+
+    def _load_enum_values(self, enum_tree):
+        """Load enumeration values from an enum memberdef element."""
+        for enumvalue_tree in enum_tree.findall(f"./enumvalue"):
+            enumvalue_name = self._get_direct_child_name(enumvalue_tree)
+            if enumvalue_name:
+                logger.debug(f"Found (enum-based) variable: {self.name}.{enumvalue_name}")
+                v = self.ensure_variable(enumvalue_name)
+                v.load_tree(enumvalue_tree)
 
 
 class module_t(documentable_t):
@@ -363,7 +441,14 @@ class variable_t(documentable_t):
         self.detailed_description = None
 
     def load_tree(self, tree):
-        self.brief_description, self.detailed_description = documentable_t.load_descriptions(tree)
+        brief, detailed = documentable_t.load_descriptions(tree)
+        # Don't overwrite existing documentation with empty documentation.
+        # This handles doxygen 1.16+ incorrectly extracting function pointer
+        # parameters as struct members (which have no documentation).
+        if self.brief_description or self.detailed_description:
+            if not brief and not detailed:
+                return
+        self.brief_description, self.detailed_description = brief, detailed
 
 
 class function_t(documentable_t):
@@ -427,7 +512,8 @@ class function_t(documentable_t):
             for parameteritem_tree in tree.findall("./detaileddescription//parameterlist[@kind='param']/parameteritem"):
                 for parameternamelist_tree in parameteritem_tree.findall("parameternamelist"):
                     for parametername_tree in parameternamelist_tree.findall("parametername"):
-                        if parametername_tree.text == param_name:
+                        pname = doxygen_utils.extract_parametername(parametername_tree)
+                        if pname == param_name:
                             parameterdescription_tree = parameteritem_tree.find("parameterdescription")
                             if parameterdescription_tree is not None:
                                 v = description_text_collector_visitor_t()
@@ -553,7 +639,8 @@ class function_t(documentable_t):
 
                 for parameternamelist_tree in parameteritem_tree.findall("parameternamelist"):
                     for parametername_tree in parameternamelist_tree.findall("parametername"):
-                        retval_value = parametername_tree.text
+                        # Use itertext() to handle doxygen 1.16+ which wraps names in <ref> elements
+                        retval_value = "".join(parametername_tree.itertext()).strip()
                         self.return_info.append_retval(retval_value, retval_desc)
 
     def __init__(self, name):
@@ -693,10 +780,34 @@ class hooks_builder_t(object):
         # let the matcher hopefully do a good job.
         for parameteritem_tree in tree.findall("./detaileddescription//parameterlist[@kind='param']/parameteritem"):
             param_type, param_name, param_desc, param_defval = None, None, None, None
-            param_name = parameteritem_tree.find(".//parametername").text
+            pname_el = parameteritem_tree.find(".//parametername")
+            param_name = doxygen_utils.extract_parametername(pname_el)
             param_desc = fun_flavor.load_parameter_desc(tree, param_name)
             fun_flavor.parameters.append(fun_flavor.param_t(param_type, param_desc, param_name, param_defval))
             logger.debug(f"Found parameter '{param_name}' ({param_desc})")
+
+        # When recipe marks parameters as suppress_for_call, they become
+        # return values in the Python API. Move their documentation from
+        # parameter descriptions to return value documentation, replacing
+        # the C++ \return/\retval annotations which describe the internal
+        # integer return code rather than the Python return value.
+        # Parameters that are also marked qnotused are truly discarded
+        # (not converted to return values), so skip those.
+        suppressed_params = recipe_info.get("params", {})
+        suppressed_descs = []
+        for pname, pdata in suppressed_params.items():
+            if pdata.get("suppress_for_call"):
+                param = fun_flavor.find_parameter_by_name(pname)
+                if param and param.description and not pdata.get("qnotused"):
+                    suppressed_descs.append(f"{pname}: {param.description}")
+                fun_flavor.parameters = [p for p in fun_flavor.parameters if p.name != pname]
+        if suppressed_descs:
+            ret_desc = "; ".join(suppressed_descs)
+            # Replace the C++ return docs entirely: the \return/\retval
+            # annotations describe the C++ integer return code, not the
+            # Python return value (which is the suppressed output param).
+            fun_flavor.return_info = fun_flavor.return_t(None, ret_desc)
+            logger.debug(f"Replaced C++ return docs with suppressed param docs for {method_name}")
 
         logger.debug(f"Created hook method {klass.name}.{method_name}")
 

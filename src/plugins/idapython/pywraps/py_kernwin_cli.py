@@ -81,14 +81,15 @@ class cli_t(ida_idaapi.pyidc_opaque_object_t):
         """
         return None
 
-    def OnFindCompletions(self, line, x):
+    def OnFindCompletions(self, line, x, max_count):
         """
-        The user pressed Tab. Return a list of completions
+        The user pressed Tab. Return a list of completions.
 
         This callback is optional.
 
         :param line: the current line (string)
         :param x: the index where the cursor is (int)
+        :param max_count: do not return more than this many results
 
         :returns: None if no completion could be generated, otherwise a tuple:
             (completions : Sequence[str], hints : Sequence[str], docs: Sequence[str],

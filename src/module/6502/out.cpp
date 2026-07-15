@@ -130,12 +130,11 @@ void m6502_t::header(outctx_t &ctx) const
 
 //--------------------------------------------------------------------------
 //lint -e{1764} ctx could be const
-//lint -e{818} seg could be const
-void m6502_t::segstart(outctx_t &ctx, segment_t *seg) const
+void m6502_t::segstart(outctx_t &ctx, ea_t seg_ea) const
 {
   ea_t ea = ctx.insn_ea;
   qstring name;
-  get_visible_segm_name(&name, seg);
+  get_segment_name(&name, seg_ea, 1);
   if ( ash.uflag & UAS_SECT )
   {
     ctx.gen_printf(0, COLSTR("%s: .section", SCOLOR_ASMDIR), name.c_str());
@@ -153,7 +152,7 @@ void m6502_t::segstart(outctx_t &ctx, segment_t *seg) const
   }
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
-    ea_t org = ea - get_segm_base(seg);
+    ea_t org = ea - get_segment_base(seg_ea);
     if ( org != 0 )
     {
       char buf[MAX_NUMBUF];

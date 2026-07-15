@@ -232,7 +232,7 @@ def load_file(li, neflags, format):
 
     # Load all shellcode into different segments
     start = 0x10000
-    seg = idaapi.segment_t()
+    seg = idaapi.segment_info_t()
     for id, ver, n, sc in r:
         size = len(sc)
         end  = start + size
@@ -240,8 +240,10 @@ def load_file(li, neflags, format):
         # Create the segment
         seg.start_ea = start
         seg.end_ea   = end
-        seg.bitness  = 1 # 32-bit
-        idaapi.add_segm_ex(seg, "obj_%d_%d_%d" % (id, ver, n), "CODE", 0)
+        seg.set_bitness(1) # 32-bit
+        seg.set_name("obj_%d_%d_%d" % (id, ver, n))
+        seg.set_sclass("CODE")
+        idaapi.add_segment_ex(seg, 0)
 
         # Copy the bytes
         idaapi.mem2base(sc, start, end)

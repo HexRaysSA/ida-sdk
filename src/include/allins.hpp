@@ -4,9 +4,6 @@
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 NN_null = 0,            // Unknown Operation
@@ -226,33 +223,27 @@ NN_wait,                // Wait until BUSY# Pin is Inactive (HIGH)
 NN_xchg,                // Exchange Register/Memory with Register
 NN_xlat,                // Table Lookup Translation
 NN_xor,                 // Logical Exclusive OR
-
 //
 //      486 instructions
 //
-
 NN_cmpxchg,             // Compare and Exchange
 NN_bswap,               // Swap bits in EAX
 NN_xadd,                // t<-dest; dest<-src+dest; src<-t
 NN_invd,                // Invalidate Data Cache
 NN_wbinvd,              // Invalidate Data Cache (write changes)
 NN_invlpg,              // Invalidate TLB entry
-
 //
 //      Pentium instructions
 //
-
 NN_rdmsr,               // Read Machine Status Register
 NN_wrmsr,               // Write Machine Status Register
 NN_cpuid,               // Get CPU ID
 NN_cmpxchg8b,           // Compare and Exchange Eight Bytes
 NN_rdtsc,               // Read Time Stamp Counter
 NN_rsm,                 // Resume from System Management Mode
-
 //
 //      Pentium Pro instructions
 //
-
 NN_cmova,               // Move if Above (CF=0 & ZF=0)
 NN_cmovb,               // Move if Below (CF=1)
 NN_cmovbe,              // Move if Below or Equal (CF=1 | ZF=1)
@@ -282,11 +273,9 @@ NN_fucomi,              // FP Unordered Compare, result in EFLAGS
 NN_fcomip,              // FP Compare, result in EFLAGS, pop stack
 NN_fucomip,             // FP Unordered Compare, result in EFLAGS, pop stack
 NN_rdpmc,               // Read Performance Monitor Counter
-
 //
 //      FPP instructuions
 //
-
 NN_fld,                 // Load Real
 NN_fst,                 // Store Real
 NN_fstp,                // Store Real and Pop
@@ -364,11 +353,9 @@ NN_feni,                // (8087 only)
 NN_fneni,               // (no wait) (8087 only)
 NN_fdisi,               // (8087 only)
 NN_fndisi,              // (no wait) (8087 only)
-
 //
 //      80387 instructions
 //
-
 NN_fprem1,              // Partial Remainder ( < half )
 NN_fsincos,             // t<-cos(st); st<-sin(st); push t
 NN_fsin,                // Sine
@@ -376,11 +363,9 @@ NN_fcos,                // Cosine
 NN_fucom,               // Compare Unordered Real
 NN_fucomp,              // Compare Unordered Real and Pop
 NN_fucompp,             // Compare Unordered Real and Pop Twice
-
 //
 //      Instructions added 28.02.96
 //
-
 NN_setalc,              // Set AL to Carry Flag
 NN_svdc,                // Save Register and Descriptor
 NN_rsdc,                // Restore Register and Descriptor
@@ -390,11 +375,9 @@ NN_svts,                // Save TR and Descriptor
 NN_rsts,                // Restore TR and Descriptor
 NN_icebp,               // ICE Break Point
 NN_loadall,             // Load the entire CPU state from ES:EDI
-
 //
 //      MMX instructions
 //
-
 NN_emms,                // Empty MMX state
 NN_movd,                // Move 32 bits
 NN_movq,                // Move 64 bits
@@ -442,21 +425,15 @@ NN_punpcklbw,           // Unpack Low Packed Data (Byte->Word)
 NN_punpcklwd,           // Unpack Low Packed Data (Word->Dword)
 NN_punpckldq,           // Unpack Low Packed Data (Dword->Qword)
 NN_pxor,                // Bitwise Logical Exclusive Or
-
 //
 //      Undocumented Deschutes processor instructions
 //
-
 NN_fxsave,              // Fast save FP context
 NN_fxrstor,             // Fast restore FP context
-
 //      Pentium II instructions
-
 NN_sysenter,            // Fast Transition to System Call Entry Point
 NN_sysexit,             // Fast Transition from System Call Entry Point
-
 //      3DNow! instructions
-
 NN_pavgusb,             // Packed 8-bit Unsigned Integer Averaging
 NN_pfadd,               // Packed Floating-Point Addition
 NN_pfsub,               // Packed Floating-Point Subtraction
@@ -479,10 +456,7 @@ NN_pmulhrw,             // Packed Floating-Point 16-bit Integer Multiply with ro
 NN_femms,               // Faster entry/exit of the MMX or floating-point state
 NN_prefetch,            // Prefetch at least a 32-byte line into L1 data cache
 NN_prefetchw,           // Prefetch processor cache line into L1 data cache (mark as modified)
-
-
 //      Pentium III instructions
-
 NN_addps,               // Packed Single-FP Add
 NN_addss,               // Scalar Single-FP Add
 NN_andnps,              // Bitwise Logical And Not for Single-FP
@@ -548,9 +522,7 @@ NN_prefetcht1,          // Prefetch to all cache levels
 NN_prefetcht2,          // Prefetch to L2 cache
 NN_prefetchnta,         // Prefetch to L1 cache
 NN_sfence,              // Store Fence
-
 // Pentium III Pseudo instructions
-
 NN_cmpeqps,             // Packed Single-FP Compare EQ
 NN_cmpltps,             // Packed Single-FP Compare LT
 NN_cmpleps,             // Packed Single-FP Compare LE
@@ -567,17 +539,13 @@ NN_cmpneqss,            // Scalar Single-FP Compare NOT EQ
 NN_cmpnltss,            // Scalar Single-FP Compare NOT LT
 NN_cmpnless,            // Scalar Single-FP Compare NOT LE
 NN_cmpordss,            // Scalar Single-FP Compare ORDERED
-
 // AMD K7 instructions
-
 NN_pf2iw,               // Packed Floating-Point to Integer with Sign Extend
 NN_pfnacc,              // Packed Floating-Point Negative Accumulate
 NN_pfpnacc,             // Packed Floating-Point Mixed Positive-Negative Accumulate
 NN_pi2fw,               // Packed 16-bit Integer to Floating-Point
 NN_pswapd,              // Packed Swap Double Word
-
 // Undocumented FP instructions (thanks to norbert.juffa@amd.com)
-
 NN_fstp1,               // Alias of Store Real and Pop
 NN_fcom2,               // Alias of Compare Real
 NN_fcomp3,              // Alias of Compare Real and Pop
@@ -587,9 +555,7 @@ NN_ffreep,              // Free Register and Pop
 NN_fxch7,               // Alias of Exchange Registers
 NN_fstp8,               // Alias of Store Real and Pop
 NN_fstp9,               // Alias of Store Real and Pop
-
 // Pentium 4 instructions
-
 NN_addpd,               // Add Packed Double-Precision Floating-Point Values
 NN_addsd,               // Add Scalar Double-Precision Floating-Point Values
 NN_andnpd,              // Bitwise Logical AND NOT of Packed Double-Precision Floating-Point Values
@@ -659,29 +625,19 @@ NN_ucomisd,             // Unordered Compare Scalar Ordered Double-Precision Flo
 NN_unpckhpd,            // Unpack and Interleave High Packed Double-Precision Floating-Point Values
 NN_unpcklpd,            // Unpack and Interleave Low Packed Double-Precision Floating-Point Values
 NN_xorpd,               // Bitwise Logical OR of Double-Precision Floating-Point Values
-
 // AMD syscall/sysret instructions
-
 NN_syscall,             // Low latency system call
 NN_sysret,              // Return from system call
-
 // AMD64 instructions
-
 NN_swapgs,              // Exchange GS base with KernelGSBase MSR
-
 // New Pentium instructions (SSE3)
-
 NN_movddup,             // Move One Double-FP and Duplicate
 NN_movshdup,            // Move Packed Single-FP High and Duplicate
 NN_movsldup,            // Move Packed Single-FP Low and Duplicate
-
 // Missing AMD64 instructions
-
 NN_movsxd,              // Move with Sign-Extend Doubleword
 NN_cmpxchg16b,          // Compare and Exchange 16 Bytes
-
 // SSE3 instructions
-
 NN_addsubpd,            // Add /Sub packed DP FP numbers
 NN_addsubps,            // Add /Sub packed SP FP numbers
 NN_haddpd,              // Add horizontally packed DP FP numbers
@@ -692,9 +648,7 @@ NN_monitor,             // Set up a linear address range to be monitored by hard
 NN_mwait,               // Wait until write-back store performed within the range specified by the MONITOR instruction
 NN_fisttp,              // Store ST in intXX (chop) and pop
 NN_lddqu,               // Load unaligned integer 128-bit
-
 // SSSE3 instructions
-
 NN_psignb,              // Packed SIGN Byte
 NN_psignw,              // Packed SIGN Word
 NN_psignd,              // Packed SIGN Doubleword
@@ -711,9 +665,7 @@ NN_palignr,             // Packed Align Right
 NN_pabsb,               // Packed Absolute Value Byte
 NN_pabsw,               // Packed Absolute Value Word
 NN_pabsd,               // Packed Absolute Value Doubleword
-
 // VMX instructions
-
 NN_vmcall,              // Call to VM Monitor
 NN_vmclear,             // Clear Virtual Machine Control Structure
 NN_vmlaunch,            // Launch Virtual Machine
@@ -724,22 +676,14 @@ NN_vmread,              // Read Field from Virtual Machine Control Structure
 NN_vmwrite,             // Write Field from Virtual Machine Control Structure
 NN_vmxoff,              // Leave VMX Operation
 NN_vmxon,               // Enter VMX Operation
-
 // Undefined Instruction
-
 NN_ud2,                 // Undefined Instruction
-
 // Added with x86-64
-
 NN_rdtscp,              // Read Time-Stamp Counter and Processor ID
-
 // Geode LX 3DNow! extensions
-
 NN_pfrcpv,              // Reciprocal Approximation for a Pair of 32-bit Floats
 NN_pfrsqrtv,            // Reciprocal Square Root Approximation for a Pair of 32-bit Floats
-
 // SSE2 pseudoinstructions
-
 NN_cmpeqpd,             // Packed Double-FP Compare EQ
 NN_cmpltpd,             // Packed Double-FP Compare LT
 NN_cmplepd,             // Packed Double-FP Compare LE
@@ -756,9 +700,7 @@ NN_cmpneqsd,            // Scalar Double-FP Compare NOT EQ
 NN_cmpnltsd,            // Scalar Double-FP Compare NOT LT
 NN_cmpnlesd,            // Scalar Double-FP Compare NOT LE
 NN_cmpordsd,            // Scalar Double-FP Compare ORDERED
-
 // SSSE4.1 instructions
-
 NN_blendpd,              // Blend Packed Double Precision Floating-Point Values
 NN_blendps,              // Blend Packed Single Precision Floating-Point Values
 NN_blendvpd,             // Variable Blend Packed Double Precision Floating-Point Values
@@ -807,9 +749,7 @@ NN_roundpd,              // Round Packed Double Precision Floating-Point Values
 NN_roundps,              // Round Packed Single Precision Floating-Point Values
 NN_roundsd,              // Round Scalar Double Precision Floating-Point Values
 NN_roundss,              // Round Scalar Single Precision Floating-Point Values
-
 // SSSE4.2 instructions
-
 NN_crc32,                // Accumulate CRC32 Value
 NN_pcmpestri,            // Packed Compare Explicit Length Strings, Return Index
 NN_pcmpestrm,            // Packed Compare Explicit Length Strings, Return Mask
@@ -817,28 +757,20 @@ NN_pcmpistri,            // Packed Compare Implicit Length Strings, Return Index
 NN_pcmpistrm,            // Packed Compare Implicit Length Strings, Return Mask
 NN_pcmpgtq,              // Compare Packed Data for Greater Than
 NN_popcnt,               // Return the Count of Number of Bits Set to 1
-
 // AMD SSE4a instructions
-
 NN_extrq,                // Extract Field From Register
 NN_insertq,              // Insert Field
 NN_movntsd,              // Move Non-Temporal Scalar Double-Precision Floating-Point
 NN_movntss,              // Move Non-Temporal Scalar Single-Precision Floating-Point
 NN_lzcnt,                // Leading Zero Count
-
 // xsave/xrstor instructions
-
 NN_xgetbv,               // Get Value of Extended Control Register
 NN_xrstor,               // Restore Processor Extended States
 NN_xsave,                // Save Processor Extended States
 NN_xsetbv,               // Set Value of Extended Control Register
-
 // Intel Safer Mode Extensions (SMX)
-
 NN_getsec,               // Safer Mode Extensions (SMX) Instruction
-
 // AMD-V Virtualization ISA Extension
-
 NN_clgi,                 // Clear Global Interrupt Flag
 NN_invlpga,              // Invalidate TLB Entry in a Specified ASID
 NN_skinit,               // Secure Init and Jump with Attestation
@@ -848,44 +780,30 @@ NN_vmload,               // Load State from VMCB
 NN_vmmcall,              // Call VMM
 NN_vmrun,                // Run Virtual Machine
 NN_vmsave,               // Save State to VMCB
-
 // VMX+ instructions
-
 NN_invept,               // Invalidate Translations Derived from EPT
 NN_invvpid,              // Invalidate Translations Based on VPID
-
 // Intel Atom instructions
-
 NN_movbe,                // Move Data After Swapping Bytes
-
 // Intel AES instructions
-
 NN_aesenc,                // Perform One Round of an AES Encryption Flow
 NN_aesenclast,            // Perform the Last Round of an AES Encryption Flow
 NN_aesdec,                // Perform One Round of an AES Decryption Flow
 NN_aesdeclast,            // Perform the Last Round of an AES Decryption Flow
 NN_aesimc,                // Perform the AES InvMixColumn Transformation
 NN_aeskeygenassist,       // AES Round Key Generation Assist
-
 // Carryless multiplication
-
 NN_pclmulqdq,            // Carry-Less Multiplication Quadword
-
 // Returns modifies by operand size prefixes
-
 NN_retnw,               // Return Near from Procedure (use16)
 NN_retnd,               // Return Near from Procedure (use32)
 NN_retnq,               // Return Near from Procedure (use64)
 NN_retfw,               // Return Far from Procedure (use16)
 NN_retfd,               // Return Far from Procedure (use32)
 NN_retfq,               // Return Far from Procedure (use64)
-
 // RDRAND support
-
 NN_rdrand,              // Read Random Number
-
 // new GPR instructions
-
 NN_adcx,                 // Unsigned Integer Addition of Two Operands with Carry Flag
 NN_adox,                 // Unsigned Integer Addition of Two Operands with Overflow Flag
 NN_andn,                 // Logical AND NOT
@@ -911,9 +829,7 @@ NN_rdfsbase,             // Read FS Segment Base
 NN_rdgsbase,             // Read GS Segment Base
 NN_wrfsbase,             // Write FS Segment Base
 NN_wrgsbase,             // Write GS Segment Base
-
 // new AVX instructions
-
 NN_vaddpd,               // Add Packed Double-Precision Floating-Point Values
 NN_vaddps,               // Packed Single-FP Add
 NN_vaddsd,               // Add Scalar Double-Precision Floating-Point Values
@@ -1263,16 +1179,12 @@ NN_vxorpd,               // Bitwise Logical OR of Double-Precision Floating-Poin
 NN_vxorps,               // Bitwise Logical XOR for Single-FP Data
 NN_vzeroall,             // Zero All YMM Registers
 NN_vzeroupper,           // Zero Upper Bits of YMM Registers
-
 // Transactional Synchronization Extensions
-
 NN_xabort,               // Transaction Abort
 NN_xbegin,               // Transaction Begin
 NN_xend,                 // Transaction End
 NN_xtest,                // Test If In Transactional Execution
-
 // Virtual PC synthetic instructions
-
 NN_vmgetinfo,            // Virtual PC - Get VM Information
 NN_vmsetinfo,            // Virtual PC - Set VM Information
 NN_vmdxdsbl,             // Virtual PC - Disable Direct Execution
@@ -1291,9 +1203,7 @@ NN_vmsldt,               // Virtual PC - Store Local Descriptor Table
 NN_vmstr,                // Virtual PC - Store Task Register
 NN_vmsdte,               // Virtual PC - Store to Descriptor Table Entry
 NN_vpcext,               // Virtual PC - ISA extension
-
 // AMD FMA4
-
 NN_vfmaddsubps,          // Multiply with Alternating Add/Subtract of Packed Single-Precision Floating-Point
 NN_vfmaddsubpd,          // Multiply with Alternating Add/Subtract of Packed Double-Precision Floating-Point
 NN_vfmsubaddps,          // Multiply with Alternating Subtract/Add of Packed Single-Precision Floating-Point
@@ -1314,9 +1224,7 @@ NN_vfnmsubps,            // Negative Multiply and Subtract Packed Single-Precisi
 NN_vfnmsubpd,            // Negative Multiply and Subtract Packed Double-Precision Floating-Point
 NN_vfnmsubss,            // Negative Multiply and Subtract Scalar Single-Precision Floating-Point
 NN_vfnmsubsd,            // Negative Multiply and Subtract Double Single-Precision Floating-Point
-
 // Intel Memory Protection Extensions (MPX)
-
 NN_bndmk,                // Make Bounds
 NN_bndcl,                // Check Lower Bound
 NN_bndcu,                // Check Upper Bound
@@ -1324,30 +1232,20 @@ NN_bndcn,                // Check Upper Bound
 NN_bndmov,               // Move Bounds
 NN_bndldx,               // Load Extended Bounds Using Address Translation
 NN_bndstx,               // Store Extended Bounds Using Address Translation
-
 // New xstate instructions
-
 NN_xrstors,              // Restore Processor Extended States Supervisor
 NN_xsavec,               // Save Processor Extended States with Compaction
 NN_xsaves,               // Save Processor Extended States Supervisor
-
 // PREFETCHWT1 support
-
 NN_prefetchwt1,          // Prefetch Vector Data Into Caches with Intent to Write and T1 Hint
-
 // Memory instructions
-
 NN_clflushopt,           // Flush a Cache Line Optimized
 NN_clwb,                 // Cache Line Write Back
 NN_pcommit,              // Persistent Commit (deprecated by Intel)
-
 // Protection Key Rights for User Pages
-
 NN_rdpkru,               // Read Protection Key Rights for User Pages
 NN_wrpkru,               // Write Data to User Page Key Register
-
 // AVX comparison pseudo-ops
-
 NN_vcmpeqpd,             // Compare Packed Double-Precision Floating-Point Values - Equal (ordered, non-signaling)
 NN_vcmpltpd,             // Compare Packed Double-Precision Floating-Point Values - Less-than (ordered, signaling)
 NN_vcmplepd,             // Compare Packed Double-Precision Floating-Point Values - Less-than-or-equal (ordered, signaling)
@@ -1380,7 +1278,6 @@ NN_vcmpneq_ospd,         // Compare Packed Double-Precision Floating-Point Value
 NN_vcmpge_oqpd,          // Compare Packed Double-Precision Floating-Point Values - Greater-than-or-equal (ordered, non-signaling)
 NN_vcmpgt_oqpd,          // Compare Packed Double-Precision Floating-Point Values - Greater-than (ordered, non-signaling)
 NN_vcmptrue_uspd,        // Compare Packed Double-Precision Floating-Point Values - True (unordered, signaling)
-
 NN_vcmpeqps,             // Packed Single-FP Compare - Equal (ordered, non-signaling)
 NN_vcmpltps,             // Packed Single-FP Compare - Less-than (ordered, signaling)
 NN_vcmpleps,             // Packed Single-FP Compare - Less-than-or-equal (ordered, signaling)
@@ -1413,7 +1310,6 @@ NN_vcmpneq_osps,         // Packed Single-FP Compare - Not-equal (ordered, signa
 NN_vcmpge_oqps,          // Packed Single-FP Compare - Greater-than-or-equal (ordered, non-signaling)
 NN_vcmpgt_oqps,          // Packed Single-FP Compare - Greater-than (ordered, non-signaling)
 NN_vcmptrue_usps,        // Packed Single-FP Compare - True (unordered, signaling)
-
 NN_vcmpeqsd,             // Compare Scalar Double-Precision Floating-Point Values - Equal (ordered, non-signaling)
 NN_vcmpltsd,             // Compare Scalar Double-Precision Floating-Point Values - Less-than (ordered, signaling)
 NN_vcmplesd,             // Compare Scalar Double-Precision Floating-Point Values - Less-than-or-equal (ordered, signaling)
@@ -1446,7 +1342,6 @@ NN_vcmpneq_ossd,         // Compare Scalar Double-Precision Floating-Point Value
 NN_vcmpge_oqsd,          // Compare Scalar Double-Precision Floating-Point Values - Greater-than-or-equal (ordered, non-signaling)
 NN_vcmpgt_oqsd,          // Compare Scalar Double-Precision Floating-Point Values - Greater-than (ordered, non-signaling)
 NN_vcmptrue_ussd,        // Compare Scalar Double-Precision Floating-Point Values - True (unordered, signaling)
-
 NN_vcmpeqss,             // Scalar Single-FP Compare - Equal (ordered, non-signaling)
 NN_vcmpltss,             // Scalar Single-FP Compare - Less-than (ordered, signaling)
 NN_vcmpless,             // Scalar Single-FP Compare - Less-than-or-equal (ordered, signaling)
@@ -1479,9 +1374,7 @@ NN_vcmpneq_osss,         // Scalar Single-FP Compare - Not-equal (ordered, signa
 NN_vcmpge_oqss,          // Scalar Single-FP Compare - Greater-than-or-equal (ordered, non-signaling)
 NN_vcmpgt_oqss,          // Scalar Single-FP Compare - Greater-than (ordered, non-signaling)
 NN_vcmptrue_usss,        // Scalar Single-FP Compare - True (unordered, signaling)
-
 // AVX-512 instructions
-
 NN_valignd,              // Align Doubleword Vectors
 NN_valignq,              // Align Quadword Vectors
 NN_vblendmpd,            // Blend Float64 Vectors Using an OpMask Control
@@ -1701,7 +1594,6 @@ NN_vscatterdps,          // Scatter Packed Single, Packed Double with Signed Dwo
 NN_vscatterdpd,          // Scatter Packed Single, Packed Double with Signed Dword and Qword Indices
 NN_vscatterqps,          // Scatter Packed Single, Packed Double with Signed Dword and Qword Indices
 NN_vscatterqpd,          // Scatter Packed Single, Packed Double with Signed Dword and Qword Indices
-
 NN_vexp2pd,              // Approximation to the Exponential 2^x of Packed Double-Precision Floating-Point Values with Less Than 2^-23 Relative Error
 NN_vexp2ps,              // Approximation to the Exponential 2^x of Packed Single-Precision Floating-Point Values with Less Than 2^-23 Relative Error
 NN_vrcp28pd,             // Approximation to the Reciprocal of Packed Double-Precision Floating-Point Values with Less Than 2^-28 Relative Error
@@ -1712,7 +1604,6 @@ NN_vrsqrt28pd,           // Approximation to the Reciprocal Square Root of Packe
 NN_vrsqrt28sd,           // Approximation to the Reciprocal Square Root of Scalar Double-Precision Floating-Point Value with Less Than 2^-28 Relative Error
 NN_vrsqrt28ps,           // Approximation to the Reciprocal Square Root of Packed Single-Precision Floating-Point Values with Less Than 2^-28 Relative Error
 NN_vrsqrt28ss,           // Approximation to the Reciprocal Square Root of Scalar Single-Precision Floating-Point Value with Less Than 2^-28 Relative Error
-
 NN_vgatherpf0dps,        // Sparse Prefetch Packed SP/DP Data Values with Signed Dword, Signed Qword Indices Using T0 Hint
 NN_vgatherpf0qps,        // Sparse Prefetch Packed SP/DP Data Values with Signed Dword, Signed Qword Indices Using T0 Hint
 NN_vgatherpf0dpd,        // Sparse Prefetch Packed SP/DP Data Values with Signed Dword, Signed Qword Indices Using T0 Hint
@@ -1729,37 +1620,30 @@ NN_vscatterpf1dps,       // Sparse Prefetch Packed SP/DP Data Values with Signed
 NN_vscatterpf1qps,       // Sparse Prefetch Packed SP/DP Data Values with Signed Dword, Signed Qword Indices Using T1 Hint with Intent to Write
 NN_vscatterpf1dpd,       // Sparse Prefetch Packed SP/DP Data Values with Signed Dword, Signed Qword Indices Using T1 Hint with Intent to Write
 NN_vscatterpf1qpd,       // Sparse Prefetch Packed SP/DP Data Values with Signed Dword, Signed Qword Indices Using T1 Hint with Intent to Write
-
 // AVX-512 comparison pseudo-ops
-
 NN_vpcmpltd,             // Compare Packed Integer Values into Mask
 NN_vpcmpled,             // Compare Packed Integer Values into Mask
 NN_vpcmpneqd,            // Compare Packed Integer Values into Mask
 NN_vpcmpnltd,            // Compare Packed Integer Values into Mask
 NN_vpcmpnled,            // Compare Packed Integer Values into Mask
-
 NN_vpcmpequd,            // Compare Packed Integer Values into Mask
 NN_vpcmpltud,            // Compare Packed Integer Values into Mask
 NN_vpcmpleud,            // Compare Packed Integer Values into Mask
 NN_vpcmpnequd,           // Compare Packed Integer Values into Mask
 NN_vpcmpnltud,           // Compare Packed Integer Values into Mask
 NN_vpcmpnleud,           // Compare Packed Integer Values into Mask
-
 NN_vpcmpltq,             // Compare Packed Integer Values into Mask
 NN_vpcmpleq,             // Compare Packed Integer Values into Mask
 NN_vpcmpneqq,            // Compare Packed Integer Values into Mask
 NN_vpcmpnltq,            // Compare Packed Integer Values into Mask
 NN_vpcmpnleq,            // Compare Packed Integer Values into Mask
-
 NN_vpcmpequq,            // Compare Packed Integer Values into Mask
 NN_vpcmpltuq,            // Compare Packed Integer Values into Mask
 NN_vpcmpleuq,            // Compare Packed Integer Values into Mask
 NN_vpcmpnequq,           // Compare Packed Integer Values into Mask
 NN_vpcmpnltuq,           // Compare Packed Integer Values into Mask
 NN_vpcmpnleuq,           // Compare Packed Integer Values into Mask
-
 // Opmask instructions
-
 NN_kaddw,                // ADD Two Masks
 NN_kaddb,                // ADD Two Masks
 NN_kaddq,                // ADD Two Masks
@@ -1811,9 +1695,7 @@ NN_kxorw,                // Bitwise Logical XOR Masks
 NN_kxorb,                // Bitwise Logical XOR Masks
 NN_kxorq,                // Bitwise Logical XOR Masks
 NN_kxord,                // Bitwise Logical XOR Masks
-
 // SHA Extensions
-
 NN_sha1rnds4,            // Perform Four Rounds of SHA1 Operation
 NN_sha1nexte,            // Calculate SHA1 State Variable E after Four Rounds
 NN_sha1msg1,             // Perform an Intermediate Calculation for the Next Four SHA1 Message Dwords
@@ -1821,14 +1703,10 @@ NN_sha1msg2,             // Perform a Final Calculation for the Next Four SHA1 M
 NN_sha256rnds2,          // Perform Two Rounds of SHA256 Operation
 NN_sha256msg1,           // Perform an Intermediate Calculation for the Next Four SHA256 Message Dwords
 NN_sha256msg2,           // Perform a Final Calculation for the Next Four SHA256 Message Dwords
-
 // Intel Software Guard Extensions
-
 NN_encls,                // Execute an Enclave System Function of Specified Leaf Number
 NN_enclu,                // Execute an Enclave User Function of Specified Leaf Number
-
 // AMD XOP
-
 NN_vfrczpd,              // Extract Fraction Packed Double-Precision Floating-Point
 NN_vfrczps,              // Extract Fraction Packed Single-Precision Floating-Point
 NN_vfrczsd,              // Extract Fraction Scalar Double-Precision Floating-Point
@@ -1884,9 +1762,7 @@ NN_vpshlb,               // Packed Shift Logical Bytes
 NN_vpshld,               // Packed Shift Logical Doublewords
 NN_vpshlq,               // Packed Shift Logical Quadwords
 NN_vpshlw,               // Packed Shift Logical Words
-
 // AMD XOP comparison pseudo-ops
-
 NN_vpcomltb,             // Compare Vector Signed Bytes
 NN_vpcomleb,             // Compare Vector Signed Bytes
 NN_vpcomgtb,             // Compare Vector Signed Bytes
@@ -1895,7 +1771,6 @@ NN_vpcomeqb,             // Compare Vector Signed Bytes
 NN_vpcomneqb,            // Compare Vector Signed Bytes
 NN_vpcomfalseb,          // Compare Vector Signed Bytes
 NN_vpcomtrueb,           // Compare Vector Signed Bytes
-
 NN_vpcomltw,             // Compare Vector Signed Words
 NN_vpcomlew,             // Compare Vector Signed Words
 NN_vpcomgtw,             // Compare Vector Signed Words
@@ -1904,7 +1779,6 @@ NN_vpcomeqw,             // Compare Vector Signed Words
 NN_vpcomneqw,            // Compare Vector Signed Words
 NN_vpcomfalsew,          // Compare Vector Signed Words
 NN_vpcomtruew,           // Compare Vector Signed Words
-
 NN_vpcomltd,             // Compare Vector Signed Doublewords
 NN_vpcomled,             // Compare Vector Signed Doublewords
 NN_vpcomgtd,             // Compare Vector Signed Doublewords
@@ -1913,7 +1787,6 @@ NN_vpcomeqd,             // Compare Vector Signed Doublewords
 NN_vpcomneqd,            // Compare Vector Signed Doublewords
 NN_vpcomfalsed,          // Compare Vector Signed Doublewords
 NN_vpcomtrued,           // Compare Vector Signed Doublewords
-
 NN_vpcomltq,             // Compare Vector Signed Quadwords
 NN_vpcomleq,             // Compare Vector Signed Quadwords
 NN_vpcomgtq,             // Compare Vector Signed Quadwords
@@ -1922,7 +1795,6 @@ NN_vpcomeqq,             // Compare Vector Signed Quadwords
 NN_vpcomneqq,            // Compare Vector Signed Quadwords
 NN_vpcomfalseq,          // Compare Vector Signed Quadwords
 NN_vpcomtrueq,           // Compare Vector Signed Quadwords
-
 NN_vpcomltub,            // Compare Vector Unsigned Bytes
 NN_vpcomleub,            // Compare Vector Unsigned Bytes
 NN_vpcomgtub,            // Compare Vector Unsigned Bytes
@@ -1931,7 +1803,6 @@ NN_vpcomequb,            // Compare Vector Unsigned Bytes
 NN_vpcomnequb,           // Compare Vector Unsigned Bytes
 NN_vpcomfalseub,         // Compare Vector Unsigned Bytes
 NN_vpcomtrueub,          // Compare Vector Unsigned Bytes
-
 NN_vpcomltuw,            // Compare Vector Unsigned Words
 NN_vpcomleuw,            // Compare Vector Unsigned Words
 NN_vpcomgtuw,            // Compare Vector Unsigned Words
@@ -1940,7 +1811,6 @@ NN_vpcomequw,            // Compare Vector Unsigned Words
 NN_vpcomnequw,           // Compare Vector Unsigned Words
 NN_vpcomfalseuw,         // Compare Vector Unsigned Words
 NN_vpcomtrueuw,          // Compare Vector Unsigned Words
-
 NN_vpcomltud,            // Compare Vector Unsigned Doublewords
 NN_vpcomleud,            // Compare Vector Unsigned Doublewords
 NN_vpcomgtud,            // Compare Vector Unsigned Doublewords
@@ -1949,7 +1819,6 @@ NN_vpcomequd,            // Compare Vector Unsigned Doublewords
 NN_vpcomnequd,           // Compare Vector Unsigned Doublewords
 NN_vpcomfalseud,         // Compare Vector Unsigned Doublewords
 NN_vpcomtrueud,          // Compare Vector Unsigned Doublewords
-
 NN_vpcomltuq,            // Compare Vector Unsigned Quadwords
 NN_vpcomleuq,            // Compare Vector Unsigned Quadwords
 NN_vpcomgtuq,            // Compare Vector Unsigned Quadwords
@@ -1958,22 +1827,14 @@ NN_vpcomequq,            // Compare Vector Unsigned Quadwords
 NN_vpcomnequq,           // Compare Vector Unsigned Quadwords
 NN_vpcomfalseuq,         // Compare Vector Unsigned Quadwords
 NN_vpcomtrueuq,          // Compare Vector Unsigned Quadwords
-
 // AMD Excavator
-
 NN_monitorx,             // Setup Monitor Address
 NN_mwaitx,               // Monitor Wait with Timeout
-
 // AMD Zen
-
 NN_clzero,               // Zero out 64 byte cache
-
 // Intel Processor Trace
-
 NN_ptwrite,              // Write Data to a Processor Trace Packet
-
 // new Intel AVX-512 instructions (December 2016)
-
 NN_v4fmaddps,            // Packed Single-Precision Floating-Point Fused Multiply-Add (4-iterations)
 NN_v4fnmaddps,           // Packed Single-Precision Floating-Point Fused Multiply-Add (4-iterations)
 NN_v4fmaddss,            // Scalar Single-Precision Floating-Point Fused Multiply-Add (4-iterations)
@@ -1982,17 +1843,11 @@ NN_vp4dpwssd,            // Dot Product of Signed Words with Dword Accumulation 
 NN_vp4dpwssds,           // Dot Product of Signed Words with Dword Accumulation and Saturation (4-iterations)
 NN_vpopcntd,             // Return the Count of Number of Bits Set to 1 in DWORD
 NN_vpopcntq,             // Return the Count of Number of Bits Set to 1 in QWORD
-
 // Read Processor ID
-
 NN_rdpid,                // Read Processor ID
-
 // Invoke VM function
-
 NN_vmfunc,               // Invoke VM function
-
 // Control-flow Enforcement
-
 NN_incsspd,              // Increment Shadow Stack Pointer (by 4)
 NN_incsspq,              // Increment Shadow Stack Pointer (by 8)
 NN_rdsspd,               // Read (low 32 bits of) Shadow Stack Pointer
@@ -2007,69 +1862,46 @@ NN_setssbsy,             // Mark Shadow Stack Busy
 NN_clrssbsy,             // Clear Shadow Stack Busy Flag
 NN_endbr64,              // Terminate an Indirect Branch in 64-bit Mode
 NN_endbr32,              // Terminate an Indirect Branch in 32-bit and Compatibility Mode
-
 // Undefined Instruction
-
 NN_ud0,                 // Undefined Instruction
 NN_ud1,                 // Undefined Instruction
-
 // Enqueue Stores
-
 NN_enqcmd,              // Enqueue Command
 NN_enqcmds,             // Enqueue Command Supervisor
-
 // AMD Zen2
-
 NN_mcommit,             // Commit Stores to Memory
 NN_rdpru,               // Read Processor Register
-
 // Intel Tremont instructions
-
 NN_cldemote,            // Cache Line Demote
 NN_enclv,               // Execute an Enclave VMM Function of Specified Leaf Number
-
 // Direct Stores
-
 NN_movdiri,             // Move Doubleword as Direct Store
 NN_movdir64b,           // Move 64 Bytes as Direct Store
-
 // Intel WAITPKG instructions
-
 NN_tpause,              // Timed PAUSE
 NN_umonitor,            // User Level Set Up Monitor Address
 NN_umwait,              // User Level Monitor Wait
-
 // Intel Sapphire Rapids instructions
-
 NN_serialize,           // Serialize Instruction Execution
-
 // Intel TSX
-
 NN_xresldtrk,           // Resume Tracking Load Addresses
 NN_xsusldtrk,           // Suspend Tracking Load Addresses
-
 // Intel Affine Transformation instructions
-
 NN_gf2p8mulb,           // Galois Field Multiply Bytes
 NN_gf2p8affineqb,       // Computes Affine Transformation
 NN_gf2p8affineinvqb,    // Computes Inverse Affine Transformation
-
 // VEX versions
 NN_vgf2p8mulb,          // Galois Field Multiply Bytes
 NN_vgf2p8affineqb,      // Computes Affine Transformation
 NN_vgf2p8affineinvqb,   // Computes Inverse Affine Transformation
-
 // Intrinsics for Saving and Restoring the Extended Processor States (64-bits)
-
 NN_fxsave64,            // Fast save FP context (64-bits)
 NN_fxrstor64,           // Fast restore FP context (64-bits)
-
 // AVX-VNNI
 NN_vpdpbusd,            // Multiply and Add Unsigned and Signed Bytes
 NN_vpdpbusds,           // Multiply and Add Unsigned and Signed Bytes With Saturation
 NN_vpdpwssd,            // Multiply and Add Signed Word Integers
 NN_vpdpwssds,           // Multiply and Add Signed Word Integers With Saturation
-
 // AVX512-VBMI2
 NN_vpcompressb,        // Store Sparse Packed Byte Integer Values Into Dense Memory/Register
 NN_vpcompressw,        // Store Sparse Packed Word Integer Values Into Dense Memory/Register
@@ -2087,21 +1919,17 @@ NN_vpshrdq,            // Concatenate and Shift Packed Data Right Logical
 NN_vpshrdvw,           // Concatenate and Variable Shift Packed Data Right Logical
 NN_vpshrdvd,           // Concatenate and Variable Shift Packed Data Right Logical
 NN_vpshrdvq,           // Concatenate and Variable Shift Packed Data Right Logical
-
 // AVX512-BITALG
 NN_vpopcntb,           // Return the Count of Number of Bits Set to 1 in BYTE
 NN_vpopcntw,           // Return the Count of Number of Bits Set to 1 in WORD
 NN_vpshufbitqmb,       // Shuffle Bits From Quadword Elements Using Byte Indexes Into Mask
-
 // AVX512-VP2INTERSECT
 NN_vp2intersectd,     // Compute Intersection Between DWORDS to aPair of Mask Registers
 NN_vp2intersectq,     // Compute Intersection Between QUADWORDS to aPair of Mask Registers
-
 // AVX512-BF16
 NN_vcvtne2ps2bf16,    // Convert Two Packed Single Data to One Packed BF16 Data
 NN_vcvtneps2bf16,     // Convert Packed Single Data to Packed BF16 Data
 NN_vdpbf16ps,         // Dot Product of BF16 Pairs Accumulated Into Packed Single Precision
-
 // AVX512-FP16
 NN_vaddph,            // Add Packed FP16 Values
 NN_vcmpph,            // Compare Packed FP16 Values
@@ -2163,10 +1991,8 @@ NN_vrsqrtph,          // Compute Reciprocals of Square Roots of Packed FP16 Valu
 NN_vscalefph,         // Scale Packed FP16 Values with FP16 Values
 NN_vsqrtph,           // Compute Square Root of Packed FP16 Values
 NN_vsubph,            // Subtract Packed FP16 Values
-
 // AVX512-FP16-128N
 NN_vmovw,             // Move Word
-
 // AVX512-FP16-SCALAR
 NN_vaddsh,            // Add Scalar FP16 Values
 NN_vcmpsh,            // Compare Scalar FP16 Values
@@ -2213,22 +2039,17 @@ NN_vscalefsh,         // Scale Packed FP16 Values with FP16 Values
 NN_vsqrtsh,           // Compute Square Root of Scalar FP16 Value
 NN_vsubsh,            // Subtract Scalar FP16 Value
 NN_vucomish,          // Unordered Compare Scalar FP16 Values and Set EFLAGS
-
 // User Interrupt (UINTR)
-
 NN_clui,                // Clear User Interrupt Flag
 NN_stui,                // Set User Interrupt Flag
 NN_testui,              // Determine User Interrupt Flag
 NN_uiret,               // User-Interrupt Return
 NN_senduipi,            // Send  User Interprocessor Interrupts
-
 // Prediction history reset (HRESET)
 NN_hreset,              // History Reset
-
 // Intel Xeon 6 Granite Rapids microarch PREFETCHI
 NN_prefetchit0,         // Prefetch code into all levels of the cache hierarchy
 NN_prefetchit1,         // Prefetch code into all but the first-level of the cache hierarchy
-
 // VIA PadLock vendor extension
 NN_montmul,             // Montgomery Multiplication
 NN_xsha1,               // Hash Function SHA-1
@@ -2239,28 +2060,20 @@ NN_xcryptcbc,           // AES Cipher Block Chaining
 NN_xcryptctr,           // AES Counter Mode
 NN_xcryptcfb,           // AES Cipher Feedback Mode
 NN_xcryptofb,           // AES Output Feedback Mode
-
 NN_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 I5_null = 0,            // Unknown Operation
-
 //
 //      Intel 8080-8085 instructions
 //
-
 I5_aci,
 I5_adc, Z80_adc = I5_adc,
 I5_add, Z80_add = I5_add,
@@ -2339,14 +2152,11 @@ I5_xra,
 I5_xri,
 I5_xchg,
 I5_xthl,
-
 I5_rim,
 I5_sim,
-
 //
 //      Z80 extensions
 //
-
 Z80_and,
 Z80_bit,
 Z80_call,
@@ -2405,11 +2215,9 @@ Z80_xor,
 Z80_inp,                // undocumented
 Z80_outp,               // undocumented
 Z80_srr,                // undocumented
-
 //
 //      HD64180 extensions
 //
-
 HD_in0,   Z80_in0   = HD_in0,
 HD_mlt,   Z80_mlt   = HD_mlt,
 HD_otim,  Z80_otim  = HD_otim,
@@ -2420,11 +2228,9 @@ HD_out0,  Z80_out0  = HD_out0,
 HD_slp,   Z80_slp   = HD_slp,
 HD_tst,   Z80_tst   = HD_tst,
 HD_tstio, Z80_tstio = HD_tstio,
-
 //
 //      A80 special instructions
 //
-
 A80_lbcd,
 A80_lded,
 A80_lspd,
@@ -2464,10 +2270,8 @@ A80_im1,
 A80_im2,
 A80_otd,
 A80_oti,
-
 // Intel 8085 undocumented instructions
 // (info from http://oak.oakland.edu/pub/cpm/maclib/i8085.lib)
-
 I5_dsub,        // (HL) <- (HL)-(BC), affects all flags
 I5_arhl,        // SHIFT HL RIGHT ONE BIT, (H7 IS DUPLICATED, L0 IS SHIFTED INTO CY)
 I5_rdel,        // ROTATE DE LEFT ONE BIT THRU CY, (E0 RECEIVES CY, CY RECEIVES D7)
@@ -2478,9 +2282,7 @@ I5_lhlx,        // (HL) <- ((DE))
 I5_rstv,        // RESTART 40H ON V (OVERFLOW)
 I5_jx5,         // JUMP IF X5 SET
 I5_jnx5,        // JUMP IF NOT X5 SET
-
 // Z380 instructions
-
 Z80_cplw,       // Complement HL register
 Z80_swap,       // Swap upper register word with lower register word
 Z80_inw,        // Input word
@@ -2533,34 +2335,23 @@ Z80_outiw,      // Output and increment (word)
 Z80_otirw,      // Output and increment, repeat (word)
 Z80_outdw,      // Output and decrement (word)
 Z80_otdrw,      // Output and decrement, repeat (word)
-
 // Gameboy instructions
-
 GB_ldh,
 GB_stop,
-
 I5_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
 I860_null = 0,          // Unknown Operation
-
 //
 //      Intel 860 XP instructions
 //
-
 I860_adds,
 I860_addu,
 I860_and,
@@ -2705,24 +2496,17 @@ I860_mm12ttsm,
 I860_mimt1s2,
 I860_mm12tsm,
 I860_mim1s2,
-
 I860_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 I51_null = 0,   // Unknown Operation
-
 I51_acall,      // Absolute Call
 I51_add,        // Add Second Operand to Acc
 I51_addc,       // Add Second Operand to Acc with carry
@@ -2767,9 +2551,7 @@ I51_swap,       // Swap nibbles of Acc
 I51_xch,        // Exchange Operands
 I51_xchd,       // Exchange Digit in Acc with Indirect RAM
 I51_xrl,        // Exclusive OR (op1 ^= op2)
-
 // 80251 instructions
-
 I51_jsle,       // Jump if less than or equal (signed)
 I51_jsg,        // Jump if greater than (signed)
 I51_jle,        // Jump if less than or equal
@@ -2790,23 +2572,16 @@ I51_sra,        // Shift arithmetic right by 1 bit
 I51_sll,        // Shift logical left by 1 bit
 I51_sub,        // Subtract
 I51_cmp,        // Compare
-
 // 51mx instructions
 I51_emov,       // Move (A <- @PRi+disp) or (@PRi+disp <- A)
-
 I51_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 TMS_null = 0,   // Unknown Operation
@@ -2948,11 +2723,9 @@ TMS_xpl2,       // Exclusive-OR Data Memory Value
 TMS_zalr,       // Zero Low Acc Load High Acc With Rounding
 TMS_zap,        // Zero Acc and P
 TMS_zpr,        // Zero P Register
-
 //
 //      TMS320C2x instructions
 //
-
 TMS2_abs,               // Absolute value of accumulator
 TMS2_add,               // Add to accumulator with shift
 TMS2_addc,              // Add to accumulator with carry
@@ -3087,26 +2860,18 @@ TMS2_zac,               // Zero accumulator
 TMS2_zalh,              // Zero low accumulator and load high accumulator
 TMS2_zalr,              // Zero low accumulator and load high accumulator with rounding
 TMS2_zals,              // Zero low accumulator and load high accumulator with sign extension suppressed
-
 TMS_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
   M65_null = 0,           // Unknown Operation
-
   // NMOS instructions
-
   M65_adc,                // A <- (A) + M + C
   M65_anc,                // A <- A /\ M, C <- ~A7
   M65_and,                // A <- (A) /\ M
@@ -3183,9 +2948,7 @@ enum
   M65_txa,                // A <- (X)
   M65_txs,                // S <- (X)
   M65_tya,                // A <- (Y)
-
   // CMOS instructions
-
   M65_bbr0,               // Branch if bit 0 reset
   M65_bbr1,               // Branch if bit 1 reset
   M65_bbr2,               // Branch if bit 2 reset
@@ -3228,16 +2991,10 @@ enum
   M65_bra,                // Branch always
   M65_wai,                // Wait for interrupt
   M65_stp,                // Stop processor
-
   M65_last,
 };
-
-
-
-
 // The instruction types (``itype''s)
 // m65* CPUs implements.
-
 enum m65_itype_t
 {
   // http://www.westerndesigncenter.com/wdc/datasheets/Programmanual.pdf
@@ -3336,7 +3093,6 @@ enum m65_itype_t
   M65816_xce,    // Exchange carry and emulation bits
   M65816_last
 };
-
 /*
  *      Interactive disassembler (IDA)
  *      Copyright (c) 1990-2026 Hex-Rays
@@ -3347,13 +3103,9 @@ enum m65_itype_t
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 pdp_null = 0,           // Unknown Operation
-
 pdp_halt,       // Stop CPU
 pdp_wait,       // Wait interrupt
 pdp_rti,        // Interrupt return
@@ -3462,24 +3214,17 @@ pdp_ldcfd,      // Load and convert float/double to double/float
 pdp_call,       // Jsr PC,
 pdp_return,     // RTS PC
 pdp_compcc,     // Complex Condition Codes
-
 pdp_last
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
   mc_null = 0,   // Unknown Operation
-
   mc_abcd,       // summa with BCD correction
   mc_add,        // summa with Dn
   mc_adda,       // summa with An
@@ -3669,7 +3414,6 @@ enum
   mc_wddata,     // (coldfire) load WDDATA port (pins)
   mc_wdebug,     // (coldfire) load debug register
   mc_atrap,      // MacOS atrap
-
   // new ColdFire instructions
   mc_bitrev,     // bit reverse
   mc_byterev,    // byte reverse
@@ -3684,26 +3428,19 @@ enum
   mc_masac,      // Multiply and Add to 1st Accumulator, Subtract from 2nd Accumulator
   mc_msaac,      // Multiply and Subtract to 1st Accumulator, Add to 2nd Accumulator
   mc_mssac,      // Multiply and Subtract to 1st Accumulator, Subtract to 2nd Accumulator
-
   mc_remsl,      // Signed Divide Remainder
   mc_remul,      // Unsigned Divide Remainder
-
   mc_last
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 mc8_null = 0,           // Unknown Operation
-
 mc8_aba,        // Add b to a                                  (11)
 mc8_ab,         // Add b to index register
 mc8_adc,        // Add with carry
@@ -3847,20 +3584,15 @@ mc8_aim,
 mc8_oim,
 mc8_eim,
 mc8_tim,
-
 // new S08 instructions
 mc8_bgnd,       // Background                                     (8)
 mc8_call,       // Call Subroutine                                (8)
 mc8_rtc,        // Return fom Call                                (8)
-
 // Pseudoinstructions
 mc8_skip1,      // Skip one byte
 mc8_skip2,      // Skip two bytes
-
 mc8_last
-
     };
-
 /*
  *      Interactive disassembler (IDA)
  *      Copyright (c) 1990-2026 Hex-Rays
@@ -3871,9 +3603,6 @@ mc8_last
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
   j_nop = 0,        //   0 Do nothing
@@ -4090,7 +3819,6 @@ enum
   //
   j_last
 };
-
 enum name_quick
 {
   j_ldc_quick = j_lastnorm,    // 203     (18)
@@ -4121,16 +3849,12 @@ enum name_quick
   j_putfield_quick_w,          // 228
   j_quick_last
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 ARM_null = 0,           // Unknown Operation
@@ -4170,9 +3894,7 @@ ARM_ldm,                // Load Block from Memory
 ARM_stm,                // Store Block to Memory
 ARM_swp,                // Single Data Swap
 ARM_svc,                // Supervisor call
-
 // Version 4
-
 ARM_smull,              // Signed Multiply long
 ARM_smlal,              // Signed Multiply-Accumulate long
 ARM_umull,              // Unsigned Multiply long
@@ -4181,16 +3903,12 @@ ARM_bx,                 // Branch to/from Thumb mode
 ARM_pop,                // Pop registers
 ARM_push,               // Push registers
 ARM_adr,                // Load address
-
 // Version 5
-
 ARM_bkpt,               // Breakpoint
 ARM_blx1,               // Branch with Link and Exchange (immediate address)
 ARM_blx2,               // Branch with Link and Exchange (register indirect)
 ARM_clz,                // Count Leading Zeros
-
 // Version 5E
-
 ARM_ldrd,               // Load pair of registers
 ARM_pld,                // Prepare to load data
 ARM_qadd,               // Saturated addition
@@ -4214,9 +3932,7 @@ ARM_smultb,             // Signed multiply (top*bottom)
 ARM_smulbt,             // Signed multiply (bottom*top)
 ARM_smultt,             // Signed multiply (top*top)
 ARM_strd,               // Store pair of registers
-
 // Intel xScale coprocessor instructions
-
 xScale_mia,             // Multiply-Internal Accumulate
 xScale_miaph,           // Multiply-Internal Accumulate Packed HalfWords
 xScale_miabb,           // Multiply-Internal Accumulate Bottom-Bottom Halves
@@ -4225,15 +3941,11 @@ xScale_miatb,           // Multiply-Internal Accumulate Top-Bottom Halves
 xScale_miatt,           // Multiply-Internal Accumulate Top-Top Halves
 xScale_mar,             // Move To Internal Accumulator
 xScale_mra,             // Move From Internal Accumulator
-
 // Macro instructions
-
 ARM_movl,               // Move immediate to register
 ARM_adrl,               // Load address
 ARM_swbkpt,             // WinCE Debugger break
-
 // Coprocessor instructions
-
 ARM_cdp,                // Coprocessor Data Processing
 ARM_cdp2,               // Coprocessor Data Processing
 ARM_ldc,                // Load Coprocessor Register
@@ -4246,9 +3958,7 @@ ARM_mcr,                // Move from ARM to Coprocessor Register
 ARM_mcr2,               // Move from ARM to Coprocessor Register
 ARM_mcrr,               // Copy pair of registers to coprocessor (5E)
 ARM_mrrc,               // Copy pair of registers from coprocessor (5E)
-
 // VFP instructions
-
 ARM_fabsd,              // Floating point Absolute Value, Double precision
 ARM_fabss,              // Floating point Absolute Value, Single precision
 ARM_faddd,              // Floating point Addition, Double precision
@@ -4316,20 +4026,14 @@ ARM_fmxr,               // Floating point Move to System Register from Register
 ARM_fmrx,               // Floating point Move to Register from System Register
 ARM_fmsr,               // Floating point Move to Single precision from Register
 ARM_fmrs,               // Floating point Move to Register from Single precision
-
 // VFP ARMv5TE extensions
-
 ARM_fmdrr,              // Floating point Move to Double precision from two Registers
 ARM_fmrrd,              // Floating point Move to two Registers from Double precision
 ARM_fmsrr,              // Floating point Move to two Single precision from two Registers
 ARM_fmrrs,              // Floating point Move to two Registers from two Single precision
-
 // ARM v5J instructions
-
 ARM_bxj,                // Branch to Jazelle
-
 // ARM v6 instructions
-
 ARM_mcrr2,              // Move to Coprocessor from two ARM Registers
 ARM_mrrc2,              // Move to two ARM Registers from Coprocessor
 ARM_cps,                // Change Processor State
@@ -4431,9 +4135,7 @@ ARM_uxtab16,            // Unsigned extend two bytes to halfwords, add
 ARM_uxtb16,             // Unsigned extend two bytes to halfwords
 ARM_uxtah,              // Unsigned extend halfword to word, add
 ARM_uxth,               // Unsigned extend halfword to word
-
 // ARM v6zk instructions
-
 ARM_clrex,              // Clear Exclusive
 ARM_ldrexb,             // Load Byte Exclusive
 ARM_ldrexd,             // Load DoubleWord Exclusive
@@ -4446,9 +4148,7 @@ ARM_sev,                // Send Event (hint)
 ARM_wfe,                // Wait For Event (hint)
 ARM_wfi,                // Wait For Interrupt (hint)
 ARM_smc,                // Secure Monitor Call
-
 // ARM Thumb32 instructions
-
 ARM_orn,                // Rd = Op1 | ~Op2
 ARM_movt,               // Move Top
 ARM_sbfx,               // Signed Bit Field Extract
@@ -4469,11 +4169,9 @@ ARM_dsb,                // Data Synchronization Barrier
 ARM_dmb,                // Data Memory Barrier
 ARM_isb,                // Instruction Synchronization Barrier
 ARM_dbg,                // Debug Hint
-
-ARM_und,                // Architecturally undefined instruction
-
+ARM_udf,                // Permanently undefined
+ARM_und = ARM_udf,      // for backward compatibility
 // missing instructions (not yet decoded)
-
 ARM_rrx,                // Rotate Right with Extend
 ARM_enterx,             // Enter ThumbEE state
 ARM_leavex,             // Leave ThumbEE state
@@ -4482,9 +4180,7 @@ ARM_hb,                 // Handler Branch
 ARM_hbl,                // Handler Branch with Link
 ARM_hblp,               // Handler Branch with Link and Parameter
 ARM_hbp,                // Handler Branch with Parameter
-
 // NEON (Advanced SIMD) and extra VFP instructions
-
 ARM_vaba,               // Vector Absolute Difference and Accumulate
 ARM_vabal,              // Vector Absolute Difference and Accumulate Long
 ARM_vabd,               // Vector Absolute Difference
@@ -4617,20 +4313,15 @@ ARM_vtrn,               // Vector Transpose
 ARM_vtst,               // Vector Test Bits
 ARM_vuzp,               // Vector Unzip
 ARM_vzip,               // Vector Zip
-
 // ARMv7 Hypervisor extensions
-
 ARM_eret,               // Exception Return
 ARM_hvc,                // Hypervisor Call
-
 // new ARMv8 instructions for A32 and T32 mode
-
 ARM_lda,                // Load-Acquire Word/Byte/Halfword
 ARM_stl,                // Store-Release Word/Byte/Halfword
 ARM_ldaex,              // Load-Acquire Exclusive Word/Byte/Halfword
 ARM_stlex,              // Store-Release Exclusive Word/Byte/Halfword
 ARM_vsel,               // Floating-point Conditional Select
-
 ARM_vmaxnm,             // Vector Maximum Numeric
 ARM_vminnm,             // Vector Minimum Numeric
 ARM_vcvta,              // Vector Convert Round to Nearest with Ties to Away
@@ -4644,7 +4335,6 @@ ARM_vrinta,             // Vector Round to Integral, Round to Nearest with Ties 
 ARM_vrintn,             // Vector Round to Integral, Round to Nearest with Ties to Even
 ARM_vrintp,             // Vector Round to Integral, Round towards +Infinity
 ARM_vrintm,             // Vector Round to Integral, Round towards -Infinity
-
 ARM_aesd,               // AES single round decryption
 ARM_aese,               // AES single round encryption
 ARM_aesimc,             // AES inverse mix columns
@@ -4659,15 +4349,12 @@ ARM_sha256h,            // SHA256 hash update accelerator
 ARM_sha256h2,           // SHA256 hash update accelerator upper part
 ARM_sha256su0,          // SHA256 schedule update accelerator, first part
 ARM_sha256su1,          // SHA256 schedule update accelerator, second part
-
 ARM_dcps1,              // Debug Change Processor State to EL1
 ARM_dcps2,              // Debug Change Processor State to EL2
 ARM_dcps3,              // Debug Change Processor State to EL3
 ARM_hlt,                // Halting mode software breakpoint
 ARM_sevl,               // Send Event Locally
-
 // ARMv8 AArch64 new instructions
-
 ARM_tbz,                // Test and Branch Zero
 ARM_tbnz,               // Test and Branch Non-Zero
 ARM_br,                 // Branch To Register
@@ -4737,7 +4424,6 @@ ARM_umaddl,             // Unsigned Multiply-Add Long
 ARM_umsubl,             // Unsigned Multiply-Subtract Long
 ARM_umnegl,             // Unsigned Multiply-Negate Long
 ARM_umulh,              // Unsigned Multiply High
-
 ARM_drps,               // Debug Restore Processor State
 ARM_sys,                // System Maintenance Operation
 ARM_sysl,               // System Maintenance Operation With Result
@@ -4747,7 +4433,6 @@ ARM_at,                 // Address Translation
 ARM_tlbi,               // TLB Invalidation
 ARM_hint,               // Hint instruction
 ARM_brk,                // Monitor debug-mode breakpoint
-
 // AArch64 Advanced SIMD
 ARM_uaba,               // Unsigned Integer Absolute Difference and Accumulate
 ARM_saba,               // Signed Integer Absolute Difference and Accumulate
@@ -5010,154 +4695,119 @@ ARM_uminv,              // Unsigned Integer Min Element in Vector
 ARM_sminv,              // Signed Integer Min Element in Vector
 ARM_fminv,              // Floating-point Min Element in Vector
 ARM_fminnmv,            // Floating-point minNum Element in Vector
-
 // atomic operations (ARMv8.1/ARMv8.3)
 // ARM_swp,              // Swap value with memory, No memory ordering
 ARM_swpl,               // Swap value with memory, Release
 ARM_swpa,               // Swap value with memory, Acquire
 ARM_swpal,              // Swap value with memory, Acquire and release
-
 ARM_ldapr,              // Load-Acquire RCpc Register
-
 ARM_ldadd,             // Atomic add on value in memory (return initial value), No memory ordering
 ARM_ldaddl,            // Atomic add on value in memory (return initial value), Release
 ARM_ldadda,            // Atomic add on value in memory (return initial value), Acquire
 ARM_ldaddal,           // Atomic add on value in memory (return initial value), Acquire and release
 ARM_stadd,             // Atomic add on value in memory (no return), No memory ordering
 ARM_staddl,            // Atomic add on value in memory (no return), Release
-
 ARM_ldclr,             // Atomic bit clear on value in memory (return initial value), No memory ordering
 ARM_ldclrl,            // Atomic bit clear on value in memory (return initial value), Release
 ARM_ldclra,            // Atomic bit clear on value in memory (return initial value), Acquire
 ARM_ldclral,           // Atomic bit clear on value in memory (return initial value), Acquire and release
 ARM_stclr,             // Atomic bit clear on value in memory (no return), No memory ordering
 ARM_stclrl,            // Atomic bit clear on value in memory (no return), Release
-
 ARM_ldeor,             // Atomic exclusive OR on value in memory (return initial value), No memory ordering
 ARM_ldeorl,            // Atomic exclusive OR on value in memory (return initial value), Release
 ARM_ldeora,            // Atomic exclusive OR on value in memory (return initial value), Acquire
 ARM_ldeoral,           // Atomic exclusive OR on value in memory (return initial value), Acquire and release
 ARM_steor,             // Atomic exclusive OR on value in memory (no return), No memory ordering
 ARM_steorl,            // Atomic exclusive OR on value in memory (no return), Release
-
 ARM_ldset,             // Atomic bit set on value in memory (return initial value), No memory ordering
 ARM_ldsetl,            // Atomic bit set on value in memory (return initial value), Release
 ARM_ldseta,            // Atomic bit set on value in memory (return initial value), Acquire
 ARM_ldsetal,           // Atomic bit set on value in memory (return initial value), Acquire and release
 ARM_stset,             // Atomic bit set on value in memory (no return), No memory ordering
 ARM_stsetl,            // Atomic bit set on value in memory (no return), Release
-
 ARM_ldsmax,            // Atomic signed maximum  on value in memory (return initial value), No memory ordering
 ARM_ldsmaxl,           // Atomic signed maximum  on value in memory (return initial value), Release
 ARM_ldsmaxa,           // Atomic signed maximum  on value in memory (return initial value), Acquire
 ARM_ldsmaxal,          // Atomic signed maximum  on value in memory (return initial value), Acquire and release
 ARM_stsmax,            // Atomic signed maximum  on value in memory (no return), No memory ordering
 ARM_stsmaxl,            // Atomic signed maximum  on value in memory (no return), Release
-
-
 ARM_ldsmin,            // Atomic signed minimum  on value in memory (return initial value), No memory ordering
 ARM_ldsminl,           // Atomic signed minimum  on value in memory (return initial value), Release
 ARM_ldsmina,           // Atomic signed minimum  on value in memory (return initial value), Acquire
 ARM_ldsminal,          // Atomic signed minimum  on value in memory (return initial value), Acquire and release
 ARM_stsmin,            // Atomic signed minimum  on value in memory (no return), No memory ordering
 ARM_stsminl,            // Atomic signed minimum  on value in memory (no return), Release
-
 ARM_ldumax,            // Atomic unsigned maximum  on value in memory (return initial value), No memory ordering
 ARM_ldumaxl,           // Atomic unsigned maximum  on value in memory (return initial value), Release
 ARM_ldumaxa,           // Atomic unsigned maximum  on value in memory (return initial value), Acquire
 ARM_ldumaxal,          // Atomic unsigned maximum  on value in memory (return initial value), Acquire and release
 ARM_stumax,            // Atomic unsigned maximum  on value in memory (no return), No memory ordering
 ARM_stumaxl,            // Atomic unsigned maximum  on value in memory (no return), Release
-
-
 ARM_ldumin,            // Atomic unsigned minimum  on value in memory (return initial value), No memory ordering
 ARM_lduminl,           // Atomic unsigned minimum  on value in memory (return initial value), Release
 ARM_ldumina,           // Atomic unsigned minimum  on value in memory (return initial value), Acquire
 ARM_lduminal,          // Atomic unsigned minimum  on value in memory (return initial value), Acquire and release
 ARM_stumin,            // Atomic unsigned minimum  on value in memory (no return), No memory ordering
 ARM_stuminl,            // Atomic unsigned minimum  on value in memory (no return), Release
-
 // Compare and Swap (ARMv8.1)
-
 ARM_cas,            // Compare and Swap , No memory ordering
 ARM_casl,           // Compare and Swap, Release
 ARM_casa,           // Compare and Swap, Acquire
 ARM_casal,          // Compare and Swap, Acquire and release
-
 ARM_casp,            // Compare and Swap Pair, No memory ordering
 ARM_caspl,           // Compare and Swap Pair, Release
 ARM_caspa,           // Compare and Swap Pair, Acquire
 ARM_caspal,          // Compare and Swap Pair, Acquire and release
-
 ARM_ldlar,           // Load LOAcquire Register
 ARM_stllr,           // Store LORelease Register
-
 ARM_sqrdmlah,        // Signed Saturating Rounding Doubling Multiply Accumulate
 ARM_sqrdmlsh,        // Signed Saturating Rounding Doubling Multiply Subtract
-
 // Pointer authentication (ARMv8.3)
 // only completely new instructions are included;
 // authenticated variations of old ones are represented by instruction flags (see arm.hpp)
-
 ARM_pac,             // Pointer Authentication Code for Data/Instruction address/generic
 ARM_aut,             // Authenticate Data/Instruction address
 ARM_xpac,            // Strip Pointer Authentication Code
-
 // ARM insns for the legacy assembler (2 operands)
 ARM_ldrd2,           // Load pair of registers
 ARM_strd2,           // Store pair of registers
-
 // CRC32 (optional in 8.0, mandatory since 8.1)
 ARM_crc32,           // CRC32 using polynomial 0x04C11DB7
 ARM_crc32c,          // CRC32 using polynomial 0x1EDC6F41
-
 // Armv8-M Security Extension (TrustZone for Armv8-M)
 ARM_tt, // Test Target (query the Security state and access permissions of a memory location)
 ARM_tta, // Test Target Alternate Domain (query the Security state and access permissions of a memory location for a Non-secure access)
 ARM_sg, // Secure Gateway
 ARM_vlldm, // Floating-point Lazy Load Multiple
 ARM_vlstm, // Floating-point Lazy Store Multiple
-
 // MP Extension instructions
 ARM_pldw, // Preload Data for write
-
 // ARMv8.1-RDMA (AArh32)
 ARM_vqrdmlah, // Vector Saturating Rounding Doubling Multiply Accumulate Returning High Half.
               // Vector Saturating Rounding Doubling Multiply Accumulate
 ARM_vqrdmlsh, // Vector Saturating Rounding Doubling Multiply Subtract Returning High Half
-
 // ARMv8.2-FP16 (AArch32)
-
 ARM_vmovx, // Vector Move extraction
 ARM_vins,  // Vector move Insertion.
-
 // ARMv8.3-JSConv (AArch32)
 ARM_vjcvt,    // Javascript Convert to signed fixed-point, rounding toward Zero
-
 // ARMv8.3-JSConv (A64)
 ARM_fjcvtzs, // Javascript Convert to signed fixed-point, rounding toward Zero
-
-
 /*
 // ARMv8.3-CompNum, SIMD complex number support
 ARM_fcadd, // Floating-point complex add
 ARM_fcmla, // Floating-point complex multiply accumulate
 */
-
 // ARMv8.4-RCPC
-
 ARM_ldapur,             // Load-Acquire RCpc Register (unscaled offset)
 ARM_stlur,              // Store-Release Register (unscaled offset)
-
 // ARMv8.4
-
 ARM_cfinv,              // Invert Carry Flag
 ARM_rmif,               // Rotate value and mask into flags
 ARM_setf8,              // set flags from value (8-bit)
 ARM_setf16,             // set flags from value (16-bit)
 ARM_xaflag,             // Convert floating-point condition flags to ARM format
 ARM_axflag,             // Convert floating-point condition flags from ARM to external format.
-
 // ARMv8.5
 ARM_addg,               // Add with Tag
 ARM_subg,               // Subtract with Tag
@@ -5178,27 +4828,21 @@ ARM_bti,                // Branch Target Identification
 ARM_sb,                 // Speculation Barrier
 ARM_ssbb,               // Speculative Store Bypass Barrier
 ARM_pssbb,              // Physical Speculative Store Bypass Barrier
-
-
 //
-
 ARM_frint32x,             // Floating-point Round to 32-bit Integer, using current rounding mode
 ARM_frint32z,             // Floating-point Round to 32-bit Integer toward Zero
 ARM_frint64x,             // Floating-point Round to 32-bit Integer, using current rounding mode
 ARM_frint64z,             // Floating-point Round to 32-bit Integer toward Zero
-
 // ARMv8.2-SHA3 (AArch64)
 ARM_bcax, // Bit Clear and exclusive-OR
 ARM_eor3, // Three-way Exclusive-OR
 ARM_rax1, // Rotate and Exclusive-OR
 ARM_xar,  // Exclusive-OR and Rotate
-
 // ARMv8.2-SHA512 (AArch64)
 ARM_sha512h,   // SHA512 Hash update part 1
 ARM_sha512h2,  // SHA512 Hash update part 2
 ARM_sha512su0, // SHA512 Schedule Update 0
 ARM_sha512su1, // SHA512 Schedule Update 1
-
 // ARMv8.2-SM3 (AArch64)
 ARM_sm3partw1,
 ARM_sm3partw2,
@@ -5207,27 +4851,22 @@ ARM_sm3tt1a,
 ARM_sm3tt1b,
 ARM_sm3tt2a,
 ARM_sm3tt2b,
-
 // ARMv8.2-SM4 (AArch64)
 ARM_sm4e,
 ARM_sm4ekey,
-
 // ARMv8.6-I8MM (AArch64)
 ARM_sudot,
 ARM_ummla,
 ARM_usdot,
 ARM_usmmla,
-
 // ARMv8.6-DotProd (AArch64)
 ARM_sdot,
 ARM_udot,
-
 // ARMv8.2-FHM (AArch64)
 ARM_fmlal,
 ARM_fmlal2,
 ARM_fmlsl,
 ARM_fmlsl2,
-
 // ARMv8.6-BF16 (AArch64)
 ARM_bfmmla,
 ARM_bfmlalb,
@@ -5236,14 +4875,9 @@ ARM_bfdot,
 ARM_bfcvtn,
 ARM_bfcvtn2,
 ARM_bfcvt,
-
-
-
 // Apple custom instructions
-
 ARM_trap,                 // Undefined opcode used for debugging
 ARM_trap2,                // Undefined opcode used for debugging
-
 ARM_genter,               // Enter guarded execution mode
 ARM_gexit,                // Exit guarded execution mode
 ARM_wkdmc,                // Compress memory page
@@ -5252,7 +4886,6 @@ ARM_sdsb,                 // Strong data synchronization barrier
 ARM_amx,                  // AMX instruction
 ARM_mul53lo,              // Multiply 2 53-bit pairs and store low 53 bits
 ARM_mul53hi,              // Multiply 2 53-bit pairs and store high 53 bits
-
 // ARMv8.1-M MVE
 ARM_vbrsr,                // Vector Bit Reverse and Shift Right
 ARM_vcmul,                // Vector Complex Multiply
@@ -5409,7 +5042,6 @@ ARM_bfx,                  // Branch Future and Exchange
 ARM_bfl,                  // Branch Future with Link
 ARM_bflx,                 // Branch Future with Link and Exchange
 ARM_bfcsel,               // Branch Future Conditional Select
-
 // ARMv8-M Custom Datapath Extension
 ARM_cx1,                  // Custom Instruction Class 1
 ARM_cx1A,                 // Custom Instruction Class 1 (accumulator)
@@ -5429,22 +5061,630 @@ ARM_vcx2,                 // Custom Extension Instruction Class 2
 ARM_vcx2A,                // Custom Extension Instruction Class 2 (accumulator)
 ARM_vcx3,                 // Custom Extension Instruction Class 3
 ARM_vcx3A,                // Custom Extension Instruction Class 3 (accumulator)
-
 // FEAT_WFxT
 ARM_wfet,                 // Wait For Event with Timeout
 ARM_wfit,                 // Wait For Interrupt with Timeout
-
 // FEAT_CSSC
-
 ARM_ctz,                  // Count trailing zeros
-
 ARM_rdvl,                 // Read multiple of vector register size to scalar register
 ARM_rdsvl,                 // Read multiple of Streaming SVE vector register size to scalar register
-
+// SVE integer binary arithmetic (predicated)
+ARM_subr,                 // Reversed subtract vectors
+ARM_addpt,                // Add checked pointer vectors (predicated)
+ARM_subpt,                // Subtract checked pointer vectors (predicated)
+ARM_sdivr,                // SVE Signed Divide Reversed
+ARM_udivr,                // SVE Unsigned Divide Reversed
+ARM_add_sve,              // Add (SVE)
+ARM_sub_sve,              // Subtract (SVE)
+ARM_mul_sve,              // Multiply (SVE)
+ARM_smulh_sve,            // Signed Multiply High (SVE)
+ARM_umulh_sve,            // Unsigned Multiply High (SVE)
+ARM_sdiv_sve,             // Signed Divide (SVE)
+ARM_udiv_sve,             // Unsigned Divide (SVE)
+ARM_and_sve,              // Bitwise AND (SVE)
+ARM_orr_sve,              // Bitwise OR (SVE)
+ARM_eor_sve,              // Bitwise XOR (SVE)
+ARM_bic_sve,              // Bitwise AND NOT (SVE)
+ARM_smax_sve,             // Signed Maximum (SVE)
+ARM_umax_sve,             // Unsigned Maximum (SVE)
+ARM_smin_sve,             // Signed Minimum (SVE)
+ARM_umin_sve,             // Unsigned Minimum (SVE)
+ARM_sabd_sve,             // Signed Absolute Difference (SVE)
+ARM_uabd_sve,             // Unsigned Absolute Difference (SVE)
+ARM_subr_pred,            // Reversed subtract vectors (predicated)
+// SVE bitwise shift (predicated)
+ARM_asrd,                 // Arithmetic Shift Right for Divide
+ARM_asrr,                 // Reversed Arithmetic Shift Right
+ARM_lsrr,                 // Reversed Logical Shift Right
+ARM_lslr,                 // Reversed Logical Shift Left
+ARM_asr_sve,              // Arithmetic Shift Right (SVE)
+ARM_lsr_sve,              // Logical Shift Right (SVE)
+ARM_lsl_sve,              // Logical Shift Left (SVE)
+ARM_sqshl_sve,            // Signed Saturating Shift Left (SVE)
+ARM_uqshl_sve,            // Unsigned Saturating Shift Left (SVE)
+ARM_sqshlu_sve,           // Signed Saturating Shift Left Unsigned (SVE)
+ARM_srshr_sve,            // Signed Rounding Shift Right (SVE)
+ARM_urshr_sve,            // Unsigned Rounding Shift Right (SVE)
+// SVE integer multiply-add (predicated)
+ARM_mla_sve,              // Multiply-Add (SVE)
+ARM_mls_sve,              // Multiply-Subtract (SVE)
+ARM_mad,                  // Multiply-Add writing multiplicand
+ARM_msb,                  // Multiply-Subtract writing multiplicand
+// SVE integer unary arithmetic (predicated)
+ARM_cnot,                 // Logically invert boolean condition
+ARM_sxtb_sve,             // Signed extend byte (SVE)
+ARM_uxtb_sve,             // Unsigned extend byte (SVE)
+ARM_sxth_sve,             // Signed extend halfword (SVE)
+ARM_uxth_sve,             // Unsigned extend halfword (SVE)
+ARM_sxtw_sve,             // Signed extend word (SVE)
+ARM_uxtw_sve,             // Unsigned extend word (SVE)
+ARM_neg_sve,              // Negate (SVE)
+ARM_cls_sve,              // Count leading sign bits (SVE)
+ARM_clz_sve,              // Count leading zeros (SVE)
+ARM_not_sve,              // Bitwise NOT (SVE)
+// SVE stack allocation
+ARM_addvl,                // Add multiple of vector register size to scalar register
+ARM_addpl,                // Add multiple of predicate register size to scalar register
+// SVE index generation
+ARM_index,                // Create index starting from and incremented by scalar/immediate
+// SVE bitwise logical (unpredicated)
+ARM_bsl1n,                // Bitwise Select with NOT (first source)
+ARM_bsl2n,                // Bitwise Select with NOT (second source)
+ARM_nbsl,                 // Bitwise Not-select
+// SVE integer misc (unpredicated)
+ARM_ftssel,               // Floating-point trigonometric select coefficient
+ARM_fexpa,                // Floating-point exponential accelerator
+// SVE element count
+ARM_cntb,                 // Count elements (byte)
+ARM_cnth,                 // Count elements (halfword)
+ARM_cntw,                 // Count elements (word)
+ARM_cntd,                 // Count elements (doubleword)
+ARM_incb,                 // Increment scalar by element count (byte)
+ARM_inch,                 // Increment by element count (halfword) [vector+scalar]
+ARM_incw,                 // Increment by element count (word)
+ARM_incd,                 // Increment by element count (doubleword)
+ARM_decb,                 // Decrement scalar by element count (byte)
+ARM_dech,                 // Decrement by element count (halfword) [vector+scalar]
+ARM_decw,                 // Decrement by element count (word)
+ARM_decd,                 // Decrement by element count (doubleword)
+ARM_sqincb,               // Saturating signed increment (byte)
+ARM_sqinch,               // Saturating signed increment (halfword)
+ARM_sqincw,               // Saturating signed increment (word)
+ARM_sqincd,               // Saturating signed increment (doubleword)
+ARM_uqincb,               // Saturating unsigned increment (byte)
+ARM_uqinch,               // Saturating unsigned increment (halfword)
+ARM_uqincw,               // Saturating unsigned increment (word)
+ARM_uqincd,               // Saturating unsigned increment (doubleword)
+ARM_sqdecb,               // Saturating signed decrement (byte)
+ARM_sqdech,               // Saturating signed decrement (halfword)
+ARM_sqdecw,               // Saturating signed decrement (word)
+ARM_sqdecd,               // Saturating signed decrement (doubleword)
+ARM_uqdecb,               // Saturating unsigned decrement (byte)
+ARM_uqdech,               // Saturating unsigned decrement (halfword)
+ARM_uqdecw,               // Saturating unsigned decrement (word)
+ARM_uqdecd,               // Saturating unsigned decrement (doubleword)
+// SVE element count - 32-bit register (W) forms
+ARM_sqincb32,             // Saturating signed increment byte, W-reg form
+ARM_sqinch32,             // Saturating signed increment halfword, W-reg form
+ARM_sqincw32,             // Saturating signed increment word, W-reg form
+ARM_sqincd32,             // Saturating signed increment doubleword, W-reg form
+ARM_uqincb32,             // Saturating unsigned increment byte, W-reg form
+ARM_uqinch32,             // Saturating unsigned increment halfword, W-reg form
+ARM_uqincw32,             // Saturating unsigned increment word, W-reg form
+ARM_uqincd32,             // Saturating unsigned increment doubleword, W-reg form
+ARM_sqdecb32,             // Saturating signed decrement byte, W-reg form
+ARM_sqdech32,             // Saturating signed decrement halfword, W-reg form
+ARM_sqdecw32,             // Saturating signed decrement word, W-reg form
+ARM_sqdecd32,             // Saturating signed decrement doubleword, W-reg form
+ARM_uqdecb32,             // Saturating unsigned decrement byte, W-reg form
+ARM_uqdech32,             // Saturating unsigned decrement halfword, W-reg form
+ARM_uqdecw32,             // Saturating unsigned decrement word, W-reg form
+ARM_uqdecd32,             // Saturating unsigned decrement doubleword, W-reg form
+// SVE Permute Vector - Extract
+ARM_ext_sve_destr,        // Extract vector from pair of vectors (Destructive)
+ARM_ext_sve_constr,       // Extract vector from pair of vectors (Constructive)
+// SVE bitwise immediate
+ARM_dupm,                 // Broadcast logical bitmask immediate to vector (unpredicated)
+ARM_fdup,                 // Broadcast floating-point immediate to vector (unpredicated)
+// SVE Integer Wide Immediate - Predicated
+ARM_cpy_pred,             // Copy integer immediate to active elements (predicated)
+ARM_fcpy_pred,            // Copy FP immediate to active elements (predicated)
+// SVE Permute Vector - One Source Quadwords
+ARM_dupq,                 // Broadcast indexed element in each quadword vector segment (unpredicated)
+ARM_extq,                 // Extract vector segment from each pair of quadword vector segments
+// SVE Permute Predicate
+ARM_punpkhi,              // Unpack and widen high half of predicate
+ARM_punpklo,              // Unpack and widen low half of predicate
+// SVE Permute Vector - Predicated
+ARM_compact,              // Compress active elements to lower-numbered elements
+ARM_lasta,                // Extract element after last active to register
+ARM_lastb,                // Extract last active element to register
+ARM_clasta,               // Conditionally extract element after last (destructive)
+ARM_clastb,               // Conditionally extract last element (destructive)
+ARM_revb,                 // Reverse bytes within elements (predicated)
+ARM_revh,                 // Reverse halfwords within elements (predicated)
+ARM_revw,                 // Reverse words within elements (predicated)
+ARM_revd,                 // Reverse doublewords within elements (predicated)
+ARM_rbit_pred,            // Reverse bits within elements (predicated, SVE)
+ARM_splice_destr,         // SPLICE destructive: select elements from first then second vector
+ARM_splice_constr,        // SPLICE constructive (SVE2): select from pair {Zn, Zn+1}
+ARM_sel_sve,              // SVE select vector elements (predicated)
+// SVE Permute Vector - Unpredicated
+ARM_insr,                 // Insert scalar register into shifted vector (unpredicated)
+ARM_sunpkhi,              // Signed unpack and extend top half of vector
+ARM_sunpklo,              // Signed unpack and extend bottom half of vector
+ARM_uunpkhi,              // Unsigned unpack and extend top half of vector
+ARM_uunpklo,              // Unsigned unpack and extend bottom half of vector
+// SVE Integer Compare
+ARM_cmp_sve,              // SVE integer compare (vectors and wide elements)
+// SVE Partition Break
+ARM_brka,                 // SVE partition break after
+ARM_brkas,                // SVE partition break after, setting flags
+ARM_brkb,                 // SVE partition break before
+ARM_brkbs,                // SVE partition break before, setting flags
+ARM_brkn,                 // SVE propagate break to next partition
+ARM_brkns,                // SVE propagate break to next, setting flags
+ARM_brkpa,                // SVE propagate break after from previous
+ARM_brkpas,               // SVE propagate break after from previous, setting flags
+ARM_brkpb,                // SVE propagate break before from previous
+ARM_brkpbs,               // SVE propagate break before from previous, setting flags
+// SVE Predicate Misc
+ARM_ptest,                // SVE predicate test
+ARM_pfirst,               // SVE predicate first active
+ARM_pfalse,               // SVE predicate false
+ARM_pnext,                // SVE predicate next active
+ARM_rdffr,                // SVE read first-fault register
+ARM_rdffrs,               // SVE read first-fault register, setting flags
+ARM_ptrue,                // SVE predicate initialize
+ARM_ptrues,               // SVE predicate initialize, setting flags
+// SVE Predicate Logical
+ARM_and_pred,             // SVE predicate AND
+ARM_bic_pred,             // SVE predicate BIC
+ARM_eor_pred,             // SVE predicate EOR
+ARM_sel_pred,             // SVE predicate SEL
+ARM_orr_pred,             // SVE predicate ORR
+ARM_orn_pred,             // SVE predicate ORN
+ARM_nor_pred,             // SVE predicate NOR
+ARM_nand_pred,            // SVE predicate NAND
+ARM_ands_pred,            // SVE predicate ANDS
+ARM_bics_pred,            // SVE predicate BICS
+ARM_eors_pred,            // SVE predicate EORS
+ARM_orrs_pred,            // SVE predicate ORRS
+ARM_orns_pred,            // SVE predicate ORNS
+ARM_nors_pred,            // SVE predicate NORS
+ARM_nands_pred,           // SVE predicate NANDS
+// SVE Predicate Count
+ARM_cntp,                 // SVE count active predicate elements
+// SVE Inc/Dec by Predicate Count
+ARM_sqincp,               // SVE saturating inc scalar/vector by predicate count
+ARM_uqincp,               // SVE unsigned saturating inc scalar/vector by predicate count
+ARM_sqdecp,               // SVE saturating dec scalar/vector by predicate count
+ARM_uqdecp,               // SVE unsigned saturating dec scalar/vector by predicate count
+ARM_incp,                 // SVE inc scalar/vector by predicate count
+ARM_decp,                 // SVE dec scalar/vector by predicate count
+// SVE Write FFR
+ARM_wrffr,                // SVE write first-fault register
+ARM_setffr,               // SVE set first-fault register
+// SVE Integer Compare - Scalars
+ARM_while,                // SVE while (condition in insn.cond)
+ARM_while_cnt,            // SVE while predicate-as-counter (condition in insn.cond)
+ARM_cterm,                // SVE conditionally terminate (condition in insn.cond)
+ARM_whilewr,              // SVE while pointer conflict (write after read)
+ARM_whilerw,              // SVE while pointer conflict (read after write)
+// SVE Scalar Integer Compare - Predicate-as-counter
+ARM_pext,                 // SVE predicate extract from predicate-as-counter
+// SVE Integer Multiply-Add - Unpredicated
+ARM_sqdmlalbt,            // SVE2 saturating multiply-add interleaved long (bottom*top)
+ARM_sqdmlslbt,            // SVE2 saturating multiply-subtract interleaved long (bottom*top)
+ARM_cdot,                 // SVE2 complex integer dot product
+ARM_cmla,                 // SVE2 complex integer multiply-add
+ARM_sqrdcmlah,            // SVE2 saturating rounding doubling complex multiply-add high
+ARM_smlalb,               // SVE2 signed multiply-add long (bottom)
+ARM_smlalt,               // SVE2 signed multiply-add long (top)
+ARM_umlalb,               // SVE2 unsigned multiply-add long (bottom)
+ARM_umlalt,               // SVE2 unsigned multiply-add long (top)
+ARM_smlslb,               // SVE2 signed multiply-subtract long (bottom)
+ARM_smlslt,               // SVE2 signed multiply-subtract long (top)
+ARM_umlslb,               // SVE2 unsigned multiply-subtract long (bottom)
+ARM_umlslt,               // SVE2 unsigned multiply-subtract long (top)
+ARM_sqdmlalb,             // SVE2 saturating multiply-add long (bottom)
+ARM_sqdmlalt,             // SVE2 saturating multiply-add long (top)
+ARM_sqdmlslb,             // SVE2 saturating multiply-subtract long (bottom)
+ARM_sqdmlslt,             // SVE2 saturating multiply-subtract long (top)
+// SVE2 Integer - Predicated (C4.1.66)
+// C4.1.66.3 saturating/rounding shift reversed
+ARM_srshlr,               // Signed Rounding Shift Left Reversed
+ARM_urshlr,               // Unsigned Rounding Shift Left Reversed
+ARM_sqshlr,               // Signed Saturating Shift Left Reversed
+ARM_uqshlr,               // Unsigned Saturating Shift Left Reversed
+ARM_sqrshlr,              // Signed Saturating Rounding Shift Left Reversed
+ARM_uqrshlr,              // Unsigned Saturating Rounding Shift Left Reversed
+// C4.1.66.4 halving subtract reversed
+ARM_shsubr,               // Signed Halving Subtract Reversed
+ARM_uhsubr,               // Unsigned Halving Subtract Reversed
+// C4.1.66.6 saturating subtract reversed
+ARM_sqsubr,               // Signed Saturating Subtract Reversed
+ARM_uqsubr,               // Unsigned Saturating Subtract Reversed
+// C4.1.66.3 saturating/rounding shift (SVE predicated)
+ARM_srshl_sve,            // Signed Rounding Shift Left (SVE)
+ARM_urshl_sve,            // Unsigned Rounding Shift Left (SVE)
+ARM_sqrshl_sve,           // Signed Saturating Rounding Shift Left (SVE)
+ARM_uqrshl_sve,           // Unsigned Saturating Rounding Shift Left (SVE)
+// C4.1.66.4 halving add/subtract (SVE predicated)
+ARM_shadd_sve,            // Signed Halving Add (SVE)
+ARM_uhadd_sve,            // Unsigned Halving Add (SVE)
+ARM_shsub_sve,            // Signed Halving Subtract (SVE)
+ARM_uhsub_sve,            // Unsigned Halving Subtract (SVE)
+ARM_srhadd_sve,           // Signed Rounding Halving Add (SVE)
+ARM_urhadd_sve,           // Unsigned Rounding Halving Add (SVE)
+// C4.1.66.5 pairwise (SVE predicated)
+ARM_addp_sve,             // Add Pairwise (SVE)
+ARM_smaxp_sve,            // Signed Maximum Pairwise (SVE)
+ARM_umaxp_sve,            // Unsigned Maximum Pairwise (SVE)
+ARM_sminp_sve,            // Signed Minimum Pairwise (SVE)
+ARM_uminp_sve,            // Unsigned Minimum Pairwise (SVE)
+// C4.1.66.6 saturating add/subtract (SVE predicated)
+ARM_sqadd_sve,            // Signed Saturating Add (SVE)
+ARM_uqadd_sve,            // Unsigned Saturating Add (SVE)
+ARM_sqsub_sve,            // Signed Saturating Subtract (SVE)
+ARM_uqsub_sve,            // Unsigned Saturating Subtract (SVE)
+ARM_suqadd_sve,           // Signed Saturating Accumulate of Unsigned (SVE)
+ARM_usqadd_sve,           // Unsigned Saturating Accumulate of Signed (SVE)
+// C4.1.67.10/11 SVE2 multiply long (indexed)
+ARM_smullb,               // Signed Multiply Long (bottom)
+ARM_smullt,               // Signed Multiply Long (top)
+ARM_umullb,               // Unsigned Multiply Long (bottom)
+ARM_umullt,               // Unsigned Multiply Long (top)
+ARM_sqdmullb,             // Signed Saturating Doubling Multiply Long (bottom)
+ARM_sqdmullt,             // Signed Saturating Doubling Multiply Long (top)
+// C4.1.68 SVE2 widening integer arithmetic
+ARM_saddlb,               // Signed Add Long (bottom)
+ARM_saddlt,               // Signed Add Long (top)
+ARM_uaddlb,               // Unsigned Add Long (bottom)
+ARM_uaddlt,               // Unsigned Add Long (top)
+ARM_ssublb,               // Signed Subtract Long (bottom)
+ARM_ssublt,               // Signed Subtract Long (top)
+ARM_usublb,               // Unsigned Subtract Long (bottom)
+ARM_usublt,               // Unsigned Subtract Long (top)
+ARM_sabdlb,               // Signed Absolute Difference Long (bottom)
+ARM_sabdlt,               // Signed Absolute Difference Long (top)
+ARM_uabdlb,               // Unsigned Absolute Difference Long (bottom)
+ARM_uabdlt,               // Unsigned Absolute Difference Long (top)
+ARM_saddwb,               // Signed Add Wide (bottom)
+ARM_saddwt,               // Signed Add Wide (top)
+ARM_uaddwb,               // Unsigned Add Wide (bottom)
+ARM_uaddwt,               // Unsigned Add Wide (top)
+ARM_ssubwb,               // Signed Subtract Wide (bottom)
+ARM_ssubwt,               // Signed Subtract Wide (top)
+ARM_usubwb,               // Unsigned Subtract Wide (bottom)
+ARM_usubwt,               // Unsigned Subtract Wide (top)
+ARM_pmullb,               // Polynomial Multiply Long (bottom)
+ARM_pmullt,               // Polynomial Multiply Long (top)
+// C4.1.69 SVE misc
+// C4.1.69.1 SVE2 bitwise shift left long
+ARM_sshllb,               // Signed Shift Left Long (bottom)
+ARM_sshllt,               // Signed Shift Left Long (top)
+ARM_ushllb,               // Unsigned Shift Left Long (bottom)
+ARM_ushllt,               // Unsigned Shift Left Long (top)
+// C4.1.69.2 SVE2 integer add/subtract interleaved long
+ARM_saddlbt,              // Signed Add Long (bottom-top)
+ARM_ssublbt,              // Signed Subtract Long (bottom-top)
+ARM_ssubltb,              // Signed Subtract Long (top-bottom)
+// C4.1.69.3 SVE2 bitwise exclusive-or interleaved
+ARM_eorbt,                // EOR (bottom-top)
+ARM_eortb,                // EOR (top-bottom)
+// C4.1.69.4 SVE integer matrix multiply accumulate
+ARM_smmla_sve,            // Signed Matrix Multiply Accumulate
+// C4.1.69.5 SVE2 bitwise permute
+ARM_bext,                 // Bit Extract
+ARM_bdep,                 // Bit Deposit
+ARM_bgrp,                 // Bit Group
+// C4.1.70 SVE2 accumulate
+// C4.1.70.1 SVE2 complex integer add
+ARM_cadd,                 // Complex Add
+ARM_sqcadd,               // Saturating Complex Add
+// C4.1.70.2 SVE2 integer absolute difference and accumulate long
+ARM_sabalb,               // Signed Absolute Difference Accumulate Long (bottom)
+ARM_sabalt,               // Signed Absolute Difference Accumulate Long (top)
+ARM_uabalb,               // Unsigned Absolute Difference Accumulate Long (bottom)
+ARM_uabalt,               // Unsigned Absolute Difference Accumulate Long (top)
+// C4.1.70.3 SVE2 integer add/subtract long with carry
+ARM_adclb,                // Add with Carry Long (bottom)
+ARM_adclt,                // Add with Carry Long (top)
+ARM_sbclb,                // Subtract with Carry Long (bottom)
+ARM_sbclt,                // Subtract with Carry Long (top)
+// C4.1.71 SVE2 narrowing
+// C4.1.71.1 SVE2 saturating extract narrow
+ARM_sqxtnb,               // Signed Saturating Extract Narrow (bottom)
+ARM_sqxtnt,               // Signed Saturating Extract Narrow (top)
+ARM_uqxtnb,               // Unsigned Saturating Extract Narrow (bottom)
+ARM_uqxtnt,               // Unsigned Saturating Extract Narrow (top)
+ARM_sqxtunb,              // Signed Saturating Unsigned Extract Narrow (bottom)
+ARM_sqxtunt,              // Signed Saturating Unsigned Extract Narrow (top)
+// C4.1.71.3 SVE2 bitwise shift right narrow
+ARM_sqshrunb,             // Signed Saturating Shift Right Unsigned Narrow (bottom)
+ARM_sqshrunt,             // Signed Saturating Shift Right Unsigned Narrow (top)
+ARM_sqrshrunb,            // Signed Saturating Rounding Shift Right Unsigned Narrow (bottom)
+ARM_sqrshrunt,            // Signed Saturating Rounding Shift Right Unsigned Narrow (top)
+ARM_shrnb,                // Shift Right Narrow (bottom)
+ARM_shrnt,                // Shift Right Narrow (top)
+ARM_rshrnb,               // Rounding Shift Right Narrow (bottom)
+ARM_rshrnt,               // Rounding Shift Right Narrow (top)
+ARM_sqshrnb,              // Signed Saturating Shift Right Narrow (bottom)
+ARM_sqshrnt,              // Signed Saturating Shift Right Narrow (top)
+ARM_sqrshrnb,             // Signed Saturating Rounding Shift Right Narrow (bottom)
+ARM_sqrshrnt,             // Signed Saturating Rounding Shift Right Narrow (top)
+ARM_uqshrnb,              // Unsigned Saturating Shift Right Narrow (bottom)
+ARM_uqshrnt,              // Unsigned Saturating Shift Right Narrow (top)
+ARM_uqrshrnb,             // Unsigned Saturating Rounding Shift Right Narrow (bottom)
+ARM_uqrshrnt,             // Unsigned Saturating Rounding Shift Right Narrow (top)
+// C4.1.71.5 SVE2 integer add/subtract narrow high part
+ARM_addhnb,               // Add Narrow High Part (bottom)
+ARM_addhnt,               // Add Narrow High Part (top)
+ARM_raddhnb,              // Rounding Add Narrow High Part (bottom)
+ARM_raddhnt,              // Rounding Add Narrow High Part (top)
+ARM_subhnb,               // Subtract Narrow High Part (bottom)
+ARM_subhnt,               // Subtract Narrow High Part (top)
+ARM_rsubhnb,              // Rounding Subtract Narrow High Part (bottom)
+ARM_rsubhnt,              // Rounding Subtract Narrow High Part (top)
+ARM_histseg,              // Histogram Segment
+ARM_histcnt,              // Histogram Count
+ARM_fmlalb,               // FP Multiply-Add Long (bottom)
+ARM_fmlalt,               // FP Multiply-Add Long (top)
+ARM_fmlslb,               // FP Multiply-Subtract Long (bottom)
+ARM_fmlslt,               // FP Multiply-Subtract Long (top)
+ARM_fcmeq_sve,            // SVE FP Compare Equal
+ARM_fcmge_sve,            // SVE FP Compare Greater Than or Equal
+ARM_fcmgt_sve,            // SVE FP Compare Greater Than
+ARM_fcmle_sve,            // SVE FP Compare Less Than or Equal
+ARM_fcmlt_sve,            // SVE FP Compare Less Than
+ARM_fcmne,                // SVE FP Compare Not Equal
+ARM_fcmuo,                // SVE FP Compare Unordered
+ARM_facge_sve,            // SVE FP Absolute Compare Greater Than or Equal
+ARM_facgt_sve,            // SVE FP Absolute Compare Greater Than
+ARM_fadda,                // SVE FP Serial Reduction (add)
+ARM_fadd_pred,            // SVE FP Add (predicated)
+ARM_fsub_pred,            // SVE FP Subtract (predicated)
+ARM_fmul_pred,            // SVE FP Multiply (predicated)
+ARM_fsubr,                // SVE FP Subtract Reversed
+ARM_fmaxnm_pred,          // SVE FP Max Num (predicated)
+ARM_fminnm_pred,          // SVE FP Min Num (predicated)
+ARM_fmax_pred,            // SVE FP Max (predicated)
+ARM_fmin_pred,            // SVE FP Min (predicated)
+ARM_fabd_pred,            // SVE FP Absolute Difference (predicated)
+ARM_fscale,               // SVE FP Scale
+ARM_fmulx_pred,           // SVE FP Multiply Extended (predicated)
+ARM_fdivr,                // SVE FP Divide Reversed
+ARM_fdiv_pred,            // SVE FP Divide (predicated)
+ARM_ftmad,                // SVE FP Trigonometric Multiply-Add Coefficient
+// C4.1.81
+ARM_fcvtx,                // SVE2 FP Convert Precision, Narrow (Round to Odd)
+ARM_flogb,                // SVE2 FP Base 2 Logarithm
+// C4.1.82
+ARM_fmla_sve,             // SVE FP Fused Multiply-Add writing addend
+ARM_fmls_sve,             // SVE FP Fused Multiply-Subtract writing addend
+ARM_fnmla,                // SVE FP Negated Fused Multiply-Add
+ARM_fnmls,                // SVE FP Negated Fused Multiply-Subtract
+ARM_fmad,                 // SVE FP Fused Multiply-Add writing multiplicand
+ARM_fmsb,                 // SVE FP Fused Multiply-Subtract writing multiplicand
+ARM_fnmad,                // SVE FP Negated Fused Multiply-Add writing multiplicand
+ARM_fnmsb,                // SVE FP Negated Fused Multiply-Subtract writing multiplicand
+// C4.1.83
+ARM_prfb,                 // SVE Prefetch Bytes
+ARM_prfh,                 // SVE Prefetch Halfwords
+ARM_prfw,                 // SVE Prefetch Words
+ARM_prfd,                 // SVE Prefetch Doublewords
+ARM_ld1rb,                // SVE Load and Broadcast Byte
+ARM_ld1rh,                // SVE Load and Broadcast Halfword
+ARM_ld1rw,                // SVE Load and Broadcast Word
+ARM_ld1rd,                // SVE Load and Broadcast Doubleword
+ARM_ld1rsb,               // SVE Load and Broadcast Signed Byte
+ARM_ld1rsh,               // SVE Load and Broadcast Signed Halfword
+ARM_ld1rsw,               // SVE Load and Broadcast Signed Word
+ARM_ld1b,                 // SVE Load Bytes
+ARM_ld1h,                 // SVE Load Halfwords
+ARM_ld1w,                 // SVE Load Words
+ARM_ld1sb,                // SVE Load Signed Bytes
+ARM_ld1sh,                // SVE Load Signed Halfwords
+ARM_ldff1b,               // SVE First-faulting Load Bytes
+ARM_ldff1h,               // SVE First-faulting Load Halfwords
+ARM_ldff1w,               // SVE First-faulting Load Words
+ARM_ldff1sb,              // SVE First-faulting Load Signed Bytes
+ARM_ldff1sh,              // SVE First-faulting Load Signed Halfwords
+ARM_ldnt1b,               // SVE Non-temporal Gather Load Bytes
+ARM_ldnt1h,               // SVE Non-temporal Gather Load Halfwords
+ARM_ldnt1w,               // SVE Non-temporal Gather Load Words
+ARM_ldnt1sb,              // SVE Non-temporal Gather Load Signed Bytes
+ARM_ldnt1sh,              // SVE Non-temporal Gather Load Signed Halfwords
+ARM_ldnt1sw,              // SVE Non-temporal Gather Load Signed Words
+ARM_ld1d,                 // SVE Load Doublewords
+ARM_ld1sw,                // SVE Load Signed Words
+ARM_ldff1d,               // SVE First-faulting Load Doublewords
+ARM_ldff1sw,              // SVE First-faulting Load Signed Words
+ARM_ldnt1d,               // SVE Non-temporal Load Doublewords
+ARM_ldnf1b,               // SVE Non-fault Load Bytes
+ARM_ldnf1h,               // SVE Non-fault Load Halfwords
+ARM_ldnf1w,               // SVE Non-fault Load Words
+ARM_ldnf1d,               // SVE Non-fault Load Doublewords
+ARM_ldnf1sb,              // SVE Non-fault Load Signed Bytes
+ARM_ldnf1sh,              // SVE Non-fault Load Signed Halfwords
+ARM_ldnf1sw,              // SVE Non-fault Load Signed Words
+ARM_ld1rqb,               // SVE Load and Broadcast Quadword Bytes
+ARM_ld1rqh,               // SVE Load and Broadcast Quadword Halfwords
+ARM_ld1rqw,               // SVE Load and Broadcast Quadword Words
+ARM_ld1rqd,               // SVE Load and Broadcast Quadword Doublewords
+ARM_ld2b,                 // SVE Load 2-element Bytes
+ARM_ld2h,                 // SVE Load 2-element Halfwords
+ARM_ld2w,                 // SVE Load 2-element Words
+ARM_ld2d,                 // SVE Load 2-element Doublewords
+ARM_ld3b,                 // SVE Load 3-element Bytes
+ARM_ld3h,                 // SVE Load 3-element Halfwords
+ARM_ld3w,                 // SVE Load 3-element Words
+ARM_ld3d,                 // SVE Load 3-element Doublewords
+ARM_ld4b,                 // SVE Load 4-element Bytes
+ARM_ld4h,                 // SVE Load 4-element Halfwords
+ARM_ld4w,                 // SVE Load 4-element Words
+ARM_ld4d,                 // SVE Load 4-element Doublewords
+ARM_stnt1b,               // SVE Non-temporal Scatter Store Bytes
+ARM_stnt1h,               // SVE Non-temporal Scatter Store Halfwords
+ARM_stnt1w,               // SVE Non-temporal Scatter Store Words
+ARM_stnt1d,               // SVE Non-temporal Scatter Store Doublewords
+ARM_st1b,                 // SVE Store Bytes
+ARM_st1h,                 // SVE Store Halfwords
+ARM_st1w,                 // SVE Store Words
+ARM_st1d,                 // SVE Store Doublewords
+ARM_st2b,                 // SVE Store 2-element Bytes
+ARM_st2h,                 // SVE Store 2-element Halfwords
+ARM_st2w,                 // SVE Store 2-element Words
+ARM_st2d,                 // SVE Store 2-element Doublewords
+ARM_st3b,                 // SVE Store 3-element Bytes
+ARM_st3h,                 // SVE Store 3-element Halfwords
+ARM_st3w,                 // SVE Store 3-element Words
+ARM_st3d,                 // SVE Store 3-element Doublewords
+ARM_st4b,                 // SVE Store 4-element Bytes
+ARM_st4h,                 // SVE Store 4-element Halfwords
+ARM_st4w,                 // SVE Store 4-element Words
+ARM_st4d,                 // SVE Store 4-element Doublewords
+// C4.1.91.18
+ARM_match,                // SVE2 Character Match
+ARM_nmatch,               // SVE2 Character No-Match
+// C4.1.91.20
+ARM_fcvtlt,               // SVE2 FP Convert Precision, Widen (Top)
+ARM_fcvtnt,               // SVE2 FP Convert Precision, Narrow (Top)
+ARM_fcvtxnt,              // SVE2 FP Convert Precision, Narrow to Odd (Top)
+ARM_bfcvtnt,              // SVE2 BFloat16 Convert, Narrow (Top)
+// C4.1.91.21
+ARM_faddp_pred,           // SVE2 FP Add Pairwise (predicated)
+ARM_fmaxnmp_pred,         // SVE2 FP Max Number Pairwise (predicated)
+ARM_fminnmp_pred,         // SVE2 FP Min Number Pairwise (predicated)
+ARM_fmaxp_pred,           // SVE2 FP Maximum Pairwise (predicated)
+ARM_fminp_pred,           // SVE2 FP Minimum Pairwise (predicated)
+// C4.1.91.24
+ARM_fcmla_i,              // SVE FP Complex Multiply-Add (indexed)
+ARM_fcadd_pred,           // SVE FP Complex Add (predicated)
+ARM_fcmla_v,              // SVE FP Complex Multiply-Add (vectors)
+// C4.1.91.25
+ARM_fclamp,               // SVE2 FP Clamp
+// C4.1.91.28
+ARM_fmmla,                // SVE FP Matrix Multiply-Accumulate
+// C4.1.91.29
+ARM_faddv,                // SVE FP Recursive Reduction (add)
+// C4.1.91.30
+ARM_ftsmul,               // SVE FP Trigonometric Select Multiply
+// C4.1.3 SME FP Outer Product - 32 bit
+ARM_fmopa,                // SME FP Outer Product and Accumulate
+ARM_fmops,                // SME FP Outer Product and Subtract
+ARM_bfmopa,               // SME BF16 Outer Product and Accumulate
+ARM_bfmops,               // SME BF16 Outer Product and Subtract
+// C4.1.4 SME2 Outer Product - Misc
+ARM_bmopa,                // SME2 Binary Outer Product and Accumulate
+ARM_bmops,                // SME2 Binary Outer Product and Subtract
+// C4.1.7 SME Integer Outer Product - 32 bit
+ARM_smopa,                // SME Signed Outer Product and Accumulate
+ARM_smops,                // SME Signed Outer Product and Subtract
+ARM_umopa,                // SME Unsigned Outer Product and Accumulate
+ARM_umops,                // SME Unsigned Outer Product and Subtract
+ARM_sumopa,               // SME Signed-Unsigned Outer Product and Accumulate
+ARM_sumops,               // SME Signed-Unsigned Outer Product and Subtract
+ARM_usmopa,               // SME Unsigned-Signed Outer Product and Accumulate
+ARM_usmops,               // SME Unsigned-Signed Outer Product and Subtract
+// C4.1.9 SME zero array
+ARM_zero,                 // SME Zero ZA tiles
+// C4.1.13 SME2 Expand Lookup Table (Contiguous)
+ARM_luti2,                // SME2 Lookup Table 2-bit index
+ARM_luti4,                // SME2 Lookup Table 4-bit index
+// C4.1.14 SME Move into Array
+ARM_mova,                 // SME Move vector to tile (single)
+ARM_mova_multi,           // SME2 Move vectors to tile (multi)
+// C4.1.16 SME Add Vector to Array
+ARM_addha,                // SME Add Horizontal vector to Array
+ARM_addva,                // SME Add Vertical vector to Array
+// C4.1.17 SME2 Multi-vec - Multiple and Single Array Vectors (Two regs)
+ARM_fmlal_sme,            // SME2 FP Multiply-Add Long
+ARM_fmlsl_sme,            // SME2 FP Multiply-Subtract Long
+ARM_bfmlal,               // SME2 BF16 Multiply-Add Long
+ARM_bfmlsl,               // SME2 BF16 Multiply-Subtract Long
+ARM_smlal_sme,            // SME2 Signed Multiply-Add Long
+ARM_umlal_sme,            // SME2 Unsigned Multiply-Add Long
+// ARM_smlsl, ARM_umlsl reused from NEON (same CF flags)
+ARM_smlall,               // SME2 Signed Multiply-Add Long Long
+ARM_smlsll,               // SME2 Signed Multiply-Subtract Long Long
+ARM_umlall,               // SME2 Unsigned Multiply-Add Long Long
+ARM_umlsll,               // SME2 Unsigned Multiply-Subtract Long Long
+ARM_usmlall,              // SME2 Unsigned-Signed Multiply-Add Long Long
+ARM_sumlall,              // SME2 Signed-Unsigned Multiply-Add Long Long
+ARM_fdot,                 // SME2 FP Dot Product
+ARM_bfdot_sme,            // SME2 BF16 Dot Product
+// ARM_sdot, ARM_udot, ARM_usdot, ARM_sudot reused from NEON (same CF flags)
+// C4.1.19.5-6 SME2 array accumulators
+ARM_fadd_sme,             // SME2 FP Add to array accumulator
+ARM_fsub_sme,             // SME2 FP Subtract from array accumulator
+ARM_add_sme,              // SME2 Add to array accumulator
+ARM_sub_sme,              // SME2 Subtract from array accumulator
+// C4.1.22.3/23.3 SME2 vertical dot products
+ARM_fvdot,                // SME2 FP Vertical Dot Product
+ARM_svdot,                // SME2 Signed Vertical Dot Product
+ARM_uvdot,                // SME2 Unsigned Vertical Dot Product
+// C4.1.24-25 SME2 SVE Destructive (multi-vec)
+ARM_smax_destr,           // SME2 Signed Maximum (destructive)
+ARM_umax_destr,           // SME2 Unsigned Maximum (destructive)
+ARM_smin_destr,           // SME2 Signed Minimum (destructive)
+ARM_umin_destr,           // SME2 Unsigned Minimum (destructive)
+ARM_fmax_destr,           // SME2 FP Maximum (destructive)
+ARM_fmin_destr,           // SME2 FP Minimum (destructive)
+ARM_fmaxnm_destr,        // SME2 FP Maximum Number (destructive)
+ARM_fminnm_destr,        // SME2 FP Minimum Number (destructive)
+ARM_srshl_destr,          // SME2 Signed Rounding Shift Left (destructive)
+ARM_urshl_destr,          // SME2 Unsigned Rounding Shift Left (destructive)
+ARM_add_destr,            // SME2 Add (destructive)
+ARM_sqdmulh_destr,        // SME2 Signed Saturating Doubling Multiply High (destructive)
+ARM_zip_sme,              // SME2 Multi-vec ZIP (two regs)
+ARM_uzp_sme,              // SME2 Multi-vec UZP (two regs)
+ARM_sclamp,               // SME2 Signed Clamp
+ARM_uclamp,               // SME2 Unsigned Clamp
+ARM_sqrshr_sme,           // SME2 Signed Saturating Rounding Shift Right Narrow
+ARM_uqrshr_sme,           // SME2 Unsigned Saturating Rounding Shift Right Narrow
+ARM_sqrshru_sme,          // SME2 Signed Saturating Rounding Shift Right Unsigned Narrow
+ARM_fcvtzs_sme,           // SME2 FP Convert to Signed Integer (Round to Zero)
+ARM_fcvtzu_sme,           // SME2 FP Convert to Unsigned Integer (Round to Zero)
+ARM_scvtf_sme,            // SME2 Signed Integer Convert to FP
+ARM_ucvtf_sme,            // SME2 Unsigned Integer Convert to FP
+ARM_fcvt_sme,             // SME2 FP Convert Precision Narrow
+ARM_fcvtn_sme,            // SME2 FP Convert Precision Narrow (interleaved)
+ARM_sqcvt,                // SME2 Signed Saturating Convert
+ARM_uqcvt,                // SME2 Unsigned Saturating Convert
+ARM_sqcvtu,               // SME2 Signed Saturating Convert Unsigned
+ARM_sqcvtn,               // SME2 Signed Saturating Convert Narrow
+ARM_uqcvtn,               // SME2 Unsigned Saturating Convert Narrow
+ARM_sqcvtun,              // SME2 Signed Saturating Convert Unsigned Narrow
+ARM_sunpk,                // SME2 Signed Unpack
+ARM_uunpk,                // SME2 Unsigned Unpack
+ARM_frintn_sme,           // SME2 FP Round to Integral (Nearest, Ties to Even)
+ARM_frintp_sme,           // SME2 FP Round to Integral (towards +Infinity)
+ARM_frintm_sme,           // SME2 FP Round to Integral (towards -Infinity)
+ARM_frinta_sme,           // SME2 FP Round to Integral (Nearest, Ties to Away)
+ARM_zip_sme4,             // SME2 Multi-vec ZIP (four regs)
+ARM_uzp_sme4,             // SME2 Multi-vec UZP (four regs)
+ARM_ld1q,                 // SME Load Quadword tile slice
+ARM_st1q,                 // SME Store Quadword tile slice
+ARM_psel,                 // SME/SVE2p1 Predicate Select
+// SVE integer reduction
+ARM_saddv,              // Signed Integer Add Reduction
+ARM_uaddv,              // Unsigned Integer Add Reduction
+ARM_addqv,              // Integer Add Reduction (quadwords)
+ARM_smaxqv,             // Signed Integer Max Reduction (quadwords)
+ARM_umaxqv,             // Unsigned Integer Max Reduction (quadwords)
+ARM_sminqv,             // Signed Integer Min Reduction (quadwords)
+ARM_uminqv,             // Unsigned Integer Min Reduction (quadwords)
+ARM_orv,                // Bitwise OR Reduction
+ARM_eorv,               // Bitwise EOR Reduction
+ARM_andv,               // Bitwise AND Reduction
+ARM_orqv,               // Bitwise OR Reduction (quadwords)
+ARM_eorqv,              // Bitwise EOR Reduction (quadwords)
+ARM_andqv,              // Bitwise AND Reduction (quadwords)
+ARM_movprfx,            // Move Prefix
 ARM_last
 };
-
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
@@ -5453,13 +5693,9 @@ ARM_last
  *      TMS320C6xx - VLIW (very long instruction word) architecture
  *
  */
-
-
-
 enum
 {
 // Original TMS320C62x instructions
-
 TMS6_null = 0,  // Unknown Operation
 TMS6_abs,       // Absolute value
 TMS6_add,       // Integer addition without saturation (signed)
@@ -5538,9 +5774,7 @@ TMS6_subc,      // Conditional subtract & shift (for division)
 TMS6_sub2,      // Two 16bit integer subtractions on register halves
 TMS6_xor,       // Exclusive OR
 TMS6_zero,      // Zero a register
-
 // New TMS320C674x instructions
-
 TMS6_abs2,      // Absolute Value With Saturation, Signed, Packed 16-bit
 TMS6_absdp,     // Absolute Value, Double-Precision Floating-Point
 TMS6_abssp,     // Absolute Value, Single-Precision Floating-Point
@@ -5693,9 +5927,7 @@ TMS6_unpklu4,   // Unpack 16 LSB Into Two Lower 8-Bit Halfwords of Upper and Low
 TMS6_xormpy,    // Galois Field Multiply With Zero Polynomial
 TMS6_xpnd2,     // Expand Bits to Packed 16-Bit Masks
 TMS6_xpnd4,     // Expand Bits to Packed 8-Bit Masks
-
 // New TMS320C66x Instructions
-
 TMS6_cmatmpy,    // Complex Matrix Multiply, Signed Complex 16-bit (16-bit real/16-bit Imaginary)
 TMS6_ccmatmpyr1, // Complex Conjugate Matrix Multiply With Rounding, Signed Complex 16-bit (16-bit Real/16-bit Imaginary)
 TMS6_ccmpy32r1,  // Complex Multiply With Rounding and Conjugate, Signed Complex 16-bit (16-bit Real/16-bit Imaginary)
@@ -5776,78 +6008,54 @@ TMS6_shl2,       // 2-Way SIMD Shift Left, Packed Signed 16-bit
 TMS6_unpkbu4,    // Unpack All Unsigned Packed 8-bit to Unsigned Packed 16-bit
 TMS6_unpkh2,     // Unpack High Signed Packed 16-bit to Packed 32-bit
 TMS6_unpkhu2,    // Unpack High Unsigned Packed 16-bit to Packed 32-bit
-
 TMS6_fphead,     // Special fake instruction to show the fetch packet header
 TMS6_last,
-
     };
-
 /*
  *  Interactive disassembler (IDA).
  *  Intel 80196 module
  *
  */
-
-
-
 enum
 {
   I196_null = 0,    // Unknown Operation
-
   I196_add2,        // Add words (2 operands)
   I196_add3,        // Add words (3 operands)
   I196_addb2,       // Add bytes (2 operands)
   I196_addb3,       // Add bytes (3 operands)
-
   I196_addc,        // Add words with carry
   I196_addcb,       // Add bytes with carry
-
   I196_and2,        // Logical AND words (2 operands)
   I196_and3,        // Logical AND words (3 operands)
   I196_andb2,       // Logical AND bytes (2 operands)
   I196_andb3,       // Logical AND bytes (3 operands)
-
   I196_bmov,        // Block move
   I196_bmovi,       // Interruptable block move
-
   I196_br,          // Branch indirect
-
   I196_clr,         // Clear word
   I196_clrb,        // Clear byte
   I196_clrc,        // Clear carry flag
   I196_clrvt,       // Clear overflow-trap flag
-
   I196_cmp,         // Compare words
   I196_cmpb,        // Compare bytes
   I196_cmpl,        // Compare long
-
   I196_dec,         // Decrement word
   I196_decb,        // Decrement byte
-
   I196_di,          // Disable interrupts
-
   I196_div,         // Divide integers
   I196_divb,        // Divide short-integers
   I196_divu,        // Divide words, unsigned
   I196_divub,       // Divide bytes, unsigned
-
   I196_djnz,        // Decrement and jump if not zero
   I196_djnzw,       // Decrement and jump if not zero word
-
   I196_dpts,        // Disable peripheral transaction server
-
   I196_ei,          // Enable interrupts
-
   I196_epts,        // Enable peripheral transaction server
-
   I196_ext,         // Sign-extend integer into long-integer
   I196_extb,        // Sign-extend short-integer into integer
-
   I196_idlpd,       // Idle/powerdown
-
   I196_inc,         // Increment word
   I196_incb,        // Increment byte
-
   I196_jbc,         // Jump if bit is clear
   I196_jbs,         // Jump if bit is set
   I196_jc,          // Jump if carry flag is set
@@ -5866,16 +6074,12 @@ enum
   I196_jst,         // Jump if sticky bit flag is set
   I196_jv,          // Jump if overflow flag is set
   I196_jvt,         // Jump if overflow-trap flag is set
-
   I196_lcall,       // Long call
-
   I196_ld,          // Load word
   I196_ldb,         // Load byte
   I196_ldbse,       // Load byte sign-extended
   I196_ldbze,       // Load byte zero-extended
-
   I196_ljmp,        // Long jump
-
   I196_mul2,        // Multiply integers (2 operands)
   I196_mul3,        // Multiply integers (3 operands)
   I196_mulb2,       // Multiply short-integers (2 operands)
@@ -5884,35 +6088,24 @@ enum
   I196_mulu3,       // Multiply words, unsigned (3 operands)
   I196_mulub2,      // Multiply bytes, unsigned (2 operands)
   I196_mulub3,      // Multiply bytes, unsigned (3 operands)
-
   I196_neg,         // Negate integer
   I196_negb,        // Negate short-integer
-
   I196_nop,         // No operation
-
   I196_norml,       // Normalize long-integer
-
   I196_not,         // Complement word
   I196_notb,        // Complement byte
-
   I196_or,          // Logical OR words
   I196_orb,         // Logical OR bytes
-
   I196_pop,         // Pop word
   I196_popa,        // Pop all
   I196_popf,        // Pop flags
   I196_push,        // Push word
   I196_pusha,       // Push all
   I196_pushf,       // Push flags
-
   I196_ret,         // Return from subroutine
-
   I196_rst,         // Reset system
-
   I196_scall,       // Short call
-
   I196_setc,        // Set carry flag
-
   I196_shl,         // Shift word left
   I196_shlb,        // Shift byte left
   I196_shll,        // Shift double-word left
@@ -5922,34 +6115,23 @@ enum
   I196_shral,       // Arithmetic right shift double-word
   I196_shrb,        // Logical right shift byte
   I196_shrl,        // Logical right shift double-word
-
   I196_sjmp,        // Short jump
-
   I196_skip,        // Two byte no-operation
-
   I196_st,          // Store word
   I196_stb,         // Store byte
-
   I196_sub2,        // Subtract words (2 operands)
   I196_sub3,        // Subtract words (3 operands)
   I196_subb2,       // Subtract bytes (2 operands)
   I196_subb3,       // subtract bytes (3 operands)
-
   I196_subc,        // Subtract words with borrow
   I196_subcb,       // Subtract bytes with borrow
-
   I196_tijmp,       // Table indirect jump
-
   I196_trap,        // Software trap
-
   I196_xch,         // Exchange word
   I196_xchb,        // Exchange byte
-
   I196_xor,         // Logical exclusive-or words
   I196_xorb,        // Logical exclusive-or bytes
-
 // 8x196NU, NP instructions
-
   I196_ebmovi,      // Extended interruptable block move
   I196_ebr,         // Extended branch indirect
   I196_ecall,       // Extended call
@@ -5958,9 +6140,7 @@ enum
   I196_eldb,        // Extended load byte
   I196_est,         // Extended store word
   I196_estb,        // Extended store byte
-
 // 8x6x specific instructions
-
   I196_reti,
   I196_retei,
   I196_rombank,
@@ -5968,10 +6148,8 @@ enum
   I196_bank1,
   I196_bank2,
   I196_bank3,
-
   I196_last
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
@@ -5980,14 +6158,9 @@ enum
  *      Renesas SuperH - RISC with 16bit instructions
  *
  */
-
-
-
-
 enum
 {
 SH3_null = 0,     // Unknown Operation
-
 SH3_add,          // Add binary
 SH3_addc,         // Add with Carry
 SH3_addv,         // Add with V Flag Overflow Check
@@ -6093,7 +6266,6 @@ SH3_tst_b,        // Test Byte Logical
 SH3_xor,          // Exclusive OR Logical
 SH3_xor_b,        // Exclusive OR Byte Logical
 SH3_xtrct,        // Extract
-
 SH4_fabs,         // Floating-point absolute value
 SH4_fadd,         // Floating-point add
 SH4_fcmp_eq,      // Floating-point compare eqaul
@@ -6125,9 +6297,7 @@ SH4_ocbi,         // Operand Cache Block Invalidate
 SH4_ocbp,         // Operand Cache Block Purge
 SH4_ocbwb,        // Operand Cache Block Write Back
 SH4_fsca,         // Floating point sine and cosine approximate
-
 // SH-2a new instructions
-
 SH2a_band_b,      // Bit And Byte Data
 SH2a_bandnot_b,   // Bit And Not Byte Data
 SH2a_bclr,        // Bit Clear
@@ -6163,9 +6333,7 @@ SH2a_resbank,     // Restore From Register Bank
 SH2a_rts_n,       // Return from Subroutine with No delay slot
 SH2a_rtv_n,       // Return to Value and from Subroutine with No delay slot
 SH2a_stbank,      // Store Register Bank
-
 // SH-4a new instructions
-
 SH4a_movco_l,     // Move Conditional
 SH4a_movli_l,     // Move Linked
 SH4a_movua_l,     // Move Unaligned
@@ -6174,23 +6342,16 @@ SH4a_prefi,       // Prefetch Instruction Cache Block
 SH4a_synco,       // Synchronize Data Operation
 SH4a_fsrra,       // Floating Point Square Reciprocal Approximate
 SH4a_fpchg,       // PR-bit Change
-
 SH4_last,
-
     };
-
 /*
  *  Interactive disassembler (IDA).
  *  Zilog Z8 module
  *
  */
-
-
-
 enum
 {
   Z8_null = 0,    // Unknown Operation
-
   Z8_adc,         // Add with carry
   Z8_add,         // Add
   Z8_and,         // Logical AND
@@ -6240,10 +6401,8 @@ enum
   Z8_xor,         // Logical EXCLUSIVE OR
   Z8_wdh,         // Enable WATCH-DOG in HALT mode
   Z8_wdt,         // Clear WATCH-DOG timer
-
   Z8_last
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
@@ -6252,14 +6411,9 @@ enum
  *      Atmel AVR - 8-bit RISC processor
  *
  */
-
-
-
 enum
 {
-
 AVR_null = 0,     // Unknown Operation
-
 // ARITHMETIC AND LOGIC INSTRUCTIONS
 AVR_add,          // Add without Carry
 AVR_adc,          // Add with Carry
@@ -6287,7 +6441,6 @@ AVR_cp,           // Compare
 AVR_cpc,          // Compare with Carry
 AVR_cpi,          // Compare with Immediate
 AVR_mul,          // Multiply
-
 // BRANCH INSTRUCTIONS
 AVR_rjmp,         // Relative Jump
 AVR_ijmp,         // Indirect Jump to (Z)
@@ -6322,7 +6475,6 @@ AVR_brvs,         // Branch if Overflow Flag is Set
 AVR_brvc,         // Branch if Overflow Flag is Cleared
 AVR_brie,         // Branch if Interrupt Enabled
 AVR_brid,         // Branch if Interrupt Disabled
-
 // DATA TRANSFER INSTRUCTIONS
 AVR_mov,          // Copy Register
 AVR_ldi,          // Load Immediate
@@ -6337,7 +6489,6 @@ AVR_in,           // In Port
 AVR_out,          // Out Port
 AVR_push,         // Push Register on Stack
 AVR_pop,          // Pop Register from Stack
-
 // BIT AND BIT-TEST INSTRUCTIONS
 AVR_lsl,          // Logical Shift Left
 AVR_lsr,          // Logical Shift Right
@@ -6370,9 +6521,7 @@ AVR_clh,          // Clear Half Carry Flag in SREG
 AVR_nop,          // No Operation
 AVR_sleep,        // Sleep
 AVR_wdr,          // Watchdog Reset
-
 // New MegaAVR instructions
-
 AVR_elpm,         // Extended Load Program Memory
 AVR_espm,         // Extended Store Program Memory
 AVR_fmul,         // Fractional Multiply Unsigned
@@ -6384,35 +6533,24 @@ AVR_mulsu,        // Multiply Signed with Unsigned
 AVR_spm,          // Store Program Memory
 AVR_eicall,       // Extended Indirect Call to Subroutine
 AVR_eijmp,        // Extended Indirect Jump
-
 // New XMega instructions
-
 AVR_des,          // Data Encryption Standard
 AVR_lac,          // Load And Clear
 AVR_las,          // Load And Set
 AVR_lat,          // Load And Toggle
 AVR_xch,          // Exchange
-
 AVR_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
-
 enum
 {
 MIPS_null = 0,    // Unknown Operation
-
 // The core processor instructions
-
 MIPS_add,         // Add
 MIPS_addu,        // Add Unsigned
 MIPS_and,         // AND
@@ -6565,18 +6703,13 @@ MIPS_sh,          // Store Halfword
 MIPS_swc1,        // Store Word from FPU
 MIPS_swc2,        // Store Word from Coprocessor 2
 MIPS_sync,        // Sync
-
 // Coprocessor 0 instructions
-
 MIPS_eret,        // Exception Return
 MIPS_tlbp,        // Probe TLB for Matching Entry
 MIPS_tlbr,        // Read Indexed TLB Entry
 MIPS_tlbwi,       // Write Indexed TLB Entry
 MIPS_tlbwr,       // Write Random TLB Entry
-
-
 // Coprocessor 1 (FPU) instructions
-
 MIPS_fadd,        // Floating-point Add
 MIPS_fsub,        // Floating-point Subtract
 MIPS_fmul,        // Floating-point Multiply
@@ -6613,9 +6746,7 @@ MIPS_fc_lt,       // Floating-point Compare
 MIPS_fc_nge,      // Floating-point Compare
 MIPS_fc_le,       // Floating-point Compare
 MIPS_fc_ngt,      // Floating-point Compare
-
 // Pseudo instructions
-
 MIPS_nop,         // No operation
 MIPS_mov,         // Move register
 MIPS_neg,         // Negate
@@ -6628,9 +6759,7 @@ MIPS_b,           // Branch Always
 MIPS_bal,         // Branch Always and Link
 MIPS_li,          // Load Immediate
 MIPS_la,          // Load Address
-
 // MIPS IV instructions
-
 MIPS_pref,        // Prefetch
 MIPS_ldxc1,       // Load Doubleword Indexed to Floating Point
 MIPS_lwxc1,       // Load Word Indexed to Floating Point
@@ -6655,9 +6784,7 @@ MIPS_nmsub_d,     // Floating-Pont Negative Multiply Subtract
 MIPS_prefx,       // Prefetch Indexed
 MIPS_frecip,      // Reciprocal Approximation
 MIPS_frsqrt,      // Reciprocal Suare Root Approximation
-
 // RSP instructions
-
 MIPS_lbv,         // Load Byte into Vector
 MIPS_lsv,         // Load Short into Vector
 MIPS_llv,         // Load Word into Vector
@@ -6742,9 +6869,7 @@ MIPS_vinsn,       // Vector Insert Nibble (4/4/4/4) Sign-Extended
 MIPS_vextn,       // Vector Insert Nibble (4/4/4/4) Sign-Extended
 MIPS_cfc0,        // Move Control From Coprocessor 0
 MIPS_ctc0,        // Move Control to Coprocessor 0
-
 // R5900 (PSX2 or PlayStation2) processor additional commands
-
 MIPS_mtsa,              // Move To Shift Amount Register
 MIPS_R5900_first = MIPS_mtsa,
 MIPS_mfsa,              // Move From Shift Amount Register
@@ -6865,13 +6990,11 @@ MIPS_maddu_r5900,       // Multiply/Add Unsigned
 MIPS_R5900_last = MIPS_maddu_r5900,
 MIPS_mult3,             // Multiply (3-operand)
 MIPS_multu3,            // Multiply Unsigned (3-operand)
-
 // 16-bit instructions
 // NOTE: in previous version of IDA, all mips16 instructions
 //  had separate numbers, even for the instructions with the
 //  same mnemonics. Now same mnemonics have the same numbers,
 //  regardless of the encoding.
-
 MIPS_bteqz=439,           // Branch on T Equal to Zero
 MIPS_btnez,               // Branch on T Not Equal to Zero
 MIPS_cmp,                 // Compare
@@ -6880,9 +7003,7 @@ MIPS_extend=458,          // Extend
 MIPS_move=473,            // Move
 MIPS_not=477,             // Not
 MIPS_dla=495,             // Load 64-bit address
-
 // Instructions which belong to MIPS32 but which were not decoded by IDA
-
 MIPS_clo=498,           // Count Leading Ones in Word
 MIPS_clz,               // Count Leading Zeros in Word
 MIPS_madd,              // Multiply/Add
@@ -6892,9 +7013,7 @@ MIPS_msubu,             // Multiply and Subtract Word to Hi,Lo
 MIPS_mul,               // Multiply Word to GPR
 MIPS_sdbbp,             // Software Debug Breakpoint
 MIPS_wait,              // Enter Standby Mode
-
 // New instructions for MIPS32 Release 2.0
-
 MIPS_alnv_ps,           // Floating Point Align Variable
 MIPS_deret,             // Debug Exception Return
 MIPS_di,                // Disable interrupts
@@ -6930,14 +7049,10 @@ MIPS_suxc1,             // Store Doubleword Indexed Unaligned from Floating Poin
 MIPS_synci,             // Synchronize Caches to Make Instruction Writes Effective
 MIPS_wrpgpr,            // Write GPR to Previous Shadow Set
 MIPS_wsbh,              // Word Swap Bytes Within Halfwords
-
 // Missing instructions - for some reason they were not supported before
-
 MIPS_dmfc1,             // Doubleword Move From CP1
 MIPS_dmtc1,             // Doubleword Move To CP1
-
 // additional MIPS16e instructions
-
 MIPS_save,              // Save Registers and Set Up Stack Frame
 MIPS_restore,           // Restore Registers and Deallocate Stack Frame
 MIPS_jalrc,             // Jump and Link Register, Compact
@@ -6946,7 +7061,6 @@ MIPS_sew,               // Sign-Extend Word
 MIPS_zeb,               // Zero-Extend Byte
 MIPS_zeh,               // Zero-Extend Halfword
 MIPS_zew,               // Zero-Extend Word
-
 // extra pseudoinstructions
 MIPS_ssnop,             // Superscalar No operation
 MIPS_li_s,              // Load floating-point immediate
@@ -6954,9 +7068,7 @@ MIPS_li_d,              // Load floating-point immediate
 MIPS_dneg,              // Negate
 MIPS_dnegu,             // Negate Unsigned
 MIPS_pause,             // Wait for the LLBit to clear
-
 // Missing instructions from MIPS64 Release 2
-
 MIPS_dclo,              // Count Leading Ones in Doubleword
 MIPS_dclz,              // Count Leading Zeros in Doubleword
 MIPS_dext,              // Doubleword Extract Bit Field
@@ -6972,9 +7084,7 @@ MIPS_drotr32,           // Doubleword Rotate Right Plus 32
 MIPS_drotrv,            // Doubleword Rotate Right Variable
 MIPS_dsbh,              // Doubleword Swap Bytes Within Halfwords
 MIPS_dshd,              // Doubleword Swap Halfwords Within Doublewords
-
 // cnMIPS (Cavium Networks Octeon) instructions
-
 MIPS_baddu,             // Unsigned Byte Add
 MIPS_bbit0,             // Branch on Bit Clear
 MIPS_bbit032,           // Branch on Bit Clear Plus 32
@@ -7010,16 +7120,12 @@ MIPS_usw,               // Unaligned Store Word
 MIPS_v3mulu,            // 192-bit x 64-bit Unsigned Multiply and Add
 MIPS_vmm0,              // 64-bit Unsigned Multiply and Add Move
 MIPS_vmulu_cn,          // 64-bit Unsigned Multiply and Add
-
 // NEC VR5432 and PSP instructions
-
 MIPS_dbreak,            // Debug Break
 MIPS_dret,              // Debug Return
 MIPS_mfdr,              // Move from Debug Register
 MIPS_mtdr,              // Move to Debug Register
-
 // Allegrex (Sony PSP) instructions
-
 PSP_bitrev,            // Bit reverse
 PSP_max,               // Maximum
 PSP_min,               // Minimum
@@ -7027,9 +7133,7 @@ PSP_mfic,              // Move from interrupt controller
 PSP_mtic,              // Move to interrupt controller
 PSP_wsbw,              // Word Swap Bytes Within Word
 PSP_sleep,             // Sleep
-
 // Allegrex VFPU instructions
-
 PSP_lv,                // Load Vector
 PSP_lvl,               // Load Vector Left
 PSP_lvr,               // Load Vector Right
@@ -7143,11 +7247,9 @@ PSP_vuc2i,             // Vector convert unsigned char to integer
 PSP_vus2i,             // Vector convert unsigned short to integer
 PSP_vwbn,              // Wrap BigNum
 PSP_vzero,             // VFPU set vector to zeroes
-
 // PSP Media Engine instructions
 PSP_mfvme,  // move from VME
 PSP_mtvme,  // move to VME
-
 // Toshiba TX19a instructions
 MIPS_ac0iu,            // Add Coprocessor 0 Immediate Unsigned
 MIPS_bs1f,             // Bit Search One Forward
@@ -7164,12 +7266,10 @@ MIPS_dive,             // Divide, with Overflow Exception
 MIPS_diveu,            // Divide unsigned, with Overflow Exception
 MIPS_min,              // Minimum signed
 MIPS_max,              // Maximum signed
-
 MIPS_madd3,            // Multiply/Add (3-operand)
 MIPS_maddu3,           // Multiply/Add Unsigned (3-operand)
 MIPS_msub3,            // Multiply and Subtract Word to Hi,Lo (3-operand)
 MIPS_msubu3,           // Multiply and Subtract Word to Hi,Lo (3-operand)
-
 // MIPS-MT
 MIPS_dvpe,             // Disable Virtual Processor Execution
 MIPS_evpe,             // Enable Virtual Processor Execution
@@ -7205,7 +7305,6 @@ MIPS_mtthc2,           // Move To Thread Context (CP2 register, high-order half)
 MIPS_mttc2,            // Move To Thread Context (CP2 register, low-order half)
 MIPS_cttc2,            // Move To Thread Context (CP2 control register)
 MIPS_mttgpr,           // Move To Thread Context (general-purpose register)
-
 // MIPS-3D
 MIPS_faddr,          // Floating-point Reduction Addition
 MIPS_bc1any2f,       // Branch on Any of Two Floating Point Condition Codes False
@@ -7235,7 +7334,6 @@ MIPS_frecip1,        // Floating-point Reduced Precision Reciprocal (Step 1)
 MIPS_frecip2,        // Floating-point Reduced Precision Reciprocal (Step 2)
 MIPS_frsqrt1,        // Floating-point Reduced Precision Reciprocal Square Root (Step 1)
 MIPS_frsqrt2,        // Floating-point Reduced Precision Reciprocal Square Root (Step 2)
-
 // smartMIPS
 MIPS_lwxs,           // Load Word Indexed, Scaled
 MIPS_maddp,          // Multiply and Add Polynomial Basis Word to Hi,Lo
@@ -7243,7 +7341,6 @@ MIPS_mflhxu,         // Move from Extended Carry, Hi and Lo (Unsigned)
 MIPS_mtlhx,          // Move to Lo, Hi, and Extended Carry
 MIPS_multp,          // Multiply Binary Polynomial Basis Word
 MIPS_pperm,          // Partial Permutation of Word Data into ACX-Hi-Lo Accumulator
-
 // microMIPS
 MIPS_jals,      // Jump and Link, Short Delay Slot
 MIPS_lwp,       // Load Word Pair
@@ -7262,10 +7359,8 @@ MIPS_jraddiusp, // Jump Register, Adjust Stack Pointer
 MIPS_jalrs,     // Jump and Link Register, Short Delay Slot
 MIPS_jalrs_hb,  // Jump and Link Register with Hazard Barrier, Short Delay-Slot
 MIPS_movep,     // Move a Pair of Registers
-
 // had been missed; 64-bit MIPS pseudoinstruction
 MIPS_dli,       // Doubleword Load Immediate
-
 // DSP ASE instructions
 MIPS_insv,             // Insert Bit Field Variable
 MIPS_dinsv,            // Doubleword Insert Variable Bit Field
@@ -7545,7 +7640,6 @@ MIPS_mulq_rs_w,        // Multiply Fractional Words to Same Size Product with Sa
 MIPS_append,           // Left Shift and Append Bits to the LSB
 MIPS_balign,           // Byte Align Contents from Two Registers
 MIPS_prepend,          // Right Shift and Prepend Bits to the MSB
-
 // Cavium Octeon II instructions
 MIPS_laa,      // Load Atomic Add Word
 MIPS_laad,     // Load Atomic Add Doubleword
@@ -7573,7 +7667,6 @@ MIPS_qmacs_02, // Q15 Multiply Accumulate
 MIPS_qmacs_03, // Q15 Multiply Accumulate
 MIPS_zcb,      // Zero Cache Block
 MIPS_zcbt,     // Zero Cache Block
-
 // MSA ASE
 // some of these have the same name as existing mnemonics; to avoid ambiguity
 // we use an msa_ prefix on all of them
@@ -8107,11 +8200,9 @@ MIPS_msa_ffint_u_d,  // Vector Floating-Point Convert from Unsigned Integer
 MIPS_msa_ctcmsa,     // GPR Copy to MSA Control Register
 MIPS_msa_cfcmsa,     // GPR Copy from MSA Control Register
 MIPS_msa_move_v,     // Vector Move
-
 // MIPS R6 (LSA is also part of MSA)
 MIPS_lsa,            // Left Shift Add
 MIPS_dlsa,           // Doubleword Left Shift Add
-
 // MIPS R3 EVA
 MIPS_lbe,            // Load Byte EVA
 MIPS_lbue,           // Load Byte Unsigned EVA
@@ -8129,15 +8220,12 @@ MIPS_lwle,           // Load Word Left EVA
 MIPS_lwre,           // Load Word Right EVA
 MIPS_swle,           // Store Word Left EVA
 MIPS_swre,           // Store Word Right EVA
-
 // new MIPS16e2 instructions
 MIPS_movtz,          // Move Conditional on T Equal to Zero
 MIPS_movtn,          // Move Zero Conditional on T Not Equal to Zero
-
 // interAptiv core custom instructions
 MIPS_copyw,          // Copy Data to Aligned Memory Location
 MIPS_ucopyw,         // Copy Data to Unaligned Memory Location
-
 // MIPSr6 instructions for NanoMIPS
 MIPS_muh,             // Multiply High
 MIPS_mulu,            // Multiply Unsigned
@@ -8211,25 +8299,17 @@ MIPS_byterevw,        // Reverse all bytes
 MIPS_byterevh,        // Reverse bytes in halfs
 MIPS_lwm2,            // Load Word Multiple (w/o reglist)
 MIPS_swm2,            // Store Word Multiple (w/o reglist)
-
 MIPS_last,
-
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
 H8_null = 0,      // Unknown Operation
-
 H8_add,            // Add binary
 H8_adds,           // Add with sign extension
 H8_addx,           // Add with extend carry
@@ -8316,7 +8396,6 @@ H8_tas,            // Test and set
 H8_trapa,          // Trap always
 H8_xor,            // Logical XOR
 H8_xorc,           // Logical XOR with control register
-
 // H8SX
 H8_rtel,           // Returns from an exception, restoring data to multiple general registers
 H8_rtsl,           // Returns from a subroutine, restoring data to multiple general registers
@@ -8344,27 +8423,18 @@ H8_brabc,          // BRAnch if Bit Cleared
 H8_brabs,          // BRAnch if Bit Set
 H8_bsrbc,          // Branch to SubRoutine if Bit Cleared
 H8_bsrbs,          // Branch to SubRoutine if Bit Set
-
 H8_last,
-
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
 PIC_null = 0,      // Unknown Operation
-
 // BYTE-ORIENTED FILE REGISTER OPERATIONS
-
 PIC_addwf,         // Add W and f
 PIC_andwf,         // AND W with f
 PIC_clrf,          // Clear f
@@ -8383,17 +8453,12 @@ PIC_rrf,           // Rotate Right f through Carry
 PIC_subwf,         // Subtract W from f
 PIC_swapf,         // Swap nibbles in f
 PIC_xorwf,         // Exclusive OR W with f
-
 // BIT-ORIENTED FILE REGISTER OPERATIONS
-
 PIC_bcf,           // Bit Clear f
 PIC_bsf,           // Bit Set f
 PIC_btfsc,         // Bit Test f, Skip if Clear
 PIC_btfss,         // Bit Test f, Skip if Set
-
-
 // LITERAL AND CONTROL OPERATIONS
-
 PIC_addlw,         // Add literal and W
 PIC_andlw,         // AND literal with W
 PIC_call,          // Call subroutine
@@ -8407,14 +8472,10 @@ PIC_return,        // Return from Subroutine
 PIC_sleep,         // Go into standby mode
 PIC_sublw,         // Subtract W from literal
 PIC_xorlw,         // Exclusive OR literal with W
-
 // ADDITIONAL INSTRUCTIONS TO MAINTAIN COMPITIBILITY WITH 12C5xx,16C5x
-
 PIC_option,        // Load OPTION register
 PIC_tris,          // Load TRIS Register
-
 // MACROS
-
 PIC_movfw,         // Move Contents of File Reg to W
 PIC_tstf,          // Test Contents of File Register
 PIC_negf,          // Negate File Register Contents
@@ -8440,11 +8501,8 @@ PIC_bz,            // Branch on Zero to Address k
 PIC_addcf,         // Add Carry to File Register
 PIC_adddcf,        // Add Digit to File Register
 PIC_subcf,         // Subtract Carry from File Reg
-
 // ADDITIONAL INSTRUCTIONS FOR 18Cxx
-
 // BYTE-ORIENTED FILE REGISTER OPERATIONS
-
 PIC_addwf3,        // Add W and f
 PIC_addwfc3,       // Add W and Carry to f
 PIC_andwf3,        // AND W with f
@@ -8476,17 +8534,13 @@ PIC_subwfb3,       // Substract W from f with borrow
 PIC_swapf3,        // Swap nibbles in f
 PIC_tstfsz2,       // Test f, Skip if 0
 PIC_xorwf3,        // Exclusive OR W with f
-
 // BIT-ORIENTED FILE REGISTER OPERATIONS
-
 PIC_bcf3,          // Bit Clear f
 PIC_bsf3,          // Bit Set f
 PIC_btfsc3,        // Bit Test f, Skip if Clear
 PIC_btfss3,        // Bit Test f, Skip if Set
 PIC_btg3,          // Bit Toggle f
-
 // CONTROL OPERATIONS
-
 PIC_bc1,           // Branch if Carry
 PIC_bn1,           // Branch if Negative
 PIC_bnc1,          // Branch if not Carry
@@ -8510,9 +8564,7 @@ PIC_retfie1,       // Return from interrupt enable
 // PIC_retlw
 PIC_return1,       // Return from Subroutine
 // PIC_sleep
-
 // LITERAL OPERATIONS
-
 // PIC_addlw
 // PIC_andlw
 // PIC_iorlw
@@ -8523,9 +8575,7 @@ PIC_mullw1,        // Multiply literal with W
 // PIC_retlw
 // PIC_sublw
 // PIC_xorlw
-
 // DATA MEMORY <-> PROGRAM MEMORY OPERATIONS
-
 PIC_tblrd0,        // Table Read
 PIC_tblrd0p,       // Table Read with post-increment
 PIC_tblrd0m,       // Table Read with post-decrement
@@ -8534,9 +8584,7 @@ PIC_tblwt0,        // Table Write
 PIC_tblwt0p,       // Table Write with post-increment
 PIC_tblwt0m,       // Table Write with post-decrement
 PIC_tblwtp0,       // Table Write with pre-increment
-
 // ADDITIONAL INSTRUCTIONS FOR 16F1x and 12F1x
-
 PIC_addwfc,       // Add W and Carry to f
 PIC_movlp,        // Move literal to PCLATH
 PIC_movlb,        // Move literal to BSR
@@ -8551,25 +8599,17 @@ PIC_callw,        // Call Subroutine with W
 PIC_reset,        // Software device Reset
 PIC_moviw,        // Move INDFn to W
 PIC_movwi,        // Move W to INDFn
-
 PIC_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
 PIC16_null = 0,     // Unknown Operation
-
 // Move Instructions
 PIC16_EXCH,         // Exchange Wns and Wnd
 PIC16_MOV,          // Move
@@ -8580,7 +8620,6 @@ PIC16_TBLWTH,       // Table Write High
 PIC16_TBLWTL,       // Table Write Low
 // Only for PIC24E and dsPIC33E
 PIC16_MOVPAG,       // Move to Page Register
-
 // Math Instructions
 PIC16_ADD,          // Add
 PIC16_ADDC,         // Add with carry
@@ -8601,7 +8640,6 @@ PIC16_ZE,           // Zero - Extend Ws
 PIC16_MULW,         // Integer Multiply with 16-bit Result
 // Only for dsPIC
 PIC16_DIVF,         // Fractional Divide
-
 // Logic Instructions
 PIC16_AND,          // AND
 PIC16_CLR,          // Clear f or WREG | Clear Wd
@@ -8610,7 +8648,6 @@ PIC16_IOR,          // Inclusive OR
 PIC16_NEG,          // Negate f | Negate Ws
 PIC16_SETM,         // Set f or WREG | Set Ws
 PIC16_XOR,          // Exclusive OR
-
 // Rotate/Shift Instructions
 PIC16_ASR,          // Arithmetic Shift Right
 PIC16_LSR,          // Logical Shift Right
@@ -8619,7 +8656,6 @@ PIC16_RLNC,         // Rotate Left without Carry
 PIC16_RRC,          // Rotate Right through Carry
 PIC16_RRNC,         // Rotate Right without Carry
 PIC16_SL,           // Shift Left
-
 // Bit Instructions
 PIC16_BCLR,         // Bit Clear f | Bit Clear in Ws
 PIC16_BSET,         // Bit Set f | Bit Set in Ws
@@ -8630,8 +8666,6 @@ PIC16_BTSTS,        // Bit Test/Set f | Bit Test/Set in Ws
 PIC16_FBCL,         // Find First Bit Change from Left
 PIC16_FF1L,         // Find First One from Left
 PIC16_FF1R,         // Find First One from Right
-
-
 // Compare/Skip and Compare/Branch Instructions
 PIC16_BTSC,         // Bit Test, Skip if Clear
 PIC16_BTSS,         // Bit Test, Skip if Set
@@ -8647,7 +8681,6 @@ PIC16_CPBEQ,        // Compare Wb with Wn, branch if =
 PIC16_CPBNE,        // Compare Wb with Wn, Branch if Not Equal (Wb != Wn)
 PIC16_CPBGT,        // Signed Compare Wb with Wn, Branch if Greater Than (Wb > Wn)
 PIC16_CPBLT,        // Signed Compare Wb with Wn, Branch if Less Than (Wb < Wn)
-
 // Program Flow Instructions
 PIC16_BRA,          // Branch unconditionally/conditionally
 PIC16_CALL,         // Call Subroutine | Call Indirect Subroutine
@@ -8659,13 +8692,11 @@ PIC16_RETLW,        // Return with Literal in Wn
 PIC16_RETURN,       // Return
 // Only for dsPIC
 PIC16_DO,           // Initialize Hardware Loop
-
 // Shadow/Stack Instructions
 PIC16_LNK,          // Allocate Stack Frame
 PIC16_POP,          // Pop TOS | Pop Shadow Registers
 PIC16_PUSH,         // Push to TOS | Push Shadow Registers
 PIC16_ULNK,         // De-allocate Stack Frame
-
 // Control Instructions
 PIC16_CLRWDT,       // Clear Watchdog Timer
 PIC16_DISI,         // Disable Interrupts Temporarily
@@ -8673,7 +8704,6 @@ PIC16_NOP,          // No operation
 PIC16_NOPR,         // No operation
 PIC16_PWRSAV,       // Enter Power Saving Mode
 PIC16_RESET,        // Reset
-
 // DSP Instructions [Only for dsPIC30F, dsPIC33F and dsPIC33E]
 PIC16_LAC,          // Load Accumulator
 PIC16_SAC,          // Store Accumulator
@@ -8685,15 +8715,12 @@ PIC16_MAC,          // Multiply and Accumulate
 PIC16_MOVSAC,       // Prefetch Operands and Store Accumulator
 PIC16_MPY,          // Multiply to Accumulator
 PIC16_MSC,          // Multiply and Subtract from Accumulator
-
 // ICD instructions
 PIC16_BREAK,        // ICD Break
 PIC16_URUN,         // ICD Run
 PIC16_SSTEP,        // ICD Single Step
 PIC16_FEX,          // ICD Execute
-
 PIC16_last,
-
     };
 /*
  *      Interactive disassembler (IDA).
@@ -8701,15 +8728,10 @@ PIC16_last,
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 SPARC_null = 0,   // Unknown Operation
-
 // SPARC V9 instructions
-
 SPARC_add,           // Add
 SPARC_addcc,         // Add and modify condition codes
 SPARC_addc,          // Add with carry
@@ -8866,9 +8888,7 @@ SPARC_xnor,          // Exclusive-nor
 SPARC_xnorcc,        // Exclusive-nor (and modify condition codes)
 SPARC_xor,           // Exclusive-or
 SPARC_xorcc,         // Exclusive-or (and modify condition codes)
-
 // Synthetic instructions
-
 SPARC_cmp,           // Compare
 SPARC_jmp,           // Jump
 SPARC_iprefetch,     // Instruction prefetch
@@ -8899,9 +8919,7 @@ SPARC_clrh,          // Clear halfword
 SPARC_clrx,          // Clear extended word
 SPARC_clruw,         // Clear upper word
 SPARC_pseudo_mov,    // Move register
-
 // UtlraSPARC II extensions
-
 SPARC_alignaddress,  // Calculate address for misaligned data access
 SPARC_array,         // 3-D address to blocked byte address conversion
 SPARC_edge,          // Edge boundary processing {little-endian}
@@ -8942,10 +8960,8 @@ SPARC_fzero,         // Zero fill (single precision)
 SPARC_pdist,         // Distance between 8 8-bit components
 SPARC_shutdown,      // Power-down support
 // SPARC_stdfa,         // 8/16-bit store from a double precision FP register
-
 // V8 only instructions
 SPARC_rett,          // Return from trap
-
 // UA 2005 instructions
 SPARC_bmask,         // Byte Mask
 SPARC_bshuffle,      // Byte Shuffle
@@ -8953,24 +8969,17 @@ SPARC_edgen,         // Edge boundary processing (no CC) {little-endian}
 SPARC_rdhpr,         // Read Hyperprivileged Register
 SPARC_wrhpr,         // Write Hyperprivileged Register
 SPARC_siam,          // Set Interval Arithmetic Mode
-
 SPARC_last,
-
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 HPPA_null = 0,     // Unknown Operation
-
 HPPA_add,          // Add
 HPPA_addb,         // Add and Branch
 HPPA_addi,         // Add to Immediate
@@ -9078,9 +9087,7 @@ HPPA_syncdma,      // Synchronize DMA
 HPPA_uaddcm,       // Unit Add Complement
 HPPA_uxor,         // Unit XOR
 HPPA_xor,          // Exclusive OR
-
 // Floating point instructions
-
 HPPA_fabs,         // Floating-Point Absolute Value
 HPPA_fadd,         // Floating-Point Add
 HPPA_fcmp,         // Floating-Point Compare
@@ -9105,14 +9112,10 @@ HPPA_fstw,         // Floating-Point Store Word
 HPPA_fsub,         // Floating-Point Subtract
 HPPA_ftest,        // Floating-Point Test
 HPPA_xmpyu,        // Fixed-Point Multiply Unsigned
-
 // Performance Monitor Coprocessor
-
 HPPA_pmdis,        // Performance Monitor Disable
 HPPA_pmenb,        // Performance Monitor Enable
-
 // Macros
-
 HPPA_call,         // Call Subroutine
 HPPA_ret,          // Return From Subroutine
 HPPA_shld,         // Shift Left Doubleword
@@ -9123,27 +9126,18 @@ HPPA_ldi,          // Load Immediate
 HPPA_copy,         // Copy Register
 HPPA_mtsar,        // Move To %SAR
 HPPA_nop,          // No Operation
-
 HPPA_last,
-
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
 H8500_null = 0,      // Unknown Operation
-
 // Data transfer
-
 H8500_mov_g,         // B/W Move data
 H8500_mov_e,         // B   Move data
 H8500_mov_i,         // W   Move data
@@ -9156,9 +9150,7 @@ H8500_xch,           // W   Exchange data between two general registers
 H8500_swap,          // B   Exchange the upper and lower bytes in a general register
 H8500_movtpe,        // B   Transfer data from a general register to memory
 H8500_movfpe,        // B   Transfer data from memory to a general register
-
 // Arithmetic operations
-
 H8500_add_g,         // B/W Addition
 H8500_add_q,         // B/W Addition
 H8500_sub,           // B/W Subtraction
@@ -9179,16 +9171,12 @@ H8500_tst,           // B/W Compare with 0
 H8500_neg,           // B/W Negate
 H8500_clr,           // B/W Make zero
 H8500_tas,           // B   Test and set
-
 // Logic Operations
-
 H8500_and,           // B/W Logical AND
 H8500_or,            // B/W Logical OR
 H8500_xor,           // B/W Exclusive OR
 H8500_not,           // B/W Bitwise NOT
-
 // Shift Operations
-
 H8500_shal,          // B/W Arithmetic shift left
 H8500_shar,          // B/W Arithmetic shift right
 H8500_shll,          // B/W Logical shift left
@@ -9197,16 +9185,12 @@ H8500_rotl,          // B/W Rotate left
 H8500_rotr,          // B/W Rotate right
 H8500_rotxl,         // B/W Rotate through carry left
 H8500_rotxr,         // B/W Rotate through carry right
-
 // Bit Manipulations
-
 H8500_bset,          // B/W Test bit and set
 H8500_bclr,          // B/W Test bit and clear
 H8500_bnot,          // B/W Test bit and invert
 H8500_btst,          // B/W Test bit
-
 // Branching Instructions
-
 H8500_bra,           //     Branch Always
 H8500_brn,           //     Branch Never
 H8500_bhi,           //     Branch if High (C|Z = 0)
@@ -9233,9 +9217,7 @@ H8500_prts,          //     Return from subroutine (different page)
 H8500_rtd,           //     Return from subroutine (same page) and adjust SP
 H8500_prtd,          //     Return from subroutine (different page) and adjust SP
 H8500_scb,           //     Control loop
-
 // System Control Instructions
-
 H8500_trapa,         //     Generate trap exception
 H8500_trap_vs,       //     Generate trap exception if the V bit is set
 H8500_rte,           //     Return from exception-handling routine
@@ -9249,18 +9231,11 @@ H8500_orc,           // B/W Logically OR control register
 H8500_xorc,          // B/W Logically exclusive-OR control register
 H8500_nop,           //     No operation
 H8500_bpt,           //
-
 H8500_last,
-
     };
-
-
-
-
 enum
 {
 DSP56_null = 0,     // Unknown Operation
-
 DSP56_abs,          // Absolute Value
 DSP56_adc,          // Add Long with Carry
 DSP56_add,          // Addition
@@ -9394,16 +9369,10 @@ DSP56_zero,         // Zero Extend Accumulator
 DSP56_swi,          // Software Interrupt (only for 56000)
 DSP56_pmov,         // Pseudo insn
 DSP56_last,
-
 };
-
-
-
-
 enum
 {
 DSP96_null = 0,     // Unknown Operation
-
 DSP96_abs,          // Absolute Value
 DSP96_add,          // Addition
 DSP96_addc,         // Add with Carry
@@ -9534,9 +9503,7 @@ DSP96_trapcc,       // Software Interrupt Conditionally
 DSP96_tst,          // Test an Operand
 DSP96_wait,         // Wait for Interrupt or DMA Request (Low Power Stand-by)
 DSP96_last,
-
 };
-
 enum PMNum // Parallel Move enumeration
 {
   PM96_NoMove,
@@ -9546,28 +9513,21 @@ enum PMNum // Parallel Move enumeration
   PM96_XYmemR,        // X or Y memory and Registry move
   PM96_Long,          // Long Memory move
   PM96_XY,            // XY Memory move
-
   PM96_IFcc,          // Integer if conditional Instruction without CCR update
   // All the following moves are handled by IFcc
   // PM96_FFcc,          // Floating-Point if conditional Instruction without CCR, ER, IER update
   // PM96_FFccU,         // Floating-Point if conditional Instruction with CCR, ER, IER update
   // PM96_IFccU,         // Integer if conditional Instruction with CCR update
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
 C166_null = 0,      // Unknown Operation
-
 C166_add,           // Integer Addition
 C166_addb,          // Integer Addition Byte
 C166_addc,          // Integer Addition with Carry
@@ -9652,9 +9612,7 @@ C166_subcb,         // Integer Subtraction with Carry Byte
 C166_trap,          // Software Trap
 C166_xor,           // Logical Exclusive OR
 C166_xorb,          // Logical Exclusive OR Byte
-
 // ST10 MAC instructions
-
 ST10_CoABS,         // Absolute Value
 ST10_CoADD,         // Add
 ST10_CoASHR,        // Accumulator Arithmetic Shift Right with Optional Round
@@ -9673,31 +9631,21 @@ ST10_CoSHL,         // Accumulator Logical Shift Left
 ST10_CoSHR,         // Accumulator Logical Shift Right
 ST10_CoSTORE,       // Store a MAC-Unit Register
 ST10_CoSUB,         // Subtract
-
 // missing C166v2/ST10 instructions
-
 C166_enwdt,         // Enable Watchdog Timer
 C166_sbrk,          // Software Break
-
 C166_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 ST20_null = 0,      // Unknown Operation
-
 // C1 instructions
-
 ST20_adc,           // add constant
 ST20_add,           // add
 ST20_addc,          // add with carry
@@ -9778,9 +9726,7 @@ ST20_wsub,          // word subscript
 ST20_xbword,        // sign extend byte to word
 ST20_xor,           // exclusive or
 ST20_xsword,        // sign extend sixteen to word
-
 // C2-C4 instructions
-
 ST20_alt,           // alt start
 ST20_altend,        // alt end
 ST20_altwt,         // alt wait
@@ -9917,24 +9863,17 @@ ST20_wcnt,          // word count
 ST20_wsubdb,        // form double word subscript
 ST20_xdble,         // extend to double
 ST20_xword,         // extend word
-
 ST20_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 ST7_null = 0,           // Unknown Operation
-
 ST7_adc,                // Add with Carry
 ST7_add,                // Addition
 ST7_and,                // Logical And
@@ -9998,20 +9937,14 @@ ST7_tnz,                // Test for Neg & Zero
 ST7_trap,               // S/W trap
 ST7_wfi,                // Wait for Interrupt
 ST7_xor,                // Exclusive OR
-
 ST7_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 IA64_null,       //   0
@@ -10299,22 +10232,16 @@ IA64_zxt1,       // 281 Zero extend byte
 IA64_zxt2,       // 282 Zero extend halfword
 IA64_zxt4,       // 283 Zero extend word
 IA64_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 NET_null = 0,           // Unknown Operation
-
 NET_add,                // Add two values, returning a new value
 NET_add_ovf,            // Add signed integer values with overflow check
 NET_add_ovf_un,         // Add unsigned integer values with overflow check
@@ -10544,17 +10471,13 @@ NET_volatile_,          // (prefix) subsequent pointer reference is volatile
 NET_xor,                // Bitwise XOR of integer values, returns an integer
 NET_ldelem,             // Load the element at index onto the top of the stack
 NET_stelem,             // Replace array element at index with the ref value on the stack
-
 // 2.0 instructions
 NET_unbox_any,          // Extract a value-type from obj, its boxed representation
 NET_constrained_,       // (prefix) invoke a member on a value of a variable type
 NET_no_,                // (prefix) possibly skip a fault check
 NET_readonly_,          // (prefix) following instruction returns a controlled-mutability managed pointer
-
 NET_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
@@ -10563,14 +10486,9 @@ NET_last,
  *      HCS12X opcodes added by alexbratovic@bratspeed.com 12/12/2007
  *      XGATE opcodes added by alexbratovic@bratspeed.com 12/09/2009
  */
-
-
-
-
 enum
 {
 MC12_null = 0,          // Unknown Operation
-
 MC12_aba,               // Add B to A
 MC12_abx,               // Add B to X
 MC12_aby,               // Add B to Y
@@ -10779,11 +10697,9 @@ MC12_wav,               // Calculates numerator and denominator for weighted ave
 MC12_wavr,              // Resumes execution of interrupted WAV instruction
 MC12_xgdx,              // Exchange D with X
 MC12_xgdy,              // Exchange D with Y
-
 // Pseudoinstructions
 MC12_skip1,             // Skip one byte
 MC12_skip2,             // Skip two bytes
-
 // hcs12x only instructions, 16-bit unless indicated
 MC12X_addx,             // Add without Carry to X
 MC12X_addy,             // Add without Carry to Y
@@ -10855,10 +10771,8 @@ MC12X_suby,             // Subtract Memory from Y
 MC12X_tstw,             // Test Memory for Zero or Minus
 MC12X_tstx,             // Test X for Zero or Minus
 MC12X_tsty,             // Test Y for Zero or Minus
-
 // hcs12x V2 cpu only instructions
 MC12X_sys,              // System call interrupt
-
 // hcs12x XGATE co-processor instructions
 MC12XGATE_adc,          // Add with Carry
 MC12XGATE_add,          // Add without Carry
@@ -10932,7 +10846,6 @@ MC12XGATE_tst,          // Test Register
 MC12XGATE_xnor,         // Logical Exclusive NOR
 MC12XGATE_xnorh,        // Logical Exclusive NOR Immediate 8 bit Constant (High Byte)
 MC12XGATE_xnorl,        // Logical Exclusive NOR Immediate 8 bit Constant (Low Byte)
-
 // Pseudo instructions that combine two IMM8 into IMM16
 MC12XGATE_add16,         // Add Immediate 16 bit Constant
 MC12XGATE_and16,         // Logical AND Immediate 16 bit Constant
@@ -10941,59 +10854,44 @@ MC12XGATE_ldw16,         // Load Immediate 16 bit Constant
 MC12XGATE_or16,          // Logical OR Immediate 16 bit Constant
 MC12XGATE_sub16,         // Subtract Immediate 16 bit Constant
 MC12XGATE_xnor16,        // Logical Exclusive NOR Immediate 16 bit Constant
-
 MC12_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
   MC6816_null = 0, // Unknown Operation
-
   // DATA MOVEMENT INSTRUCTIONS
   // --------------------------
-
   // LOAD INSTRUCTIONS
   MC6816_ldaa,   // Load A
   MC6816_ldab,   // Load B
   MC6816_ldd,    // Load D
   MC6816_lde,    // Load E
   MC6816_lded,   // Load Concatenated D and E
-
   // MOVE INSTRUCTIONS
   MC6816_movb,   // Move Byte
   MC6816_movw,   // Move Word
-
   // STORE INSTRUCTIONS
   MC6816_staa,   // Store A
   MC6816_stab,   // Store B
   MC6816_std,    // Store D
   MC6816_ste,    // Store E
   MC6816_sted,   // Store Concatenated D and E
-
   // TRANSFER INSTRUCTIONS
   MC6816_tab,    // Transfer A to B
   MC6816_tba,    // Transfer B to A
   MC6816_tde,    // Transfer D to E
   MC6816_ted,    // Transfer E to D
-
   // EXCHANGE INSTRUCTIONS
   MC6816_xgab,   // Exchange A with B
   MC6816_xgde,   // Exchange D with E
-
   // MATHEMATIC INSTRUCTIONS
   // -----------------------
-
   // ADDITION AND SUBSTRACTION INSTRUCTIONS
   MC6816_aba,    // Add B to A
   MC6816_adca,   // Add with Carry to A
@@ -11015,11 +10913,9 @@ enum
   MC6816_subb,   // Subtract from B
   MC6816_subd,   // Subtract from D
   MC6816_sube,   // Subtract from E
-
   // BINARY CODED DECIMAL INSTRUCTIONS
   MC6816_daa,    // Decimal Adjust A
   MC6816_sxt,    // Sign Extend B into A
-
   // COMPARE AND TEST INSTRUCTIONS
   MC6816_cba,    // Compare A to B
   MC6816_cmpa,   // Compare A to Memory
@@ -11032,7 +10928,6 @@ enum
   MC6816_tstd,   // Test D for Zero or Minus
   MC6816_tste,   // Test E for Zero or Minus
   MC6816_tstw,   // Test for Zero or Minus Word
-
   // MULTIPLICATION AND DIVISION INSTRUCTIONS
   MC6816_ediv,   // Extended Unsigned Divide
   MC6816_edivs,  // Extended Signed Divide
@@ -11042,7 +10937,6 @@ enum
   MC6816_fmuls,  // Signed Fractional Multiply
   MC6816_idiv,   // Integer Divide
   MC6816_mul,    // Multiply
-
   // DECREMENT AND INCREMENT INSTRUCTIONS
   MC6816_dec,    // Decrement Memory
   MC6816_deca,   // Decrement A
@@ -11052,7 +10946,6 @@ enum
   MC6816_inca,   // Increment A
   MC6816_incb,   // Increment B
   MC6816_incw,   // Increment Memory Word
-
   // CLEAR, COMPLEMENT, AND NEGATE INSTRUCTIONS
   MC6816_clr,    // Clear Memory
   MC6816_clra,   // Clear A
@@ -11072,7 +10965,6 @@ enum
   MC6816_negd,   // Two's Complement D
   MC6816_nege,   // Two's Complement E
   MC6816_negw,   // Two's Complement Word
-
   // BOOLEAN LOGIC INSTRUCTIONS
   MC6816_anda,   // AND A
   MC6816_andb,   // AND B
@@ -11086,7 +10978,6 @@ enum
   MC6816_orab,   // OR B
   MC6816_ord,    // OR D
   MC6816_ore,    // OR E
-
   // BIT TEST AND MANIPULATION INSTRUCTIONS
   // --------------------------------------
   MC6816_bita,   // Bit Test A
@@ -11095,7 +10986,6 @@ enum
   MC6816_bclrw,  // Clear Bit(s) Word
   MC6816_bset,   // Set Bit(s)
   MC6816_bsetw,  // Set Bit(s) Word
-
   // SHIFT AND ROTATE INSTRUCTIONS
   // -----------------------------
   MC6816_lsr,    // Logic Shift Right
@@ -11128,10 +11018,8 @@ enum
   MC6816_rord,   // Rotate Right D
   MC6816_rore,   // Rotate Right E
   MC6816_rorw,   // Rotate Right Word
-
   // PROGRAM CONTROL INSTRUCTIONS
   // ----------------------------
-
   // SHORT BRANCH INSTRUCTIONS
   MC6816_bra,    // Branch Always
   MC6816_brn,    // Branch Never
@@ -11149,7 +11037,6 @@ enum
   MC6816_bgt,    // Branch If Greater than Zero
   MC6816_ble,    // Branch If Less than or Equal to Zero
   MC6816_blt,    // Branch If Less than Zero
-
   // LONG BRANCH INSTRUCTIONS
   MC6816_lbra,   // Long Branch Always
   MC6816_lbrn,   // Long Branch Never
@@ -11169,27 +11056,21 @@ enum
   MC6816_lbgt,   // Long Branch If Greater than Zero
   MC6816_lble,   // Long Branch If Less than or Equal to Zero
   MC6816_lblt,   // Long Branch If Less than Zero
-
   // BIT CONDITION BRANCH INSTRUCTIONS
   MC6816_brclr,  // Branch if Bits Clear
   MC6816_brset,  // Branch if Bits Set
-
   // JUMP INSTRUCTION
   MC6816_jmp,    // Jump
-
   // SUBROUTINE INSTRUCTIONS
   MC6816_bsr,    // Branch to Subroutine
   MC6816_jsr,    // Jump to Subroutine
   MC6816_lbsr,   // Long Branch to Subroutine
   MC6816_rts,    // Return From Subroutine
-
   // INTERRUPT INSTRUCTIONS
   MC6816_rti,    // Return from Interrupt
   MC6816_swi,    // Software Interrupt
-
   // INDEXING AND ADDRESS EXTENSION INSTRUCTIONS
   // -------------------------------------------
-
   // INDEXING INSTRUCTIONS
   MC6816_abx,    // Add B to IX
   MC6816_aby,    // Add B to IY
@@ -11230,7 +11111,6 @@ enum
   MC6816_xgex,   // Exchange E with IX
   MC6816_xgey,   // Exchange E with IY
   MC6816_xgez,   // Exchange E with IZ
-
   // ADDRESS EXTENSION INSTRUCTIONS
   MC6816_tbek,   // Transfer B to EK
   MC6816_tbsk,   // Transfer B to SK
@@ -11242,7 +11122,6 @@ enum
   MC6816_txkb,   // Transfer XK to B
   MC6816_tykb,   // Transfer YK to B
   MC6816_tzkb,   // Transfer ZK to B
-
   // STACKING INSTRUCTIONS
   // ---------------------
   MC6816_ais,    // Add Immediate Data to SP
@@ -11255,7 +11134,6 @@ enum
   MC6816_pula,   // Pull A
   MC6816_pulb,   // Pull B
   MC6816_pulm,   // Pull Multiple Registers
-
   // CONDITION CODE INSTRUCTIONS
   // ---------------------------
   MC6816_andp,   // AND CCR
@@ -11264,7 +11142,6 @@ enum
   MC6816_tdp,    // Transfer D to CCR
   MC6816_tpa,    // Transfer CCR MSB to A
   MC6816_tpd,    // Transfer CCR to D
-
   // DIGITAL SIGNAL PROCESSING INSTRUCTIONS
   // --------------------------------------
   MC6816_ace,    // Add E to AM[31:15]
@@ -11283,33 +11160,25 @@ enum
   MC6816_tmer,   // Transfer AM to E Rounded
   MC6816_tmet,   // Transfer AM to E Truncated
   MC6816_tmxed,  // Transfer AM t IX:E:D
-
   // STOP AND WAIT INSTRUCTIONS
   // --------------------------
   MC6816_lpstop, // Low Power Stop
   MC6816_wai,    // Wait for Interrupt
-
   // BACKGROUND MODE AND NULL OPERATIONS
   // -----------------------------------
   MC6816_bgnd,   // Enter Background Debugging Mode
   MC6816_nop,    // Null operation
-
   MC6816_last
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 I960_null = 0,          // Unknown Operation
-
 I960_addc,              // Add ordinal with carry
 I960_addi,              // Add integer
 I960_addo,              // Add ordinal
@@ -11439,15 +11308,11 @@ I960_testle,            // Test for less or equal
 I960_testo,             // Test for ordered
 I960_xnor,              // Src2 XNOR src1
 I960_xor,               // Src2 XOR src1
-
 // Cx instructions
-
 I960_sdma,              // Set up a DMA controller channel
 I960_sysctl,            // Perform system control function
 I960_udma,              // Copy current DMA pointers to internal data RAM
-
 // Unknown instructions
-
 I960_dcinva,
 I960_cmpob,
 I960_cmpib,
@@ -11524,9 +11389,7 @@ I960_addio,
 I960_suboo,
 I960_subio,
 I960_selo,
-
 // Floating point instructions
-
 I960_faddr, I960_fp_first = I960_faddr,
 I960_faddrl,
 I960_fatanr,
@@ -11576,27 +11439,18 @@ I960_fsubr,
 I960_fsubrl,
 I960_ftanr,
 I960_ftanrl, I960_fp_last = I960_ftanrl,
-
 I960_last,
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
 F2MC_null = 0,     // Unknown Operation
-
 // TRANSFER INSTRUCTIONS
-
 F2MC_mov,          // Move  byte data from source to destination
 F2MC_movn,         // Move immediate nibble data to A
 F2MC_movx,         // Move byte data with sign extension from source to A
@@ -11604,9 +11458,7 @@ F2MC_xch,          // Exchange byte data of source to destination
 F2MC_movw,         // Move word data from source to destination
 F2MC_xchw,         // Exchange word data of source to destination
 F2MC_movl,         // Move long word data from source to destination
-
 // NUMERIC DATA OPERATIONS INSTRUCTIONS
-
 F2MC_add,          // Add byte data of destination and source to destination
 F2MC_addc1,        // Add byte data of AL and AH with Carry to AL
 F2MC_addc2,        // Add byte data of A and effective address with Carry to A
@@ -11648,9 +11500,7 @@ F2MC_mul1,         // Multiply byte AH by AL
 F2MC_mul2,         // Multiply byte data
 F2MC_mulw1,        // Multiply word AH by AL
 F2MC_mulw2,        // Multiply word data
-
 // LOGICAL DATA OPERATION INSTRUCTIONS
-
 F2MC_and,          // And byte data of destination and source to destination
 F2MC_or,           // Or byte data of destination and source to destination
 F2MC_xor,          // Exclusive or byte data of destination and source to destination
@@ -11668,9 +11518,7 @@ F2MC_xorl,         // Exclusive or long word data of destination and source to d
 F2MC_neg,          // Negate byte data of destination
 F2MC_negw,         // Negate word data of destination
 F2MC_nrml,         // Normalize long word
-
 // SHIFT INSTRUCTIONS
-
 F2MC_rorc,         // Rotate byte data of A with Carry to right
 F2MC_rolc,         // Rotate byte data of A with Carry to left
 F2MC_asr,          // Arithmetic shift byte data of A to right
@@ -11685,9 +11533,7 @@ F2MC_lslw2,        // Logical shift word data of A to left
 F2MC_asrl,         // Arithmetic shift long word data of A to right
 F2MC_lsrl,         // Logical shift long word data of A to right
 F2MC_lsll,         // Logical shift long word data of A to left
-
 // BRANCH INSTRUCTIONS
-
 F2MC_bz,           // Branch if Zero
 F2MC_bnz,          // Branch if Not Zero
 F2MC_bc,           // Branch if Carry
@@ -11722,9 +11568,7 @@ F2MC_link,         // Link and create new stack frame
 F2MC_unlink,       // Unlink and create new stack frame
 F2MC_ret,          // Return from subroutine
 F2MC_retp,         // Return from physical address
-
 // OTHER INSTRUCTIONS
-
 F2MC_pushw,        // Push to stack memory
 F2MC_popw,         // Pop from stack memory
 F2MC_jctx,         // Jump context
@@ -11765,9 +11609,7 @@ F2MC_movswd,       // Move string word with address decremented
 F2MC_scweqi,       // Scan string word until Equal with address incremented
 F2MC_scweqd,       // Scan string word until Equal with address decremented
 F2MC_filswi,       // Fill string word
-
 // MACROS
-
 F2MC_bz16,         // Branch if Zero
 F2MC_bnz16,        // Branch if Not Zero
 F2MC_bc16,         // Branch if Carry
@@ -11784,34 +11626,24 @@ F2MC_ble16,        // Branch if (Overflow xor Negative) or Zero
 F2MC_bgt16,        // Branch if Not ((Overflow xor Negative) or Zero)
 F2MC_bls16,        // Branch if Carry or Zero
 F2MC_bhi16,        // Branch if Not (Carry or Zero)
-
 F2MC_cbne16,       // Compare byte data and branch if not Equal
 F2MC_cwbne16,      // Compare word data and branch if not Equal
-
 F2MC_dbnz16,       // Decrement byte data and branch if not Zero
 F2MC_dwbnz16,      // Decrement word data and branch if not Zero
-
 F2MC_bbc16,        // Branch if bit condition satisfied
 F2MC_bbs16,        // Branch if bit condition satisfied
 F2MC_sbbs16,       // Set bit and branch if bit set
-
 F2MC_last,
-
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 TMS320C3X_null = 0,     // Unknown Operation
-
 TMS320C3X_ABSF,                 // Absolute value of a floating-point number
 TMS320C3X_ABSI,                 // Absolute value of an integer
 TMS320C3X_ADDC,                 // Add integers with carry
@@ -11869,7 +11701,6 @@ TMS320C3X_SUBRI,                // Subtract Reverse Integer
 TMS320C3X_TSTB,                 // Test Bit Fields
 TMS320C3X_XOR,                  // Bitwise-Exclusive OR
 TMS320C3X_IACK,                 // Interrupt acknowledge
-
 TMS320C3X_ADDC3,                // Add integers with carry (3-operand)
 TMS320C3X_ADDF3,                // Add floating-point values (3-operand)
 TMS320C3X_ADDI3,                // Add integers (3 operand)
@@ -11887,7 +11718,6 @@ TMS320C3X_SUBF3,                // Subtract floating-point values (3-operand)
 TMS320C3X_SUBI3,                // Subtract integers (3-operand)
 TMS320C3X_TSTB3,                // Test Bit Fields, 3-Operand
 TMS320C3X_XOR3,                 // Bitwise-Exclusive OR, 3-Operand
-
 TMS320C3X_LDFcond,              // Load floating-point value conditionally
 TMS320C3X_LDIcond,              // Load integer conditionally
 TMS320C3X_BR,                   // Branch unconditionally (standard)
@@ -11903,59 +11733,42 @@ TMS320C3X_RETIcond,             // Return from interrupt conditionally
 TMS320C3X_RETScond,             // Return from subroutine conditionally
 TMS320C3X_RETIU,                // Return from interrupt unconditionally
 TMS320C3X_RETSU,                // Return from subroutine unconditionally
-
 TMS320C3X_NONE,                 // Pseudo insn (more accurate definition need)
 TMS320C3X_MV_IDX,               // Pseudo insn (move to next index need)
 TMS320C3X_last,                 // last ID
-
 };
-
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
 TMS320C54_null = 0, // Unknown Operation
-
 // ARITHMETIC OPERATIONS
-
 // ADD INSTRUCTIONS
-
 TMS320C54_add1,     // Add to Accumulator
 TMS320C54_add2,     // Add to Accumulator
 TMS320C54_add3,     // Add to Accumulator
 TMS320C54_addc,    // Add to Accumulator With Carry
 TMS320C54_addm,    // Add Long-Immediate Value to Memory
 TMS320C54_adds,    // Add to Accumulator With Sign-Extension Suppressed
-
 // SUBTRACT INSTRUCTIONS
-
 TMS320C54_sub1,     // Sub From Accumulator
 TMS320C54_sub2,     // Sub From Accumulator
 TMS320C54_sub3,     // Sub From Accumulator
 TMS320C54_subb,    // Sub From Accumulator With Borrow
 TMS320C54_subc,    // Subtract Conditionally
 TMS320C54_subs,    // Subtract From Accumulator With Sign Extension Suppressed
-
 // MULTIPLY INSTRUCTIONS
-
 TMS320C54_mpy2,    // Multiply Without Rounding
 TMS320C54_mpy3,    // Multiply Without Rounding
 TMS320C54_mpyr2,   // Multiply With Rounding
 TMS320C54_mpya,    // Multiply by Accumulator A
 TMS320C54_mpyu,    // Multiply Unsigned
 TMS320C54_squr,    // Square
-
 // MULTIPLY-ACCUMULATE AND MULTIPLY-SUBTRACT INSTRUCTIONS
-
 TMS320C54_mac2,    // Multiply Accumulate Without Rounding
 TMS320C54_mac3,    // Multiply Accumulate Without Rounding
 TMS320C54_macr2,   // Multiply Accumulate With Rounding
@@ -11982,9 +11795,7 @@ TMS320C54_masar2,  // Multiply by Accumulator A and Subtract With Rounding
 TMS320C54_masar3,  // Multiply by Accumulator A and Subtract With Rounding
 TMS320C54_squra,   // Square and Accumulate
 TMS320C54_squrs,   // Square and Subtract
-
 // DOUBLE INSTRUCTIONS
-
 TMS320C54_dadd2,   // Double-Precision/Dual 16-Bit Add to Accumulator
 TMS320C54_dadd3,   // Double-Precision/Dual 16-Bit Add to Accumulator
 TMS320C54_dadst,   // Double-Precision Load With T Add/Dual 16-Bit Load With T Add/Subtract
@@ -11992,9 +11803,7 @@ TMS320C54_drsub,   // Double-Precision/Dual 16-Bit Subtract From Long Word
 TMS320C54_dsadt,   // Long-Word Load With T Add/Dual 16-Bit Load With T Subtract/Add
 TMS320C54_dsub,    // Double-Precision/Dual 16-Bit Subtract From Accumulator
 TMS320C54_dsubt,   // Long-Word Load With T Subtract/Dual 16-Bit Load With T Subtract
-
 // APPLICATION-SPECIFIC INSTRUCTIONS
-
 TMS320C54_abdst,   // Absolute distance
 TMS320C54_abs1,    // Absolute Value of Accumulator
 TMS320C54_abs2,    // Absolute Value of Accumulator
@@ -12015,32 +11824,23 @@ TMS320C54_rnd1,    // Round Accumulator
 TMS320C54_rnd2,    // Round Accumulator
 TMS320C54_sat,     // Saturate Accumulator
 TMS320C54_sqdst,   // Square Distance
-
 // LOGICAL OPERATIONS
-
 // AND INSTRUCTIONS
-
 TMS320C54_and1,    // AND With Accumulator
 TMS320C54_and2,    // AND With Accumulator
 TMS320C54_and3,    // AND With Accumulator
 TMS320C54_andm,    // AND Memory With Long Immediate
-
 // OR INSTRUCTIONS
-
 TMS320C54_or1,     // OR With Accumulator
 TMS320C54_or2,     // OR With Accumulator
 TMS320C54_or3,     // OR With Accumulator
 TMS320C54_orm,     // OR Memory With Constant
-
 // XOR INSTRUCTIONS
-
 TMS320C54_xor1,    // Exclusive OR With Accumulator
 TMS320C54_xor2,    // Exclusive OR With Accumulator
 TMS320C54_xor3,    // Exclusive OR With Accumulator
 TMS320C54_xorm,    // Exclusive OR Memory With Constant
-
 // SHIFT INSTRUCTIONS
-
 TMS320C54_rol,     // Rotate Accumulator
 TMS320C54_roltc,   // Rotate Accumulator Left Using TC
 TMS320C54_ror,     // Rotate Accumulator Right
@@ -12049,19 +11849,14 @@ TMS320C54_sfta3,   // Shift Accumulator Arithmetically
 TMS320C54_sftc,    // Shift Accumulator Conditionally
 TMS320C54_sftl2,   // Shift Accumulator Logically
 TMS320C54_sftl3,   // Shift Accumulator Logically
-
 // TEST INSTRUCTIONS
-
 TMS320C54_bit,     // Test Bit
 TMS320C54_bitf,    // Test Bit Field Specified by Immediate Value
 TMS320C54_bitt,    // Test Bit Specified by T
 TMS320C54_cmpm,    // Compare Memory With Long Immediate
 TMS320C54_cmpr,    // Compare Auxiliary Register with AR0
-
 // PROGRAM CONTROL OPERATIONS
-
 // BRANCH INSTRUCTIONS
-
 TMS320C54_b,       // Branch Unconditionally
 TMS320C54_bd,      // Branch Unconditionally
 TMS320C54_bacc,    // Branch to Location Specified by Accumulator
@@ -12076,9 +11871,7 @@ TMS320C54_fb,      // Far Branch Unconditionally
 TMS320C54_fbd,     // Far Branch Unconditionally
 TMS320C54_fbacc,   // Far Branch to Location Specified by Accumulator
 TMS320C54_fbaccd,  // Far Branch to Location Specified by Accumulator
-
 // CALL INSTRUCTIONS
-
 TMS320C54_cala,    // Call Subroutine at Location Specified by Accumulator
 TMS320C54_calad,   // Call Subroutine at Location Specified by Accumulator
 TMS320C54_call,    // Call Unconditionally
@@ -12091,14 +11884,10 @@ TMS320C54_fcala,   // Far Call Subroutine at Location Specified by Accumulator
 TMS320C54_fcalad,  // Far Call Subroutine at Location Specified by Accumulator
 TMS320C54_fcall,   // Far Call Unconditionally
 TMS320C54_fcalld,  // Far Call Unconditionally
-
 // INTERRUPT INSTRUCTIONS
-
 TMS320C54_intr,    // Software Interrupt
 TMS320C54_trap,    // Software Interrupt
-
 // RETURN INSTRUCTIONS
-
 TMS320C54_fret,    // Far Return
 TMS320C54_fretd,   // Far Return
 TMS320C54_frete,   // Enable Interrupts and Far Return From Interrupt
@@ -12115,24 +11904,18 @@ TMS320C54_rete,    // Enable Interrupts and Return From Interrupt
 TMS320C54_reted,   // Enable Interrupts and Return From Interrupt
 TMS320C54_retf,    // Enable Interrupts and Fast Return From Interrupt
 TMS320C54_retfd,   // Enable Interrupts and Fast Return From Interrupt
-
 // REPEAT INSTRUCTIONS
-
 TMS320C54_rpt,     // Repeat Next Instruction
 TMS320C54_rptb,    // Block Repeat
 TMS320C54_rptbd,   // Block Repeat
 TMS320C54_rptz,    // Repeat Next Instruction And Clear Accumulator
-
 // STACK MANIPULATING INSTRUCTIONS
-
 TMS320C54_frame,   // Stack Pointer Immediate Offset
 TMS320C54_popd,    // Pop Top of Stack to Data Memory
 TMS320C54_popm,    // Pop Top of Stack to Memory-Mapped Register
 TMS320C54_pshd,    // Push Data-Memory Value Onto Stack
 TMS320C54_pshm,    // Push Memory-Mapped Register Onto Stack
-
 // MISCELLANEOUS PROGRAM-CONTROL INSTRUCTIONS
-
 TMS320C54_idle,    // Idle Until Interrupt
 TMS320C54_mar,     // Modify Auxiliary Register
 TMS320C54_nop,     // No Operation
@@ -12143,11 +11926,8 @@ TMS320C54_ssbx1,   // Set Status Register Bit
 TMS320C54_ssbx2,   // Set Status Register Bit
 TMS320C54_xc2,     // Execute Conditionally
 TMS320C54_xc3,     // Execute Conditionally
-
 // LOAD AND STORE OPERATIONS
-
 // LOAD INSTRUCTIONS
-
 TMS320C54_dld,     // Double-Precision/Dual 16-Bit Long-Word Load to Accumulator
 TMS320C54_ld1,     // Load Accumulator With Shift
 TMS320C54_ld2,     // Load Accumulator With Shift
@@ -12156,9 +11936,7 @@ TMS320C54_ldm,     // Load Memory-Mapped Register
 TMS320C54_ldr,     // Load Memory Value in Accumulator High With Rounding
 TMS320C54_ldu,     // Load Unsigned Memory Value
 TMS320C54_ltd,     // Load T and insert Delay
-
 // STORE INSTRUCTIONS
-
 TMS320C54_dst,     // Store Accumulator in Long Word
 TMS320C54_st,      // Store T, TRN, or Immediate Value into Memory
 TMS320C54_sth2,    // Store Accumulator High Into Memory
@@ -12167,40 +11945,28 @@ TMS320C54_stl2,    // Store Accumulator Low Into Memory
 TMS320C54_stl3,    // Store Accumulator Low Into Memory
 TMS320C54_stlm,    // Store Accumulator Low Into Memory-Mapped Register
 TMS320C54_stm,     // Store Immediate Value Into Memory-Mapped Register
-
 // CONDITIONAL STORE INSTRUCTIONS
-
 TMS320C54_cmps,    // Compare, Select and Store Maximum
 TMS320C54_saccd,   // Store Accumulator Conditionally
 TMS320C54_srccd,   // Store Block Repeat Counter Conditionally
 TMS320C54_strcd,   // Store T Conditionally
-
 // PARALLEL LOAD AND STORE INSTRUCTIONS
-
 TMS320C54_st_ld,   // Store Accumulator With Parallel Load
-
 // PARALLEL LOAD AND MULTIPLY INSTRUCTIONS
-
 TMS320C54_ld_mac,  // Load Accumulator With Parallel Multiply Accumulate Without Rounding
 TMS320C54_ld_macr, // Load Accumulator With Parallel Multiply Accumulate With Rounding
 TMS320C54_ld_mas,  // Load Accumulator With Parallel Multiply Subtract Without Rounding
 TMS320C54_ld_masr, // Load Accumulator With Parallel Multiply Subtract With Rounding
-
 // PARALLEL STORE AND ADD/SUBSTRACT INSTRUCTIONS
-
 TMS320C54_st_add,  // Store Accumulator With Parallel Add
 TMS320C54_st_sub,  // Store Accumulator With Parallel Subtract
-
 // PARALLEL STORE AND MULTIPLY INSTRUCTIONS
-
 TMS320C54_st_mac,  // Store Accumulator With Parallel Multiply Accumulate Without Rounding
 TMS320C54_st_macr, // Store Accumulator With Parallel Multiply Accumulate With Rounding
 TMS320C54_st_mas,  // Store Accumulator With Parallel Multiply Subtract Without Rounding
 TMS320C54_st_masr, // Store Accumulator With Parallel Multiply Subtract With Rounding
 TMS320C54_st_mpy,  // Store Accumulator With Parallel Multiply
-
 // MISCELLANEOUS LOAD-TYPE AND STORE-TYPE INSTRUCTIONS
-
 TMS320C54_mvdd,    // Move Data From Data Memory to Data Memory With X,Y Addressing
 TMS320C54_mvdk,    // Move Data From Data Memory to Data Memory With Destination Addressing
 TMS320C54_mvdm,    // Move Data From Data Memory to Memory-Mapped Register
@@ -12213,31 +11979,21 @@ TMS320C54_portr,   // Read Data From Port
 TMS320C54_portw,   // Write Data to Port
 TMS320C54_reada,   // Read Program Memory Addressed by Accumulator A and Store in Data Memory
 TMS320C54_writa,   // Write Data to Program Memory Addressed by Accumulator A
-
 TMS320C54_last
-
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
 TMS320C55_null = 0,      // Unknown Operation
-
 // ARITHMETICAL OPERATIONS
-
 TMS320C55_abdst,         // Absolute Distance
 TMS320C55_abs1,          // Absolute Value
 TMS320C55_abs2,          // Absolute Value
-
 TMS320C55_add1,          // Addition
 TMS320C55_add2,          // Addition
 TMS320C55_add3,          // Addition
@@ -12246,24 +12002,18 @@ TMS320C55_addv1,         // Addition
 TMS320C55_addv2,         // Addition
 TMS320C55_addrv1,        // Addition and Round
 TMS320C55_addrv2,        // Addition and Round
-
 TMS320C55_maxdiff,       // Compare and Select Maximum
 TMS320C55_dmaxdiff,      // Compare and Select 40-bit Maximum
 TMS320C55_mindiff,       // Compare and Select Minimum
 TMS320C55_dmindiff,      // Compare and Select 40-bit Minimum
-
 TMS320C55_addsubcc4,     // Conditional Add or Subtract
 TMS320C55_addsubcc5,     // Conditional Add or Subtract
 TMS320C55_addsub2cc,     // Conditional Add or Subtract
-
 TMS320C55_sftcc,         // Conditional Shift
-
 TMS320C55_subc2,         // Conditional Subtract
 TMS320C55_subc3,         // Conditional Subtract
-
 TMS320C55_addsub,        // Paralleled Add - Subtract
 TMS320C55_subadd,        // Parallel Subtract - Add
-
 TMS320C55_mpy_mpy,       // Two Parallel Multiply
 TMS320C55_mpy_mpyr,      // Two Parallel Multiply, and Round
 TMS320C55_mpy_mpy40,     // Two Parallel Multiply, on 40 bits
@@ -12305,10 +12055,8 @@ TMS320C55_mpyr_macr,     // Parallel Multiply - Multiply and Accumulate, and Rou
 TMS320C55_mpy40_mac40,   // Parallel Multiply - Multiply and Accumulate, on 40 bits
 TMS320C55_mpyr40_macr40, // Parallel Multiply - Multiply and Accumulate, and Round on 40 bits
 TMS320C55_amar3,         // Three Parallel Modify Auxiliary Registers
-
 TMS320C55_firsadd,       // Parallel Multiply and Accumulate - Add
 TMS320C55_firssub,       // Parallel Multiply and Accumulate - Subtract
-
 TMS320C55_mpym_mov,      // Parallel Multiply - Store
 TMS320C55_mpymr_mov,     // Parallel Multiply - Store, and Round
 TMS320C55_macm_mov,      // Parallel Multiply and Accumulate - Store
@@ -12324,22 +12072,17 @@ TMS320C55_amar_amar,     // Parallel Modify Auxiliary Register - Modify Auxiliar
 TMS320C55_add_asub,      // Parallel Add - asub
 TMS320C55_btst_mov,      // Parallel Bit Test - Store
 TMS320C55_mov_asub,      // Parallel Store - asub
-
 TMS320C55_lms,           // Least Mean Square
-
 TMS320C55_max1,          // Maximum Comparison
 TMS320C55_max2,          // Maximum Comparison
 TMS320C55_min1,          // Minimum Comparison
 TMS320C55_min2,          // Minimum Comparison
-
 TMS320C55_cmp,           // Memory Comparison
 TMS320C55_cmpu,          // Unsigned memory Comparison
-
 TMS320C55_aadd,          // Add Two Registers
 TMS320C55_asub,          // Subtract Two Registers
 TMS320C55_amov,          // Move From Register to Register
 TMS320C55_amar1,         // Auxiliary Register Modification
-
 TMS320C55_sqr1,          // Square
 TMS320C55_sqr2,          // Square
 TMS320C55_sqrr1,         // Square and Round
@@ -12366,7 +12109,6 @@ TMS320C55_sqrm,          // Square Memory Value
 TMS320C55_sqrmr,         // Square Memory Value, and Round
 TMS320C55_mpymk,         // Multiply Memory Value by Constant
 TMS320C55_mpymkr,        // Multiply Memory Value by Constant and Round
-
 TMS320C55_sqa1,          // Square and Accumulate
 TMS320C55_sqa2,          // Square and Accumulate
 TMS320C55_sqar1,         // Square, Accumulate and Round
@@ -12399,12 +12141,10 @@ TMS320C55_macmk3,        // Multiply Memory Value by Constant and Accumulate
 TMS320C55_macmk4,        // Multiply Memory Value by Constant and Accumulate
 TMS320C55_macmkr3,       // Multiply Memory Value by Constant - Accumulate, and Round
 TMS320C55_macmkr4,       // Multiply Memory Value by Constant - Accumulate, and Round
-
 TMS320C55_sqs1,          // Square and Subtract
 TMS320C55_sqs2,          // Square and Subtract
 TMS320C55_sqsr1,         // Square, Subtract and Round
 TMS320C55_sqsr2,         // Square, Subtract and Round
-
 TMS320C55_mas2,          // Multiply and Subtract
 TMS320C55_mas3,          // Multiply and Subtract
 TMS320C55_masr2,         // Multiply, Subtract and Round
@@ -12423,44 +12163,32 @@ TMS320C55_sqsm2,         // Square and Subtract Memory Values
 TMS320C55_sqsm3,         // Square and Subtract Memory Values
 TMS320C55_sqsmr2,        // Square and Subtract Memory Values, and Round
 TMS320C55_sqsmr3,        // Square and Subtract Memory Values, and Round
-
 TMS320C55_neg1,          // Negation
 TMS320C55_neg2,          // Negation
-
 TMS320C55_mant_nexp,     // Exponent and Mantissa
 TMS320C55_exp,           // Exponent
-
 TMS320C55_cmpand,        // Compare and AND
 TMS320C55_cmpandu,       // Unsigned compare and AND
 TMS320C55_cmpor,         // Compare and OR
 TMS320C55_cmporu,        // Unsigned compare and OR
-
 TMS320C55_round1,        // Round
 TMS320C55_round2,        // Round
-
 TMS320C55_sat1,          // Saturate
 TMS320C55_sat2,          // Saturate
 TMS320C55_satr1,         // Saturate and Round
 TMS320C55_satr2,         // Saturate and Round
-
 TMS320C55_sfts2,         // Signed Shift
 TMS320C55_sfts3,         // Signed Shift
 TMS320C55_sftsc2,        // Signed Shift with Carry
 TMS320C55_sftsc3,        // Signed Shift with Carry
-
 TMS320C55_sqdst,         // Square distance
-
 TMS320C55_sub1,          // Subtract
 TMS320C55_sub2,          // Subtract
 TMS320C55_sub3,          // Subtract
 TMS320C55_sub4,          // Subtract
-
 TMS320C55_band,          // Bit Field Comparison
-
 TMS320C55_bfxpa,         // Bit Field Expand
-
 TMS320C55_bfxtr,         // Bit Field Extract
-
 TMS320C55_btst,          // Bit Test
 TMS320C55_bnot,          // Bit NOT
 TMS320C55_bclr2,         // Bit Clear
@@ -12471,112 +12199,73 @@ TMS320C55_btstnot,       // Bit Test and NOT
 TMS320C55_btstp,         // Bit Pair Test
 TMS320C55_bclr1,         // Bit Clear
 TMS320C55_bset1,         // Bit Set
-
 TMS320C55_amar2,         // Load Effective Address to Extended Auxiliary Register
 TMS320C55_popboth,       // Pop Extended Auxiliary Register from Stack Pointers
 TMS320C55_pshboth,       // Push Extended Auxiliary Register to Stack Pointers
-
 // LOGICAL OPERATIONS
-
 TMS320C55_bcnt,          // Count Bit Field
-
 TMS320C55_not1,          // NOT
 TMS320C55_not2,          // NOT
-
 TMS320C55_and1,          // AND
 TMS320C55_and2,          // AND
 TMS320C55_and3,          // AND
-
 TMS320C55_or1,           // OR
 TMS320C55_or2,           // OR
 TMS320C55_or3,           // OR
-
 TMS320C55_xor1,          // XOR
 TMS320C55_xor2,          // XOR
 TMS320C55_xor3,          // XOR
-
 TMS320C55_sftl2,         // Logical Shift
 TMS320C55_sftl3,         // Logical Shift
-
 TMS320C55_rol,           // Rotate Left
-
 TMS320C55_ror,           // Rotate Right
-
 // MISCELLANEOUS OPERATIONS
-
 // MOVE OPERATIONS
-
 TMS320C55_swap,          // Swap Registers
 TMS320C55_swapp,         // Swap Pair Registers
 TMS320C55_swap4,         // Swap 4 Registers
-
 TMS320C55_mov2,          // Move Data
 TMS320C55_mov3,          // Move 2 Data
 TMS320C55_mov402,        // Move Data on 40 bits
-
 TMS320C55_delay,         // Memory Delay
-
 TMS320C55_pop1,          // Pop Top of Stack1
 TMS320C55_pop2,          // Pop Top of Stack2
-
 TMS320C55_psh1,          // Pop Top of Stack3
 TMS320C55_psh2,          // Pop Top of Stack4
-
 // PROGRAM CONTROL OPERATIONS
-
 TMS320C55_bcc,           // Branch Conditionally
 TMS320C55_bccu,          // Branch Conditionally
-
 TMS320C55_b,             // Branch Unconditionally
-
 TMS320C55_callcc,        // Call Conditionally
-
 TMS320C55_call,          // Call Unconditionally
-
 TMS320C55_xcc,           // Execute Conditionally
 TMS320C55_xccpart,       // Execute Conditionally
-
 TMS320C55_idle,          // Idle
-
 TMS320C55_nop,           // No Operation
 TMS320C55_nop_16,        // No Operation
-
 TMS320C55_rptblocal,     // Repeat Block of Instructions Unconditionally
 TMS320C55_rptb,          // Repeat Block of Instructions Unconditionally
-
 TMS320C55_rptcc,         // Repeat Single Instruction Conditionally
-
 TMS320C55_rpt,           // Repeat Single Instruction Unconditionally
 TMS320C55_rptadd,        // Repeat Single Instruction Unconditionally and Add to Register
 TMS320C55_rptsub,        // Repeat Single Instruction Unconditionally and Subtract to Register
-
 TMS320C55_retcc,         // Return Conditionally
 TMS320C55_ret,           // Return Unconditionally
 TMS320C55_reti,          // Return from Interrupt
-
 TMS320C55_intr,          // Software Interrupt
-
 TMS320C55_reset,         // Software Reset
-
 TMS320C55_trap,          // Software Trap
-
 TMS320C55_last
-
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 TRIMEDIA_null,
-
 TRIMEDIA_igtri,         // signed compare greater with immediate
 TRIMEDIA_igeqi,         // signed compare greater or equal with immediate
 TRIMEDIA_ilesi,         // signed compare less with immediate
@@ -12748,9 +12437,7 @@ TRIMEDIA_allocd,        // allocate a cache block with displacement
 TRIMEDIA_allocr,        // allocate a cache block with index
 TRIMEDIA_allocx,        // allocate a cache block with scaled index
 TRIMEDIA_nop,
-
 // Pseudo-operations
-
 TRIMEDIA_alloc,         // allocate a cache block
 TRIMEDIA_dspiabs,       // clipped signed absolute value
 TRIMEDIA_dspidualabs,   // dual clipped absolute value of signed 16-bit halfwords
@@ -12772,9 +12459,7 @@ TRIMEDIA_uld8,          // unsigned 8-bit load
 TRIMEDIA_zex16,         // zero extend 16 bits
 TRIMEDIA_zex8,          // zero extend 8 bits
 TRIMEDIA_ident,         // identity
-
 // Unused pseudo-operations:
-
 TRIMEDIA_iles,
 TRIMEDIA_ileq,
 TRIMEDIA_ules,
@@ -12789,28 +12474,20 @@ TRIMEDIA_borrow,
 TRIMEDIA_umin,
 TRIMEDIA_lsl,
 TRIMEDIA_lsli,
-
 TRIMEDIA_last,
-
     };
-
 /*
  *      NEC 78K0 processor module for IDA.
  *      Copyright (c) 2006 Konstantin Norvatoff, <konnor@bk.ru>
  *      Freeware.
  */
-
-
-
 enum
 {
 NEC_78K_0_null = 0,       // Unknown Operation
-
 NEC_78K_0_mov,            // Move Byte Data Transfer
 NEC_78K_0_xch,            // Exchange Byte Data
 NEC_78K_0_movw,           // Move Word Data Transfer / Word Data Transfer with Stack Pointer
 NEC_78K_0_xchw,           // Exchange Word Data
-
 NEC_78K_0_add,            // Add Byte Data Addition
 NEC_78K_0_addc,           // Add with Carry Addition of Byte Data with Carry
 NEC_78K_0_sub,            // Subtract Byte Data Subtraction
@@ -12819,29 +12496,23 @@ NEC_78K_0_and,            // And Logical Product of Byte Data
 NEC_78K_0_or,             // Or Logical Sum of Byte Data
 NEC_78K_0_xor,            // Exclusive Or Exclusive Logical Sum of Byte Data
 NEC_78K_0_cmp,            // Compare Byte Data Comparison
-
 NEC_78K_0_addw,           // Add Word Data Addition
 NEC_78K_0_subw,           // Subtract Word Data Subtraction
 NEC_78K_0_cmpw,           // Compare Word Data Comparison
-
 NEC_78K_0_mulu,           // Multiply Unsigned Multiplication of Data
 NEC_78K_0_divuw,          // Divide Unsigned Word Unsigned Division of Word Data
-
 NEC_78K_0_inc,            // Increment Byte Data Increment
 NEC_78K_0_dec,            // Decrement Byte Data Decrement
 NEC_78K_0_incw,           // Increment Word Data Increment
 NEC_78K_0_decw,           // Decrement Word Data Decrement
-
 NEC_78K_0_ror,            // Rotate Right Byte Data Rotation to the Right
 NEC_78K_0_rol,            // Rotate Left Byte Data Rotation to the Left
 NEC_78K_0_rorc,           // Rotate Right with Carry Byte Data Rotation to the Right with Carry
 NEC_78K_0_rolc,           // Rotate Left with Carry Byte Data Rotation to the Left with Carry
 NEC_78K_0_ror4,           // Rotate Right Digit Digit Rotation to the Right
 NEC_78K_0_rol4,           // Rotate Left Digit Digit Rotation to the Left
-
 NEC_78K_0_adjba,          // Decimal Adjust Register for Addition Decimal Adjustment of Addition Result
 NEC_78K_0_adjbs,          // Decimal Adjust Register for Subtraction Decimal Adjustment of Subtraction Result
-
 NEC_78K_0_mov1,           // Move Single Bit 1 Bit Data Transfer
 NEC_78K_0_and1,           // And Single Bit 1 Bit Data Logical Product
 NEC_78K_0_or1,            // Or Single Bit 1 Bit Data Logical Sum
@@ -12849,7 +12520,6 @@ NEC_78K_0_xor1,           // Exclusive Or Single Bit 1 Bit Data Exclusive Logica
 NEC_78K_0_set1,           // Set Single Bit (Carry Flag) 1 Bit Data Set
 NEC_78K_0_clr1,           // Clear Single Bit (Carry Flag) 1 Bit Data Clear
 NEC_78K_0_not1,           // Not Single Bit (Carry Flag) 1 Bit Data Logical Negation
-
 NEC_78K_0_call,           // Call Subroutine Call (16 Bit Direct)
 NEC_78K_0_callf,          // Call Flag Subroutine Call (11 Bit Direct Specification)
 NEC_78K_0_callt,          // Call Table Subroutine Call (Refer to the Call Table)
@@ -12857,10 +12527,8 @@ NEC_78K_0_brk,            // Break Software Vectored Interrupt
 NEC_78K_0_ret,            // Return Return from Subroutine
 NEC_78K_0_retb,           // Return from Interrupt Return from Hardware Vectored Interrupt
 NEC_78K_0_reti,           // Return from Break Return from Software Vectored Interrupt
-
 NEC_78K_0_push,           // Push
 NEC_78K_0_pop,            // Pop
-
 NEC_78K_0_br,             // Branch Unconditional Branch
 NEC_78K_0_bc,             // Branch if Carry Conditional Branch with Carry Flag (CY = 1)
 NEC_78K_0_bnc,            // Branch if Not Carry Conditional Branch with Carry Flag (CY = 0)
@@ -12870,30 +12538,20 @@ NEC_78K_0_bt,             // Branch if True Conditional Branch by Bit Test (Byte
 NEC_78K_0_bf,             // Branch if False Conditional Branch by Bit Test (Byte Data Bit = 0)
 NEC_78K_0_btclr,          // Branch if True and Clear Conditional Branch and Clear by Bit Test (Byte Data Bit = 1)
 NEC_78K_0_dbnz,           // Decrement and Branch if Not Zero Conditional Loop (R1!= 0)
-
 NEC_78K_0_sel,            // Select Register Bank Register Bank Selection
-
-
 NEC_78K_0_nop,            // No Operation
 NEC_78K_0_EI,             // Enable Interrupt
 NEC_78K_0_DI,             // Disable Interrupt
 NEC_78K_0_HALT,           // HALT Mode Set
 NEC_78K_0_STOP,           // Stop Mode Set
-
-
 NEC_78K_0_last
-
     };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
   NEC_78K_0S_null = 0,           // Unknown Operation
@@ -12944,13 +12602,8 @@ enum
   NEC_78K_0S_STOP,               // Stop Mode Set
   NEC_78K_0S_last
 };
-
-
-
-
 // The instruction types (``itype''s)
 // M16C/60, M16C/20, M16C/Tiny and M16C/80 CPUs implements.
-
 enum m16c_itype_t
 {
   M16C_null=0,      // Unknown Operation
@@ -13080,7 +12733,6 @@ enum m16c_itype_t
   M16C_wait,        // Wait
   M16C_xchg,        // Exchange
   M16C_xor,         // Exclusive OR
-
   // M16C/80 specifics
   M16C_addx,
   M16C_bitindex,
@@ -13124,11 +12776,9 @@ enum m16c_itype_t
   M16C_smovu,
   M16C_sout,
   M16C_subx,
-
   // M32C specifics
   M16C_shanc,       // Shift arithmetic no carry
   M16C_shlnc,       // Shift logical no carry
-
   // R32C specifics
   M16C_addf,
   M16C_adsf,
@@ -13150,18 +12800,9 @@ enum m16c_itype_t
   M16C_subf,
   M16C_suntil,
   M16C_swhile,
-
   M16C_last
 };
-
-
-
-
-
-
-
 // exporting the ins.cpp array
-
 // m32r instructions declaration
 enum
 {
@@ -13251,9 +12892,7 @@ enum
   m32r_unlock,       // Store unlocked
   m32r_xor,          // Exclusive OR
   m32r_xor3,         // Exclusive OR 3-operand
-
   // M32RX :
-
   m32rx_bcl,
   m32rx_bncl,
   m32rx_cmpeq,
@@ -13287,7 +12926,6 @@ enum
   m32rx_maclh1,
   m32rx_sc,
   m32rx_snc,
-
 // Floating point
   m32r_fadd,           // Floating-point add
   m32r_fsub,           // Floating-point subtract
@@ -13307,14 +12945,8 @@ enum
   m32r_btst,           // Bit test
   m32r_setpsw,         // Set PSW
   m32r_clrpsw,         // Clear PSW
-
   m32r_last
 };
-
-
-
-
-
 enum
 {
   m740_null = 0,           // null instruction
@@ -13389,18 +13021,11 @@ enum
   m740_txs,                // transfert index register X to stack pointer
   m740_tya,                // transfert index register Y to accumulator
   m740_wit,                // wait
-
   m740_last
 };
-
-
-
-
-
 enum
 {
   // 7700 :
-
   m7700_null = 0,         // null instruction
   m7700_adc,              // addition with carry
   m7700_and,              // logical AND
@@ -13505,19 +13130,14 @@ enum
   m7700_tyx,              // transfer index register Y to X
   m7700_wit,              // wait
   m7700_xab,              // exchange accumulator A and B
-
   // 7750 :
-
   m7750_asr,              // arithmetic shift right
   m7750_divs,             // divide with sign
   m7750_exts,             // extention with sign
   m7750_extz,             // extention zero
   m7750_mpys,             // multiply with sign
-
   m7700_last
 };
-
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
@@ -13525,23 +13145,15 @@ enum
  *
  *      MITSUBISHI 7900 Family
  */
-
-
-
 enum
 {
 m7900_null = 0,           // Unknown Operation
-
-
 m7900_abs,   // ABSolute
 m7900_absd,  // ABSolute at Double-word
-
 m7900_adc,   // ADd with Carry
 m7900_adcb,  // ADd with Carry at Byte
 m7900_adcd,  // ADd with Carry at Double-word
-
 m7900_add,    // Addition
-
 m7900_addb,   // ADD at Byte
 m7900_addd,   // ADD at Double-word
 m7900_addm,   // ADD immediate and Memory
@@ -13550,28 +13162,21 @@ m7900_addmd,  // ADD immediate and Memory at Double-word
 m7900_adds,   // ADD Stack pointer and immediate
 m7900_addx,   // ADD index register X and immediate
 m7900_addy,   // ADD index register Y and immediate
-
 m7900_and,    // Logical AND
 m7900_andb,   // logical AND between immediate (Byte)
-
 m7900_andm,   // logical AND between immediate value and Memory
 m7900_andmb,  // logical AND between immediate value and Memory (Byte)
 m7900_andmd,  // logical AND between immediate value and Memory (Double word)
-
 m7900_asl,    // Arithmetic Shift to Left
 m7900_asln,   // Arithmetic Shift to Left by n bits
 m7900_asldn,  // Arithmetic Shift to Left by n bits (Double word)
-
-
 m7900_asr,    // Arithmeticshift to the right
 m7900_asrn,   // Arithmetic Shift to Right by n bits
 m7900_asrdn,  // Arithmetic Shift to Right by n bits (Double word)
-
 m7900_bbc,    // Branch on Bit Clear
 m7900_bbcb,   // Branch on Bit Clear (Byte)
 m7900_bbs,    // Branch on Bit Set
 m7900_bbsb,   // Branch on Bit Set (Byte)
-
 m7900_bcc,    // Branch on Carry Clear
 m7900_bcs,    // Branch on Carry Set
 m7900_beq,    // Branch on EQual
@@ -13586,115 +13191,87 @@ m7900_bne,    // Branch on Not Equal
 m7900_bpl,    // Branch on result PLus
 m7900_bra,    // BRanch Always
 m7900_bral,   // BRanch Always
-
 m7900_brk,    // force BReaK
-
 m7900_bsc,    // Branch on Single bit Clear
 m7900_bsr,    // Branch to SubRoutine
 m7900_bss,    // Branch on Single bit Set
-
 m7900_bvc,    // Branch on oVerflow Clear
 m7900_bvs,    // Branch on oVerflow Set
-
 m7900_cbeq,   // Compare immediate and Branch on EQual
 m7900_cbeqb,  // Compare immediate and Branch on EQual at Byte
 m7900_cbne,   // Compare immediate and Branch on Not Equal
 m7900_cbneb,  // Compare immediate and Branch on Not Equal at Byte
-
 m7900_clc,    // CLear Carry flag
 m7900_cli,    // CLear Interrupt disable status
 m7900_clm,    // CLear M flag
 m7900_clp,    // CLear Processor status
-
 m7900_clr,    // CLeaR accumulator
 m7900_clrb,   // CLeaR accumulator at Byte
 m7900_clrm,   // CLeaR Memory
 m7900_clrmb,  // CLeaR Memory at Byte
 m7900_clrx,   // CLeaR index register X
 m7900_clry,   // CLeaR index register Y
-
 m7900_clv,    // CLear oVerflow flag
-
 m7900_cmp,    // CoMPare
 m7900_cmpb,   // CoMPare at Byte
 m7900_cmpd,   // CoMPare at Double-word
 m7900_cmpm,   // CoMPare immediate with Memory
 m7900_cmpmb,  // CoMPare immediate with Memory at Byte
 m7900_cmpmd,  // CoMPare immediate with Memory at Double-word
-
 m7900_cpx,    // ComPare memory and index register X
 m7900_cpy,    // ComPare memory and index register Y
-
 m7900_debne,   // DEcrement memory and Branch on Not Equal
-
 m7900_dec,    // DECrement by one
 m7900_dex,    // DEcrement index register X by one
 m7900_dey,    // DEcrement index register Y by one
-
 m7900_div,    // DIVide unsigned
 m7900_divs,   // DIVide with Sign
 m7900_dxbne,  // Decrement index register X and Branch on Not Equal
 m7900_dybne,  // Decrement index register Y and Branch on Not Equal
-
 m7900_eor,    // Exclusive OR memory with accumulator
 m7900_eorb,   // Exclusive OR immediate with accumulator at Byte
 m7900_eorm,   // Exclusive OR immediate with Memory
 m7900_eormb,  // Exclusive OR immediate with Memory at Byte
 m7900_eormd,  // Exclusive OR immediate with Memory at Double-word
-
 m7900_exts,   // EXTension Sign
 m7900_extsd,  // EXTension Sign at Double-word
 m7900_extz,   // EXTension Zero
 m7900_extzd,  // EXTension Zero at Double-word
-
 m7900_inc,    // INCrement by one
 m7900_inx,    // INcrement index register X by one
 m7900_iny,    // INcrement index register y by one
-
 m7900_jmp,    // Jump
 m7900_jmpl,   // Jump
-
 m7900_jsr,    // Jump to SubRoutine
 m7900_jsrl,   // Jump to SubRoutine
-
-
 m7900_lda,    // LoaD Accumulator from memory
 m7900_ldab,   // LoaD Accumulator from memory at Byte
 m7900_ldad,   // LoaD Accumulator from memory at Double-word
 m7900_lddn,   // LoaD immediate to Direct page register n
-
 m7900_ldt,    // LoaD immediate to DaTa bank register
 m7900_ldx,    // LoaD index register X from memory
 m7900_ldxb,   // LoaD index register X from memory at Byte
 m7900_ldy,    // LoaD index register Y from memory
 m7900_ldyb,   // LoaD index register Y from memory at Byte
-
 m7900_lsr,    // Logical Shift Right
 m7900_lsrn,   // Logical n bits Shift Right
 m7900_lsrdn,  // Logical n bits Shift Right at Double-word
-
 m7900_movm,   // MOVe Memory to memory
 m7900_movmb,  // MOVe Memory to memory at Byte
 m7900_movr,   // MOVe Repeat memory to memory
 m7900_movrb,  // MOVe Repeat memory to memory at Byte
-
 m7900_mpy,    // MultiPlY
 m7900_mpys,   // MultiPlY with Sign
-
 m7900_mvn,    // MoVe Negative
 m7900_mvp,    // MoVe Positive
-
 m7900_neg,    // NEGative
 m7900_negd,   // NEGative at Double-word
-
 m7900_nop,    // No OPeration
-
 m7900_ora,    // OR memory with Accumulator
 m7900_orab,   // OR immediate with Accumulator at Byte
 m7900_oram,   // OR immediAte with Memory
 m7900_oramb,  // OR immediAte with Memory at Byte
 m7900_oramd,  // OR immediAte with Memory at Double-word
-
 m7900_pea,    // Push Effective Address
 m7900_pei,    // Push Effective Indirect address
 m7900_per,    // Push Effective program counter Relative address
@@ -13703,14 +13280,11 @@ m7900_phb,    // PusH accumulator B on stack
 m7900_phd,    // PusH Direct page register on stack
 m7900_phdn,   // PusH Direct page register n on stack
 m7900_phg,    // PusH proGram bank register on stack
-
 m7900_phldn,  // PusH dpr n to stack and Load immediate to Dpr n
-
 m7900_php,    // PusH Processor status on stack
 m7900_pht,    // PusH daTa bank register on stack
 m7900_phx,    // PusH index register X on stack
 m7900_phy,    // PusH index register Y on stack
-
 m7900_pla,    // PuLl accumulator A from stack
 m7900_plb,    // PuLl accumulator B from stack
 m7900_pld,    // PuLl Direct page register from stack
@@ -13719,49 +13293,34 @@ m7900_plp,    // PuLl Processor status from stack
 m7900_plt,    // PuLl daTa bank register from stack
 m7900_plx,    // PuLl index register X from stack
 m7900_ply,    // PuLl index register Y from stack
-
 m7900_psh,    // PuSH
 m7900_pul,    // PuLl
-
 m7900_rla,    // Rotate Left accumulator A
 m7900_rmpa,   // Repeat Multiply and Accumulate
-
 m7900_rol,    // ROtate one bit Left
 m7900_roln,   // n bits ROtate Left
-
 m7900_roldn,  // n bits ROtate Left at Double-word
-
 m7900_ror,    // ROtate one bit Right
 m7900_rorn,   // n bits ROtate Right
 m7900_rordn,  // n bits ROtate Right at Double-word
-
 m7900_rti,    // Return from Interrupt
 m7900_rtl,    // ReTurn from subroutine Long
 m7900_rtld,  // ReTurn from subroutine Long and pull Direct page register n
 m7900_rts,    // ReTurn from Subroutine
 m7900_rtsdn,  // ReTurn from Subroutine and pull Direct page register n
-
-
 m7900_sbc,    // SuBtract with Carry
 m7900_sbcb,   // SuBtract with Carry at Byte
 m7900_sbcd,   // SuBtract with Carry at Double-word
-
-
 m7900_sec,    // SEt Carry flag
 m7900_sei,    // SEt Interrupt disable status
 m7900_sem,    // SEt M flag
 m7900_sep,    // SEt Processor status
-
-
 m7900_sta,    // STore Accumulator in memory
 m7900_stab,   // STore Accumulator in memory at Byte
 m7900_stad,   // STore Accumulator in memory at Double-word
-
-
 m7900_stp,   // SToP
 m7900_stx,   // STore index register X in memory
 m7900_sty,   // STore index register Y in memory
-
 m7900_sub,   // SUBtract
 m7900_subb,  // SUBtract at Byte
 m7900_subd,  // SUBtract at Double-word
@@ -13771,28 +13330,17 @@ m7900_submd, // SUBtract immediate from Memory at Double-word
 m7900_subs,  // SUBtract Stack pointer
 m7900_subx,  // SUBtract immediate from index register X
 m7900_suby,  // SUBtract immediate from index register Y
-
-
-
 m7900_tadn,  // Transfer accumulator A to Direct page register n
-
-
 m7900_tas,   // Transfer accumulator A to Stack pointer
 m7900_tax,   // Transfer accumulator A to index register X
 m7900_tay,   // Transfer accumulator A to index register Y
-
 m7900_tbdn,  // Transfer accumulator B to Direct page register n
-
 m7900_tbs,   // Transfer accumulator B to Stack pointer
 m7900_tbx,   // Transfer accumulator B to index register X
 m7900_tby,   // Transfer accumulator B to index register Y
-
 m7900_tdan,  // Transfer Direct page register n to accumulator A
 m7900_tdbn,  // Transfer Direct page register n to accumulator B
-
 m7900_tds,   // Transfer Direct page register to Stack pointer
-
-
 m7900_tsa,   // Transfer Stack pointer to accumulator A
 m7900_tsb,   // Transfer Stack pointer to accumulator B
 m7900_tsd,   // Transfer Stack pointer to Direct page register
@@ -13804,18 +13352,10 @@ m7900_txy,   // Transfer index register X to Y
 m7900_tya,   // Transfer index register Y to accumulator A
 m7900_tyb,   // Transfer index register Y to accumulator B
 m7900_tyx,   // Transfer index register Y to X
-
 m7900_wit,   // WaIT
-
 m7900_xab,   // eXchange accumulator A and B
-
 m7900_last   //
-
     };
-
-
-
-
 enum
 {
   st9_null = 0,           // Unknown Operation.
@@ -13925,15 +13465,9 @@ enum
   st9_aldw,               // PSEUDO INSTRUCTION.  SHOULD NEVER BE USED.
   st9_last
 };
-
-
-
-
-
 enum
 {
   fr_null = 0,            // null instruction
-
   fr_add,                 // add word data of source register / 4-bit immediate data to destination register
   fr_add2,                // add 4-bit immediate data to destination register
   fr_addc,                // add word data of source register and carry bit to destination register
@@ -14036,20 +13570,15 @@ enum
   fr_xchb,                // exchange byte data
   fr_last                 // last instruction
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
 ALPHA_null = 0,     // Unknown Operation
-
 ALPHA_addf,         // Add F_floating
 ALPHA_addg,         // Add G_floating
 ALPHA_addl,         // Add longword
@@ -14249,9 +13778,7 @@ ALPHA_wmb,          // Write memory barrier
 ALPHA_xor,          // Logical difference
 ALPHA_zap,          // Zero bytes
 ALPHA_zapnot,       // Zero bytes not
-
 // Macros
-
 ALPHA_unop,         // Universal NOP
 ALPHA_nop,          // Integer NOP
 ALPHA_fnop,         // Floating point NOP
@@ -14275,18 +13802,11 @@ ALPHA_or,           // Bitwise OR
 ALPHA_andnot,       // Bit clear
 ALPHA_xornot,       // Logical equivalence
 ALPHA_br0,          // Branch
-
 ALPHA_last,
-
 };
-
-
-
-
 enum
 {
 KR1878_null = 0,     // Unknown Operation
-
 KR1878_mov,
 KR1878_cmp,      // Compare
 KR1878_add,      // Addition
@@ -14294,7 +13814,6 @@ KR1878_sub,      // Subtract
 KR1878_and,      // Logical AND
 KR1878_or,       // Logical Inclusive OR
 KR1878_xor,      // Logical Exclusive OR
-
 KR1878_movl,
 KR1878_cmpl,     // Compare
 KR1878_addl,     // Addition
@@ -14303,7 +13822,6 @@ KR1878_bic,
 KR1878_bis,
 KR1878_btg,
 KR1878_btt,
-
 KR1878_swap,
 KR1878_neg,
 KR1878_not,
@@ -14314,7 +13832,6 @@ KR1878_rlc,      // Rotate Left
 KR1878_rrc,      // Rotate Right
 KR1878_adc,      // Add with Carry
 KR1878_sbc,      // Subtract with Carry
-
 KR1878_ldr,
 KR1878_mtpr,
 KR1878_mfpr,
@@ -14324,7 +13841,6 @@ KR1878_sst,
 KR1878_cst,
 KR1878_tof,
 KR1878_tdc,
-
 KR1878_jmp,      // Jump
 KR1878_jsr,      // Jump to Subroutine
 KR1878_jnz,      // Jump
@@ -14338,20 +13854,13 @@ KR1878_ijsr,     // Jump to Subroutine
 KR1878_rts,      // Return from Subroutine
 KR1878_rtsc,     // Return from Subroutine
 KR1878_rti,      // Return from Interrupt
-
 KR1878_nop,      // No Operation
 KR1878_wait,
 KR1878_stop,
 KR1878_reset,
 KR1878_sksp,
-
 KR1878_last,
-
 };
-
-
-
-
 enum
 {
 AD218X_null = 0,        // Unknown Operation
@@ -14513,12 +14022,7 @@ AD218X_amf_move_8,      // dm(op, op) = op, amf_cmd             Shift operation 
 AD218X_amf_move_9,      // pm(op, op) = op, amf_cmd             Shift operation with Program Memory Write, Instruction Type 13:
 AD218X_amf_move_a,      // amf_cmd, op = dm(op, op), op = pm(op, op)    ALU/MAC with Data and Program Memory Read, Instruction Type 1:
 AD218X_last,
-
 };
-
-
-
-
 enum
 {
 OAK_Dsp_null = 0,       // Unknown Operation
@@ -14637,18 +14141,13 @@ OAK_Dsp_lpg,            // Load the Page Bits
 OAK_Dsp_load,           // Load Specific Fields into Registers
 OAK_Dsp_mov_eu,         // Move Data, eu
 OAK_Dsp_last,
-
 };
-
 /*
  *      TLCS900 processor module for IDA.
  *      Copyright (c) 1998-2006 Konstantin Norvatoff, <konnor@bk.ru>
  *      Freeware.
  */
-
-
 // List of instructions
-
 //
 enum
 {
@@ -14784,16 +14283,12 @@ T900_max,
 T900_normal,
 T900_last
 };
-
 /*
  *      Rockwell C39 processor module for IDA.
  *      Copyright (c) 2000-2006 Konstantin Norvatoff, <konnor@bk.ru>
  *      Freeware.
  */
-
-
 // List of instructions
-
 //
 enum
 {
@@ -14914,16 +14409,12 @@ C39_txs,
 C39_tya,
 C39_last
 };
-
 /*
  *      National Semiconductor Corporation CR16 processor module for IDA.
  *      Copyright (c) 2002-2006 Konstantin Norvatoff, <konnor@bk.ru>
  *      Freeware.
  */
-
-
 // list of instructions
-
 enum
 {
 CR16_null = 0,           // Unknown Operation
@@ -15046,16 +14537,12 @@ CR16_xorb,
 CR16_xorw,
 CR16_last
 };
-
 /*
  *      Panasonic MN102 (PanaXSeries) processor module for IDA.
  *      Copyright (c) 2000-2006 Konstantin Norvatoff, <konnor@bk.ru>
  *      Freeware.
  */
-
-
 // List of instructions
-
 enum
 {
 mn102_null = 0,           // Unknown Operation
@@ -15130,7 +14617,6 @@ mn102_tbz,
 mn102_xor,
 mn102_last
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
@@ -15138,9 +14624,6 @@ mn102_last
  *
  *      PowerPC - RISC with very complex instructions
  */
-
-
-
 enum
 {
 PPC_null = 0,   // Unknown Operation
@@ -15372,13 +14855,10 @@ PPC_twi,        // Trap Word Immediate
 PPC_xor,        // XOR
 PPC_xori,       // XOR Immediate
 PPC_xoris,      // XOR Immediate Shifted
-
 PPC_last_basic = PPC_xoris,
-
 //
 //      Simplified mnemonics
 //
-
 PPC_cmpwi,      // Compare Word Immediate
 PPC_cmpw,       // Compare Word
 PPC_cmplwi,     // Compare Logical Word Immediate
@@ -15387,7 +14867,6 @@ PPC_cmpdi,      // Compare Double Word Immediate
 PPC_cmpd,       // Compare Double Word
 PPC_cmpldi,     // Compare Logical Double Word Immediate
 PPC_cmpld,      // Compare Logical Double Word
-
 PPC_trap,       // Trap Word Unconditionally
 // "trapd" seems like a bug; no such mnemonic appears to exist as just plain
 // "trap" is used regardless of word/doubleword, but we have to leave it here
@@ -15438,22 +14917,18 @@ PPC_tdnei,      // Trap Double Word Immediate if Not Equal
 // words, the assembler supports (e.g.) both "logically less than or equal"
 // (tdlei) in addition to "logically not greater than" (tdlngi)--a disassembler
 // need not support both
-
 PPC_nop,        // No Operation
 PPC_not,        // Complement Register
 PPC_mr,         // Move Register
-
 PPC_subi,       // Subtract Immediate
 PPC_subic,      // Subtract Immediate Carrying
 PPC_subis,      // Subtract Immediate Shifted
 PPC_li,         // Load Immediate
 PPC_lis,        // Load Immediate Shifted
-
 PPC_crset,      // Condition Register Set
 PPC_crnot,      // Condition Register NOT
 PPC_crmove,     // Condition Register Move
 PPC_crclr,      // Condition Register Clear
-
 PPC_mtxer,      // Move to integer unit exception register
 PPC_mtlr,       // Move to link register
 PPC_mtctr,      // Move to count register
@@ -15483,17 +14958,14 @@ PPC_mfsprg3,    // Move from general special purpose register 3
 PPC_mftbl,      // Move from time base register (lower)
 PPC_mftbu,      // Move from time base register (upper)
 PPC_mfpvr,      // Move from processor version register
-
 // suffixes:
 //      lr      - goto lr
 //      ctr     - goto ctr
 //      l       - update lr
 //      a       - absolute
-
 // branch forms not listed here or elsewhere in the file (e.g. bltlr) are
 // being handled by emitting extra characters when printing the instructions
 // instead of having separate enums
-
 PPC_balways,    // Branch unconditionally
 PPC_bt,         // Branch if true
 PPC_bf,         // Branch if false
@@ -15503,7 +14975,6 @@ PPC_bdnzf,      // CTR--; branch if CTR non-zero and condition is false
 PPC_bdz,        // CTR--; branch if CTR zero
 PPC_bdzt,       // CTR--; branch if CTR zero and condition is true
 PPC_bdzf,       // CTR--; branch if CTR zero and condition is false
-
 PPC_blt,        // Branch if less than
 PPC_ble,        // Branch if less than or equal
 PPC_beq,        // Branch if equal
@@ -15515,7 +14986,6 @@ PPC_bns,        // Branch if not summary overflow
 // bun and bnu are intentionally missing from this list; they are handled by
 // bso/bns (this is the result of historical differences between POWER and PPC
 // mnemonics)
-
 PPC_extlwi,     // Extract and Left Justify Immediate
 PPC_extrwi,     // Extract and Right Justify Immediate
 PPC_inslwi,     // Insert from Left Immediate
@@ -15528,11 +14998,9 @@ PPC_srwi,       // Shift Right Immediate
 PPC_clrlwi,     // Clear Left Immediate
 PPC_clrrwi,     // Clear Right Immediate
 PPC_clrlslwi,   // Clear Left and Shift Left Immediate
-
 //
 //  PowerPC Embedded Controller Instructions
 //
-
 PPC_dccci,      // Data cache congruence class invalidate (p.438-439)
 PPC_dcread,     // Data cache read (p.440-441)
 PPC_icbt,       // Instruction cache block touch (p.450-451)
@@ -15546,11 +15014,9 @@ PPC_tlbsx,      // TLB search indexed (p.550)
 PPC_tlbwe,      // TLB write entry (p.552-553)
 PPC_wrtee,      // Write external enable (p.560)
 PPC_wrteei,     // Write external enable immediate (p.561)
-
 //
 //  New PowerPC instructions
 //
-
 PPC_abs,        // Absolute
 PPC_clcs,       // Cache Lines Compute Size
 PPC_clf,        // Cache Line Flush
@@ -15591,12 +15057,9 @@ PPC_sriq,       // Shift Right Immediate With MQ
 PPC_srliq,      // Shift Right Long Immediate With MQ
 PPC_srlq,       // Shift Right Long With MQ
 PPC_srq,        // Shift Right With MQ
-
 // New instructions
-
 PPC_mtocrf,     // Move To One Condition Register Field
 PPC_mfocrf,     // Move From One Condition Register Field
-
 // Freescale e200z6 instructions
 PPC_isel,       // Integer Select
 PPC_isellt,     // Integer Select Less Than
@@ -15609,14 +15072,10 @@ PPC_icblc,      // Instruction Cache Block Lock Clear
 PPC_icbtls,     // Instruction Cache Block Touch and Lock Set
 PPC_tlbivax,    // TLB Invalidate Virtual Address Indexed
 PPC_rfdi,       // Return from Debug Interrupt
-
 // Freescale MPC603e instructions (G2 core)
-
 PPC_tlbld,      // Load Data TLB Entry
 PPC_tlbli,      // Load Instruction TLB Entry
-
 // SPE (Signal Processing Engine) instructions
-
 PPC_brinc,            // Bit Reversed Increment
 PPC_evabs,            // Vector Absolute Value
 PPC_evaddiw,          // Vector Add Immediate Word
@@ -15790,9 +15249,7 @@ PPC_evsubfusiaaw,     // Vector Subtract Unsigned, Saturate, Integer to Accumula
 PPC_evsubfw,          // Vector Subtract from Word
 PPC_evsubifw,         // Vector Subtract Immediate from Word
 PPC_evxor,            // Vector XOR
-
 // SPE.Embedded Float Scalar Double
-
 PPC_efdabs,           // Floating-Point Double-Precision Absolute Value
 PPC_efdadd,           // Floating-Point Double-Precision Add
 PPC_efdcfs,           // Floating-Point Double-Precision Convert from Single-Precision
@@ -15822,9 +15279,7 @@ PPC_efdtsteq,         // Floating-Point Double-Precision Test Equal
 PPC_efdtstgt,         // Floating-Point Double-Precision Test Greater Than
 PPC_efdtstlt,         // Floating-Point Double-Precision Test Less Than
 PPC_efscfd,           // Floating-Point Single-Precision Convert from Double-Precision
-
 // SPE.Embedded Float Scalar Single
-
 PPC_efsabs,           // Floating-Point Single-Precision Absolute Value
 PPC_efsadd,           // Floating-Point Single-Precision Add
 PPC_efscfsf,          // Convert Floating-Point Single-Precision from Signed Fraction
@@ -15848,9 +15303,7 @@ PPC_efssub,           // Floating-Point Single-Precision Subtract
 PPC_efststeq,         // Floating-Point Single-Precision Test Equal
 PPC_efststgt,         // Floating-Point Single-Precision Test Greater Than
 PPC_efststlt,         // Floating-Point Single-Precision Test Less Than
-
 // SPE.Embedded Float Vector
-
 PPC_evfsabs,          // Vector Floating-Point Single-Precision Absolute Value
 PPC_evfsadd,          // Vector Floating-Point Single-Precision Add
 PPC_evfscfsf,         // Vector Convert Floating-Point Single-Precision from Signed Fraction
@@ -15874,9 +15327,7 @@ PPC_evfssub,          // Vector Floating-Point Single-Precision Subtract
 PPC_evfststeq,        // Vector Floating-Point Single-Precision Test Equal
 PPC_evfststgt,        // Vector Floating-Point Single-Precision Test Greater Than
 PPC_evfststlt,        // Vector Floating-Point Single-Precision Test Less Than
-
 // Missing instructions from Power ISA 2.06
-
 // category: 64-bit
 PPC_bpermd,           // Bit Permute Doubleword
 PPC_divde,            // Divide Doubleword Extended
@@ -16374,16 +15825,13 @@ PPC_xxsldwi,          // VSX Shift Left Double by Word Immediate
 PPC_xxspltw,          // VSX Splat Word
 // category: Wait
 PPC_wait,             // Wait
-
 // Obsolete AltiVec instructions
-
 PPC_dss,              // Data Stream Stop
 PPC_dssall,           // Data Stream Stop All
 PPC_dst,              // Data Stream Touch
 PPC_dstt,             // Data Stream Touch Transient
 PPC_dstst,            // Data Stream Touch for Store
 PPC_dststt,           // Data Stream Touch for Store Transient
-
 // Cell BE AltiVec extension
 PPC_lvlx,             // Load Vector Left Indexed
 PPC_lvlxl,            // Load Vector Left Indexed Last
@@ -16393,7 +15841,6 @@ PPC_stvlx,            // Store Vector Left Indexed
 PPC_stvlxl,           // Store Vector Left Indexed Last
 PPC_stvrx,            // Store Vector Right Indexed
 PPC_stvrxl,           // Store Vector Right Indexed Last
-
 // VLE instructions that don't have matching mnemonics
 PPC_add16i,           // [e_add16i] Add Immediate
 PPC_add2i,            // [e_add2i] Add (2 operand) Immediate and Record
@@ -16428,7 +15875,6 @@ PPC_sub,              // [se_sub] Subtract
 PPC_sub16i,           // [e_sub16i] Subtract Immediate
 PPC_sub2i,            // [e_sub2i] Subtract (2 operand) Immediate
 PPC_sub2is,           // [e_sub2is] Subtract (2 operand) Immediate Shifted
-
 // misc extended mnemonics
 PPC_extldi,     // Extract and Left Justify Immediate
 PPC_extrdi,     // Extract and Right Justify Immediate
@@ -16441,7 +15887,6 @@ PPC_srdi,       // Shift Right Immediate
 PPC_clrldi,     // Clear Left Immediate
 PPC_clrrdi,     // Clear Right Immediate
 PPC_clrlsldi,   // Clear Left and Shift Left Immediate
-
 PPC_xnop,       // Extended No Operation
 PPC_hnop,       // Reserved no-op hint
 PPC_dcbfl,      // Data Cache Block Flush Local
@@ -16461,11 +15906,9 @@ PPC_xxspltd,    // VSX Splat Doubleword
 PPC_xxmrghd,    // VSX Merge High Doubleword
 PPC_xxmrgld,    // VSX Merge Low Doubleword
 PPC_xxswapd,    // VSX Swap Doubleword
-
 // Xbox 360 specific
 PPC_dcbz128,    // Data Cache Block Clear to Zero (128 bytes)
 PPC_mtmsree,    // Move to Machine State Register EE
-
 // new Xbox 360 instructions (VMX128)
 PPC_vcfpsxws,   // Vector Convert From Single-Precision to Signed Fixed-point Word Saturate
 PPC_vcfpuxws,   // Vector Convert From Single-Precision to Unsigned Fixed-point Word Saturate
@@ -16479,7 +15922,6 @@ PPC_vpermwi,    // Vector Permute Word Immediate
 PPC_vpkd3d,     // Vector Pack D3Dtype, Rotate Left Immediate and Mask Insert
 PPC_vrlimi,     // Vector Rotate Left Immediate and Mask Insert
 PPC_vupkd3d,    // Vector Unpack D3Dtype
-
 // Paired Singles (750CL/Gekko/Broadway)
 PPC_ps_cmpu0,   // Paired Single Compare Unordered High
 PPC_psq_lx,     // Paired Single Quantized Load Indexed
@@ -16519,7 +15961,6 @@ PPC_psq_l,      // Paired Single Quantized Load
 PPC_psq_lu,     // Paired Single Quantized Load update
 PPC_psq_st,     // Paired Single Quantized Store
 PPC_psq_stu,    // Paired Single Quantized Store update
-
 // additional SPE/EFPU2 instructions
 PPC_evfsmadd,   // Vector Floating-Point Single-Precision Multiply-Add
 PPC_evfsmsub,   // Vector Floating-Point Single-Precision Multiply-Subtract
@@ -16552,7 +15993,6 @@ PPC_efsnmadd,   // Floating-Point Single-Precision Negative Multiply-Add
 PPC_efsnmsub,   // Floating-Point Single-Precision Negative Multiply-Subtract
 PPC_efscfh,     // Convert Floating-Point Single-Precision from Half-Precision
 PPC_efscth,     // Convert Floating-Point Single-Precision to Half-Precision
-
 // Volatile Context Save/Restore APU
 PPC_lmvgprw,    // Load Multiple Volatile GPR Word
 PPC_stmvgprw,   // Store Multiple Volatile GPR Word
@@ -16566,7 +16006,6 @@ PPC_lmvdsrrw,   // Load Multiple Volatile DSRR Word
 PPC_stmvdsrrw,  // Store Multiple Volatile DSRR Word
 PPC_lmvmcsrrw,  // Load Multiple Volatile MCSRR Word
 PPC_stmvmcsrrw, // Store Multiple Volatile MCSRR Word
-
 // SPE2 (Signal Processing Engine 2) instructions
 PPC_evdotpwcssi,        // Vector Dot Product of Words, Complex, Signed, Saturate, Integer (to Accumulator)
 PPC_evdotpwcsmi,        // Vector Dot Product of Words, Complex, Signed, Modulo, Integer (to Accumulator)
@@ -17336,13 +16775,11 @@ PPC_evavghur,           // Vector Average Halfword Unsigned with Round
 PPC_evavghsr,           // Vector Average Halfword Signed with Round
 PPC_evavgdur,           // Vector Average Doubleword Unsigned with Round
 PPC_evavgdsr,           // Vector Average Doubleword Signed with Round
-
 // Some simplifications that were missed previously
 PPC_tdui,       // Trap Doubleword Unconditionally with Immediate
 PPC_tdu,        // Trap Doubleword Unconditionally
 PPC_twui,       // Trap Word Unconditionally with Immediate
 PPC_twu,        // Trap Word Unconditionally
-
 // Power ISA 2.07
 PPC_bctar,        // Branch Conditional to Branch Target Address Register
 PPC_clrbhrb,      // Clear BHRB
@@ -17462,7 +16899,6 @@ PPC_msgsndp,      // Message Send Privileged
 PPC_msgclrp,      // Message Clear Privileged
 PPC_dcblq,        // Data Cache Block Lock Query
 PPC_icblq,        // Instruction Cache Block Lock Query
-
 // Simplifications for Power ISA 2.07
 PPC_vmr,        // Vector Move Register
 PPC_vnot,       // Vector Complement Register
@@ -17508,7 +16944,6 @@ PPC_yield,      // "or" Shared Resource Hint
 // PPC_mtvrwa,     // Move To VR Word Algebraic
 // PPC_mtfprwz,    // Move To FPR Word and Zero
 // PPC_mtvrwz,     // Move To VR Word and Zero
-
 // e500 core family, category ISAT, valid for VLE
 // EREF_RM Rev. 1 (EIS 2.1) 06/2014
 PPC_addbss,     // Add Byte Signed Saturate
@@ -17547,15 +16982,12 @@ PPC_satswu,     // Saturate
 PPC_satuwu,     // Saturate
 PPC_abssw,      // Saturate
 PPC_absuw,      // Saturate
-
 // e200 Enhanced Debug extension
 PPC_dni,        // Debugger Notify Interrupt
-
 // Power ISA Version 3.0
 PPC_slbieg,     // SLB Invalidate Entry Global
 PPC_slbiag,     // SLB Invalidate All Global
 PPC_slbsync,    // SLB Synchronize
-
 PPC_addpcis,    // Add PC Immediate Shifted
 PPC_lnia,       // Add PC Immediate Shifted
 PPC_subpcis,    // Add PC Immediate Shifted
@@ -17580,7 +17012,6 @@ PPC_mtvsrws,    // Move To VSR Word & Splat
 PPC_scv,        // System Call Vectored
 PPC_rfscv,      // Return From System Call Vectored
 PPC_stop,       // Stop
-
 PPC_copy,       // Copy
 PPC_paste,      // Paste
 PPC_ldat,       // Load Dword ATomic
@@ -17589,10 +17020,8 @@ PPC_stdat,      // Store Dword ATomic
 PPC_stwat,      // Store Word ATomic
 PPC_cpabort,    // Copy-Paste Abort
 PPC_wait30,     // Wait for Interrupt
-
 PPC_dtstsfi,    // DFP Test Significance Immediate
 PPC_dtstsfiq,   // DFP Test Significance Immediate Quad
-
 PPC_bcdcfn,     // Decimal Convert From National & record
 PPC_bcdcfz,     // Decimal Convert From Zoned & record
 PPC_bcdctn,     // Decimal Convert To National & record
@@ -17606,7 +17035,6 @@ PPC_bcdus,      // Decimal Unsigned Shift & record
 PPC_bcdsr,      // Decimal Shift & Round & record
 PPC_bcdtrunc,   // Decimal Truncate & record
 PPC_bcdutrunc,  // Decimal Unsigned Truncate & record
-
 PPC_vabsdub,    // Vector Absolute Difference Unsigned Byte
 PPC_vabsduh,    // Vector Absolute Difference Unsigned Hword
 PPC_vabsduw,    // Vector Absolute Difference Unsigned Word
@@ -17658,7 +17086,6 @@ PPC_vrldnm,     // Vector Rotate Left Dword then AND with Mask
 PPC_vrldmi,     // Vector Rotate Left Dword then Mask Insert
 PPC_vslv,       // Vector Shift Left Variable
 PPC_vsrv,       // Vector Shift Right Variable
-
 PPC_lxsd,       // Load VSX Scalar Dword
 PPC_lxssp,      // Load VSX Scalar Single
 PPC_lxsibzx,    // Load VSX Scalar as Integer Byte & Zero Indexed
@@ -17680,7 +17107,6 @@ PPC_stxvh8x,    // Store VSX Vector Hword*8 Indexed
 PPC_stxvl,      // Store VSX Vector with Length
 PPC_stxvll,     // Store VSX Vector Left-justified with Length
 PPC_stxvx,      // Store VSX Vector Indexed
-
 PPC_xsabsqp,    // VSX Scalar Absolute QP
 PPC_xsaddqp,    // VSX Scalar Add QP
 PPC_xscmpexpqp, // VSX Scalar Compare Exponents QP
@@ -17745,15 +17171,12 @@ PPC_xxbrq,      // VSX Vector Byte-Reverse Qword
 PPC_xxbrw,      // VSX Vector Byte-Reverse Word
 PPC_xvcvhpsp,   // VSX Vector Convert HP to SP
 PPC_xvcvsphp,   // VSX Vector Convert SP to HP
-
 PPC_msgsync,    // Message Synchronize
-
 // Instructions introduced in ISA 3.0 and withdrawn in ISA 3.0B :
 // ldmx         "Load Dword Monitored Indexed"
 // xscmpnedp    "VSX Scalar Compare Not Equal Double-Precision"
 // xvcmpnedp[.] "VSX Vector Compare Not Equal Double-Precision"
 // xvcmpnesp[.] "VSX Vector Compare Not Equal Single-Precision"
-
 // Power ISA Version 3.0 B
 PPC_addex,      // Add Extended using alternate carry
 PPC_vmsumudm,   // Vector Multiply-Sum Unsigned Doubleword Modulo
@@ -17763,7 +17186,6 @@ PPC_mffscdrni,  // Move From FPSCR Control & set DRN Immediate
 PPC_mffscrn,    // Move From FPSCR Control & set RN
 PPC_mffscrni,   // Move From FPSCR Control & set RN Immediate
 PPC_mffsl,      // Move From FPSCR Lightweight
-
 // Cache Bypass Storage APU
 PPC_lbdcbx,     // Load Byte with Decoration Indexed Cache Bypass
 PPC_lhdcbx,     // Load Halfword with Decoration Indexed Cache Bypass
@@ -17771,7 +17193,6 @@ PPC_lwdcbx,     // Load Word with Decoration Indexed Cache Bypass
 PPC_stbdcbx,    // Store Byte with Decoration Indexed Cache Bypass
 PPC_sthdcbx,    // Store Halfword with Decoration Indexed Cache Bypass
 PPC_stwdcbx,    // Store Word with Decoration Indexed Cache Bypass
-
 PPC_lbcbx,      // Load Byte Indexed Cache Bypass
 PPC_lhcbx,      // Load Halfword Indexed Cache Bypass
 PPC_lwcbx,      // Load Word Indexed Cache Bypass
@@ -17779,7 +17200,6 @@ PPC_stbwtx,     // Store Byte Indexed Cache Bypass
 PPC_sthwtx,     // Store Halfword Indexed Cache Bypass
 PPC_stwwtx,     // Store Word Indexed Cache Bypass
 PPC_dsncb,      // Decorated Storage Notify Cache Bypass
-
 // AIOP (E200Z490)
 PPC_ldw,        // Load Doubleword
 PPC_stdw,       // Store Doubleword
@@ -17817,14 +17237,12 @@ PPC_osmcmd,     // Ordered Scope Management Command Request
 PPC_mpure,      // MPU Read Entry Instruction
 PPC_mpuwe,      // MPU Write Entry Instruction
 PPC_mpusync,    // MPU Synchronize Instruction
-
 // EFP 2.0 instructions
 PPC_efdmax,     // Floating-Point Double-Precision Maximum
 PPC_efdmin,     // Floating-Point Double-Precision Minimum
 PPC_efdsqrt,    // Floating-Point Double-Precision Square Root
 PPC_efdcfh,     // Convert Floating-Point Double-Precision from Half-Precision
 PPC_efdcth,     // Convert Floating-Point Double-Precision to Half-Precision
-
 // LSP (Lightweight Signal Processing) instructions
 PPC_zbrminc,          // Bit-reversed masked increment
 PPC_zcircinc,         // Circular increment
@@ -18514,11 +17932,9 @@ PPC_zvdotphgwssmfaa,  // Vector dot product of halfwords, guarded to word, subtr
 PPC_zvdotphgwssmfan,  // Vector dot product of halfwords, guarded to word, subtract, signed modulo fractional, and accumulate negative
 PPC_zvdotphgwssmfraa, // Vector dot product of halfwords, guarded to word, subtract, signed modulo fractional with round, and accumulate
 PPC_zvdotphgwssmfran, // Vector dot product of halfwords, guarded to word, subtract, signed modulo fractional with round, and accumulate negative
-
 PPC_msgclru,          // Message Clear Ultravisor
 PPC_msgsndu,          // Message Send Ultravisor
 PPC_urfid,            // Ultravisor Return From Interrupt Doubleword
-
 // Power ISA Version 3.1 Prefixed Instructions
 PPC_paddi, // Prefixed Add Immediate
 PPC_plbz, // Prefixed Load Byte and Zero
@@ -18575,7 +17991,6 @@ PPC_pstxsd, // Prefixed Store VSX Scalar Doubleword
 PPC_pstxssp, // Prefixed Store VSX Scalar Single-Precision
 PPC_pstxv, // Prefixed Store VSX Vector
 PPC_pstxvp, // Prefixed Store VSX Vector Paired
-
 // Power ISA Version 3.1 Word Instructions
 PPC_brd, // Byte-Reverse Doubleword
 PPC_brh, // Byte-Reverse Halfword
@@ -18759,26 +18174,18 @@ PPC_xxsetaccz, // VSX Set Accumulator to Zero
 PPC_xxsplti32dx, // VSX Vector Splat Immediate32 Doubleword Indexed
 PPC_xxspltidp, // VSX Vector Splat Immediate Double-Precision
 PPC_xxspltiw, // VSX Vector Splat Immediate Word
-
 PPC_last,
 };
-
 /*
 *      Interactive disassembler (IDA).
 *      Copyright (c) 1990-2026 Hex-Rays
 *      ALL RIGHTS RESERVED.
 *
 */
-
-
-
 //----------------------------------------------------------------------
-
-
 enum NEC850_Instructions
 {
   NEC850_NULL = 0,
-
   NEC850_BREAKPOINT,    // undefined instruction
   NEC850_XORI,          // Exclusive Or Immediate
   NEC850_XOR,           // Exclusive OR
@@ -18850,7 +18257,6 @@ enum NEC850_Instructions
   NEC850_AND,           // And
   NEC850_ADDI,          // Add Immediate
   NEC850_ADD,           // Add
-
   //
   // V850E/E1/ES
   //
@@ -18865,47 +18271,35 @@ enum NEC850_Instructions
   NEC850_DBTRAP,        // Debug trap
   NEC850_DBRET,         // Return from debug trap or interrupt
   NEC850_CTRET,         // Return from CALLT
-
   NEC850_SASF,          // Shift and set flag condition
-
   NEC850_PREPARE_sp,    // Function prepare
   NEC850_PREPARE_i,     // Function prepare
-
   NEC850_MUL,           // Multiply word
   NEC850_MULU,          // Multiply word unsigned
-
   NEC850_DIVH_r3,       // Divide halfword (Format XI)
   NEC850_DIVHU,         // Divide halfword unsigned
   NEC850_DIV,           // Divide word
   NEC850_DIVU,          // Divide word unsigned
-
   NEC850_BSW,           // Byte swap word
   NEC850_BSH,           // Byte swap halfword
   NEC850_HSW,           // Halfword swap word
-
   NEC850_CMOV,          // Conditional move
-
   NEC850_SLD_BU,        // Short format load byte unsigned
   NEC850_SLD_HU,        // Short format load halfword unsigned
   NEC850_LD_BU,         // load byte unsigned
   NEC850_LD_HU,         // load halfword unsigned
-
   //
   // V850E2
   //
   NEC850_ADF,            // Add on condition flag
-
   NEC850_HSH,            // Halfword swap halfword
   NEC850_MAC,            // Multiply and add word
   NEC850_MACU,           // Multiply and add word unsigned
-
   NEC850_SBF,            // Subtract on condition flag
-
   NEC850_SCH0L,          // Search zero from left
   NEC850_SCH0R,          // Search zero from right
   NEC850_SCH1L,          // Search one from left
   NEC850_SCH1R,          // Search one from right
-
   //
   // V850E2M
   //
@@ -18921,7 +18315,6 @@ enum NEC850_Instructions
   NEC850_SYNCM,          // Synchronize memory
   NEC850_SYNCP,          // Synchronize pipeline
   NEC850_SYSCALL,        // System call
-
   // floating point (E1F only)
   NEC850_CVT_SW,         // Real to integer conversion
   NEC850_TRNC_SW,        // Real to integer conversion
@@ -18931,9 +18324,7 @@ enum NEC850_Instructions
   NEC850_STFC,           // Store Floating Controls
   NEC850_STFF,           // Store Floating Flags
   NEC850_TRFF,           // Transfer Floating Flags
-
   // floating point (E2M)
-
   NEC850_ABSF_D,         // Floating-point Absolute Value (Double)
   NEC850_ABSF_S,         // Floating-point Absolute Value (Single)
   NEC850_ADDF_D,         // Floating-point Add (Double)
@@ -18950,7 +18341,6 @@ enum NEC850_Instructions
   NEC850_NEGF_S,         // Floating-point Negate (Single)
   NEC850_RECIPF_D,       // Reciprocal of a floating-point value (Double)
   NEC850_RECIPF_S,       // Reciprocal of a floating-point value (Single
-
   NEC850_RSQRTF_D,       // Reciprocal of the square root of a floating-point value (Double)
   NEC850_RSQRTF_S,       // Reciprocal of the square root of a floating-point value (Single)
   NEC850_SQRTF_D,        // Floating-point Square Root (Double)
@@ -18961,7 +18351,6 @@ enum NEC850_Instructions
   NEC850_MSUBF_S,        // Floating-point Multiply-Subtract (Single)
   NEC850_NMADDF_S,       // Floating-point Negate Multiply-Add (Single)
   NEC850_NMSUBF_S,       // Floating-point Negate Multiply-Subtract (Single)
-
   NEC850_CEILF_DL,       // Floating-point Truncate to Long Fixed-point Format, rounded toward +inf (Double)
   NEC850_CEILF_DW,       // Floating-point Truncate to Single Fixed-point Format, rounded toward +inf (Double)
   NEC850_CEILF_SL,       // Floating-point Truncate to Long Fixed-point Format, rounded toward +inf (Single)
@@ -19009,7 +18398,6 @@ enum NEC850_Instructions
   NEC850_CMOVF_S,        // Floating-point conditional move (Single)
   NEC850_CMOVF_D,        // Floating-point conditional move (Double)
   NEC850_TRFSR,          // Transfers specified CC bit to Zero flag in PSW (Single)
-
   //
   // RH850
   //
@@ -19027,7 +18415,6 @@ enum NEC850_Instructions
   NEC850_PREF,           // Prefetch
   NEC850_PUSHSP,         // Push registers to Stack
   NEC850_POPSP,          // Pop registers from Stack
-
   // new RH850 FP instructions
   NEC850_CVTF_HS,        // Floating-point Convert Half to Single (Single)
   NEC850_CVTF_SH,        // Floating-point Convert Single to Half (Single)
@@ -19035,13 +18422,11 @@ enum NEC850_Instructions
   NEC850_FMSF_S,         // Floating-point Fused-Multiply-subtract (Single)
   NEC850_FNMAF_S,        // Floating-point Fused-Negate-Multiply-add (Single)
   NEC850_FNMSF_S,        // Floating-point Fused-Negate-Multiply-subtract (Single)
-
   // debug instructions
   NEC850_DBPUSH,         // Output registers as software trace data
   NEC850_DBCP,           // Output current PC value as software trace data
   NEC850_DBTAG,          // Output immediate value as software trace data
   NEC850_DBHVTRAP,       // Debug hypervisor trap
-
   // virtualization instructions
   NEC850_EST,            // Enable Single Thread mode
   NEC850_DST,            // Disable Single Thread mode
@@ -19057,14 +18442,12 @@ enum NEC850_Instructions
   NEC850_STTC_SR,        // Store contents of thread context (SR)
   NEC850_LDTC_VR,        // Load to thread context (VR)
   NEC850_STTC_VR,        // Store contents of thread context (VR)
-
   // TLB instructions
   NEC850_TLBAI,          // TLB ASID Invalidate
   NEC850_TLBR,           // TLB Read
   NEC850_TLBS,           // TLB Search
   NEC850_TLBVI,          // TLB VA Invalidate
   NEC850_TLBW,           // TLB Write
-
   // RH850 rounding instructions
   NEC850_ROUNDF_DL,      // Floating-point Convert Double to Long, round to nearest (Double)
   NEC850_ROUNDF_DW,      // Floating-point Convert Double to Word, round to nearest (Double)
@@ -19074,29 +18457,22 @@ enum NEC850_Instructions
   NEC850_ROUNDF_SW,      // Floating-point Convert Single to Word, round to nearest (Single)
   NEC850_ROUNDF_SUL,     // Floating-point Convert Single to Unsigned-Long, round to nearest (Single)
   NEC850_ROUNDF_SUW,     // Floating-point Convert Single to Unsigned-Word, round to nearest (Single)
-
   NEC850_LDM_MP,         // Load Multiple MPU entries from memory
   NEC850_STM_MP,         // Store Multiple MPU entries to memory
-
   NEC850_CLIP_B,         // Signed data conversion from word to byte with saturation
   NEC850_CLIP_BU,        // Unsigned data conversion from word to byte with saturation
   NEC850_CLIP_H,         // Signed data conversion from word to halfword with saturation
   NEC850_CLIP_HU,        // Unsigned data conversion from word to halfword with saturation
-
   NEC850_LDL_BU,         // Load to start atomic byte data manipulation
   NEC850_LDL_HU,         // Load to start atomic halfword data manipulation
-
   NEC850_RESBANK,        // Restore from register bank
-
   NEC850_STC_B,          // Store conditional byte
   NEC850_STC_H,          // Store conditional halfword
-
   // RH850 SIMD instructions
   NEC850_VAND,           // Vector and
   NEC850_VOR,            // Vector or
   NEC850_VXOR,           // Vector xor
   NEC850_VNOT,           // Vector not
-
   NEC850_VSAR_H,         // Vector shift arithmetic right halfword
   NEC850_VSAR_W,         // Vector shift arithmetic right word
   NEC850_VSAR_DW,        // Vector shift arithmetic right double-word
@@ -19106,7 +18482,6 @@ enum NEC850_Instructions
   NEC850_VSHL_H,         // Vector shift logical left halfword
   NEC850_VSHL_W,         // Vector shift logical left word
   NEC850_VSHL_DW,        // Vector shift logical left double-word
-
   NEC850_VCONCAT_B,      // Concatenate vector byte
   NEC850_VITLV_H,        // Interleave halfword
   NEC850_VITLV_W,        // Interleave word
@@ -19116,48 +18491,37 @@ enum NEC850_Instructions
   NEC850_VBSWAP_DW,      // Swap double - word
   NEC850_VBSWAP_H,       // Swap halfword
   NEC850_VBSWAP_W,       // Swap word
-
   NEC850_DUP_H,          // Duplicate halfword
   NEC850_DUP_W,          // Duplicate word
   NEC850_MOV_H,          // Move register (halfword)
   NEC850_MOV_W,          // Move register (word)
   NEC850_MOV_DW,         // Move register (double word)
-
   NEC850_VLD_B,          // Vector Load byte
   NEC850_VLD_B_FMT3,     // Vector Load byte (3rd instruction format)
   NEC850_VLD_B_FMT4,     // Vector Load byte (4th instruction format)
-
   NEC850_VLD_H,          // Vector Load halfword
   NEC850_VLD_H_FMT3,     // Vector Load halfword (3rd instruction format)
   NEC850_VLD_H_FMT4,     // Vector Load halfword (4th instruction format)
-
   NEC850_VLD_W,          // Vector Load word
   NEC850_VLD_W_FMT3,     // Vector Load word (3rd instruction format)
   NEC850_VLD_W_FMT4,     // Vector Load word (4th instruction format)
-
   NEC850_VLD_DW,         // Vector Load double - word
   NEC850_VLD_DW_FMT3,    // Vector Load double - word (3rd instruction format)
   NEC850_VLD_DW_FMT4,    // Vector Load double - word (4th instruction format)
-
   NEC850_VST_B,          // Vector Store byte
   NEC850_VST_B_FMT3,     // Vector Store byte (3rd instruction format)
   NEC850_VST_B_FMT4,     // Vector Store byte (4th instruction format)
-
   NEC850_VST_H,          // Vector Store halfword
   NEC850_VST_H_FMT3,     // Vector Store halfword (3rd instruction format)
   NEC850_VST_H_FMT45,    // Vector Store halfword (4th/5th instruction format)
-
   NEC850_VST_W,          // Vector Store word
   NEC850_VST_W_FMT3,     // Vector Store word (3rd instruction format)
   NEC850_VST_W_FMT45,    // Vector Store word (4th/5th instruction format)
-
   NEC850_VST_DW,         // Vector Store double - word
   NEC850_VST_DW_FMT3,    // Vector Store double - word (3rd instruction format)
   NEC850_VST_DW_FMT45,   // Vector Store double - word (4th/5th instruction format)
-
   NEC850_VCMOV,          // Vector conditional move
   NEC850_MODADD,         // Modulo Add
-
   NEC850_VADD_H,         // Vector add halfword
   NEC850_VADD_W,         // Vector add word
   NEC850_VADD_DW,        // Vector add double - word
@@ -19172,14 +18536,12 @@ enum NEC850_Instructions
   NEC850_VADDS_W,        // Vector add word with scaling
   NEC850_VSUBS_H,        // Vector subtract halfword with scaling
   NEC850_VSUBS_W,        // Vector subtract word with scaling
-
   NEC850_VMUL_H,         // Vector multiply halfword
   NEC850_VMUL_W,         // Vector multiply word
   NEC850_VMULT_H,        // Vector multiply halfword with truncation
   NEC850_VMULT_W,        // Vector multiply word with truncation
   NEC850_VMULCX_H,       // Vector multiply halfword with complex number
   NEC850_VMULCX_W,       // Vector multiply word with complex number
-
   NEC850_VCMPEQ_H,       // Vector compare equal halfword
   NEC850_VCMPEQ_W,       // Vector compare equal word
   NEC850_VCMPLT_H,       // Vector compare less-than halfword
@@ -19188,13 +18550,10 @@ enum NEC850_Instructions
   NEC850_VCMPLE_W,       // Vector compare less-than-equal word
   NEC850_VCMPNE_H,       // Vector compare not-equal halfword
   NEC850_VCMPNE_W,       // Vector compare not-equal word
-
   NEC850_VABS_H,         // Vector absolute halfword
   NEC850_VABS_W,         // Vector absolute word
-
   NEC850_VNEG_H,         // Vector negate halfword
   NEC850_VNEG_W,         // Vector negate word
-
   NEC850_VMAXGT_H,       // Vector maximum greater-than halfword
   NEC850_VMAXGE_H,       // Vector maximum greater-than-equal halfword
   NEC850_VMINLT_H,       // Vector minimum less-than halfword
@@ -19203,15 +18562,12 @@ enum NEC850_Instructions
   NEC850_VMAXGE_W,       // Vector maximum greater-than-equal word
   NEC850_VMINLT_W,       // Vector minimum less-than word
   NEC850_VMINLE_W,       // Vector minimum less-than-equal word
-
   NEC850_VMADSAT_H,      // Vector multiply halfword and add with saturation
   NEC850_VMADSAT_W,      // Vector multiply word and add with saturation
   NEC850_VMADRN_H,       // Vector multiply halfword and add with rounding
   NEC850_VMADRN_W,       // Vector multiply word and add with rounding
-
   NEC850_VMSUM_H,        // Vector multiply halfword and sum
   NEC850_VMSUM_W,        // Vector multiply word and sum
-
   NEC850_VMSUMAD_H,      // Vector multiply halfword and sum and add to vector register
   NEC850_VMSUMAD_W,      // Vector multiply word and sum and add to vector register
   NEC850_VMSUMADRE_H,    // Vector multiply halfword and sum and add to vector register for real part result of complex number calculation
@@ -19220,7 +18576,6 @@ enum NEC850_Instructions
   NEC850_VMSUMADIM_W,    // Vector multiply word and sum and add to vector register for imaginary part result of complex number calculation
   NEC850_VMSUMADRN_H,    // Vector multiply halfword and sum and add to vector register with rounding
   NEC850_VBIQ_H,         // Vector multiply halfword for biquad calculation
-
   NEC850_PKUI8I16,       // Pack vector unsigned integer byte to vector signed integer halfword
   NEC850_PKI16I32,       // Pack vector signed integer halfword to vector signed integer word
   NEC850_PKQ15Q31,       // Pack vector Q15 fractional halfword to vector Q31 fractional word
@@ -19233,29 +18588,22 @@ enum NEC850_Instructions
   NEC850_CNVQ31Q62,      // Convert from Q31 fractional word to Q62 fractional double-word
   NEC850_CNVQ30Q15,      // Convert from Q30 fractional double-word to Q15 fractional halfword
   NEC850_CNVQ62Q31,      // Convert from Q62 fractional double-word to Q31 fractional word
-
   NEC850_EXPQ31,         // Extract exponent of Q31 fractional word
   NEC850_VCALCH,         // Vector calculate with halfword
   NEC850_VCALCW,         // Vector calculate with word
-
   NEC850_MOVV_W4,        // Move vector register to vector register
-
   NEC850_FLPV_S4,        // Floating-point SIMD Flip (single)
   NEC850_SHFLV_W4,       // Vector Shuffle
-
   NEC850_LDV_DW,         // Load Vector (Double-Word)
   NEC850_LDV_QW,         // Load Vector (Quad-Word)
   NEC850_LDV_W,          // Load Vector (Word)
   NEC850_LDVZ_H4,        // Load Vector at Even Halfword field
-
   NEC850_STV_DW,         // Store Vector (Double-Word)
   NEC850_STV_QW,         // Store Vector (Quad-Word)
   NEC850_STV_W,          // Store Vector (Word)
   NEC850_STVZ_H4,        // Store Vector at Even Halfword field
-
   NEC850_CMOVF_W4,       // Conditional move of vector register (Single precision)
   NEC850_TRFSRV_W4,      // Transfers compare result to PSW
-
   NEC850_ABSF_S4,        // Floating-point SIMD Absolute (single)
   NEC850_ADDF_S4,        // Floating-point SIMD Add (single)
   NEC850_DIVF_S4,        // Floating-point SIMD Divide (single)
@@ -19267,32 +18615,26 @@ enum NEC850_Instructions
   NEC850_RSQRTF_S4,      // Floating-point SIMD Reciprocal Square-Root (single)
   NEC850_SQRTF_S4,       // Floating-point SIMD Square-Root (single)
   NEC850_SUBF_S4,        // Floating-point SIMD Subtract (single)
-
   NEC850_FMAF_S4,        // Floating-point SIMD Fused-Multiply-Add (Single)
   NEC850_FMSF_S4,        // Floating-point SIMD Fused-Multiply-Subtract (Single)
   NEC850_FNMAF_S4,       // Floating-point SIMD Fused-Negative-Multiply-Add (Single)
   NEC850_FNMSF_S4,       // Floating-point SIMD Fused-Negative-Multiply-Subtract (Single)
-
   NEC850_ADDSUBF_S4,     // Floating-point SIMD Add/Subtract (single)
   NEC850_ADDSUBNF_S4,    // Floating-point SIMD Add/Subtract Negative (single)
   NEC850_SUBADDF_S4,     // Floating-point SIMD Subtract/Add (single)
   NEC850_SUBADDNF_S4,    // Floating-point SIMD Subtract/Add Negative (single)
-
   NEC850_ADDXF_S4,       // Floating-point SIMD Add Exchange (single)
   NEC850_MULXF_S4,       // Floating-point SIMD Multiply Exchange (single)
   NEC850_SUBXF_S4,       // Floating-point SIMD Subtract Exchange (single)
-
   NEC850_ADDSUBNXF_S4,   // Floating-point SIMD Add/Subtract Negative Exchange (single)
   NEC850_ADDSUBXF_S4,    // Floating-point SIMD Add/Subtract Exchange (single)
   NEC850_SUBADDNXF_S4,   // Floating-point SIMD Subtract/Add Negative Exchange (single)
   NEC850_SUBADDXF_S4,    // Floating-point SIMD Subtract/Add Exchange (single)
-
   NEC850_ADDRF_S4,       // Floating-point SIMD Add Reduction (single)
   NEC850_MAXRF_S4,       // Floating-point SIMD Maximum Reduction (single)
   NEC850_MINRF_S4,       // Floating-point SIMD Minimum Reduction (single)
   NEC850_MULRF_S4,       // Floating-point SIMD Multiply Reduction (single)
   NEC850_SUBRF_S4,       // Floating-point SIMD Subtract Reduction (single)
-
   NEC850_CEILF_SUW4,     // Floating-point SIMD Convert Single to Unsigned Word, round toward positive (single)
   NEC850_CEILF_SW4,      // Floating-point SIMD Convert Single to Word, round toward positive (single)
   NEC850_CVTF_HS4,       // Floating-point SIMD Convert Half to Single (single)
@@ -19307,12 +18649,9 @@ enum NEC850_Instructions
   NEC850_ROUNDF_SW4,     // Floating-point SIMD Convert Single to Word, round to nearest (single)
   NEC850_TRNCF_SUW4,     // Floating-point SIMD Convert Single to Unsigned Word, round toward zero (single)
   NEC850_TRNCF_SW4,      // Floating-point SIMD Convert Single to Word, round toward zero (single)
-
   NEC850_CMPF_S4,        // Floating-point SIMD Comparison (single)
-
   NEC850_LAST_INSTRUCTION
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
@@ -19321,8 +18660,6 @@ enum NEC850_Instructions
  *      Andes NDS32 instruction definitions
  *
  */
-
-
 //-------------------------------------------------------------------------
 // Instruction codes
 // Organized by OP6 major opcode groups
@@ -19337,7 +18674,6 @@ enum NEC850_Instructions
 enum
 {
   NDS32_null,  //   0  Unknown/invalid instruction
-
   //=======================================================================
   // OP6 0x00-0x07: Load byte/halfword/word (LBI, LHI, LWI, LDI)
   // Post-increment (.bi) suffix stored in insn_suffix (ISUF_BI)
@@ -19350,7 +18686,6 @@ enum
   NDS32_lw,  //   6  lw (indexed)
   NDS32_lwup,  //   7  lwup
   NDS32_lbup,  //   8  lbup
-
   //=======================================================================
   // OP6 0x08-0x0F: Store byte/halfword/word (SBI, SHI, SWI, SDI)
   //=======================================================================
@@ -19362,7 +18697,6 @@ enum
   NDS32_sw,  //  14  sw (indexed)
   NDS32_swup,  //  15  swup
   NDS32_sbup,  //  16  sbup
-
   //=======================================================================
   // OP6 0x10-0x17: Load signed, prefetch, GP-relative
   //=======================================================================
@@ -19372,7 +18706,6 @@ enum
   NDS32_lhs,  //  20  lhs (indexed)
   NDS32_dprefi,  //  21  dprefi (+ ISUF_DWORD, ISUF_WORD)
   NDS32_dpref,  //  22  dpref
-
   //=======================================================================
   // OP6 0x18-0x1D: Memory extensions (MEM), LSMW, atomics
   // LMW/SMW mode suffixes (.bi/.bim/.bd/.bdm/.ai/.aim/.ad/.adm) stored in insn_suffix
@@ -19386,7 +18719,6 @@ enum
   NDS32_smwa,  //  28  smwa (+ ISUF_LMW_* suffix)
   NDS32_lmwzb,  //  29  lmwzb (+ ISUF_ZB_* suffix)
   NDS32_smwzb,  //  30  smwzb (+ ISUF_ZB_* suffix)
-
   //=======================================================================
   // OP6 0x20: ALU1 - Basic arithmetic and logic
   //=======================================================================
@@ -19417,7 +18749,6 @@ enum
   NDS32_cmovn,  //  55  cmovn
   NDS32_neg,  //  56  neg
   NDS32_not,  //  57  not
-
   //=======================================================================
   // OP6 0x21: ALU2 - Multiply, divide, DSP
   //=======================================================================
@@ -19456,23 +18787,19 @@ enum
   NDS32_msubs,  //  90  msubs
   NDS32_madd,  //  91  madd
   NDS32_msub,  //  92  msub
-
   //=======================================================================
   // OP6 0x22: MOVI - Move immediate
   //=======================================================================
   NDS32_movi,  //  93  movi
-
   //=======================================================================
   // OP6 0x23: SETHI - Set high immediate
   //=======================================================================
   NDS32_sethi,  //  94  sethi
-
   //=======================================================================
   // OP6 0x24: JI - Jump immediate
   //=======================================================================
   NDS32_j,  //  95  j
   NDS32_jal,  //  96  jal
-
   //=======================================================================
   // OP6 0x25: JREG - Jump register
   // Suffixes (.itoff, .toff, .iton, .ton) stored in insn_suffix field
@@ -19482,13 +18809,11 @@ enum
   NDS32_jral,  //  99  jral (+ ISUF_ITON, ISUF_TON)
   NDS32_jralnez,  // 100  jralnez
   NDS32_jrnez,  // 101  jrnez
-
   //=======================================================================
   // OP6 0x26: BR1 - Branch (beq, bne)
   //=======================================================================
   NDS32_beq,  // 102  beq
   NDS32_bne,  // 103  bne
-
   //=======================================================================
   // OP6 0x27: BR2 - Branch (beqz, bnez, bgez, bltz, bgtz, blez)
   //=======================================================================
@@ -19502,7 +18827,6 @@ enum
   NDS32_bltzal,  // 111  bltzal
   NDS32_mtlbi,  // 112  mtlbi (move to loop begin index)
   NDS32_mtlei,  // 113  mtlei (move to loop end index)
-
   //=======================================================================
   // OP6 0x28-0x2C: Immediate ALU (ADDI, SUBRI, ANDI, XORI, ORI)
   //=======================================================================
@@ -19512,19 +18836,16 @@ enum
   NDS32_xori,  // 117  xori
   NDS32_ori,  // 118  ori
   NDS32_subi,  // 119  subi (alias, not a real OP6)
-
   //=======================================================================
   // OP6 0x2D: BR3 - Compact branches (beqc, bnec)
   //=======================================================================
   NDS32_beqc,  // 120  beqc
   NDS32_bnec,  // 121  bnec
-
   //=======================================================================
   // OP6 0x2E-0x2F: SLTI, SLTSI
   //=======================================================================
   NDS32_slti,  // 122  slti
   NDS32_sltsi,  // 123  sltsi
-
   //=======================================================================
   // OP6 0x30: AEXT - Audio extension
   //=======================================================================
@@ -19579,7 +18900,6 @@ enum
   NDS32_amtbsl2,  // 172  amtbsl2 (+ ISUF_SHORT, ISUF_LONG)
   NDS32_amttsl2,  // 173  amttsl2 (+ ISUF_SHORT, ISUF_LONG)
   NDS32_aext,  // 174  Generic audio extension
-
   //=======================================================================
   // OP6 0x31: CEXT - Coprocessor extension
   //=======================================================================
@@ -19599,7 +18919,6 @@ enum
   NDS32_mfcpw,  // 188  mfcpw (move from coprocessor word)
   NDS32_mtcpd,  // 189  mtcpd (move to coprocessor double)
   NDS32_mtcpw,  // 190  mtcpw (move to coprocessor word)
-
   //=======================================================================
   // OP6 0x32: MISC - Miscellaneous system instructions
   //=======================================================================
@@ -19621,12 +18940,10 @@ enum
   NDS32_mtsr,  // 206  mtsr
   NDS32_setend,  // 207  setend (+ ISUF_LITTLE, ISUF_BIG)
   NDS32_setgie,  // 208  setgie (+ ISUF_DISABLE, ISUF_ENABLE)
-
   //=======================================================================
   // OP6 0x33: BITCI - Bit clear immediate
   //=======================================================================
   NDS32_bitci,  // 209  bitci
-
   //=======================================================================
   // OP6 0x35: COP - Coprocessor (FPU)
   // Post-increment (.bi) suffix stored in insn_suffix (ISUF_BI)
@@ -19695,7 +19012,6 @@ enum
   NDS32_fsi2d,  // 268  fsi2d
   NDS32_fd2ui,  // 269  fd2ui (+ ISUF_TRUNC)
   NDS32_fd2si,  // 270  fd2si (+ ISUF_TRUNC)
-
   //=======================================================================
   // Performance extension (PERF1, PERF2)
   //=======================================================================
@@ -19740,7 +19056,6 @@ enum
   NDS32_bpick,  // 309  bpick
   NDS32_add64,  // 310  add64
   NDS32_sub64,  // 311  sub64
-
   //=======================================================================
   // DSP extension
   //=======================================================================
@@ -19778,7 +19093,6 @@ enum
   NDS32_kmsda,  // 343  kmsda
   NDS32_kmsxda,  // 344  kmsxda
   NDS32_smal,  // 345  smal
-
   //=======================================================================
   // DSP extension - ALU2 Page 0 (64-bit arithmetic)
   //=======================================================================
@@ -19790,7 +19104,6 @@ enum
   NDS32_ksub64,                 // ksub64  - saturating sub 64-bit
   NDS32_ukadd64,                // ukadd64 - unsigned saturating add 64-bit
   NDS32_uksub64,                // uksub64 - unsigned saturating sub 64-bit
-
   //=======================================================================
   // DSP extension - ALU2 Page 1 (64-bit MAC, multiply)
   //=======================================================================
@@ -19808,7 +19121,6 @@ enum
   NDS32_smxds,                  // smxds   - signed multiply two halfs crossed diff straight
   NDS32_smdrs,                  // smdrs   - signed multiply diff reverse straight
   NDS32_clrov,                  // clrov   - clear overflow flag
-
   //=======================================================================
   // DSP extension - ALU2 Page 2 (SIMD 16-bit/8-bit arithmetic)
   //=======================================================================
@@ -19876,7 +19188,6 @@ enum
   NDS32_smulx16,                // smulx16 - signed 16-bit multiply crossed
   NDS32_umul16,                 // umul16  - unsigned 16-bit multiply
   NDS32_umulx16,                // umulx16 - unsigned 16-bit multiply crossed
-
   //=======================================================================
   // DSP extension - ALU2 Page 3 (SIMD shifts, compares)
   //=======================================================================
@@ -19917,7 +19228,6 @@ enum
   NDS32_ucmplt8,                // ucmplt8 - unsigned compare less than 8-bit
   NDS32_ucmple8,                // ucmple8 - unsigned compare less or equal 8-bit
   NDS32_umin8,                  // umin8   - unsigned min 8-bit
-
   //=======================================================================
   // 16-bit compact instructions
   // Encoding variants (333/45/55/37/38 formats) stored in auxpref
@@ -19931,20 +19241,17 @@ enum
   //=======================================================================
   // 16-bit: Base mov instruction (55 format uses ENC_55 in auxpref)
   NDS32_mov,  // 469  mov (uses ENC_55 for 16-bit)
-
   // 16-bit: Instructions with unique 16-bit encodings or different semantics
   NDS32_movpi,  // 470  movpi (uses ENC_45, adds +16 to immediate)
   NDS32_xlsb,  // 471  xlsb (uses ENC_33 for xlsb33)
   NDS32_x11b,  // 472  x11b (uses ENC_33 for x11b33)
   NDS32_bmski,  // 473  bmski (uses ENC_33 for bmski33)
   NDS32_fexti,  // 474  fexti (uses ENC_33 for fexti33)
-
   // 16-bit: Branches (38, 8 format) - unique semantics (compare with $ta)
   NDS32_beqs,  // 475  beqs - compare with $ta (uses ENC_38)
   NDS32_bnes,  // 476  bnes - compare with $ta (uses ENC_38)
   NDS32_beqzs,  // 477  beqzs - test $ta (uses ENC_8)
   NDS32_bnezs,  // 478  bnezs - test $ta (uses ENC_8)
-
   // 16-bit: Stack operations
   // Note: addi10.sp uses NDS32_addi with ENC_10 + ISUF_SP
   // Note: add5.pc uses NDS32_add with ENC_5 + ISUF_PC
@@ -19954,7 +19261,6 @@ enum
   NDS32_pushe,  // 482  pushe (uses ENC_25 variant)
   NDS32_pope,  // 483  pope (uses ENC_25 variant)
   NDS32_movd,  // 484  movd (uses ENC_44 for movd44, moves register pair)
-
   // 16-bit: Special
   // Note: 16-bit nop (0x0092) uses NDS32_nop with ENC_16 encoding variant
   // Note: 16-bit break (0xea/0xeb) uses NDS32_break with ENC_16 encoding variant
@@ -19962,7 +19268,6 @@ enum
   NDS32_ifcall,  // 485  ifcall (ENC_9 for 16-bit variant)
   NDS32_ifret,  // 486  ifret (ENC_16 for 16-bit variant)
   NDS32_ex,  // 487  ex (uses ENC_9 + ISUF_IT for ex9.it)
-
   //=======================================================================
   // Pseudo-instructions and aliases
   //=======================================================================
@@ -19976,12 +19281,9 @@ enum
   NDS32_and_srli,  // 495  and_srli
   NDS32_xor_srli,  // 496  xor_srli
   NDS32_or_srli,  // 497  or_srli
-
   NDS32_last,  // 498
 };
-
 //-------------------------------------------------------------------------
-
 //-------------------------------------------------------------------------
 /*
  *      Tricore Disassembly Module
@@ -19991,9 +19293,6 @@ enum
  *
  *
  */
-
-
-
 enum
 {
   TRICORE_null = 0,           // Unknown Operation
@@ -20200,7 +19499,6 @@ enum
   TRICORE_xor_ne,
   TRICORE_xor_t,
   TRICORE_xor,
-
   // new v1.6 instructions
   TRICORE_cachei,
   TRICORE_fcall,
@@ -20211,13 +19509,11 @@ enum
   TRICORE_ftoq31z,
   TRICORE_ftouz,
   TRICORE_restore,
-
   // new v1.6.1 instructions
   TRICORE_crc32,     // Calculate CRC32
   TRICORE_wait,      // Suspend execution until the next enabled interrupt or asynchronous trap event
   TRICORE_cmpswap,   // Compare and swap
   TRICORE_swapmsk,   // Swap under mask
-
   // new v1.6.2 instructions
   TRICORE_crc32b,    // CRC32 for big endian data
   TRICORE_crc32l,    // CRC32 for little endian data
@@ -20227,7 +19523,6 @@ enum
   TRICORE_lha,       // Load high bits of address value
   TRICORE_ftohp,     // Single Precision to Half Precision
   TRICORE_hptof,     // Half Precision to Single Precision
-
   // new v1.8 instructions
   TRICORE_rfh,           // Return from hypervisor
   TRICORE_lsync,         // Synchronize local data
@@ -20256,25 +19551,17 @@ enum
   TRICORE_rem64,         // Remainder 64-bit long
   TRICORE_mulp,          // Packed carry-less multiplication
   TRICORE_jri,           // Jump relative indirect
-
   TRICORE_last
 };
-
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
   ARC_null = 0,                 // Unknown Operation
-
   ARC_ld,                       // Load
   ARC_lr,                       // Load from auxiliary register
   ARC_st,                       // Store
@@ -20304,20 +19591,16 @@ enum
   ARC_or,                       // Logical bitwise OR
   ARC_bic,                      // Logical bitwise AND with invert
   ARC_xor,                      // Logical bitwise exclusive-OR
-
   // pseudo instructions
   ARC_mov,                      // Move
   ARC_nop,                      // No operation
   ARC_lsl,                      // Logical shift left
   ARC_rlc,                      // Rotate left through carry
-
   // arc7
   ARC_brk,                      // Breakpoint
   ARC_sleep,                    // Sleep until interrupt or restart
-
   // arc8
   ARC_swi,                      // Software interrupt
-
   // extra optional instrutions
   ARC_asl,                      // Arithmetic shift left
   ARC_mul64,                    // Signed 32x32 multiply
@@ -20326,14 +19609,12 @@ enum
   ARC_min,                      // Minimum of two signed integers
   ARC_swap,                     // Exchange upper and lower 16 bits
   ARC_norm,                     // Normalize (find-first-bit)
-
   // ARCompact instructions
   ARC_bbit0,                    // Branch if bit cleared to 0
   ARC_bbit1,                    // Branch if bit set to 1
   ARC_br,                       // Branch on compare
   ARC_pop,                      // Restore register value from stack
   ARC_push,                     // Store register value on stack
-
   ARC_abs,                      // Absolute value
   ARC_add1,                     // Add with left shift by 1 bit
   ARC_add2,                     // Add with left shift by 2 bits
@@ -20363,7 +19644,6 @@ enum
   ARC_trap,                     // Raise an exception
   ARC_tst,                      // Test
   ARC_unimp,                    // Unimplemented instruction
-
   ARC_abss,                     // Absolute and saturate
   ARC_abssw,                    // Absolute and saturate of word
   ARC_abssh = ARC_abssw,
@@ -20383,7 +19663,6 @@ enum
   ARC_sath = ARC_sat16,
   ARC_subs,                     // Subtract and saturate
   ARC_subsdw,                   // Subtract and saturate dual word
-
   // mac d16
   ARC_muldw,
   ARC_muludw,
@@ -20392,7 +19671,6 @@ enum
   ARC_macudw,
   ARC_macrdw,
   ARC_msubdw,
-
   // 32x16 MUL/MAC
   ARC_mululw,
   ARC_mullw,
@@ -20404,7 +19682,6 @@ enum
   ARC_machflw,
   ARC_mulhlw,
   ARC_mulhflw,
-
   // Major 6 compact insns
   ARC_acm,
   ARC_addqbs,
@@ -20441,7 +19718,6 @@ enum
   ARC_pkqb,
   ARC_upkqb,
   ARC_xpkqb,
-
   // ARCv2 only major 4 instructions
   ARC_mpyw,                     // Signed 16x16 multiply
   ARC_mpyuw,                    // Unsigned 16x16 multiply
@@ -20458,18 +19734,14 @@ enum
   ARC_seths,                    // Set if higher or same
   ARC_setle,                    // Set if less than or equal
   ARC_setgt,                    // Set if greater than
-
   ARC_rol,                      // Rotate left
   ARC_llock,                    // Load locked
   ARC_scond,                    // Store conditional
-
   ARC_seti,                     // Set interrupt enable and priority level
   ARC_clri,                     // Cler and get interrupt enable and priority level
-
   // ARCv2 compact prolog / epilog instructions
   ARC_enter,                    // Function prologue sequence
   ARC_leave,                    // Function epilogue sequence
-
   // ARCv2 32-bit extension major 5 DOP instructions
   ARC_div,                      // Signed integer divsion
   ARC_divu,                     // Unsigned integer divsion
@@ -20526,7 +19798,6 @@ enum
   ARC_dmachfr,                  // Saturating rounded sum of dual 16x16 signed fractional multiply accumulate
   ARC_vperm,                    // Byte permutation with zero or sign extension
   ARC_bspush,                   // Bitstream push
-
   // ARCv2 32-bit extension major 5 SOP instructions
   ARC_swape,                    // Swap byte ordering
   ARC_lsl16,                    // Logical shift left by 16 bits
@@ -20539,7 +19810,6 @@ enum
   ARC_ror8,                     // Rotate right by 8 bits
   ARC_ffs,                      // Find first set bit
   ARC_fls,                      // Find last set bit
-
   ARC_getacc,                   // Get accumulator
   ARC_normacc,                  // Normalize accumulator
   ARC_satf,                     // Saturate according to flags
@@ -20564,13 +19834,11 @@ enum
   ARC_bspop,                    // Bitstream pop
   ARC_sqrt,                     // Integer square root
   ARC_sqrtf,                    // Fractional square root
-
   // ARCv2 32-bit extension major 5 ZOP instructions
   ARC_aslacc,                   // Arithmetic shift of accumulator
   ARC_aslsacc,                  // Saturating arithmetic shift of accumulator
   ARC_flagacc,                  // Copy accumulator flags to status32 register
   ARC_modif,                    // Update address pointer
-
   // ARCv2 32-bit extension major 6 DOP instructions
   ARC_cmpyhnfr,                 // Fractional 16+16 bit complex saturating rounded unshifted multiply
   ARC_cmpyhfr,                  // Fractional 16+16 bit complex saturating rounded multiply
@@ -20620,10 +19888,8 @@ enum
   ARC_mpywhkul,                 // Unsigned 32 x 16 (lower) 16-bit shifted multiply
   ARC_msubwhfm,                 // Signed 32 x 16 (upper) fractional saturating multiply subtract
   ARC_msubwhfmr,                // Signed 32 x 16 (upper) fractional saturating rounded multiply subtract
-
   // ARCv2 32-bit extension major 6 SOP instructions
   ARC_cbflyhf1r,                // Fractional 16+16 bit complex FFT butterfly, second half
-
   // ARCv2 FPU instructions
   ARC_fscmp,                    // Single precision floating point compare
   ARC_fscmpf,                   // Single precision floating point compare (IEEE 754 flag generation)
@@ -20632,31 +19898,25 @@ enum
   ARC_fsdiv,                    // Single precision floating point division
   ARC_fcvt32,                   // Single precision floating point / integer conversion
   ARC_fssqrt,                   // Single precision floating point square root
-
   // ARCv2 jump / execute indexed instructions
   ARC_jli,                      // Jump and link indexed
   ARC_ei,                       // Execute indexed
-
   ARC_kflag,                    // Set kernel flags
   ARC_wevt,                     // Enter sleep state
-
+  // ARCv2 additional major-4 instructions
+  ARC_xbfu,                     // Bit field unsigned extract
+  ARC_dbnz,                     // Decrement and branch if not zero
   ARC_last,
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
-
-
-
 enum
 {
-
 TMS28_null = 0,      // Unknown Operation
-
 TMS28_aborti,
 TMS28_abs,
 TMS28_abstc,
@@ -20859,7 +20119,6 @@ TMS28_ui16tof32,
 TMS28_ui32tof32,
 TMS28_zero,
 TMS28_zeroa,
-
 // Floating Point Unit (FPU64)
 TMS28_movdd32,
 TMS28_movix,
@@ -20887,7 +20146,6 @@ TMS28_negf64,
 TMS28_mov64,
 TMS28_eisqrtf64,
 TMS28_einvf64,
-
 // Viterbi, Complex Math and CRC Unit (VCU)
 TMS28_vclear,
 TMS28_vclearall,
@@ -20931,7 +20189,6 @@ TMS28_vithsel,
 TMS28_vitlsel,
 TMS28_vtclear,
 TMS28_vtrace,
-
 // Cyclic Redundancy Check (VCRC)
 TMS28_vnop,
 TMS28_vsetcrcmsgflip,
@@ -20944,7 +20201,6 @@ TMS28_vsetcrcsize,
 TMS28_vcrcl,
 TMS28_vcrch,
 TMS28_vswapcrc,
-
 // C28 Viterbi, Complex Math and CRC Unit-II (VCU-II)
 TMS28_vclrcpack,
 TMS28_vclropack,
@@ -20990,7 +20246,6 @@ TMS28_vshlmb,
 TMS28_vitstage,
 TMS28_vsetk,
 TMS28_vsminit,
-
 // Fast Integer Division Unit (FINTDIV)
 TMS28_absi32div32,
 TMS28_absi32div32u,
@@ -21009,7 +20264,6 @@ TMS28_mnegi64div32,
 TMS28_negi64div64,
 TMS28_enegi64div64,
 TMS28_mnegi64div64,
-
 // Trigonometric Math Unit (TMU)
 TMS28_mpy2pif32,
 TMS28_div2pif32,
@@ -21021,17 +20275,11 @@ TMS28_atanpuf32,
 TMS28_quadf32,
 TMS28_iexp2f32,
 TMS28_log2f32,
-
 TMS28_last,
-
 };
-
-
-
 enum
 {
 UNSP_null = 0,   // Unknown Operation
-
 // ALU
 UNSP_add,        // Add
 UNSP_adc,        // Add with Carry
@@ -21047,7 +20295,6 @@ UNSP_or,         // OR
 UNSP_and,        // AND
 UNSP_test,       // Test
 UNSP_store,      // Store
-
 UNSP_add_s,      // Add (Simple)
 UNSP_adc_s,      // Add with Carry (Simple)
 UNSP_sub_s,      // Subtract (Simple)
@@ -21062,8 +20309,6 @@ UNSP_or_s,       // OR (Simple)
 UNSP_and_s,      // AND (Simple)
 UNSP_test_s,     // Test (Simple)
 UNSP_store_s,    // Store (Simple)
-
-
 // Misc
 UNSP_retf,       // Return Function
 UNSP_reti,       // Return Interrupt
@@ -21073,7 +20318,6 @@ UNSP_call,       // Call
 UNSP_goto,       // Goto (far jump)
 UNSP_nop,        // NOP
 UNSP_exp,        // Effective Exponent
-
 // Jump
 UNSP_jb,         // Jump if Below (unsigned) [jcc, jnae]
 UNSP_jae,        // Jump if Above or Equal (unsigned) [jcs, jnb]
@@ -21090,14 +20334,12 @@ UNSP_jg,         // Jump if Greater (signed) [jnle]
 UNSP_jvc,        // Jump if Not Overflow
 UNSP_jvs,        // Jump if Overflow
 UNSP_jmp,        // Jump
-
 // Multiplication/Division
 UNSP_mulss,      // Multiply Signed * Signed
 UNSP_mulus,      // Multiply Unsigned * Signed
 UNSP_muluu,      // Multiply Unsigned * Unsigned
 UNSP_divs,       // Divide (Sign)
 UNSP_divq,       // Divide (Quotient)
-
 // Interrupt
 UNSP_int1,       // Interrupt flags
 UNSP_int2,       // Interrupt flags
@@ -21108,7 +20350,6 @@ UNSP_secbank,    // SECBANK setting
 UNSP_fiq,        // FIQ setting
 UNSP_irqnest,    // IRQNEST setting
 UNSP_break,      // BREAK
-
 // Shift
 UNSP_asr,        // Arithmetic shift right
 UNSP_asror,      // Arithmetic shift right OR
@@ -21118,26 +20359,20 @@ UNSP_lsr,        // Logical shift right
 UNSP_lsror,      // Logical shift right OR
 UNSP_rol,        // Rotate left
 UNSP_ror,        // Rotate right
-
 // Bitops
 UNSP_tstb,       // Test bit
 UNSP_setb,       // Set bit
 UNSP_clrb,       // Clear bit
 UNSP_invb,       // Invert bit
-
 UNSP_last,
     };
-
 /*
  * Dalvik opcode enumeration.
  */
-
-
 enum
 {
   DALVIK_UNUSED = 0,
   DALVIK_NOP,
-
   DALVIK_MOVE,
   DALVIK_MOVE_FROM16,
   DALVIK_MOVE_16,
@@ -21147,17 +20382,14 @@ enum
   DALVIK_MOVE_OBJECT,
   DALVIK_MOVE_OBJECT_FROM16,
   DALVIK_MOVE_OBJECT_16,
-
   DALVIK_MOVE_RESULT,
   DALVIK_MOVE_RESULT_WIDE,
   DALVIK_MOVE_RESULT_OBJECT,
   DALVIK_MOVE_EXCEPTION,
-
   DALVIK_RETURN_VOID,
   DALVIK_RETURN,
   DALVIK_RETURN_WIDE,
   DALVIK_RETURN_OBJECT,
-
   DALVIK_CONST_4,
   DALVIK_CONST_16,
   DALVIK_CONST,
@@ -21169,35 +20401,27 @@ enum
   DALVIK_CONST_STRING,
   DALVIK_CONST_STRING_JUMBO,
   DALVIK_CONST_CLASS,
-
   DALVIK_MONITOR_ENTER,
   DALVIK_MONITOR_EXIT,
-
   DALVIK_CHECK_CAST,
   DALVIK_INSTANCE_OF,
-
   DALVIK_ARRAY_LENGTH,
-
   DALVIK_NEW_INSTANCE,
   DALVIK_NEW_ARRAY,
-
   DALVIK_FILLED_NEW_ARRAY,
   DALVIK_FILLED_NEW_ARRAY_RANGE,
   DALVIK_FILL_ARRAY_DATA,
-
   DALVIK_THROW,
   DALVIK_GOTO,
   DALVIK_GOTO_16,
   DALVIK_GOTO_32,
   DALVIK_PACKED_SWITCH,
   DALVIK_SPARSE_SWITCH,
-
   DALVIK_CMPL_FLOAT,
   DALVIK_CMPG_FLOAT,
   DALVIK_CMPL_DOUBLE,
   DALVIK_CMPG_DOUBLE,
   DALVIK_CMP_LONG,
-
   DALVIK_IF_EQ,
   DALVIK_IF_NE,
   DALVIK_IF_LT,
@@ -21210,7 +20434,6 @@ enum
   DALVIK_IF_GEZ,
   DALVIK_IF_GTZ,
   DALVIK_IF_LEZ,
-
   DALVIK_AGET,
   DALVIK_AGET_WIDE,
   DALVIK_AGET_OBJECT,
@@ -21225,7 +20448,6 @@ enum
   DALVIK_APUT_BYTE,
   DALVIK_APUT_CHAR,
   DALVIK_APUT_SHORT,
-
   DALVIK_IGET,
   DALVIK_IGET_WIDE,
   DALVIK_IGET_OBJECT,
@@ -21240,7 +20462,6 @@ enum
   DALVIK_IPUT_BYTE,
   DALVIK_IPUT_CHAR,
   DALVIK_IPUT_SHORT,
-
   DALVIK_SGET,
   DALVIK_SGET_WIDE,
   DALVIK_SGET_OBJECT,
@@ -21255,19 +20476,16 @@ enum
   DALVIK_SPUT_BYTE,
   DALVIK_SPUT_CHAR,
   DALVIK_SPUT_SHORT,
-
   DALVIK_INVOKE_VIRTUAL,
   DALVIK_INVOKE_SUPER,
   DALVIK_INVOKE_DIRECT,
   DALVIK_INVOKE_STATIC,
   DALVIK_INVOKE_INTERFACE,
-
   DALVIK_INVOKE_VIRTUAL_RANGE,
   DALVIK_INVOKE_SUPER_RANGE,
   DALVIK_INVOKE_DIRECT_RANGE,
   DALVIK_INVOKE_STATIC_RANGE,
   DALVIK_INVOKE_INTERFACE_RANGE,
-
   DALVIK_NEG_INT,
   DALVIK_NOT_INT,
   DALVIK_NEG_LONG,
@@ -21289,7 +20507,6 @@ enum
   DALVIK_INT_TO_BYTE,
   DALVIK_INT_TO_CHAR,
   DALVIK_INT_TO_SHORT,
-
   DALVIK_ADD_INT,
   DALVIK_SUB_INT,
   DALVIK_MUL_INT,
@@ -21301,7 +20518,6 @@ enum
   DALVIK_SHL_INT,
   DALVIK_SHR_INT,
   DALVIK_USHR_INT,
-
   DALVIK_ADD_LONG,
   DALVIK_SUB_LONG,
   DALVIK_MUL_LONG,
@@ -21313,7 +20529,6 @@ enum
   DALVIK_SHL_LONG,
   DALVIK_SHR_LONG,
   DALVIK_USHR_LONG,
-
   DALVIK_ADD_FLOAT,
   DALVIK_SUB_FLOAT,
   DALVIK_MUL_FLOAT,
@@ -21324,7 +20539,6 @@ enum
   DALVIK_MUL_DOUBLE,
   DALVIK_DIV_DOUBLE,
   DALVIK_REM_DOUBLE,
-
   DALVIK_ADD_INT_2ADDR,
   DALVIK_SUB_INT_2ADDR,
   DALVIK_MUL_INT_2ADDR,
@@ -21336,7 +20550,6 @@ enum
   DALVIK_SHL_INT_2ADDR,
   DALVIK_SHR_INT_2ADDR,
   DALVIK_USHR_INT_2ADDR,
-
   DALVIK_ADD_LONG_2ADDR,
   DALVIK_SUB_LONG_2ADDR,
   DALVIK_MUL_LONG_2ADDR,
@@ -21348,7 +20561,6 @@ enum
   DALVIK_SHL_LONG_2ADDR,
   DALVIK_SHR_LONG_2ADDR,
   DALVIK_USHR_LONG_2ADDR,
-
   DALVIK_ADD_FLOAT_2ADDR,
   DALVIK_SUB_FLOAT_2ADDR,
   DALVIK_MUL_FLOAT_2ADDR,
@@ -21359,7 +20571,6 @@ enum
   DALVIK_MUL_DOUBLE_2ADDR,
   DALVIK_DIV_DOUBLE_2ADDR,
   DALVIK_REM_DOUBLE_2ADDR,
-
   DALVIK_ADD_INT_LIT16,
   DALVIK_RSUB_INT,            // no _LIT16 suffix for this
   DALVIK_MUL_INT_LIT16,
@@ -21368,7 +20579,6 @@ enum
   DALVIK_AND_INT_LIT16,
   DALVIK_OR_INT_LIT16,
   DALVIK_XOR_INT_LIT16,
-
   DALVIK_ADD_INT_LIT8,
   DALVIK_RSUB_INT_LIT8,
   DALVIK_MUL_INT_LIT8,
@@ -21380,30 +20590,24 @@ enum
   DALVIK_SHL_INT_LIT8,
   DALVIK_SHR_INT_LIT8,
   DALVIK_USHR_INT_LIT8,
-
   DALVIK_IGET_VOLATILE,
   DALVIK_IPUT_VOLATILE,
   DALVIK_SGET_VOLATILE,
   DALVIK_SPUT_VOLATILE,
   DALVIK_IGET_OBJECT_VOLATILE,
-
   DALVIK_IGET_WIDE_VOLATILE,
   DALVIK_IPUT_WIDE_VOLATILE,
   DALVIK_SGET_WIDE_VOLATILE,
   DALVIK_SPUT_WIDE_VOLATILE,
-
   // The "breakpoint" instruction is special, in that it should never
   // be seen by anything but the debug interpreter.  During debugging
   // it takes the place of an arbitrary opcode, which means operations
   // like "tell me the opcode width so I can find the next instruction"
   // aren't possible.  (This is correctable, but probably not useful.)
   DALVIK_BREAKPOINT,
-
   DALVIK_THROW_VERIFICATION_ERROR,
-
   DALVIK_EXECUTE_INLINE,
   DALVIK_EXECUTE_INLINE_RANGE,
-
   DALVIK_INVOKE_DIRECT_EMPTY,
   DALVIK_RETURN_VOID_BARRIER,
   DALVIK_IGET_QUICK,
@@ -21412,7 +20616,6 @@ enum
   DALVIK_IPUT_QUICK,
   DALVIK_IPUT_WIDE_QUICK,
   DALVIK_IPUT_OBJECT_QUICK,
-
   DALVIK_INVOKE_VIRTUAL_QUICK,
   DALVIK_INVOKE_VIRTUAL_QUICK_RANGE,
   DALVIK_INVOKE_SUPER_QUICK,
@@ -21420,20 +20623,16 @@ enum
   DALVIK_IPUT_OBJECT_VOLATILE,
   DALVIK_SGET_OBJECT_VOLATILE,
   DALVIK_SPUT_OBJECT_VOLATILE,
-
   // dex-file format 038
   DALVIK_INVOKE_POLYMORPHIC,
   DALVIK_INVOKE_POLYMORPHIC_RANGE,
   DALVIK_INVOKE_CUSTOM,
   DALVIK_INVOKE_CUSTOM_RANGE,
-
   // dex-file format 039
   DALVIK_CONST_METHOD_HANDLE,
   DALVIK_CONST_METHOD_TYPE,
-
   DALVIK_LAST,
 };
-
 /* this file was entirely generated by gen_opc.py */
 enum
 {
@@ -23648,7 +22847,6 @@ enum
   s39_vx, // vector exclusive or
   s39_last,
 };
-
 /*
  *      Interactive disassembler (IDA).
  *      Copyright (c) 1990-2026 Hex-Rays
@@ -23657,13 +22855,9 @@ enum
  *      Risc-V module
  *
  */
-
-
-
 enum
 {
   RISCV_null = 0, // Unknown Operation
-
   // Set 32 bits
   // I(nteger) extension
   RISCV_lui,     // Load Upper Immediate
@@ -24072,7 +23266,7 @@ enum
   RISCV_sinval,       // invalidates address-translation cache
   RISCV_sfencefg,     // fine grained supervisor fence
   RISCV_hinval,       // invalidates address-translation cache in hypervisor mode
-  // Pause hint
+  // Pause hint (Zihintpause)
   RISCV_pause,        // Pause
   // Cache management operation
   RISCV_cbo,          // cache base operation
@@ -24223,10 +23417,8 @@ enum
   RISCV_thvpnclipu,     // Similar to vnclipu, presumably involving packed values (undocumented)
   RISCV_thvpwadd,       // Similar to vadd, presumably involving packed values (undocumented)
   RISCV_thvpwaddu,      // Similar to vaddu, presumably involving packed values (undocumented)
-
   // Pseudo-instruction containing info about unimplemented instructions, such as length
   RISCV_unk,     // Unsupported instruction
-
   // Andes Performance Extension (XAndesPerf)
   // Reference: AndeStar V5 Instruction Extension Specification
   //            Document UM165-155, Version 1.5.8 (2025-03-17)
@@ -24271,18 +23463,44 @@ enum
   RISCV_ndsffmism,      // ffmism rd, rs1, rs2 - Find first mismatching byte position
   RISCV_ndsffzmism,     // ffzmism rd, rs1, rs2 - Find first zero or mismatch position
   RISCV_ndsflmism,      // flmism rd, rs1, rs2 - Find last mismatching byte position
-
+  // Hazard3 Extensions (Xh3power, Xh3bextm)
+  RISCV_h3block,        // h3.block: enter sleep until unblock or interrupt (WFE)
+  RISCV_h3unblock,      // h3.unblock: post unblock signal to other cores (SEV)
+  RISCV_h3bextm,        // h3.bextm rd, rs1, rs2, nbits: bit extract multiple
+  RISCV_h3bextmi,       // h3.bextmi rd, rs1, shamt, nbits: bit extract multiple immediate
+  // Soteria Extension (Xsoteria)
+  // Reference: https://github.com/naverwhale/whaleos-chromiumos-overlay/blob/d887084d447ec0f5d5849aaa794e534019906344/dev-embedded/ti50-sdk/files/llvm15-23112022-soteria.patch
+  RISCV_grev,          // grev rd, rs1, rs2  - generalized bit reverse
+  RISCV_grevi,         // grevi rd, rs1, imm - generalized bit reverse (immediate)
+  RISCV_bitc,          // bitc rd, rs1, rs2  - rd = rs1 & ~(1 << rs2)
+  RISCV_bitci,         // bitci rd, rs1, imm - rd = rs1 & ~(1 << imm)
+  RISCV_bits,          // bits rd, rs1, rs2  - rd = rs1 | (1 << rs2)
+  RISCV_bitsi,         // bitsi rd, rs1, imm - rd = rs1 | (1 << imm)
+  RISCV_pcnt,          // pcnt rd, rs1       - population count
+  RISCV_fls,           // fls rd, rs1        - find last set bit helper
+  // Zcmp compressed push/pop instructions
+  RISCV_cmpush,    // Store ra/s-reg list and allocate stack frame
+  RISCV_cmpop,     // Load ra/s-reg list and deallocate stack frame
+  RISCV_cmpopretz, // Load ra/s-reg list, set a0=0, return
+  RISCV_cmpopret,  // Load ra/s-reg list, return
+  // Zcmp compressed double-move instructions
+  RISCV_cmmva01s, // Move two s0-s7 registers into a0-a1
+  RISCV_cmmvsa01, // Move a0-a1 into two different s0-s7 registers
+  // Zcmt compressed table-jump instructions
+  RISCV_cmjt,      // Jump via jump vector table
+  RISCV_cmjalt,    // Jump and link via jump vector table
+  // Non-temporal locality hints (Zihintntl)
+  RISCV_ntl_p1,       // NTL.P1: non-temporal, innermost private cache
+  RISCV_ntl_pall,     // NTL.PALL: non-temporal, all private caches
+  RISCV_ntl_s1,       // NTL.S1: non-temporal, innermost shared cache
+  RISCV_ntl_all,      // NTL.ALL: non-temporal, all cache levels
   RISCV_last
 };
-
 /*
  *  Interactive disassembler (IDA).
  *  Renesas Electronics RL78 module
  *
  */
-
-
-
 enum
 {
   RL78_null = 0,  // Unknown Operation
@@ -24366,22 +23584,16 @@ enum
   RL78_divwu,     // 32-bit Divide Unsigned - Unsigned Division of Data
   RL78_machu,     // Multiply and Accumulate Unsigned - Unsigned Multiplication and Accumulation of Data
   RL78_mach,      // Multiply and Accumulate Signed - Signed Multiplication and Accumulation of Data
-
   RL78_last
 };
-
 /*
  *  Interactive disassembler (IDA).
  *  RX module
  *
  */
-
-
-
 enum
 {
   RX_null = 0, // Unknown Operation
-
   RX_abs,     // Absolute value
   RX_adc,     // Addition with carry
   RX_add,     // Addition without carry
@@ -24405,7 +23617,6 @@ enum
   RX_ble,     // Relative conditional branch, Equal to or less than as signed integer
   RX_bo,      // Relative conditional branch, O flag is 1
   RX_bno,     // Relative conditional branch, O flag is 0
-
   RX_bmeq,    // Conditional bit transfer, Equal to
   RX_bmne,    // Conditional bit transfer, Not equal to
   RX_bmgeu,   // Conditional bit transfer, Equal to or greater than
@@ -24420,7 +23631,6 @@ enum
   RX_bmle,    // Conditional bit transfer, Equal to or less than as signed integer
   RX_bmo,     // Conditional bit transfer, O flag is 1
   RX_bmno,    // Conditional bit transfer, O flag is 0
-
   RX_bnot,    // Inverting a bit
   RX_bset,    // Setting a bit
   RX_bsr,     // Relative subroutine branch
@@ -24503,7 +23713,6 @@ enum
   RX_satr,    // Saturation of signed 64-bit data for RMPA
   RX_save,    // Collective saving of register values
   RX_sbb,     // Subtraction with borrow
-
   RX_sceq,    // Condition setting, Equal to
   RX_scne,    // Condition setting, Not equal to
   RX_scgeu,   // Condition setting, Equal to or greater than
@@ -24518,7 +23727,6 @@ enum
   RX_scle,    // Condition setting, Equal to or less than as signed integer
   RX_sco,     // Condition setting, O flag is 1
   RX_scno,    // Condition setting, O flag is 0
-
   RX_scmpu,   // String comparison
   RX_setpsw,  // Setting a flag or bit in the PSW
   RX_shar,    // Arithmetic shift to the right
@@ -24565,21 +23773,15 @@ enum
   RX_utod,    // Unsigned integer to double-precision floating-point number conversion
   RX_last
 };
-
 /*
  *  Interactive disassembler (IDA).
  *  Tensilica Xtensa module
  *
  */
-
-
 //------------------------------------------------------------------------
-
-
 enum
 {
   XTENSA_null = 0,    // Unknown Operation
-
   XTENSA_abs,         // Absolute value
   XTENSA_add,         // Add two registers
   XTENSA_addi,        // Add signed constant to register
@@ -24694,10 +23896,8 @@ enum
   XTENSA_wsr,         // Write Special Register
   XTENSA_xor,         // Bitwise logical exclusive OR
   XTENSA_xsr,         // Exchange Special Register
-
   // narrow
   XTENSA_ill,         // Illegal instruction executed
-
   // macro
   XTENSA_andi,        // Bitwise logical AND with immediate
   XTENSA_ori,         // Bitwise logical OR with immediate
@@ -24711,12 +23911,10 @@ enum
 // XTENSA_movltz_d,    // Move Double if Less Than Zero          - Macro for "movltz.s"
 // XTENSA_movnez_d,    // Move Double if Not Equal to Zero       - Macro for "movnez.s"
 // XTENSA_movt_d,      // Move Double if True                    - Macro for "movt.s"
-
   // other
 // XTENSA_const16,     // CONST16-Shift In 16-bit Constant       - unspecified/custom
   XTENSA_rur,         // Read User Register
   XTENSA_wur,         // Write User Register
-
   // core
   XTENSA_fsync,       // Fetch Synchronize
   XTENSA_rer,         // Read External Register
@@ -24724,7 +23922,6 @@ enum
   XTENSA_salt,        // Set AR if Less Than
   XTENSA_saltu,       // Set AR if Less Than Unsigned
   XTENSA_wer,         // Write External Register
-
   // block prefetch
   XTENSA_dhi_b,       // Block Data Cache Hit Invalidate
   XTENSA_dhwb_b,      // Block Data Cache Hit Writeback
@@ -24735,7 +23932,6 @@ enum
   XTENSA_dpfr_bf,     // Block Data Cache Prefetch for Read First
   XTENSA_dpfw_b,      // Block Data Cache Prefetch for Write
   XTENSA_dpfw_bf,     // Block Data Cache Prefetch for Write First
-
   // boolean
   XTENSA_all4,        // All 4 Booleans True
   XTENSA_all8,        // All 8 Booleans True
@@ -24750,10 +23946,8 @@ enum
   XTENSA_orb,         // Boolean Or
   XTENSA_orbc,        // Boolean Or with Complement
   XTENSA_xorb,        // Boolean Exclusive Or
-
   // conditional
   XTENSA_s32c1i,      // Store 32-bit Compare Conditional
-
   // data cache
   XTENSA_dci,         // Data Cache Coherent Hit Invalidate
   XTENSA_dcwb,        // Data Cache Coherent Hit Writeback
@@ -24776,27 +23970,22 @@ enum
   XTENSA_ldcw,        // Load Data Cache Word
   XTENSA_sdct,        // Store Data Cache Tag
   XTENSA_sdcw,        // Store Data Cache Word
-
   // debug
   XTENSA_lddr32_p,    // Load to DDR Register
   XTENSA_rfdd,        // Return from Debug and Dispatch
   XTENSA_rfdo,        // Return from Debug Operation
   XTENSA_sddr32_p,    // Store from DDR Register
-
   // deposit bits option
   XTENSA_depbits,     // Deposit Bits                           - same encoding as "add.s"
-
   // exception
   XTENSA_rfde,        // Return from Double Exception
   XTENSA_rfue,        // Return from User-Mode Exception
   XTENSA_syscall,     // System Call
-
   // exclusive
   XTENSA_clrex,       // Clear Exclusive
   XTENSA_getex,       // Get Exclusive Result
   XTENSA_l32ex,       // Load 32-bit Exclusive
   XTENSA_s32ex,       // Store 32-bit Exclusive
-
   // floating point
   XTENSA_abs_d,       // Absolute Value Double
   XTENSA_abs_s,       // Absolute Value Single
@@ -24896,7 +24085,6 @@ enum
   XTENSA_utrunc_s,    // Truncate Single to Fixed Unsigned
   XTENSA_wfr,         // Move AR to FR
   XTENSA_wfrd,        // Move AR to FR Double
-
   // instruction cache
   XTENSA_ihi,         // Instruction Cache Hit Invalidate
   XTENSA_ihu,         // Instruction Cache Hit Unlock
@@ -24908,7 +24096,6 @@ enum
   XTENSA_licw,        // Load Instruction Cache Word
   XTENSA_sict,        // Store Instruction Cache Tag
   XTENSA_sicw,        // Store Instruction Cache Word
-
   // int32
   XTENSA_mulsh,       // Multiply Signed High
   XTENSA_muluh,       // Multiply Unsigned High
@@ -24916,7 +24103,6 @@ enum
   XTENSA_quou,        // Quotient Unsigned
   XTENSA_rems,        // Remainder Signed
   XTENSA_remu,        // Remainder Unsigned
-
   // mac16
   XTENSA_lddec,       // Load with Autodecrement
   XTENSA_ldinc,       // Load with Autoincrement
@@ -24937,16 +24123,12 @@ enum
   XTENSA_muls_da,     // Signed Multiply/Subtract
   XTENSA_muls_dd,     // Signed Multiply/Subtract
   XTENSA_umul_aa,     // Unsigned Multiply
-
   // memory ecc
   XTENSA_rfme,        // Return from Memory Error
-
   // misc
   XTENSA_clamps,      // Signed Clamp
-
   // multiprocessor
   XTENSA_l32ai,       // Load 32-bit Aquire
-
   // region
   XTENSA_idtlb,       // Invalidate Data TLB Entry
   XTENSA_iitlb,       // Invalidate Instruction TLB Entry
@@ -24960,10 +24142,8 @@ enum
   XTENSA_rptlb0,      // Read Protection TLB Entry Address      - same encoding as "rdtlb0"
   XTENSA_rptlb1,      // Read Protection TLB Entry Info         - same encoding as "rdtlb1"
   XTENSA_wptlb,       // Write Protection TLB Entry             - same encoding as "wdtlb"
-
   // sim
   XTENSA_simcall,     // Simulator Call
-
   // windowed
   XTENSA_l32e,        // Load 32-bit for Window Exceptions
   XTENSA_movsp,       // Move to Stack Pointer
@@ -24971,7 +24151,6 @@ enum
   XTENSA_rfwu,        // Return from Window Underflow
   XTENSA_rotw,        // Rotate Window
   XTENSA_s32e,        // Store 32-bit for Window Exceptions
-
   // reserved - these are undocumented in the main docs
   // but exist in some GNU binutils implementations.
   // they might be custom to some specific implementation of xtensa
@@ -24983,7 +24162,6 @@ enum
   XTENSA_read_impwire,  // ?
   XTENSA_setb_expstate, // ?
   XTENSA_wrmsk_expstate,// ?
-
   // These seem to be part of the AE (Audio Extension?) instruction set.
   // Looking at output of "AE" objdump bruteforce there are about 120 AE instructions.
   // I didn't find public docs on the AE instructions so won't try to guess them all.
@@ -24991,14 +24169,11 @@ enum
   XTENSA_ae2_wur,       // Write User Register (AE2 version)
   XTENSA_ae_rur,        // Read User Register (AE version)
   XTENSA_ae_wur,        // Write User Register (AE version)
-
   // These seem to be part of the DSP instruction set.
   // Looking at output of DSP objdump bruteforce there are about 180 DSP instructions.
   // I didn't find public docs on the DSP instructions so won't try to guess them all.
 // XTENSA_lac_il,        // ?
 // XTENSA_sac2x32,       // ?
 // XTENSA_sac32_r,       // ?
-
   XTENSA_last
 };
-

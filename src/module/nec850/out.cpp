@@ -142,35 +142,31 @@ void nec850_t::nec850_footer(outctx_t &ctx) const
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, s) could be made const
-void idaapi nec850_segstart(outctx_t &ctx, segment_t *s)
+void idaapi nec850_segstart(outctx_t &ctx, ea_t seg_ea)
 {
-  qstring sname;
-  qstring sclass;
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME | GSI_SCLASS) )
+    return;
 
-  get_visible_segm_name(&sname, s);
-  get_segm_class(&sclass, s);
+  qstring sname;
+  si.visible_name(&sname);
+  qstring sclass = si.get_sclass();
 
   const char *p_class;
-  if ( (s->perm == (SEGPERM_READ|SEGPERM_WRITE)) && s->type == SEG_BSS )
+  if ( (si.get_perm() == (SEGPERM_READ|SEGPERM_WRITE)) && si.get_type() == SEG_BSS )
     p_class = "bss";
-  else if ( s->perm == SEGPERM_READ )
+  else if ( si.get_perm() == SEGPERM_READ )
     p_class = "const";
-  else if ( s->perm == (SEGPERM_READ|SEGPERM_WRITE) )
+  else if ( si.get_perm() == (SEGPERM_READ|SEGPERM_WRITE) )
     p_class = "data";
-  else if ( s->perm == (SEGPERM_READ|SEGPERM_EXEC) )
+  else if ( si.get_perm() == (SEGPERM_READ|SEGPERM_EXEC) )
     p_class = "text";
-  else if ( s->type == SEG_XTRN )
+  else if ( si.get_type() == SEG_XTRN )
     p_class = "symtab";
   else
     p_class = sclass.c_str();
 
   ctx.gen_printf(0, COLSTR(".section \"%s\", %s", SCOLOR_ASMDIR), sname.c_str(), p_class);
-}
-
-//--------------------------------------------------------------------------
-void idaapi nec850_segend(outctx_t &, segment_t *)
-{
 }
 
 //----------------------------------------------------------------------

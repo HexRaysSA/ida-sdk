@@ -49,13 +49,13 @@
 //---------------------------------------------------------------------------
 inline ssize_t qsendto(int socket, const SOCKBUF_T buf, size_t size, int flags, const struct sockaddr *dest_addr, SOCKLEN_T addrlen)
 {
-  SIG_SAFE_CALL(::sendto(socket, buf, size, flags, dest_addr, addrlen));
+  SIG_SAFE_CALL(::sendto(socket, buf, int(size), flags, dest_addr, addrlen));
 }
 
 //---------------------------------------------------------------------------
 inline ssize_t qrecvfrom(int socket, SOCKBUF_T buf, size_t size, int flags, struct sockaddr *src_addr, SOCKLEN_T *addrlen)
 {
-  SIG_SAFE_CALL(::recvfrom(socket, buf, size, flags, src_addr, addrlen));
+  SIG_SAFE_CALL(::recvfrom(socket, buf, int(size), flags, src_addr, addrlen));
 }
 
 //---------------------------------------------------------------------------

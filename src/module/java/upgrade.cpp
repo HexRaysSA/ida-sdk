@@ -114,18 +114,20 @@ BADIDB:
   }
 
 // set segments type type for special segments
-  segment_t *S = getseg(curClass.start_ea);
-  if ( S == nullptr )
-    goto BADIDB;
-  S->set_hidden_segtype(true);
-  S->update();
+  {
+    segment_info_t si;
+    if ( !get_segment_info(&si, curClass.start_ea) )
+      goto BADIDB;
+    si.set_hidden_segtype(true);
+    set_segment_info(&si);
+  }
   if ( curClass.xtrnCnt )
   {
-    S = getseg(curClass.xtrnEA);
-    if ( S == nullptr )
+    segment_info_t si;
+    if ( !get_segment_info(&si, curClass.xtrnEA) )
       goto BADIDB;
-    S->set_hidden_segtype(true);
-    S->update();
+    si.set_hidden_segtype(true);
+    set_segment_info(&si);
   }
 
   curClass.extflg |= XFL_C_DONE;  // do not repeat datalabel destroyer :)
@@ -181,12 +183,12 @@ BADIDB:
     // have locvars?
     if ( u.s.DataSize )
     {
-      S = getseg(u.s.DataBase);
-      if ( S == nullptr )
+      segment_info_t si;
+      if ( !get_segment_info(&si, u.s.DataBase) )
         goto BADIDB;
-      S->type = SEG_BSS;
-      S->set_hidden_segtype(true);
-      S->update();
+      si.set_type(SEG_BSS);
+      si.set_hidden_segtype(true);
+      set_segment_info(&si);
     }
 
     // change: Exception format

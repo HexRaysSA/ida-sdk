@@ -135,7 +135,7 @@ struct i860_t : public procmod_t
 
   int i860_emu(const insn_t &insn) const;
   bool handle_operand(const insn_t &insn, const op_t &x, bool isload) const;
-  void i860_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void i860_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void i860_footer(outctx_t &ctx) const;
 };
 #endif

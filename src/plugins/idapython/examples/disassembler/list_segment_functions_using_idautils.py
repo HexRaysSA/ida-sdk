@@ -29,10 +29,10 @@ def main():
         print("Could not get get_screen_ea()")
         return
 
-    seg = ida_segment.getseg(ea)
-    if seg:
+    si = ida_segment.segment_info_t()
+    if ida_segment.get_segment_info(si, ea):
         # Loop from start to end in the current segment
-        for funcea in idautils.Functions(seg.start_ea, seg.end_ea):
+        for funcea in idautils.Functions(si.start_ea, si.end_ea):
             print("Function %s at 0x%x" % (ida_funcs.get_func_name(funcea), funcea))
 
             # Find all code references to funcea

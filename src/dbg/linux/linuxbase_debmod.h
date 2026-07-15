@@ -1,17 +1,17 @@
 #ifndef __LINUXBASE_HPP__
 #define __LINUXBASE_HPP__
 
-#include "debmod.h"
+#include <dbg/debmod.h>
 
 // Base class for linux modules
 
 #ifdef __ARM__
 #  define BASE_DEBUGGER_MODULE arm_debmod_t
-#  include "arm_debmod.h"
+#  include <dbg/arm_debmod.h>
 #  define BPT_CODE_SIZE ARM_BPT_SIZE
 #else
 #  define BASE_DEBUGGER_MODULE pc_debmod_t
-#  include "pc_debmod.h"
+#  include <dbg/pc_debmod.h>
 #  define BPT_CODE_SIZE X86_BPT_SIZE
 #endif
 

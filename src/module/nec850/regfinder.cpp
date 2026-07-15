@@ -18,7 +18,7 @@ struct nec850_reg_finder_t : public reg_finder_t
   nec850_reg_finder_t(const procmod_t &_pm) : reg_finder_t(_pm) {}
 
 protected:
-  virtual rvi_t handle_well_known_regs(
+  virtual rvb_t handle_well_known_regs(
         flow_t flow,
         rfop_t op,
         bool is_func_start) const override;
@@ -27,7 +27,7 @@ protected:
         const rfop_t &op,
         const insn_t &insn) override;
   virtual bool emulate_insn(
-        rvi_t *value,
+        rvb_t *value,
         const rfop_t &op,
         const insn_t &insn,
         flow_t flow) override;
@@ -40,13 +40,13 @@ protected:
   virtual bool can_track_op(
         op_t *op,
         const insn_t &insn,
-        func_t *pfn) const override;
+        ea_t func_ea) const override;
 };
 
 //-------------------------------------------------------------------------
 // processor specific methods
 //-------------------------------------------------------------------------
-reg_value_info_t nec850_reg_finder_t::handle_well_known_regs(
+reg_value_base_t nec850_reg_finder_t::handle_well_known_regs(
         flow_t flow,
         rfop_t op,
         bool /*is_func_start*/) const
@@ -57,14 +57,14 @@ reg_value_info_t nec850_reg_finder_t::handle_well_known_regs(
   ea_t ea = flow.actual_ea();
 
   if ( reg == rZERO )
-    return rvi_t::make_num(0, ea);
+    return rvb_t::make_num(0, ea);
 
   auto &_pm = (const nec850_t &)pm;
   ea_t base = _pm.get_fixed_sreg(ea, reg);
   if ( base == BADADDR )
     return rvi_t();
   uint16 val_flags = reg == rGP ? reg_value_def_t::LIKE_GOT : 0;
-  return rvi_t::make_num(base, ea, val_flags);
+  return rvb_t::make_num(base, ea, val_flags);
 }
 
 //-------------------------------------------------------------------------
@@ -134,7 +134,7 @@ bool nec850_reg_finder_t::is_move_insn(
 
 //-------------------------------------------------------------------------
 bool nec850_reg_finder_t::emulate_insn(
-        rvi_t *value,
+        rvb_t *value,
         const rfop_t &op,
         const insn_t &insn,
         flow_t flow)
@@ -189,17 +189,17 @@ bool nec850_reg_finder_t::emulate_insn(
     case NEC850_SUB:
     case NEC850_SHL:
       {
-        rvi_t::arith_op_t aop = rvi_t::ADD;
+        rvb_t::arith_op_t aop = rvb_t::ADD;
         if ( insn.itype == NEC850_SUB )
-          aop = rvi_t::SUB;
+          aop = rvb_t::SUB;
         else if ( insn.itype == NEC850_SHL )
-          aop = rvi_t::SLL;
+          aop = rvb_t::SLL;
         emulate_binary_op(value, aop, insn.Op2, insn.Op1, insn, flow);
         return true;
       }
     case NEC850_MOVHI:
       {
-        rvi_t::arith_op_t aop = rvi_t::ADD;
+        rvb_t::arith_op_t aop = rvb_t::ADD;
         op_t imm;
         pm.make_op_imm(&imm, (int32)(insn.Op1.value << 16));
         emulate_binary_op(value, aop, insn.Op2, imm, insn, flow);
@@ -284,7 +284,7 @@ SP_DELTA:
           pm.make_op_reg(&spop, rSP);
           op_t deltaop;
           pm.make_op_imm(&deltaop, delta);
-          emulate_binary_op(value, rvi_t::ADD, spop, deltaop, insn, flow);
+          emulate_binary_op(value, rvb_t::ADD, spop, deltaop, insn, flow);
           return true;
         }
       }
@@ -301,13 +301,11 @@ bool nec850_reg_finder_t::is_mem_readonly(ea_t ea) const
 {
   if ( inf_get_filetype() != f_ELF )
     return false;
-  segment_t *seg = getseg(ea);
-  if ( seg == nullptr )
+  segment_info_t si;
+  if ( !get_segment_info(&si, ea, GSI_NAME) )
     return false;
   // check by names
-  qstring segname;
-  if ( get_segm_name(&segname, seg) <= 0 )
-    return false;
+  qstring segname = si.get_name();
   // we assume that the following segments are readonly
   return  segname == ".got"
        || segname == ".text"
@@ -326,7 +324,7 @@ bool nec850_reg_finder_t::is_mem_readonly(ea_t ea) const
 bool nec850_reg_finder_t::can_track_op(
         op_t *op,
         const insn_t &,
-        func_t *) const
+        ea_t) const
 {
   switch ( op->type )
   {
@@ -358,7 +356,7 @@ bool nec850_t::find_regval(uval_t *value, ea_t ea, int reg) const
 {
   if ( reg == rSP || reg_finder == nullptr )
     return false;
-  auto rfop = reg_finder_op_t::make_reg(*this, reg);
+  auto rfop = reg_finder_op_t::make_reg(reg, reg_finder->slotsize);
   return reg_finder->find_const(value, ea, rfop);
 }
 
@@ -372,7 +370,7 @@ bool nec850_t::find_rvi(
 {
   if ( reg == rSP || reg_finder == nullptr )
     return false;
-  auto rfop = reg_finder_op_t::make_reg(*this, reg);
+  auto rfop = reg_finder_op_t::make_reg(reg, reg_finder->slotsize);
   *rvi = reg_finder->find(ea, rfop, max_depth, linear_insns);
   return true;
 }
@@ -383,4 +381,11 @@ bool nec850_t::find_sp_value(sval_t *spval, ea_t ea, int reg) const
   if ( reg_finder == nullptr )
     return false;
   return reg_finder->find_spd(spval, ea, reg);
+}
+
+//-------------------------------------------------------------------------
+void nec850_t::update_reg_finder_sizes()
+{
+  if ( reg_finder != nullptr )
+    reg_finder->update_sizes();
 }

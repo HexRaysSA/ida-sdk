@@ -233,13 +233,14 @@ void out_pic_t::out_insn(void)
   if ( ( insn.Op1.type == o_mem && insn.Op1.addr == PIC16_INDF2 )
     || ( insn.Op2.type == o_mem && insn.Op2.addr == PIC16_INDF2 ) )
   {
-    func_t *pfn = get_func(insn.ea);
+    func_entry_info_t fi;
     tinfo_t frame;
-    frame.get_func_frame(pfn);
-    if ( pfn != nullptr && !frame.empty() )
+    if ( get_func_entry_info(&fi, insn.ea)
+      && get_func_frame_ea(&frame, fi.start_ea)
+      && !frame.empty() )
     {
       udm_t stkvar;
-      stkvar.offset = (pfn->frregs + pfn->frsize)*8LL;
+      stkvar.offset = (fi.get_frregs() + fi.get_frsize())*8LL;
       ssize_t stkvar_idx = frame.find_udm(&stkvar, STRMEM_OFFSET);
       if ( stkvar_idx != -1 )
       {
@@ -277,10 +278,10 @@ void pic_t::print_segment_register(outctx_t &ctx, int reg, sel_t value)
 void pic_t::pic_assumes(outctx_t &ctx)         // function to produce assume directives
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *seg = getseg(ea);
-  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 || seg == nullptr )
+  segment_info_t seg;
+  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 || !get_segment_info(&seg, ea) )
     return;
-  bool seg_started = (ea == seg->start_ea);
+  bool seg_started = (ea == seg.start_ea);
 
   for ( int i = ph.reg_first_sreg; i <= ph.reg_last_sreg; ++i )
   {
@@ -302,34 +303,30 @@ void pic_t::pic_assumes(outctx_t &ctx)         // function to produce assume dir
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Srange) could be made const
-void pic_t::pic_segstart(outctx_t &ctx, segment_t *Srange) const
+void pic_t::pic_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
-  if ( is_spec_segm(Srange->type) )
+  segment_info_t seg;
+  if ( !get_segment_info(&seg, seg_ea, GSI_NAME | GSI_SCLASS) )
+    return;
+  if ( is_spec_segm(seg.get_type()) )
     return;
 
   qstring sname;
-  qstring sclas;
-  get_visible_segm_name(&sname, Srange);
-  get_segm_class(&sclas, Srange);
+  seg.visible_name(&sname);
+  const char *sclas = seg.get_sclass();
 
   ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s %s (%s)", SCOLOR_AUTOCMT),
                  ash.cmnt,
-                 sclas == "CODE" ? ".text" :
-                 sclas == "BSS" ? ".bss" :
+                 streq(sclas, "CODE") ? ".text" :
+                 streq(sclas, "BSS") ? ".bss" :
                  ".data",
                  sname.c_str());
-  if ( Srange->orgbase != 0 )
+  if ( seg.get_orgbase() != 0 )
   {
     char buf[MAX_NUMBUF];
-    btoa(buf, sizeof(buf), Srange->orgbase);
+    btoa(buf, sizeof(buf), seg.get_orgbase());
     ctx.gen_printf(DEFAULT_INDENT, COLSTR("%s %s", SCOLOR_ASMDIR), ash.origin, buf);
   }
-}
-
-//--------------------------------------------------------------------------
-void idaapi pic_segend(outctx_t &, segment_t *)
-{
 }
 
 //--------------------------------------------------------------------------
@@ -380,14 +377,14 @@ void pic_t::out_equ(outctx_t &ctx, bool indent, const char *name, uval_t off)
 int pic_t::out_equ(outctx_t &ctx)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *s = getseg(ea);
-  if ( s != nullptr && s->type == SEG_IMEM && ash.a_equ != nullptr )
+  segment_info_t s;
+  if ( get_segment_info(&s, ea) && s.get_type() == SEG_IMEM && ash.a_equ != nullptr )
   {
     qstring name;
     if ( get_visible_name(&name, ea) > 0 )
     {
       ctx.ctxflags |= CTXF_LABEL_OK;
-      uval_t off = ea - get_segm_base(s);
+      uval_t off = ea - s.base();
       out_equ(ctx, false, name.begin(), off);
       const ioport_bits_t *_bits = find_bits(off);
       if ( _bits != nullptr )

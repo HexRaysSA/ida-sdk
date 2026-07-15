@@ -28,6 +28,16 @@
    }
 };
 
+%extend range_t
+{
+  inline qstring __str__() const
+  {
+    qstring tmp;
+    tmp.sprnt("ida_range.range_t(0x%a, 0x%a)", $self->start_ea, $self->end_ea);
+    return tmp;
+  }
+};
+
 %pythoncode %{
 #<pycode(py_range)>
 #</pycode(py_range)>

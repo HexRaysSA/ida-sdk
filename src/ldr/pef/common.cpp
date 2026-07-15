@@ -207,16 +207,15 @@ static bool inside(const bytevec_t &vec, const void *ptr, size_t nelems, size_t 
 //----------------------------------------------------------------------
 struct pef_loader_data_t
 {
-  pef_loader_t pl;
-  pef_library_t *pil;
-  uint32 *impsym;
-  pef_reloc_header_t *prh;
-  const char *stable;
-  const uint16 *relptr;
-  const uint32 *hash;
-  const uint32 *keytable;
-  pef_export_t *pe;
-  pef_loader_data_t(void) { memset(this, 0, sizeof(*this)); }
+  pef_loader_t pl = {};
+  pef_library_t *pil = nullptr;
+  uint32 *impsym = nullptr;
+  pef_reloc_header_t *prh = nullptr;
+  const char *stable = nullptr;
+  const uint16 *relptr = nullptr;
+  const uint32 *hash = nullptr;
+  const uint32 *keytable = nullptr;
+  pef_export_t *pe = nullptr;
   ~pef_loader_data_t(void)
   {
     qfree(pil);

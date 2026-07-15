@@ -660,7 +660,7 @@ inline const char *get_pe_machine_name(uint16 machine)
     case PECPU_SH5:       return "SH5";
     case PECPU_ARM:       return "ARM";
     case PECPU_ARMI:      return "ARMI";
-    case PECPU_ARMV7:     return "ARMv7";
+    case PECPU_ARMNT:     return "ARMNT";
     case PECPU_EPOC:      return "ARM EPOC";
     case PECPU_PPC:       return "PPC";
     case PECPU_PPCFP:     return "PPC FP";

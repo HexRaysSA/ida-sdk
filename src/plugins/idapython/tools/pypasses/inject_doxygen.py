@@ -4,6 +4,12 @@ import os
 
 import pypasses
 
+# Functions with corrupted doxygen output that have SWIG docstrings instead.
+# Doxygen 1.16 bug: these functions are not extracted properly.
+_SKIP_DOXYGEN_INJECTION = {
+    "ida_bytes.is_attached_custom_data_format",
+}
+
 def process(tree, opts, logger):
 
     class source_transformer_t(pypasses.base_transformer_t):
@@ -141,7 +147,12 @@ def process(tree, opts, logger):
             return type_text
 
         def visit_FunctionDef(self, node):
-            logger.debug(f"Looking for: {self._full_dx_scope_path(node.name)}")
+            full_path = self._full_dx_scope_path(node.name)
+            logger.debug(f"Looking for: {full_path}")
+            if full_path in _SKIP_DOXYGEN_INJECTION:
+                logger.debug(f"Skipping doxygen injection for {full_path} (has SWIG docstring)")
+                super(source_transformer_t, self).visit_FunctionDef(node)
+                return node
             dx_fun = self.dx_scope[-1].find_function(node.name)
             if dx_fun:
                 logger.debug(f"Found doxygen function information")

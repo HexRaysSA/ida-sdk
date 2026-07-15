@@ -181,8 +181,8 @@ struct point_t
   }
   template <class T> void div(T d)
   {
-    x /= d;
-    y /= d;
+    x = int(x / d);
+    y = int(y / d);
   }
   void negate(void)
   {
@@ -1275,6 +1275,7 @@ enum graph_notification_t
                               ///< \param g   (::interactive_graph_t *)
                               ///< \retval 0  must return 0
 
+
   //-------------------------------------------------------------------------
   // Callbacks callable from plugins (see inline functions below):
   //-------------------------------------------------------------------------
@@ -1340,6 +1341,7 @@ enum graph_notification_t
   //
   grcode_set_gli,                     ///< use viewer_set_gli()
   grcode_get_gli,                     ///< use viewer_get_gli()
+
 };
 
 
@@ -1407,6 +1409,7 @@ inline graph_viewer_t *idaapi create_graph_viewer(
 inline graph_viewer_t *idaapi get_graph_viewer(TWidget *parent)              { graph_viewer_t *gv = nullptr; grentry(grcode_get_graph_viewer, parent, &gv); return gv; }
 
 
+
 /// Create a new empty graph with given id
 
 inline interactive_graph_t *idaapi create_interactive_graph(uval_t id)               { interactive_graph_t *g = nullptr; grentry(grcode_create_interactive_graph, id, &g); return g; }
@@ -1444,7 +1447,7 @@ inline void idaapi viewer_fit_window(graph_viewer_t *gv)                     {  
 
 /// Get number of currently selected node (-1 if none)
 
-inline int  idaapi viewer_get_curnode(graph_viewer_t *gv)                    { return grentry(grcode_get_curnode, gv); }
+inline int  idaapi viewer_get_curnode(graph_viewer_t *gv)                    { return int(grentry(grcode_get_curnode, gv)); }
 
 
 /// Center the graph view on the given node
@@ -1587,7 +1590,7 @@ inline bool idaapi viewer_get_selection(
 
 inline int idaapi viewer_set_titlebar_height(graph_viewer_t *gv, int height)
 {
-  return grentry(grcode_set_titlebar_height, gv, height);
+  return int(grentry(grcode_set_titlebar_height, gv, height));
 }
 
 
@@ -1611,9 +1614,9 @@ inline void idaapi interactive_graph_t::clear(void)                             
 inline bool idaapi interactive_graph_t::create_digraph_layout(void)               { return grentry(grcode_create_digraph_layout, this) != 0; }
 inline bool idaapi drawable_graph_t::create_tree_layout(void)                 { return grentry(grcode_create_tree_layout, this) != 0; }
 inline bool idaapi drawable_graph_t::create_circle_layout(point_t c, int radius) { return grentry(grcode_create_circle_layout, this, c.x, c.y, radius) != 0; }
-inline int  idaapi interactive_graph_t::get_node_representative(int node)         { return grentry(grcode_get_node_representative, this, node); }
-inline int  idaapi interactive_graph_t::_find_subgraph_node(int gr, int n) const  { return grentry(grcode_find_subgraph_node, this, gr, n); }
-inline int  idaapi interactive_graph_t::create_group(const intvec_t &_nodes)      { return grentry(grcode_create_group, this, &_nodes); }
+inline int  idaapi interactive_graph_t::get_node_representative(int node)         { return int(grentry(grcode_get_node_representative, this, node)); }
+inline int  idaapi interactive_graph_t::_find_subgraph_node(int gr, int n) const  { return int(grentry(grcode_find_subgraph_node, this, gr, n)); }
+inline int  idaapi interactive_graph_t::create_group(const intvec_t &_nodes)      { return int(grentry(grcode_create_group, this, &_nodes)); }
 inline bool idaapi interactive_graph_t::get_custom_layout(void)                   { return grentry(grcode_get_custom_layout, this) != 0; }
 inline bool idaapi interactive_graph_t::get_graph_groups(void)                    { return grentry(grcode_get_graph_groups, this) != 0; }
 inline bool idaapi interactive_graph_t::empty(void) const                         { return grentry(grcode_empty, this) != 0; }
@@ -1621,7 +1624,7 @@ inline bool idaapi interactive_graph_t::is_visible_node(int node) const         
 inline bool idaapi interactive_graph_t::delete_group(int group)                   { return grentry(grcode_delete_group, this, group) != 0; }
 inline bool idaapi interactive_graph_t::change_group_visibility(int gr, bool exp) { return grentry(grcode_change_group_visibility, this, gr, exp) != 0; }
 inline bool idaapi interactive_graph_t::set_edge(edge_t e, const edge_info_t *ei) { return grentry(grcode_set_edge, this, e.src, e.dst, ei) != 0; }
-inline int  idaapi interactive_graph_t::node_qty(void) const                      { return grentry(grcode_node_qty, this); }
+inline int  idaapi interactive_graph_t::node_qty(void) const                      { return int(grentry(grcode_node_qty, this)); }
 inline rect_t &idaapi interactive_graph_t::nrect(int n)                           { rect_t *r; grentry(grcode_nrect, this, n, &r); return *r; }
 
 inline edge_infos_wrapper_t &idaapi edge_infos_wrapper_t::operator=(

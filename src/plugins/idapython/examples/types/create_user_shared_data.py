@@ -39,15 +39,17 @@ if not tif:
 
 assert(tif is not None)
 
-segm = ida_segment.segment_t()
-segm.start_ea = start_ea
-segm.end_ea = start_ea + tif.get_size()
-segm.sel = ida_segment.setup_selector(0)
-segm.bitness = USE64
-segm.align = ida_segment.saRelPara
-segm.comb = ida_segment.scPub
-segm.perm = PERM_RW
-if ida_segment.add_segm_ex(segm, "UserSharedData", "DATA", 0) < 0:
+si = ida_segment.segment_info_t()
+si.start_ea = start_ea
+si.end_ea = start_ea + tif.get_size()
+si.set_sel(ida_segment.setup_selector(0))
+si.set_bitness(USE64)
+si.set_align(ida_segment.saRelPara)
+si.set_comb(ida_segment.scPub)
+si.set_perm(PERM_RW)
+si.set_name("UserSharedData")
+si.set_sclass("DATA")
+if not ida_segment.add_segment_ex(si, 0):
     print("Unable to create the shared data segment.")
 else:
     if not ida_typeinf.apply_tinfo(start_ea, tif, ida_typeinf.TINFO_DEFINITE):

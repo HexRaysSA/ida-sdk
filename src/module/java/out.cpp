@@ -455,7 +455,8 @@ void out_java_t::out_proc_mnem(void)
 //----------------------------------------------------------------------
 void out_java_t::out_insn(void)
 {
-  pm().getMySeg(insn.ea); // set curSeg (for special strings)
+  segment_info_t si;
+  pm().getMySeg(&si, insn.ea); // set curSeg (for special strings)
   set_gen_xrefs(false);
 
   if ( pm().curSeg.smNode && !(pm().idpflags & IDF_HIDESM) )
@@ -1302,23 +1303,25 @@ STOP_NOW:
 }
 
 //----------------------------------------------------------------------
-void out_java_t::java_segstart(segment_t *)
+void out_java_t::java_segstart(ea_t seg_ea)
 {
-  ea_t ea = insn_ea;
+  ea_t ea = seg_ea;
 
   init_prompted_output(2);
 
+  segment_info_t si;
+  pm().getMySeg(&si, ea); // also set curSeg
   set_gen_cmt(true);
-  switch ( pm().getMySeg(ea)->type ) // also set curSeg
+  switch ( si.get_type() )
   {
     case SEG_CODE:
       {
-        func_t *pfn = get_func(ea);
-        if ( pfn != nullptr )
+        ea_t func_ea = get_func_start(ea);
+        if ( func_ea != BADADDR )
         {
           qstring qbuf;
-          if ( get_func_cmt(&qbuf, pfn, false) > 0
-            || get_func_cmt(&qbuf, pfn, true) > 0 )
+          if ( get_func_cmt_ea(&qbuf, func_ea, false) > 0
+            || get_func_cmt_ea(&qbuf, func_ea, true) > 0 )
           {
             if ( gen_block_cmt(qbuf.c_str(), COLOR_REGCMT) )
               break;
@@ -1512,17 +1515,19 @@ noparents:
 }
 
 //----------------------------------------------------------------------
-void idaapi java_segstart(outctx_t &ctx, segment_t *seg)
+void idaapi java_segstart(outctx_t &ctx, ea_t seg_ea)
 {
   out_java_t *p_ctx = (out_java_t *)&ctx;
-  p_ctx->java_segstart(seg);
+  p_ctx->java_segstart(seg_ea);
 }
 
 //--------------------------------------------------------------------------
-void out_java_t::java_segend(segment_t *seg)
+void out_java_t::java_segend(ea_t seg_ea)
 {
   init_prompted_output(4);
-  uchar t = pm().getMySeg(BADADDR, seg)->type; // also set curSeg
+  segment_info_t si;
+  pm().getMySeg(&si, seg_ea); // also set curSeg
+  uchar t = si.get_type();
   switch ( t )
   {
     case SEG_CODE:
@@ -1656,10 +1661,10 @@ STOP_NOW:
 }
 
 //--------------------------------------------------------------------------
-void idaapi java_segend(outctx_t &ctx, segment_t *seg)
+void idaapi java_segend(outctx_t &ctx, ea_t seg_ea)
 {
   out_java_t *p_ctx = (out_java_t *)&ctx;
-  p_ctx->java_segend(seg);
+  p_ctx->java_segend(seg_ea);
 }
 
 //----------------------------------------------------------------------
@@ -1690,7 +1695,9 @@ void out_java_t::java_data(bool /*analyze_only*/)
   ea_t ea = insn_ea;
 
   init_prompted_output();
-  char stype = pm().getMySeg(ea)->type; // also set curSeg
+  segment_info_t si;
+  pm().getMySeg(&si, ea); // also set curSeg
+  char stype = si.get_type();
   ea_t ip = ea - pm().curSeg.start_ea;
   asize_t sz = get_item_size(ea) - 1;
   switch ( stype )

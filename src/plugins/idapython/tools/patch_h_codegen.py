@@ -24,10 +24,11 @@ if os.path.isfile(args.patches):
         l = l.replace(",...arg0)", ",...)")
         all_lines.append(l)
 
+    import sys
     import tempfile
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from _writeutil import move_if_different
     temp = tempfile.NamedTemporaryFile(mode="w", delete=False)
     temp.writelines(all_lines)
     temp.close()
-
-    import shutil
-    shutil.move(temp.name, args.file)
+    move_if_different(temp.name, args.file)

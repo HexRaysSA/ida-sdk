@@ -26,15 +26,17 @@ static void create32(
 {
   set_selector(sel, 0);
 
-  segment_t s;
-  s.sel     = sel;
+  segment_info_t s;
+  s.set_sel(sel);
   s.start_ea = start_ea;
   s.end_ea   = end_ea;
-  s.align   = saRelByte;
-  s.comb    = sclass != nullptr && streq(sclass, "STACK") ? scStack : scPub;
-  s.bitness = 1; // 32-bit
+  s.set_align(saRelByte);
+  s.set_comb(sclass != nullptr && streq(sclass, "STACK") ? scStack : scPub);
+  s.set_bitness(1); // 32-bit
+  s.set_name(name);
+  s.set_sclass(sclass);
 
-  if ( !add_segm_ex(&s, name, sclass, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+  if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
     loader_failure();
 }
 
@@ -85,8 +87,7 @@ BAD_FILE:
 //-----------------------------------------------------------------------
 static ea_t getsea(ushort i)
 {
-  segment_t *s = get_segm_by_sel(i & 0xFF);
-  return s ? s->start_ea : BADADDR;
+  return get_segment_ea_by_sel(i & 0xFF);
 }
 
 //-----------------------------------------------------------------------
@@ -174,13 +175,13 @@ static void read_text(const ea_helper_t &eah, linput_t *li)
       ea_t start = eah.trunc_uval(sea + txt.txt_offset);
       ea_t end   = eah.trunc_uval(start + txt.length);
       uint64 fsize = qlsize(li);
-      segment_t *s = getseg(start);
+      segment_info_t si;
       if ( start < sea
         || end < start
         || fptr > fsize
         || fsize-fptr < txt.length
-        || s == nullptr
-        || s->end_ea < end )
+        || !get_segment_info(&si, start)
+        || si.end_ea < end )
       {
         loader_failure("Corrupted text data");
       }
@@ -190,6 +191,15 @@ static void read_text(const ea_helper_t &eah, linput_t *li)
     }
     qlseek(li, fptr+txt.length);
   }
+}
+
+//-----------------------------------------------------------------------
+static uint32 safe_readdw(const uchar *&ptr, bool wide, const uchar *end)
+{
+  uint32 res = readdw(ptr, wide);
+  if ( ptr > end )
+    loader_failure("Encountered a truncated fixup record");
+  return res;
 }
 
 //-----------------------------------------------------------------------
@@ -231,31 +241,31 @@ static void read_fixup(const ea_helper_t &eah, linput_t *li)
           ask_for_feedback("Untested relocation type");
           [[fallthrough]];
         case 0x24:      // GEN
-          where_offset = readdw(ptr, false);
-          what_offset = readdw(ptr, false);
-          what_in = (ushort)readdw(ptr, false);
+          where_offset = safe_readdw(ptr, false, end);
+          what_offset = safe_readdw(ptr, false, end);
+          what_in = (ushort)safe_readdw(ptr, false, end);
           break;
         case 0x2D:
           isfar = true;
           [[fallthrough]];
         case 0x25:      // INTRA
-          where_offset = readdw(ptr, false);
-          what_offset = readdw(ptr, false);
+          where_offset = safe_readdw(ptr, false, end);
+          what_offset = safe_readdw(ptr, false, end);
           what_in = fix.where_IN;
           break;
         case 0x2A:      // CALL
-          where_offset = readdw(ptr, false);
+          where_offset = safe_readdw(ptr, false, end);
           what_offset = 0;
-          what_in = (ushort)readdw(ptr, false);
+          what_in = (ushort)safe_readdw(ptr, false, end);
           selfrel = true;
           break;
         case 0x2E:      // OFF32?
           isfar = true;
           [[fallthrough]];
         case 0x26:
-          where_offset = readdw(ptr, false);
+          where_offset = safe_readdw(ptr, false, end);
           what_offset = 0;
-          what_in = (ushort)readdw(ptr, false);
+          what_in = (ushort)safe_readdw(ptr, false, end);
           break;
         default:
           ask_for_feedback("Unknown relocation type %02X", ptr[-1]);
@@ -321,18 +331,18 @@ BAD_FILE:
     {
       uint64 fsize = qlsize(li);
       ea_t start = eah.trunc_uval(sea + itr.it_offset);
-      segment_t *s = getseg(start);
+      segment_info_t si;
       if ( start < sea
         || fptr > fsize
         || fsize-fptr < itr.text.length
         || !is_mul_ok(uint32(itr.text.length), uint32(itr.it_count))
-        || s == nullptr )
+        || !get_segment_info(&si, start) )
       {
         goto BAD_FILE;
       }
       uint32 total = itr.text.length * itr.it_count;
       ea_t final_end = eah.trunc_uval(start + total);
-      if ( final_end < start || final_end > s->end_ea )
+      if ( final_end < start || final_end > si.end_ea )
         goto BAD_FILE;
       if ( change_storage_type(start, final_end, STT_VA) != eOk )
         INTERR(20061);

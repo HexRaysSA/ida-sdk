@@ -235,8 +235,8 @@ void tms320c54_t::apply_symbols(void)
   for ( int i=0; i < ioh.ports.size(); i++ )
   {
     ea_t ea = calc_data_mem(dummy, ioh.ports[i].address, false);
-    segment_t *s = getseg(ea);
-    if ( s == nullptr || s->type != SEG_IMEM )
+    segment_info_t si;
+    if ( !get_segment_info(&si, ea) || si.get_type() != SEG_IMEM )
       continue;
     create_byte(ea, 1);
     const char *name = ioh.ports[i].name.c_str();
@@ -424,18 +424,19 @@ MSC_DIAG_OFF(4063)
       save_dataseg();
       inf_set_wide_high_byte_first(false);
       {
-        segment_t *s = get_first_seg();
-        if ( s != nullptr )
+        ea_t seg_ea = get_first_segment_ea();
+        if ( seg_ea != BADADDR )
           apply_symbols();
-        while ( s != nullptr )
+        while ( seg_ea != BADADDR )
         {
-          qstring sclas;
-          get_segm_class(&sclas, s);
+          segment_info_t si;
+          get_segment_info(&si, seg_ea, GSI_SCLASS);
           for ( int i = XPC; i <= rVds; i++ )
-            set_default_sreg_value(s, i, BADSEL);
-          if ( sclas == "CODE" )
-            set_default_sreg_value(s, XPC, s->start_ea >> 16);
-          s = get_next_seg(s->start_ea);
+            set_default_sreg_value_ea(seg_ea, i, BADSEL);
+          const char *sclas = si.get_sclass();
+          if ( sclas != nullptr && streq(sclas, "CODE") )
+            set_default_sreg_value_ea(seg_ea, XPC, seg_ea >> 16);
+          seg_ea = get_next_segment_ea(seg_ea);
         }
       }
       break;
@@ -505,21 +506,16 @@ MSC_DIAG_OFF(4063)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
-      {
-        outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        segend(*ctx, seg);
-        return 1;
-      }
+    case processor_t::ev_out_segment_end:
+      return 1;
 
     case processor_t::ev_out_assumes:
       {
@@ -562,18 +558,18 @@ MSC_DIAG_OFF(4063)
         return tms_realcvt(m, e, swt);
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 
-    case processor_t::ev_get_frame_retsize:
+    case processor_t::ev_get_function_retsize:
       {
         int *frsize = va_arg(va, int *);
-        const func_t *pfn = va_arg(va, const func_t *);
-        *frsize = tms_get_frame_retsize(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        *frsize = tms_get_frame_retsize(func_ea);
         return 1;
       }
 

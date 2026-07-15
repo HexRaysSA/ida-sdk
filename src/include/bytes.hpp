@@ -185,13 +185,6 @@ idaman ea_t ida_export prev_not_tail(ea_t ea);
 idaman ea_t ida_export next_not_tail(ea_t ea);
 
 
-/// Adjust the address and get the nearest visible address.
-/// (i.e. an address which will appear in the disassembly)
-/// \return #BADADDR only if no valid address exists
-
-ea_t adjust_visea(ea_t ea);
-
-
 /// Get previous visible address.
 /// \return #BADADDR if none exists.
 
@@ -203,21 +196,6 @@ idaman ea_t ida_export prev_visea(ea_t ea);
 
 idaman ea_t ida_export next_visea(ea_t ea);
 
-
-/// Is an address the first visible address?
-
-bool is_first_visea(ea_t ea);
-
-
-/// Is an address the last visible address?
-
-bool is_last_visea(ea_t ea);
-
-
-/// Is the address visible on the screen (not hidden)?
-
-bool is_visible_finally(ea_t ea); // do we need to show anything
-                                  // at this address?
 
 
 
@@ -783,18 +761,21 @@ idaman void ida_export patch_bytes(ea_t ea, const void *buf, size_t size);
 /// Does flag denote start of an instruction?
 
 inline THREAD_SAFE constexpr bool idaapi is_code(flags64_t F)  { return (F & MS_CLS) == FF_CODE; }
+inline                       bool idaapi is_code_ea(ea_t ea)   { return is_code(get_flags32(ea)); }
 inline THREAD_SAFE constexpr bool idaapi f_is_code(flags64_t F, void *) { return is_code(F); }         ///< \copydoc is_code()
 
 
 /// Does flag denote start of data?
 
 inline THREAD_SAFE constexpr bool idaapi is_data(flags64_t F)  { return (F & MS_CLS) == FF_DATA; }
+inline                       bool idaapi is_data_ea(ea_t ea)   { return is_data(get_flags32(ea)); }
 inline THREAD_SAFE constexpr bool idaapi f_is_data(flags64_t F, void *) { return is_data(F); }         ///< \copydoc is_data()
 
 
 /// Does flag denote tail byte?
 
-inline THREAD_SAFE constexpr bool idaapi is_tail(flags64_t F)    { return (F & MS_CLS) == FF_TAIL; }
+inline THREAD_SAFE constexpr bool idaapi is_tail(flags64_t F)  { return (F & MS_CLS) == FF_TAIL; }
+inline                       bool idaapi is_tail_ea(ea_t ea)   { return is_tail(get_flags32(ea)); }
 inline THREAD_SAFE constexpr bool idaapi f_is_tail(flags64_t F, void *) { return is_tail(F); }         ///< \copydoc is_tail()
 inline THREAD_SAFE constexpr bool idaapi is_not_tail(flags64_t F) { return !is_tail(F); }              ///< \copydoc is_tail()
 inline THREAD_SAFE constexpr bool idaapi f_is_not_tail(flags64_t F, void *) { return is_not_tail(F); } ///< \copydoc is_tail()
@@ -803,11 +784,13 @@ inline THREAD_SAFE constexpr bool idaapi f_is_not_tail(flags64_t F, void *) { re
 /// Does flag denote unexplored byte?
 
 inline THREAD_SAFE constexpr bool idaapi is_unknown(flags64_t F) { return (F & MS_CLS) == FF_UNK; }
+inline                       bool idaapi is_unknown_ea(ea_t ea)  { return is_unknown(get_flags32(ea)); }
 
 
 /// Does flag denote start of instruction OR data?
 
 inline THREAD_SAFE constexpr bool idaapi is_head(flags64_t F)  { return (F & FF_DATA) != 0; }
+inline                       bool idaapi is_head_ea(ea_t ea)   { return is_head(get_flags32(ea)); }
 inline THREAD_SAFE constexpr bool idaapi f_is_head(flags64_t F, void *) { return is_head(F); }         ///< \copydoc is_head()
 
 ///@} FF_statefuncs
@@ -911,6 +894,7 @@ idaman void ida_export set_manual_insn(ea_t ea, const char *manual_insn); // Set
 /// Does the previous instruction exist and pass execution flow to the current byte?
 
 inline THREAD_SAFE constexpr bool idaapi is_flow(flags64_t F)     { return (F & FF_FLOW) != 0; }
+inline                       bool idaapi is_flow_ea(ea_t ea)      { return is_flow(get_flags32(ea)); }
 
 
 /// Does the current byte have additional anterior or posterior lines?
@@ -1087,6 +1071,36 @@ inline constexpr int get_operand_type_shift(uint32 n)
 inline constexpr flags64_t get_operand_flag(uint8 typebits, int n)
 {
   return n >= 0 && n < UA_MAXOP ? flags64_t(typebits) << get_operand_type_shift(n) : 0;
+}
+
+/// Extract operand `n`'s type bits from a 64-bit flags set.
+/// This is the reverse of get_operand_flag(): it extracts the type nibble
+/// from flags and returns it as a value suitable for comparison with `FF_N_` constants.
+///
+/// \param F the flags
+/// \param n the operand number
+/// \return the type bits (one of `FF_N_`), or 0 if n is out of range
+
+inline constexpr uint8 get_optype_flags(flags64_t F, int n)
+{
+  return n >= 0 && n < UA_MAXOP
+       ? uint8((F >> get_operand_type_shift(n)) & MS_N_TYPE)
+       : 0;
+}
+
+/// Set operand `n`'s type flag in the 64-bit flags set.
+///
+/// \param F the flags to modify
+/// \param typebits the type bits (one of `FF_N_`)
+/// \param n the operand number
+
+inline constexpr void set_operand_flag(flags64_t &F, uint8 typebits, int n)
+{
+  if ( n >= 0 && n < UA_MAXOP )
+  {
+    F &= ~get_operand_flag(MS_N_TYPE, n);
+    F |= get_operand_flag(typebits, n);
+  }
 }
 
 /// Check that the 64-bit flags set has the expected type
@@ -1299,8 +1313,19 @@ idaman tid_t ida_export get_enum_id(uchar *serial, ea_t ea, int n);
 /// Set operand representation to be 'struct offset'.
 /// \param insn      the instruction
 /// \param n         0..#UA_MAXOP-1 operand number, OPND_ALL all operands
-/// \param path      structure path (strpath). see nalt.hpp for more info.
-/// \param path_len  length of the structure path
+/// \param path      array of TIDs:
+///                  - path[0]: TID of the top-level structure type that
+///                    the operand displacement is measured from.
+///                  - path[1..path_len-1]: one entry per union descended
+///                    into, giving the member TID of the chosen branch.
+///                    Non-union nested structs add no entries.
+///                  See ::walk_field_path() in typeinf.hpp for a helper
+///                  that builds this path from a dotted field name.
+/// \param path_len  number of elements in path[] (>=1, <=MAXSTRUCPATH).
+///                  This is the C-array length, NOT the number of dots
+///                  in a dotted field name. Equals 1 + (number of unions
+///                  descended into); for a retype that doesn't cross any
+///                  union, path_len = 1.
 /// \param delta     struct offset delta. usually 0. denotes the difference
 ///                  between the structure base and the pointer into the structure.
 /// \return success
@@ -1522,6 +1547,22 @@ inline THREAD_SAFE constexpr bool idaapi is_strlit(flags64_t F)    { return is_d
 inline THREAD_SAFE constexpr bool idaapi is_struct(flags64_t F)    { return is_data(F) && (F & DT_TYPE) == FF_STRUCT; }    ///< #FF_STRUCT
 inline THREAD_SAFE constexpr bool idaapi is_align(flags64_t F)     { return is_data(F) && (F & DT_TYPE) == FF_ALIGN; }     ///< #FF_ALIGN
 inline THREAD_SAFE constexpr bool idaapi is_custom(flags64_t F)    { return is_data(F) && (F & DT_TYPE) == FF_CUSTOM; }    ///< #FF_CUSTOM
+
+inline bool idaapi is_byte_ea(ea_t ea)       { return is_byte(get_flags32(ea)); }
+inline bool idaapi is_word_ea(ea_t ea)       { return is_word(get_flags32(ea)); }
+inline bool idaapi is_dword_ea(ea_t ea)      { return is_dword(get_flags32(ea)); }
+inline bool idaapi is_qword_ea(ea_t ea)      { return is_qword(get_flags32(ea)); }
+inline bool idaapi is_oword_ea(ea_t ea)      { return is_oword(get_flags32(ea)); }
+inline bool idaapi is_yword_ea(ea_t ea)      { return is_yword(get_flags32(ea)); }
+inline bool idaapi is_zword_ea(ea_t ea)      { return is_zword(get_flags32(ea)); }
+inline bool idaapi is_tbyte_ea(ea_t ea)      { return is_tbyte(get_flags32(ea)); }
+inline bool idaapi is_float_ea(ea_t ea)      { return is_float(get_flags32(ea)); }
+inline bool idaapi is_double_ea(ea_t ea)     { return is_double(get_flags32(ea)); }
+inline bool idaapi is_pack_real_ea(ea_t ea)  { return is_pack_real(get_flags32(ea)); }
+inline bool idaapi is_strlit_ea(ea_t ea)     { return is_strlit(get_flags32(ea)); }
+inline bool idaapi is_struct_ea(ea_t ea)     { return is_struct(get_flags32(ea)); }
+inline bool idaapi is_align_ea(ea_t ea)      { return is_align(get_flags32(ea)); }
+inline bool idaapi is_custom_ea(ea_t ea)     { return is_custom(get_flags32(ea)); }
 
 inline THREAD_SAFE constexpr bool idaapi f_is_byte(flags64_t F, void *)      { return is_byte(F); }                        ///< See is_byte()
 inline THREAD_SAFE constexpr bool idaapi f_is_word(flags64_t F, void *)      { return is_word(F); }                        ///< See is_word()
@@ -1967,6 +2008,7 @@ inline THREAD_SAFE bool idaapi has_immd(flags64_t F)      { return is_code(F) &&
 /// Is function start?
 
 inline THREAD_SAFE bool idaapi is_func(flags64_t F)      { return is_code(F) && (F & FF_FUNC) != 0; }
+inline             bool idaapi is_func_ea(ea_t ea)       { return is_func(get_flags32(ea)); }
 
 
 /// Set 'has immediate operand' flag.
@@ -2339,7 +2381,10 @@ typedef qvector<compiled_binpat_t> compiled_binpat_vec_t;
 ///      - if value of number fits a dword,it is considered as 4 bytes
 ///  - "..." string constants
 ///  - 'x'  single-character constants
-///  - ?    variable bytes
+///  - ?    variable bytes (whole-byte wildcard)
+///  - A?   byte with high nibble fixed (low nibble any). Hex radix only;
+///         the token must be delimited by whitespace/comma on both sides.
+///  - ?5   byte with low nibble fixed (high nibble any). Same conditions.
 /// \endcode
 ///
 /// Note that string constants are surrounded with double quotes.
@@ -2351,6 +2396,7 @@ typedef qvector<compiled_binpat_t> compiled_binpat_vec_t;
 ///  "Hello", 0     - the null terminated string "Hello"
 ///  L"Hello"       - 'H', 0, 'e', 0, 'l', 0, 'l', 0, 'o', 0
 ///  B8 ? ? ? ? 90  - byte 0xB8, 4 bytes with any value, byte 0x90
+///  A? ?5 ??       - any byte starting with A, any byte ending with 5, any byte
 /// \endcode
 /// \param [out] out   a vector of compiled binary patterns, for use with bin_search()
 /// \param ea          linear address to convert for (the conversion depends on the
@@ -2506,28 +2552,126 @@ idaman ea_t ida_export find_binary(
         int strlits_encoding=0);
 
 //------------------------------------------------------------------------
-//      H I D D E N   A R E A S
+//      H I D D E N   R A N G E S
 //------------------------------------------------------------------------
 
+/// \defgroup hidden_range Hidden ranges
 /// Hidden ranges - address ranges which can be replaced by their descriptions.
-/// There is also a possibility to hide individual items completely (nalt.hpp, hide_item)
-/// \note After modifying any of this struct's fields please call update_hidden_range()
+/// There is also a possibility to hide individual items completely
+/// (nalt.hpp, hide_item).
+///@{
 
-struct hidden_range_t : public range_t
+/// \defgroup hidden_range_info Hidden range info
+/// Copy-based hidden range descriptor.
+/// Use get_hidden_range_info() to fill it, modify via setters,
+/// then call update_hidden_range_info() to apply changes.
+///@{
+
+/// Describes a hidden range.
+/// Call update_hidden_range_info() to apply modifications to the database.
+class hidden_range_info_t : public range_t
 {
-  char *description;    ///< description to display if the range is collapsed
-  char *header;         ///< header lines to display if the range is expanded
-  char *footer;         ///< footer lines to display if the range is expanded
-  bool visible;         ///< the range state
-  bgcolor_t color;      ///< range color
+public:
+  /// Description to display if the range is collapsed
+  const char *get_description() const { return description_.empty() ? nullptr : description_.c_str(); }
+  void set_description(const char *v) { description_ = v; updated_ |= HRI_DESCRIPTION; }
+
+  /// Header lines to display if the range is expanded
+  const char *get_header() const { return header_.empty() ? nullptr : header_.c_str(); }
+  void set_header(const char *v) { header_ = v; updated_ |= HRI_HEADER; }
+
+  /// Footer lines to display if the range is expanded
+  const char *get_footer() const { return footer_.empty() ? nullptr : footer_.c_str(); }
+  void set_footer(const char *v) { footer_ = v; updated_ |= HRI_FOOTER; }
+
+  /// The range visibility state
+  bool get_visible() const { return visible_; }
+  void set_visible(bool v) { visible_ = v; updated_ |= HRI_VISIBLE; }
+
+  /// The range color
+  bgcolor_t get_color() const { return color_; }
+  void set_color(bgcolor_t v) { color_ = v; updated_ |= HRI_COLOR; }
+
+  /// Is the hidden range info valid?
+  bool is_valid() const { return !empty(); }
+
+private:
+  uint32 updated_ = 0;          ///< bitmask of modified fields (HRI_*)
+  qstring description_;          ///< description to display if collapsed
+  qstring header_;               ///< header lines to display if expanded
+  qstring footer_;               ///< footer lines to display if expanded
+  bool visible_ = false;         ///< the range state
+  bgcolor_t color_ = DEFCOLOR;   ///< range color
+
+  friend struct kdata_t;
+
+  /// \defgroup HRI_ Hidden range info field bitmasks
+  /// Used by update_hidden_range_info() to track which fields to update
+  ///@{
+  enum
+  {
+    HRI_DESCRIPTION = 0x01,  ///< Update description field
+    HRI_HEADER      = 0x02,  ///< Update header field
+    HRI_FOOTER      = 0x04,  ///< Update footer field
+    HRI_VISIBLE     = 0x08,  ///< Update visible field
+    HRI_COLOR       = 0x10,  ///< Update color field
+    HRI_ALL         = 0x1F,  ///< Update all fields
+  };
+  ///@}
 };
 
+///@} hidden_range_info
+
+
+/// Get hidden range information by address.
+/// \param hri  pointer to output buffer, may be nullptr
+/// \param ea   any address in the hidden range
+/// \return true if a hidden range was found at the given address
+
+idaman bool ida_export get_hidden_range_info(hidden_range_info_t *hri, ea_t ea);
+
+
+/// Get hidden range information by number.
+/// \param hri  pointer to output buffer, may be nullptr
+/// \param n    number of hidden range, is in range 0..get_hidden_range_qty()-1
+/// \return true if a hidden range with the given number exists
+
+idaman bool ida_export get_hidden_range_info_by_num(hidden_range_info_t *hri, int n);
+
+
 /// Update hidden range information in the database.
-/// You cannot use this function to change the range boundaries
-/// \param ha  range to update
+/// You cannot use this function to change the range boundaries.
+/// Uses start_ea to identify the range, applies only modified fields.
+/// \param hri  range info to update
 /// \return success
 
-idaman bool ida_export update_hidden_range(const hidden_range_t *ha);
+idaman bool ida_export update_hidden_range_info(const hidden_range_info_t *hri);
+
+
+/// Get start address of the first hidden range.
+/// \return start_ea of the first hidden range, or BADADDR
+
+idaman ea_t ida_export get_first_hidden_range_ea(void);
+
+
+/// Get start address of the last hidden range.
+/// \return start_ea of the last hidden range, or BADADDR
+
+idaman ea_t ida_export get_last_hidden_range_ea(void);
+
+
+/// Get start address of the next hidden range.
+/// \param ea  any address in the program
+/// \return start_ea of the next hidden range, or BADADDR
+
+idaman ea_t ida_export get_next_hidden_range_ea(ea_t ea);
+
+
+/// Get start address of the previous hidden range.
+/// \param ea  any address in the program
+/// \return start_ea of the previous hidden range, or BADADDR
+
+idaman ea_t ida_export get_prev_hidden_range_ea(ea_t ea);
 
 
 /// Mark a range of addresses as hidden.
@@ -2547,18 +2691,6 @@ idaman bool ida_export add_hidden_range(
         bgcolor_t color=DEFCOLOR);
 
 
-/// Get pointer to hidden range structure, in: linear address.
-/// \param ea  any address in the hidden range
-
-idaman hidden_range_t *ida_export get_hidden_range(ea_t ea);
-
-
-/// Get pointer to hidden range structure, in: number of hidden range.
-/// \param n  number of hidden range, is in range 0..get_hidden_range_qty()-1
-
-idaman hidden_range_t *ida_export getn_hidden_range(int n);
-
-
 /// Get number of hidden ranges
 
 idaman int ida_export get_hidden_range_qty(void);
@@ -2571,37 +2703,50 @@ idaman int ida_export get_hidden_range_qty(void);
 idaman int ida_export get_hidden_range_num(ea_t ea);
 
 
-/// Get pointer to previous hidden range.
-/// \param ea  any address in the program
-/// \return ptr to hidden range or nullptr if previous hidden range does not exist
-
-idaman hidden_range_t *ida_export get_prev_hidden_range(ea_t ea);
-
-
-/// Get pointer to next hidden range.
-/// \param ea  any address in the program
-/// \return ptr to hidden range or nullptr if next hidden range does not exist
-
-idaman hidden_range_t *ida_export get_next_hidden_range(ea_t ea);
-
-
-/// Get pointer to the first hidden range.
-/// \return ptr to hidden range or nullptr
-
-idaman hidden_range_t *ida_export get_first_hidden_range(void);
-
-
-/// Get pointer to the last hidden range.
-/// \return ptr to hidden range or nullptr
-
-idaman hidden_range_t *ida_export get_last_hidden_range(void);
-
-
 /// Delete hidden range.
 /// \param ea  any address in the hidden range
 /// \return success
 
 idaman bool ida_export del_hidden_range(ea_t ea);
+
+
+
+/// Hidden ranges - address ranges which can be replaced by their descriptions.
+/// \deprecated Use hidden_range_info_t and get_hidden_range_info() instead.
+/// \note After modifying any of this struct's fields please call update_hidden_range()
+
+struct hidden_range_t : public range_t
+{
+  char *description;    ///< description to display if the range is collapsed
+  char *header;         ///< header lines to display if the range is expanded
+  char *footer;         ///< footer lines to display if the range is expanded
+  bool visible;         ///< the range state
+  bgcolor_t color;      ///< range color
+};
+
+/// \deprecated Use update_hidden_range_info() instead.
+idaman DEPRECATED bool ida_export update_hidden_range(const hidden_range_t *ha);
+
+/// \deprecated Use get_hidden_range_info() instead.
+idaman DEPRECATED hidden_range_t *ida_export get_hidden_range(ea_t ea);
+
+/// \deprecated Use get_hidden_range_info_by_num() instead.
+idaman DEPRECATED hidden_range_t *ida_export getn_hidden_range(int n);
+
+/// \deprecated Use get_prev_hidden_range_ea() instead.
+idaman DEPRECATED hidden_range_t *ida_export get_prev_hidden_range(ea_t ea);
+
+/// \deprecated Use get_next_hidden_range_ea() instead.
+idaman DEPRECATED hidden_range_t *ida_export get_next_hidden_range(ea_t ea);
+
+/// \deprecated Use get_first_hidden_range_ea() instead.
+idaman DEPRECATED hidden_range_t *ida_export get_first_hidden_range(void);
+
+/// \deprecated Use get_last_hidden_range_ea() instead.
+idaman DEPRECATED hidden_range_t *ida_export get_last_hidden_range(void);
+
+
+///@} hidden_range
 
 
 //--------------------------------------------------------------------------
@@ -2659,7 +2804,18 @@ idaman bool ida_export get_mapping(
         size_t n);
 
 
-#ifndef BYTES_SOURCE    // undefined bit masks so no one can use them directly
+// byte array to hex string
+inline THREAD_SAFE ssize_t get_hex_string(char *buf, size_t bufsize, const uchar *bytes, size_t len)
+{
+  const char *const start = buf;
+  const char *const end   = buf + bufsize;
+  for ( size_t i = 0; i < len; i++ )
+    buf += ::qsnprintf(buf, end - buf, "%02X", *bytes++);
+  return buf - start;
+}
+
+
+#ifndef IDA_KERNEL_PRIVATE_BYTES_ACCESS    // undefined bit masks so no one can use them directly
 #undef MS_VAL
 #undef FF_IVL
 #undef MS_CLS
@@ -2701,17 +2857,5 @@ idaman bool ida_export get_mapping(
 #undef TL_TSFT
 #undef TL_TOFF
 #undef MAX_TOFF
-#endif // BYTES_SOURCE
-
-// byte array to hex string
-inline THREAD_SAFE ssize_t get_hex_string(char *buf, size_t bufsize, const uchar *bytes, size_t len)
-{
-  const char *const start = buf;
-  const char *const end   = buf + bufsize;
-  for ( size_t i = 0; i < len; i++ )
-    buf += ::qsnprintf(buf, end - buf, "%02X", *bytes++);
-  return buf - start;
-}
-
-
+#endif // !IDA_KERNEL_PRIVATE_BYTES_ACCESS
 #endif // BYTES_HPP

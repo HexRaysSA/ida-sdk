@@ -160,7 +160,9 @@ static int idaapi accept_file(
 }
 
 //--------------------------------------------------------------------------
-static uchar bytes[MAXSTR/2];
+// the `qlgets(buf, 1024)` line reading constraint limits each line to 1023 characters,
+// capping the maximum buffer offset to ~509 bytes.
+static uchar bytes[MAXSTR/2+1];
 static bool iscode;
 static sel_t sel;
 static ea_t sea;
@@ -331,7 +333,7 @@ void idaapi load_file(linput_t *li, ushort _neflag, const char * /*fileformatnam
       bitness = 2; // 64
 #endif
     inf_set_app_bitness(1 << (4 + bitness)); // 16, 32 or 64
-    set_segm_addressing(getseg(sea), bitness);
+    set_segment_addressing(sea, bitness);
     set_default_dataseg(sel);
   }
   if ( (neflag & NEF_RELOAD) == 0 )

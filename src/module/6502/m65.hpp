@@ -24,7 +24,7 @@ struct m6502_t : public procmod_t
   void handle_operand(const op_t &x, bool isload, const insn_t &insn, bool *flow) const;
 
   void header(outctx_t &ctx) const;
-  void segstart(outctx_t &ctx, segment_t *seg) const;
+  void segstart(outctx_t &ctx, ea_t seg_ea) const;
   void footer(outctx_t &ctx) const;
 };
 extern int data_id;

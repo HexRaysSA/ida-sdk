@@ -10,3 +10,8 @@
 #define R_gs 34
 
 %include "segregs.hpp"
+
+%pythoncode %{
+#<pycode(py_segregs)>
+#</pycode(py_segregs)>
+%}

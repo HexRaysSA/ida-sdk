@@ -58,7 +58,7 @@ struct xa_t : public procmod_t
 
   void xa_header(outctx_t &ctx);
   void xa_footer(outctx_t &ctx);
-  void xa_segstart(outctx_t &ctx, segment_t *seg);
+  void xa_segstart(outctx_t &ctx, ea_t seg_ea);
 
   int  ana(insn_t *insn);
 
@@ -66,9 +66,9 @@ struct xa_t : public procmod_t
   void handle_operand(insn_t &insn, const op_t &x, bool loading);
 
   void xa_data(outctx_t &ctx, bool analyze_only);
-  bool xa_create_func(func_t *pfn) const;
+  bool xa_create_func(ea_t func_ea) const;
   static bool xa_is_switch(switch_info_t *si, const insn_t &insn);
-  static int xa_frame_retsize(const func_t *pfn);
+  static int xa_frame_retsize(ea_t func_ea);
   static void xa_stkvar_def(outctx_t &ctx, const udm_t *stkvar, sval_t v);
   static int xa_align_insn(ea_t ea);
 };

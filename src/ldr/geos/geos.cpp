@@ -21,14 +21,16 @@ static int create_seg(
 {
   if ( start != BADADDR && end < start )
     return 0;
-  segment_t s;
-  s.sel     = setup_selector(base);
+  segment_info_t s;
+  s.set_sel(setup_selector(base));
   s.start_ea = start;
   s.end_ea   = end;
-  s.align   = saRelByte;
-  s.comb    = (sclass != nullptr && strcmp(sclass,"STACK") == 0) ? scStack : scPub;
-  s.bitness = 0;
-  return add_segm_ex(&s, name, sclass, ADDSEG_NOSREG|ADDSEG_SPARSE);
+  s.set_align(saRelByte);
+  s.set_comb((sclass != nullptr && strcmp(sclass,"STACK") == 0) ? scStack : scPub);
+  s.set_bitness(0);
+  s.set_name(name);
+  s.set_sclass(sclass);
+  return add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE);
 }
 
 //--------------------------------------------------------------------------
@@ -143,19 +145,19 @@ static void declare_class(ea_t ea, const char *entryname)
   asize_t size = tif.get_size();
   create_struct(ea, size, tif.get_tid());
 
-  segment_t *s = getseg(ea);
-  if ( s == nullptr )
+  segment_info_t si;
+  if ( !get_segment_info(&si, ea) )
     return;
   int count = get_word(ea+6);
 //  bool c_handlers = get_byte(ea+14) & (1<<6);
   ea += size;
-  if ( ea+2*count >= s->end_ea )
+  if ( ea+2*count >= si.end_ea )
     return;
   ea_t messages = ea;
   create_word(ea, count*2);
   op_dec(ea, 0);
   ea += 2*count;
-  if ( ea+4*count > s->end_ea )
+  if ( ea+4*count > si.end_ea )
     return;
   create_dword(ea, count*4);
   op_plain_offset(ea, 0, 0);
@@ -235,11 +237,11 @@ static void bad_lib_reloc(int i, uint16 off)
 //--------------------------------------------------------------------------
 static void create_fixup(ea_t ea, fixup_data_t &fd, ea_t target)
 {
-  segment_t *s = getseg(target);
-  if ( s != nullptr )
+  segment_info_t si;
+  if ( get_segment_info(&si, target) )
   {
-    fd.sel = s->sel;
-    fd.off = target - get_segm_base(s);
+    fd.sel = si.get_sel();
+    fd.off = target - get_segment_base(target);
   }
   else
   {

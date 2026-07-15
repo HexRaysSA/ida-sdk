@@ -92,6 +92,8 @@
 //</inline(py_expr)>
 %}
 
+%apply uchar { char vtype };
+
 %include "expr.hpp"
 
 %extend idc_value_t

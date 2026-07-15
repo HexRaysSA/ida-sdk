@@ -99,7 +99,7 @@ void nec850_t::update_global_register(
   if ( new_value != *reg_value )
   {
     *reg_value = new_value;
-    set_default_sreg_value(nullptr, srnum, new_value);
+    set_default_sreg_value_ea(BADADDR, srnum, new_value);
   }
   if ( callee_saved_flag != 0 && new_value != BADADDR )
     setflag(idpflags, callee_saved_flag, true);
@@ -410,24 +410,24 @@ ssize_t idaapi pm_idb_listener_t::on_event(ssize_t code, va_list va)
       }
       break;
 
-    case idb_event::segm_added:
-    case idb_event::segm_name_changed:
+    case idb_event::segment_added:
+    case idb_event::segment_name_changed:
       {
-        const segment_t *s = va_arg(va, segment_t *);
-        qstring name;
-        if ( get_segm_name(&name, s) > 0 && name == ".callt" )
-          set_name(s->start_ea, "___callt_table", SN_FORCE|SN_MULTI);
+        ea_t seg_start_ea = va_arg(va, ea_t);
+        segment_info_t si;
+        if ( get_segment_info(&si, seg_start_ea, GSI_NAME) && streq(si.get_name(), ".callt") )
+          set_name(seg_start_ea, "___callt_table", SN_FORCE|SN_MULTI);
       }
       break;
 
-    case idb_event::func_added:
+    case idb_event::function_added:
     case idb_event::func_deleted:
-    case idb_event::set_func_start:
-    case idb_event::set_func_end:
-    case idb_event::func_tail_appended:
-    case idb_event::func_tail_deleted:
-    case idb_event::tail_owner_changed:
-    case idb_event::frame_deleted:
+    case idb_event::set_function_start:
+    case idb_event::set_function_end:
+    case idb_event::function_tail_appended:
+    case idb_event::function_tail_deleted:
+    case idb_event::function_tail_owner_changed:
+    case idb_event::function_frame_deleted:
       invalidate_regfinder_cache();
       break;
 
@@ -478,6 +478,7 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_newfile:
       nec850_set_abi(true);
       save_all_options();
+      update_reg_finder_sizes();
       break;
 
     case processor_t::ev_newprc:
@@ -496,6 +497,7 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_oldfile:
       nec850_set_abi(false);
       load_from_idb();
+      update_reg_finder_sizes();
       break;
 
     case processor_t::ev_is_sane_insn:
@@ -548,21 +550,16 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        nec850_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        nec850_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
-      {
-        outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        nec850_segend(*ctx, seg);
-        return 1;
-      }
+    case processor_t::ev_out_segment_end:
+      return 1;
 
     case processor_t::ev_ana_insn:
       {
@@ -611,8 +608,10 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
         if ( from != BADADDR || !may_define || *code_ea != to )
           break; // only for AU_FINAL
         // look for .word <locals size>; call <ghs_save_with_alloc>;
-        const segment_t *seg = getseg(to);
-        if ( seg->type == SEG_CODE && seg->end_ea - to >= 6 )
+        segment_info_t si;
+        if ( !get_segment_info(&si, to) )
+          break;
+        if ( si.get_type() == SEG_CODE && si.end_ea - to >= 6 )
         {
           if ( get_word(to) > 0x1000 )
             break; // too huge locals size
@@ -629,26 +628,26 @@ ssize_t idaapi nec850_t::on_event(ssize_t msgid, va_list va)
       }
       break;
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 
     case processor_t::ev_analyze_prolog:
       {
         ea_t ea = va_arg(va, ea_t);
-        func_t *pfn = get_func(ea);
-        if ( pfn != nullptr )
-          create_func_frame(pfn, true);
+        ea_t func_ea = get_func_start(ea);
+        if ( func_ea != BADADDR )
+          create_func_frame(func_ea, true);
         return 1;
       }
 
-    case processor_t::ev_get_frame_retsize:
+    case processor_t::ev_get_function_retsize:
       {
         int *frsize = va_arg(va, int *);
-        // const func_t *pfn = va_arg(va, const func_t *);
+        // ea_t func_ea = va_arg(va, ea_t);
         // NEC850 doesn't use stack for function return addresses
         *frsize = 0;
         return 1;

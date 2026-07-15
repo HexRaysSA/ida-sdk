@@ -183,7 +183,7 @@ void tms320c54_t::handle_operand(const insn_t &insn, const op_t &x, flags64_t F,
 
     case o_local: // local variables
       if ( may_create_stkvars()
-        && (get_func(insn.ea) != nullptr)
+        && (get_func_start(insn.ea) != BADADDR)
         && insn.create_stkvar(x, x.addr, STKVAR_VALID_SIZE) )
       {
         op_stkvar(insn.ea, x.n);
@@ -279,11 +279,11 @@ bool is_basic_block_end(const insn_t &insn)
 //----------------------------------------------------------------------
 static bool add_stkpnt(const insn_t &insn, sval_t delta)
 {
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(insn.ea);
+  if ( func_ea == BADADDR )
     return false;
 
-  return add_auto_stkpnt(pfn, insn.ea+insn.size, delta);
+  return add_func_auto_stkpnt(func_ea, insn.ea+insn.size, delta);
 }
 
 //----------------------------------------------------------------------
@@ -373,48 +373,46 @@ int tms320c54_t::emu(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
-bool tms320c54_t::create_func_frame(func_t *pfn) const
+bool tms320c54_t::create_func_frame(ea_t func_ea) const
 {
-  if ( pfn != nullptr )
+  func_entry_info_t fi;
+  if ( get_func_entry_info(&fi, func_ea) && fi.get_frame_id() == BADNODE )
   {
-    if ( pfn->frame == BADNODE )
+    insn_t insn;
+    int regsize = 0;
+    ea_t ea = func_ea;
+    while ( ea < fi.end_ea ) // check for register pushs
     {
-      insn_t insn;
-      int regsize = 0;
-      ea_t ea = pfn->start_ea;
-      while ( ea < pfn->end_ea ) // check for register pushs
-      {
-        if ( decode_insn(&insn, ea) < 1 )
-          break;
-        if ( insn.itype != TMS320C54_pshm )
-          break;
-        if ( insn.Op1.type != o_mem && insn.Op1.type != o_mmr )
-          break;
-        if ( get_mapped_register(insn.Op1.addr) == rnone )
-          break;
-        regsize++;
-        ea += insn.size;
-      }
-      int localsize = 0;
-      while ( ea < pfn->end_ea ) // check for frame creation
-      {
-        if ( insn.itype == TMS320C54_frame && insn.Op1.type == o_imm )
-        {
-          localsize = -(int)insn.Op1.value;
-          break;
-        }
-        ea += insn.size;
-        if ( decode_insn(&insn, ea) < 1 )
-          break;
-      }
-      add_frame(pfn, localsize+regsize, 0, 0);
+      if ( decode_insn(&insn, ea) < 1 )
+        break;
+      if ( insn.itype != TMS320C54_pshm )
+        break;
+      if ( insn.Op1.type != o_mem && insn.Op1.type != o_mmr )
+        break;
+      if ( get_mapped_register(insn.Op1.addr) == rnone )
+        break;
+      regsize++;
+      ea += insn.size;
     }
+    int localsize = 0;
+    while ( ea < fi.end_ea ) // check for frame creation
+    {
+      if ( insn.itype == TMS320C54_frame && insn.Op1.type == o_imm )
+      {
+        localsize = -(int)insn.Op1.value;
+        break;
+      }
+      ea += insn.size;
+      if ( decode_insn(&insn, ea) < 1 )
+        break;
+    }
+    add_frame_ea(func_ea, localsize+regsize, 0, 0);
   }
   return 0;
 }
 
 //----------------------------------------------------------------------
-int idaapi tms_get_frame_retsize(const func_t * /*pfn*/)
+int idaapi tms_get_frame_retsize(ea_t /*func_ea*/)
 {
   return 1;     // 1 'byte' for the return address
 }

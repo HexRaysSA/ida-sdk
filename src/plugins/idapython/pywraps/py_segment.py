@@ -1,0 +1,33 @@
+#<pycode(py_segment)>
+import ida_idaapi
+
+set_visible_segm = ida_idaapi._ida_deprecated(set_visible_segm, "set_visible_segment")
+lock_segm = ida_idaapi._ida_deprecated(lock_segm, "lock_segment_by_ea")
+is_segm_locked = ida_idaapi._ida_deprecated(is_segm_locked, "is_segment_locked")
+get_segm_by_sel = ida_idaapi._ida_deprecated(get_segm_by_sel, "get_segment_ea_by_sel")
+add_segm_ex = ida_idaapi._ida_deprecated(add_segm_ex, "add_segment_ex")
+getseg = ida_idaapi._ida_deprecated(getseg, "get_segment_info")
+getnseg = ida_idaapi._ida_deprecated(getnseg, "get_segment_info_by_num")
+get_next_seg = ida_idaapi._ida_deprecated(get_next_seg, "get_next_segment_ea")
+get_prev_seg = ida_idaapi._ida_deprecated(get_prev_seg, "get_prev_segment_ea")
+get_first_seg = ida_idaapi._ida_deprecated(get_first_seg, "get_first_segment_ea")
+get_last_seg = ida_idaapi._ida_deprecated(get_last_seg, "get_last_segment_ea")
+get_segm_by_name = ida_idaapi._ida_deprecated(get_segm_by_name, "get_segment_ea_by_name")
+move_segm = ida_idaapi._ida_deprecated(move_segm, "move_segment")
+change_segment_status = ida_idaapi._ida_deprecated(change_segment_status, "change_segment_status_by_ea")
+set_segm_base = ida_idaapi._ida_deprecated(set_segm_base, "set_segment_base_ea")
+get_segment_cmt = ida_idaapi._ida_deprecated(get_segment_cmt, "get_segment_cmt_by_ea")
+set_segment_cmt = ida_idaapi._ida_deprecated(set_segment_cmt, "set_segment_cmt_by_ea")
+std_out_segm_footer = ida_idaapi._ida_deprecated(std_out_segm_footer, "std_out_segment_footer")
+set_segm_name = ida_idaapi._ida_deprecated(set_segm_name, "set_segment_name")
+get_segm_name = ida_idaapi._ida_deprecated(get_segm_name, "get_segment_name")
+get_visible_segm_name = ida_idaapi._ida_deprecated(get_visible_segm_name, "get_segment_name")
+get_segm_class = ida_idaapi._ida_deprecated(get_segm_class, "get_segment_class")
+set_segm_class = ida_idaapi._ida_deprecated(set_segm_class, "set_segment_class")
+get_segm_para = ida_idaapi._ida_deprecated(get_segm_para, "get_segment_para")
+get_segm_base = ida_idaapi._ida_deprecated(get_segm_base, "get_segment_base")
+set_segm_addressing = ida_idaapi._ida_deprecated(set_segm_addressing, "set_segment_addressing")
+segm_adjust_diff = ida_idaapi._ida_deprecated(segm_adjust_diff, "adjust_segment_diff")
+segm_adjust_ea = ida_idaapi._ida_deprecated(segm_adjust_ea, "adjust_segment_ea")
+
+#</pycode(py_segment)>

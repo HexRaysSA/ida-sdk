@@ -14,7 +14,7 @@
 #include <typeinf.hpp>
 #include "pef.hpp"
 #include "../coff/syms.h"
-#include "../../module/ppc/notify_codes.hpp"
+#include <module/ppc/notify_codes.hpp>
 #include "common.cpp"
 
 static ea_t toc_ea;
@@ -84,16 +84,16 @@ static void fixup(uint32 ea, uint32 delta, int extdef)
   fixup_data_t fd(FIXUP_OFF32);
   if ( extdef )
     fd.set_extdef();
-  segment_t *s = getseg(delta);
+  segment_info_t s;
   fd.displacement = get_dword(ea);
-  if ( s == nullptr )
+  if ( !get_segment_info(&s, delta) )
   {
     fd.off = delta;
   }
   else
   {
-    fd.sel = s->sel;
-    fd.off = delta - get_segm_base(s);
+    fd.sel = s.get_sel();
+    fd.off = delta - s.base();
   }
   fd.set(ea);
   uint32 target = get_dword(ea) + delta;

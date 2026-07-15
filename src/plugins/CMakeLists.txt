@@ -26,6 +26,16 @@ add_subdirectory(hexview)
 add_subdirectory(highlighter)
 add_subdirectory(ht_output)
 add_subdirectory(ht_view)
+# IDAPython is heavier than the sample plugins (needs SWIG 4.2.0+ and Python dev
+# plus the shipped parsed-notifications bundle). Off by default so a bare
+# examples configure (and the internal sdk-build smoke test) works without that
+# toolchain; opt in with -DIDA_BUILD_IDAPYTHON=ON or build it standalone via
+# idapython/build.py.
+option(IDA_BUILD_IDAPYTHON "Build the bundled IDAPython plugin" OFF)
+if(IDA_BUILD_IDAPYTHON AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/idapython/CMakeLists.txt")
+    add_subdirectory(idapython)
+endif()
+add_subdirectory(indexer_search)
 add_subdirectory(mex1)
 add_subdirectory(mex2)
 add_subdirectory(mex3)

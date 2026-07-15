@@ -53,7 +53,7 @@ struct tms320c5_t : public procmod_t
 
   bool isC2(void) const { return nprc == PT_TMS320C2; }
 
-  void segstart(outctx_t &ctx, segment_t *seg) const;
+  void segstart(outctx_t &ctx, ea_t seg_ea) const;
   void footer(outctx_t &ctx) const;
   void tms_assumes(outctx_t &ctx) const;
 };

@@ -194,11 +194,11 @@ bool is_basic_block_end(const insn_t &insn)
 //----------------------------------------------------------------------
 static bool add_stkpnt(const insn_t &insn, sval_t delta)
 {
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(insn.ea);
+  if ( func_ea == BADADDR )
     return false;
 
-  return add_auto_stkpnt(pfn, insn.ea+insn.size, delta);
+  return add_func_auto_stkpnt(func_ea, insn.ea+insn.size, delta);
 }
 
 //----------------------------------------------------------------------
@@ -287,53 +287,51 @@ int tms320c3x_t::emu(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
-bool idaapi create_func_frame(func_t *pfn)     // create frame of newly created function
+bool idaapi create_func_frame(ea_t func_ea)     // create frame of newly created function
 {
-  if ( pfn != nullptr )
+  func_entry_info_t fi;
+  if ( get_func_entry_info(&fi, func_ea) && fi.get_frame_id() == BADNODE )
   {
-    if ( pfn->frame == BADNODE )
+    insn_t insn;
+    ea_t ea = func_ea;
+    ushort regsize = 0;
+    while ( ea < fi.end_ea ) // check for register pushs
     {
-      insn_t insn;
-      ea_t ea = pfn->start_ea;
-      ushort regsize = 0;
-      while ( ea < pfn->end_ea ) // check for register pushs
+      decode_insn(&insn, ea);
+      ea += insn.size;         // count pushes
+      if ( (insn.itype == TMS320C3X_PUSH || insn.itype == TMS320C3X_PUSHF)
+        && insn.Op1.type == o_reg )
       {
-        decode_insn(&insn, ea);
-        ea += insn.size;         // count pushes
-        if ( (insn.itype == TMS320C3X_PUSH || insn.itype == TMS320C3X_PUSHF)
-          && insn.Op1.type == o_reg )
-        {
-          regsize++;
-        }
-        else if ( insn.Op1.type == o_reg && insn.Op1.reg == sp
-               || insn.Op2.type == o_reg && insn.Op2.reg == sp )
-        { // ignore manipulations of this kind:
-          //   LDI     SP,AR3  ADDI    #0001,SP
-          continue;
-        }
-        else
-        {
-          break;
-        }
+        regsize++;
       }
-
-      ea = pfn->start_ea;
-      int localsize = 0;
-      while ( ea < pfn->end_ea ) // check for frame creation
+      else if ( insn.Op1.type == o_reg && insn.Op1.reg == sp
+             || insn.Op2.type == o_reg && insn.Op2.reg == sp )
+      { // ignore manipulations of this kind:
+        //   LDI     SP,AR3  ADDI    #0001,SP
+        continue;
+      }
+      else
       {
-        decode_insn(&insn, ea);
-        ea += insn.size; // try to find ADDI    #0001,SP
-        if ( insn.itype == TMS320C3X_ADDI
-          && insn.Op1.type == o_imm
-          && insn.Op2.type == o_reg
-          && insn.Op2.reg == sp )
-        {
-          localsize = (int)insn.Op1.value;
-          break;
-        }
+        break;
       }
-      add_frame(pfn, localsize, regsize, 0);
     }
+
+    ea = func_ea;
+    int localsize = 0;
+    while ( ea < fi.end_ea ) // check for frame creation
+    {
+      decode_insn(&insn, ea);
+      ea += insn.size; // try to find ADDI    #0001,SP
+      if ( insn.itype == TMS320C3X_ADDI
+        && insn.Op1.type == o_imm
+        && insn.Op2.type == o_reg
+        && insn.Op2.reg == sp )
+      {
+        localsize = (int)insn.Op1.value;
+        break;
+      }
+    }
+    add_frame_ea(func_ea, localsize, regsize, 0);
   }
   return 0;
 }

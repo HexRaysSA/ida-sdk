@@ -247,7 +247,7 @@ struct m7900_t : public procmod_t
   int emu(const insn_t &insn);
 
   void m7900_header(outctx_t &ctx);
-  void m7900_segstart(outctx_t &ctx, segment_t *Srange) const;
+  void m7900_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void m7900_footer(outctx_t &ctx) const;
 
   void load_from_idb();

@@ -128,20 +128,22 @@ protected:
 DECLARE_TYPE_AS_MOVABLE(reg_value_def_t);
 
 //-------------------------------------------------------------------------
-struct reg_value_info_t;
-#define DECLARE_REG_VALUE_INFO_HELPERS(decl)\
-decl int ida_export reg_value_info_vals_union(reg_value_info_t *_this, const reg_value_info_t *r);\
-decl void ida_export reg_value_info_dstr(const reg_value_info_t *_this, qstring *vout, const procmod_t *pm);
+struct reg_value_base_t;
+#define DECLARE_REG_VALUE_BASE_HELPERS(decl)\
+decl int ida_export reg_value_base_vals_union(reg_value_base_t *_this, const reg_value_base_t *r);\
+decl void ida_export reg_value_base_dstr(const reg_value_base_t *_this, qstring *vout, const procmod_t *pm);
 
-DECLARE_REG_VALUE_INFO_HELPERS(idaman)
+DECLARE_REG_VALUE_BASE_HELPERS(idaman)
 
 //-------------------------------------------------------------------------
-/// the value in a register after emulating instructions
-struct reg_value_info_t
+/// the value in a register after emulating instructions (base class)
+struct reg_value_base_t
 {
 protected:
   using val_def_t = reg_value_def_t;
   friend struct reg_finder_block_t; // for join_values()
+  friend struct reg_value_info_t;   // for derived class access
+  friend struct reg_value_info93_t; // 9.3 ABI shim: needs raw vals/state
 
   enum state_t : uint8
   {
@@ -186,21 +188,21 @@ protected:
   // SPDADDR  B  the address after which the value became known
 
   qvector<val_def_t> vals;  // sorted
-  state_t state = UNDEF;
+  state_t state = UNDEF;    // state of the value being tracked
 
-  explicit reg_value_info_t(
+  explicit reg_value_base_t(
         state_t _state,
         ea_t def_ea,
-        uval_t _val = BADADDR,
+        uint64 _val = BADADDR,
         uint16 val_flags = 0)
     : state(_state)
   {
     vals.push_back(val_def_t(_val, def_ea, val_flags));
   }
-  explicit reg_value_info_t(
+  explicit reg_value_base_t(
         state_t _state,
         const insn_t &insn,
-        uval_t _val = BADADDR,
+        uint64 _val = BADADDR,
         uint16 val_flags = 0)
     : state(_state)
   {
@@ -208,7 +210,7 @@ protected:
   }
 
 public:
-  reg_value_info_t() {}
+  reg_value_base_t() {}
   /// Undefine the value.
   void clear()
   {
@@ -218,7 +220,7 @@ public:
   /// Return 'true' if we know nothing about a value.
   bool empty() const { return state == UNDEF; }
 
-  void swap(reg_value_info_t &r) noexcept
+  void swap(reg_value_base_t &r) noexcept
   {
     std::swap(state, r.state);
     vals.swap(r.vals);
@@ -226,93 +228,93 @@ public:
 
   /// Return the undefined value because of a dead end.
   /// \sa is_dead_end()
-  static reg_value_info_t make_dead_end(ea_t dead_end_ea)
+  static reg_value_base_t make_dead_end(ea_t dead_end_ea)
   {
-    return reg_value_info_t(DEADEND, dead_end_ea);
+    return reg_value_base_t(DEADEND, dead_end_ea);
   }
 
   /// Return the value after aborting.
   /// \sa aborted()
-  static reg_value_info_t make_aborted(
+  static reg_value_base_t make_aborted(
         ea_t bblk_ea,
         int aborting_depth = -1)
   {
-    return reg_value_info_t(ABORTED, bblk_ea, uint32(aborting_depth));
+    return reg_value_base_t(ABORTED, bblk_ea, uint32(aborting_depth));
   }
 
   /// Return the unknown value after a bad insn.
   /// \sa is_badinsn()
-  static reg_value_info_t make_badinsn(ea_t insn_ea)
+  static reg_value_base_t make_badinsn(ea_t insn_ea)
   {
-    return reg_value_info_t(BADINSN, insn_ea);
+    return reg_value_base_t(BADINSN, insn_ea);
   }
 
   /// Return the unknown value after executing the insn.
   /// \sa is_unkinsn()
-  static reg_value_info_t make_unkinsn(const insn_t &insn)
+  static reg_value_base_t make_unkinsn(const insn_t &insn)
   {
-    return reg_value_info_t(UNKINSN, insn);
+    return reg_value_base_t(UNKINSN, insn);
   }
 
   /// Return the unknown value from the function start.
   /// \sa is_unkfunc()
-  static reg_value_info_t make_unkfunc(ea_t func_ea)
+  static reg_value_base_t make_unkfunc(ea_t func_ea)
   {
-    return reg_value_info_t(UNKFUNC, func_ea);
+    return reg_value_base_t(UNKFUNC, func_ea);
   }
 
   /// Return the unknown value if it changes in a loop.
   /// \sa is_unkloop()
-  static reg_value_info_t make_unkloop(ea_t bblk_ea)
+  static reg_value_base_t make_unkloop(ea_t bblk_ea)
   {
-    return reg_value_info_t(UNKLOOP, bblk_ea);
+    return reg_value_base_t(UNKLOOP, bblk_ea);
   }
 
   /// Return the unknown value if the register has incompatible values.
   /// \sa is_unkmult()
-  static reg_value_info_t make_unkmult(ea_t bblk_ea)
+  static reg_value_base_t make_unkmult(ea_t bblk_ea)
   {
-    return reg_value_info_t(UNKMULT, bblk_ea);
+    return reg_value_base_t(UNKMULT, bblk_ea);
   }
 
   /// Return the unknown value if there are too many xrefs.
   /// \sa is_unkxref()
-  static reg_value_info_t make_unkxref(ea_t bblk_ea)
+  static reg_value_base_t make_unkxref(ea_t bblk_ea)
   {
-    return reg_value_info_t(UNKXREF, bblk_ea);
+    return reg_value_base_t(UNKXREF, bblk_ea);
   }
 
   /// Return the unknown value if the register has too many values.
   /// \sa is_unkvals()
-  static reg_value_info_t make_unkvals(ea_t bblk_ea)
+  static reg_value_base_t make_unkvals(ea_t bblk_ea)
   {
-    return reg_value_info_t(UNKVALS, bblk_ea);
+    return reg_value_base_t(UNKVALS, bblk_ea);
   }
 
   /// Return the value that is the RVAL number.
   /// \sa is_num()
-  static reg_value_info_t make_num(
-        uval_t rval,
+  static reg_value_base_t make_num(
+        uint64 rval,
         const insn_t &insn,
         uint16 val_flags = 0)
   {
-    return reg_value_info_t(NUMINSN, insn, rval, val_flags);
+    return reg_value_base_t(NUMINSN, insn, rval, val_flags);
   }
   /// Return the value that is the RVAL number.
   /// \sa is_num()
-  static reg_value_info_t make_num(
-        uval_t rval,
+  static reg_value_base_t make_num(
+        uint64 rval,
         ea_t val_ea,
         uint16 val_flags = 0)
   {
-    return reg_value_info_t(NUMADDR, val_ea, rval, val_flags);
+    return reg_value_base_t(NUMADDR, val_ea, rval, val_flags);
   }
 
   /// Return the value that is the initial stack pointer.
   /// \sa is_spd()
-  static reg_value_info_t make_initial_sp(ea_t func_ea)
+  static reg_value_base_t make_initial_sp(ea_t func_ea)
   {
-    return reg_value_info_t(SPDADDR, func_ea, 0);
+    return reg_value_base_t(SPDADDR, func_ea, 0);
   }
 
   //-----------------------------------------------------------------------
@@ -360,26 +362,6 @@ public:
   /// Return 'true' if the value is known (i.e. it is a number or SP delta).
   bool is_known() const { return is_num() || is_spd(); }
 
-  /// Return the number if the value is a constant.
-  /// \sa is_num()
-  bool get_num(uval_t *uval) const
-  {
-    if ( !is_num() || !is_value_unique() )
-      return false;
-    *uval = vals.begin()->val;
-    return true;
-  }
-  /// Return the SP delta if the value depends on the stack pointer.
-  /// \sa is_spd()
-  /// \param [out] sval  the value of SP minus the initial value of SP at
-  ///                    the function start.
-  bool get_spd(sval_t *sval) const
-  {
-    if ( !is_spd() || !is_value_unique() )
-      return false;
-    *sval = int64(vals.begin()->val);
-    return true;
-  }
   /// Return the defining address.
   ea_t get_def_ea() const
   {
@@ -574,7 +556,7 @@ public:
 
   /// Set the value to be a number after executing an insn.
   /// \sa is_num()
-  void set_num(uval_t rval, const insn_t &insn, uint16 val_flags = 0)
+  void set_num(uint64 rval, const insn_t &insn, uint16 val_flags = 0)
   {
     state = NUMINSN;
     vals.qclear();
@@ -585,12 +567,12 @@ public:
   /// \sa is_num()
   void set_num(uvalvec_t *rvals, const insn_t &insn)
   {
-    state = NUMINSN;
     set_multivals(rvals, insn);
+    state = NUMINSN;
   }
   /// Set the value to be a number before an address.
   /// \sa is_num()
-  void set_num(uval_t rval, ea_t val_ea, uint16 val_flags = 0)
+  void set_num(uint64 rval, ea_t val_ea, uint16 val_flags = 0)
   {
     state = NUMADDR;
     vals.qclear();
@@ -611,19 +593,10 @@ public:
   /// \retval CONTAINS        THIS is not changed
   /// \retval CONTAINED       THIS is a copy of R
   /// \retval NOT_COMPARABLE  values from R are added to THIS
-  set_compare_res_t vals_union(const reg_value_info_t &r)
+  set_compare_res_t vals_union(const reg_value_base_t &r)
   {
-    return set_compare_res_t(reg_value_info_vals_union(this, &r));
+    return set_compare_res_t(reg_value_base_vals_union(this, &r));
   }
-
-  /// Sign-, or zero-extend the number or SP delta value to full size.
-  /// The initial value is considered to be of size WIDTH.
-  /// \note This method do nothing for unknown values.
-  inline void extend(const procmod_t &pm, int width, bool is_signed);
-
-  /// Truncate the number to the application bitness.
-  /// \note This method do nothing for non-number values.
-  inline void trunc_uval(const procmod_t &pm);
 
   // arithmetic operations
   enum arith_op_t
@@ -634,81 +607,105 @@ public:
     NEG, NOT,
   };
 
-  /// Add R to the value, save INSN as a defining instruction.
+  /// The methods below save INSN as a defining instruction.
+  /// Add R to the value.
   /// \note Either THIS or R must have a single value.
-  inline void add(const reg_value_info_t &r, const insn_t &insn);
-  /// Subtract R from the value, save INSN as a defining instruction.
+  inline void add(const reg_value_base_t &r, const insn_t &insn);
+  /// Subtract R from the value.
   /// \note Either THIS or R must have a single value.
-  inline void sub(const reg_value_info_t &r, const insn_t &insn);
-  /// Make bitwise OR of R to the value,
-  /// save INSN as a defining instruction.
+  inline void sub(const reg_value_base_t &r, const insn_t &insn);
+  /// Make bitwise OR of R to the value.
   /// \note Either THIS or R must have a single value.
-  inline void bor(const reg_value_info_t &r, const insn_t &insn);
-  /// Make bitwise AND of R to the value,
-  /// save INSN as a defining instruction.
+  inline void bor(const reg_value_base_t &r, const insn_t &insn);
+  /// Make bitwise AND of R to the value.
   /// \note Either THIS or R must have a single value.
-  inline void band(const reg_value_info_t &r, const insn_t &insn);
-  /// Make bitwise eXclusive OR of R to the value,
-  /// save INSN as a defining instruction.
+  inline void band(const reg_value_base_t &r, const insn_t &insn);
+  /// Make bitwise eXclusive OR of R to the value.
   /// \note Either THIS or R must have a single value.
-  inline void bxor(const reg_value_info_t &r, const insn_t &insn);
-  /// Make bitwise AND of the inverse of R to the value,
-  /// save INSN as a defining instruction.
+  inline void bxor(const reg_value_base_t &r, const insn_t &insn);
+  /// Make bitwise AND of the inverse of R to the value.
   /// \note Either THIS or R must have a single value.
-  inline void bandnot(const reg_value_info_t &r, const insn_t &insn);
-  /// Shift the value left by R, save INSN as a defining instruction.
+  inline void bandnot(const reg_value_base_t &r, const insn_t &insn);
+  /// Shift the value left by R.
   /// \note Either THIS or R must have a single value.
-  inline void sll(const reg_value_info_t &r, const insn_t &insn);
-  /// Shift logically the value right by R,
-  /// save INSN as a defining instruction.
+  inline void sll(const reg_value_base_t &r, const insn_t &insn);
+  /// Shift logically the value right by R.
   /// \note Either THIS or R must have a single value.
-  inline void slr(const reg_value_info_t &r, const insn_t &insn);
-  /// Shift arithmetically the value right by R,
-  /// save INSN as a defining instruction.
+  inline void slr(const reg_value_base_t &r, const insn_t &insn);
+  /// Shift arithmetically the value right by R.
   /// \note Either THIS or R must have a single value.
-  inline void sar(const reg_value_info_t &r, const insn_t &insn);
+  inline void sar(const reg_value_base_t &r, const insn_t &insn);
   /// Replace the top 16 bits with bottom 16 bits of R, leaving the bottom
-  /// 16 bits untouched, save INSN as a defining instruction.
+  /// 16 bits untouched.
   /// \note Either THIS or R must have a single value.
-  inline void movt(const reg_value_info_t &r, const insn_t &insn);
-  /// Negate the value, save INSN as a defining instruction.
+  inline void movt(const reg_value_base_t &r, const insn_t &insn);
+  /// Negate the value.
   inline void neg(const insn_t &insn);
-  /// Make bitwise inverse of the value,
-  /// save INSN as a defining instruction.
+  /// Make bitwise inverse of the value.
   inline void bnot(const insn_t &insn);
-  /// Add R to the value, save INSN as a defining instruction.
+  /// Add R to the value.
   /// \note This method do nothing for unknown values.
-  inline void add_num(uval_t r, const insn_t &insn);
+  inline void add_num(uint64 r, const insn_t &insn);
 
-  /// Add R to the value, do not change the defining instructions.
+  /// The methods below do not change the defining instructions.
+  /// Add R to the value.
   /// \note This method do nothing for unknown values.
-  inline void add_num(uval_t r);
-  /// Shift the value left by R, do not change the defining instructions.
+  inline void add_num(uint64 r);
+  /// Shift the value left by R.
   /// \note This method do nothing for unknown values.
-  inline void shift_left(uval_t r);
-  /// Shift the value right by R, do not change the defining instructions.
-  /// \note This method do nothing for unknown values.
-  inline void shift_right(uval_t r);
+  inline void shift_left(uint64 r);
+  /// Shift the value right by R.
+  /// If NBYTES is non-zero, perform an arithmetic (signed) shift
+  /// assuming the value is NBYTES bytes wide.
+  /// \note This method does nothing for unknown values.
+  inline void shift_right(uint64 r, int nbytes = 0);
+
+  /// Zero-, or sign-extend the value from WIDTH bytes to uint64.
+  /// \note This method does nothing for unknown values.
+  inline void extend(int width, bool is_signed);
 
   /// Return the string representation.
   qstring dstr(const procmod_t *pm = nullptr) const
   {
     qstring out;
-    reg_value_info_dstr(this, &out, pm);
+    reg_value_base_dstr(this, &out, pm);
     return out;
   }
 
+  // to use by reg_finder_t
+  // C++ does not allow making these methods protected and giving access to
+  // them only from this class, so I made these methods public.
+  // get the number (truncated to SLOTSIZE).
+  inline bool get_num(uint64 *uval, int slotsize) const;
+  // get the address (truncated to ADDRSIZE).
+  inline bool get_addr(ea_t *addr, int addrsize) const;
+  // get the SP delta (sign-extended to ADDRSIZE).
+  inline bool get_spd(sval_t *sval, int addrsize) const;
+  // if the value is a number, zero-truncate it to WIDTH.
+  // if it is an SP delta, sign-extend it to WIDTH.
+  // if WIDTH = 0, defaults to SLOTSIZE for numbers and ADDRSIZE for SP
+  // delta.
+  inline void truncate(int width, int slotsize, int addrsize);
+
 protected:
-  DECLARE_REG_VALUE_INFO_HELPERS(friend)
+  DECLARE_REG_VALUE_BASE_HELPERS(friend)
 
   // helper implementation
-  set_compare_res_t vals_union_impl(const reg_value_info_t &r);
+  set_compare_res_t vals_union_impl(const reg_value_base_t &r);
   qstring dstr_impl(const procmod_t *pm) const;
 
   // perform a binary operation
+  // This method does not change STATE,
+  // the caller should explicitly update it if necessary.
   // \note Either THIS or R must have a single value.
   inline bool perform_binary_op(
-        const reg_value_info_t &r,
+        const reg_value_base_t &r,
+        arith_op_t aop,
+        const insn_t &insn);
+  // perform a binary operation if THIS and R are numbers
+  // if it cannot perform this operation it returns UNKINSN
+  inline void perform_binary_op_for_nums(
+        const reg_value_base_t &r,
         arith_op_t aop,
         const insn_t &insn);
   // fix the sorting order and set VALS
@@ -716,6 +713,103 @@ protected:
   inline void set_multivals(V *rvals, const insn_t &insn);
   // fix the sorting order
   inline void sort_multivals();
+
+  // check if value is alignment mask (small power of 2 minus 1)
+  bool is_mask() const
+  {
+    if ( !is_num() || !is_value_unique() )
+      return false;
+    uint64 mask = vals.begin()->val;
+    return is_pow2(mask + 1) && mask <= 0x1F;
+  }
+};
+
+//-------------------------------------------------------------------------
+/// Extended register value information with execution context.
+/// The context provides SLOTSIZE/ADDRSIZE for proper truncation.
+/// This derived class provides size-aware accessors.
+struct reg_finder_t;
+struct reg_value_info_t : public reg_value_base_t
+{
+protected:
+  int slotsize = 0;
+  int addrsize = 0;
+
+public:
+  reg_value_info_t() : reg_value_base_t() {}
+  inline reg_value_info_t(
+        const reg_value_base_t &base,
+        int _slotsize,
+        int _addrsize)
+    : reg_value_base_t(base),
+      slotsize(_slotsize),
+      addrsize(_addrsize) {}
+  inline reg_value_info_t(
+        reg_value_base_t &&base,
+        int _slotsize,
+        int _addrsize)
+    : reg_value_base_t(base),
+      slotsize(_slotsize),
+      addrsize(_addrsize) {}
+
+  /// Set the context.
+  /// \note The proc module cannot just call set_num(), it must also set
+  /// the sizes.
+  inline void set_context(int _slotsize, int _addrsize)
+  {
+    slotsize = _slotsize;
+    addrsize = _addrsize;
+  }
+  inline void set_context(const reg_finder_t *rf);
+
+  /// Return the number if the value is a constant (truncated to SLOTSIZE).
+  /// \sa is_num()
+  inline bool get_num(uint64 *uval) const
+  {
+    return reg_value_base_t::get_num(uval, slotsize);
+  }
+
+  /// Return the address if the value is a constant (truncated to ADDRSIZE).
+  /// \sa is_num()
+  inline bool get_addr(ea_t *addr) const
+  {
+    return reg_value_base_t::get_addr(addr, addrsize);
+  }
+
+  /// Return the SP delta if the value depends on the stack pointer
+  /// (sign-extended to ADDRSIZE).
+  /// \sa is_spd()
+  /// \param [out] sval  the value of SP minus the initial value of SP at
+  ///                    the function start.
+  inline bool get_spd(sval_t *sval) const
+  {
+    return reg_value_base_t::get_spd(sval, addrsize);
+  }
+
+  /// Truncate the value to WIDTH (in bytes).
+  /// For numbers: zero-truncate to WIDTH.
+  /// For SP deltas: sign-extend to WIDTH.
+  /// If WIDTH = 0, defaults to SLOTSIZE for numbers and ADDRSIZE for SP
+  /// deltas.
+  inline void truncate(int width = 0)
+  {
+    reg_value_base_t::truncate(width, slotsize, addrsize);
+  }
+
+  /// \deprecated 9.3 source-compat shim; prefer truncate().
+  inline void trunc_uval(const procmod_t &pm)
+  {
+    if ( !is_num() )
+      return;
+    if ( slotsize != 0 )
+    {
+      truncate();
+      return;
+    }
+    for ( auto &p : vals )
+      p.val = pm.trunc_uval(p.val);
+    sort_multivals();
+  }
 };
 
 //-------------------------------------------------------------------------
@@ -761,10 +855,6 @@ public:
     return reg >= 0 && reg < BADREG;
   }
   inline static reg_finder_op_t make_reg(int reg, int width);
-  static reg_finder_op_t make_reg(const procmod_t &pm, int reg)
-  {
-    return make_reg(reg, pm.eah().ea_size); // 4 or 8
-  }
 
   static bool is_valid_stkoff(sval_t stkoff)
   {
@@ -804,30 +894,29 @@ public:
     return ::compare(packed, r.packed);
   }
 
-
 protected:
   inline static uint32 pack_width(int width);
 };
 
 //-------------------------------------------------------------------------
-struct reg_finder_t;
 struct reg_value_ud_chain_t;
 typedef void (*reg_finder_binary_ops_adjust_fun)(
-        reg_value_info_t *v1,
-        reg_value_info_t *v2,
+        reg_value_base_t *v1,
+        reg_value_base_t *v2,
         const insn_t &insn,
         void *ud);
 
 #define DECLARE_REG_FINDER_HELPERS(decl)\
 decl void ida_export reg_finder_invalidate_cache(reg_finder_t *_this, ea_t to, ea_t from, cref_t cref);\
 decl void ida_export reg_finder_invalidate_xrefs_cache(reg_finder_t *_this, ea_t ea, dref_t dref);\
-decl void ida_export reg_finder_find(reg_finder_t *_this, reg_value_info_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insns);\
-decl void ida_export reg_finder_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, func_t *pfn);\
-decl bool ida_export reg_finder_calc_op_addr(reg_finder_t *_this, reg_value_info_t *addr, const op_t *memop, const insn_t *insn, ea_t ea, ea_t ds, int max_depth);\
-decl bool ida_export reg_finder_emulate_mem_read(reg_finder_t *_this, reg_value_info_t *value, const reg_value_info_t *addr, int width, bool is_signed, const insn_t *insn);\
-decl void ida_export reg_finder_emulate_binary_op(reg_finder_t *_this, reg_value_info_t *value, int aop, const op_t *op1, const op_t *op2, const insn_t *insn, ea_t ea, ea_t ds, reg_finder_binary_ops_adjust_fun adjust, void *ud);\
-decl void ida_export reg_finder_emulate_unary_op(reg_finder_t *_this, reg_value_info_t *value, int aop, int reg, const insn_t *insn, ea_t ea, ea_t ds);\
-decl bool ida_export reg_finder_may_modify_stkvar(reg_finder_t *_this, reg_value_info_t *value, reg_finder_op_t op, const insn_t *insn);\
+decl void ida_export reg_finder_find(reg_finder_t *_this, reg_value_base_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insns);\
+decl void ida_export reg_finder94_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, ea_t func_ea);\
+decl bool ida_export reg_finder_calc_op_addr(reg_finder_t *_this, reg_value_base_t *addr, const op_t *memop, const insn_t *insn, ea_t ea, ea_t ds, int max_depth);\
+decl bool ida_export reg_finder_emulate_mem_read(reg_finder_t *_this, reg_value_base_t *value, const reg_value_base_t *addr, int width, bool is_signed, const insn_t *insn);\
+decl void ida_export reg_finder_emulate_binary_op(reg_finder_t *_this, reg_value_base_t *value, int aop, const op_t *op1, const op_t *op2, const insn_t *insn, ea_t ea, ea_t ds, reg_finder_binary_ops_adjust_fun adjust, void *ud);\
+decl void ida_export reg_finder_emulate_unary_op(reg_finder_t *_this, reg_value_base_t *value, int aop, int reg, const insn_t *insn, ea_t ea, ea_t ds);\
+decl void ida_export reg_finder_emulate_binary_op_shifted(reg_finder_t *_this, reg_value_base_t *value, int aop, const op_t *op1, const op_t *op2, int width, bool is_signed, int shift, uint8 shift_count, const insn_t *insn, ea_t ea, ea_t ds);\
+decl bool ida_export reg_finder_may_modify_stkvar(reg_finder_t *_this, reg_value_base_t *value, reg_finder_op_t op, const insn_t *insn);\
 decl bool ida_export reg_finder_can_resolve_mem(const reg_finder_t *_this, ea_t ea);\
 decl void ida_export reg_finder_ctr(reg_finder_t *_this);\
 decl void ida_export reg_finder_dtr(reg_finder_t *_this);
@@ -842,8 +931,22 @@ struct reg_finder_t
 {
   const procmod_t &pm;
   const int proc_maxop; // max number of operands in insns
+  uint32 flags;         // a set of RF_... bits
+  // new public fields after 9.3
+  int addrsize;         // the address size in bytes (4 or 8)
+  int slotsize;         // the register size in bytes (4 or 8)
+  // new public fields after 9.4 (keep offsets above for ABI compat)
 
-  uint32 flags; // a set of RF_... bits
+  // ADDRSIZE should match to the application bitness. This structure stores
+  // a local copy of this value, initialized via get_effective_addrsize().
+  // \sa update_sizes()
+  // ATM the regfinder cannot handle 16-bit addresses. However, certain
+  // older ARM databases have incorrect bitness set to 16 when the actual
+  // application is 32-bit. This wrapper returns the correct size (4 or 8).
+  static int get_effective_addrsize()
+  {
+    return inf_get_effective_addrsize() < 8 ? 4 : 8;
+  }
 
   // a call insn may modify stkvars (via aliased stkvars passed as args).
   // this bit indicates how to answer this question.
@@ -865,6 +968,7 @@ struct reg_finder_t
 
 protected:
   using rvi_t = reg_value_info_t;
+  using rvb_t = reg_value_base_t;
   using rfop_t = reg_finder_op_t;
   using block_t = reg_finder_block_t;
   using pred_t = reg_finder_pred_t;
@@ -872,7 +976,7 @@ protected:
   friend struct reg_finder_pred_t;
 
   // the data members below are set by the each call of find()
-  func_t *cur_func = nullptr;   // function to search in
+  ea_t cur_func_ea = BADADDR;   // function to search in
   size_t initial_block_idx = 0;
   bool fixed_max_depth = false; // is the initial MAX_DEPTH specified by the
                                 // caller (not taken from ida.cfg) ?
@@ -881,9 +985,12 @@ protected:
   size_t linear_flow_cnt = 0;   // the number of insn to search in the
                                 // linear flow (if != 0)
   bool only_linear_flow() const { return linear_flow_cnt != 0; }
-  size_t bblk_cnt = 0;          // the number of insn in a basic block
+  // ABORTING_EA is kept at its 9.3 offset (72): a 9.3-built make_rfop() writes
+  // aborting_ea=BADADDR, and if it were elsewhere it would clobber another
+  // field. Keep it before BBLK_CNT for that reason.
   ea_t aborting_ea = BADADDR;   // to make tracking aborting easier
-  rvi_t standalone_value;       // to return a value for the initial block
+  size_t bblk_cnt = 0;          // the number of insn in a basic block
+  rvb_t standalone_value;       // to return a value for the initial block
                                 // without addresses
 
   static constexpr size_t NO_CHAIN = size_t(-1);
@@ -1009,18 +1116,40 @@ private:
   bool in_invalidate = false; // the guard for invalidate_regfinder_cache()
   bool debug_on = true;
 
-public:
+protected:
+  // The constructor is protected on purpose: reg_finder_t is meant to be
+  // used only as a base for internal processor-specific finders. External
+  // code must go through the convenience functions (find_reg_value_info(),
+  // find_sp_value(), ...).
   reg_finder_t(
         const procmod_t &_pm,
         int _proc_maxop = 3,
         uint32 _flags = RF_DOES_CALL_SPOIL_STKVARS)
     : pm(_pm),
       proc_maxop(_proc_maxop),
-      flags(_flags)
+      flags(_flags),
+      addrsize(get_effective_addrsize()),
+      slotsize(addrsize)
   {
     reg_finder_ctr(this);
   }
+
+public:
   virtual ~reg_finder_t() { reg_finder_dtr(this); }
+
+  // this method must be called when the register size does not match the
+  // application bitness, or when the application bitness changes.
+  bool update_sizes(int _slotsize = 0)
+  {
+    int _addrsize = get_effective_addrsize();
+    if ( _slotsize == 0 )
+      _slotsize = _addrsize;
+    else if ( _slotsize != 4 && _slotsize != 8 || _slotsize < _addrsize )
+      return false;
+    addrsize = _addrsize;
+    slotsize = _slotsize;
+    return true;
+  }
 
   // the code xref from FROM to TO was added or deleted.
   // if we have TO address in the cache we should invalidate the value at
@@ -1063,12 +1192,12 @@ public:
         int max_depth = 0,
         size_t linear_insns = 0)
   {
-    rvi_t ret;
+    rvb_t ret;
     flow_t flow = process_delay_slot(pm.trunc_uval(ea), fl_U);
     reg_finder_find(this, &ret,
                     flow.ea, flow.ds, rfop,
                     max_depth, linear_insns);
-    return ret;
+    return rvi_t(std::move(ret), rfop.get_width(), addrsize);
   }
 
   // find the value of any of the two registers
@@ -1080,25 +1209,33 @@ public:
   {
     if ( reg[0] == reg[1] )
       return -1;
-    *rvi = find(ea, rfop_t::make_reg(pm, reg[0]), 0, linear_insns);
+    *rvi = find(ea, rfop_t::make_reg(reg[0], slotsize), 0, linear_insns);
     if ( rvi->is_known() )
       return 0;
-    *rvi = find(ea, rfop_t::make_reg(pm, reg[1]), 0, linear_insns);
+    *rvi = find(ea, rfop_t::make_reg(reg[1], slotsize), 0, linear_insns);
     if ( rvi->is_known() )
       return 1;
-    *rvi = find(ea, rfop_t::make_reg(pm, reg[0]), 0);
+    *rvi = find(ea, rfop_t::make_reg(reg[0], slotsize), 0);
     if ( rvi->is_known() )
       return 0;
-    *rvi = find(ea, rfop_t::make_reg(pm, reg[1]), 0);
+    *rvi = find(ea, rfop_t::make_reg(reg[1], slotsize), 0);
     if ( rvi->is_known() )
       return 1;
     return -1;
   }
 
   // find a value of non-SP based register before EA
-  bool find_const(uval_t *val, ea_t ea, rfop_t rfop, int max_depth = 0)
+  // (truncated to SLOTSIZE)
+  bool find_const(uint64 *val, ea_t ea, rfop_t rfop, int max_depth = 0)
   {
     return find(ea, rfop, max_depth).get_num(val);
+  }
+
+  // find an address of non-SP based register before EA
+  // (truncated to ADDRSIZE)
+  bool find_addr(ea_t *addr, ea_t ea, rfop_t rfop, int max_depth = 0)
+  {
+    return find(ea, rfop, max_depth).get_addr(addr);
   }
 
   // find a value of SP based register before EA
@@ -1111,18 +1248,19 @@ public:
       if ( reg == -1 )
         return false;
     }
-    return find(ea, rfop_t::make_reg(pm, reg), max_depth).get_spd(spval);
+    rfop_t rfop = rfop_t::make_reg(reg, addrsize);
+    return find(ea, rfop, max_depth).get_spd(spval);
   }
 
   // make the regfinder operand from the insn operand.
   // if OP is unsupported this function returns an empty operand.
-  rfop_t make_rfop(const op_t &_op, const insn_t &insn, func_t *pfn)
+  rfop_t make_rfop(const op_t &_op, const insn_t &insn, ea_t func_ea)
   {
     op_t op = _op; // make a copy
-    if ( !can_track_op(&op, insn, pfn) )
+    if ( !can_track_op(&op, insn, func_ea) )
       return rfop_t();
     rfop_t res;
-    reg_finder_make_rfop(this, &res, &op, &insn, pfn);
+    reg_finder94_make_rfop(this, &res, &op, &insn, func_ea);
     aborting_ea = BADADDR; // ignore for this call
     return res;
   }
@@ -1142,12 +1280,12 @@ public:
         const insn_t &insn,
         int max_depth = 0)
   {
-    rvi_t ret;
-    flow_t flow = process_delay_slot(pm.trunc_uval(insn.ea), fl_U);
+    rvb_t ret;
+    flow_t flow = process_delay_slot(insn.ea, fl_U);
     reg_finder_calc_op_addr(this, &ret,
                             &memop,
                             &insn, flow.ea, flow.ds, max_depth);
-    return ret;
+    return rvi_t(std::move(ret), slotsize, addrsize);
   }
 
   // handle a memory read
@@ -1161,8 +1299,8 @@ public:
   // \param is_signed    if 'true' the result should be sign-extended
   // \param insn         the emulated insn
   void emulate_mem_read(
-        rvi_t *value,
-        const rvi_t &addr,
+        rvb_t *value,
+        const rvb_t &addr,
         int width,
         bool is_signed,
         const insn_t &insn)
@@ -1178,6 +1316,7 @@ public:
     return reg_finder_can_resolve_mem(this, ea);
   }
 
+  friend struct reg_finder_debug_t;
 
 protected:
   // the address of the emulated instruction, taking into account a possible
@@ -1204,7 +1343,6 @@ protected:
     operator ea_t() const { return actual_ea(); }
 
     bool operator<(const flow_t &r) const { return ea < r.ea; }
-
   };
 
   // processor specific methods
@@ -1233,7 +1371,7 @@ protected:
   // \retval empty()      we know nothing
   // \retval is_unkfunc() there may be any value (e.g. a func argument)
   // \retval is_known()   we found the value (e.g. the GOT register)
-  virtual rvi_t handle_well_known_regs(
+  virtual rvb_t handle_well_known_regs(
         flow_t flow,
         rfop_t rfop,
         bool is_func_start) const
@@ -1241,7 +1379,7 @@ protected:
     qnotused(rfop);
     qnotused(flow);
     qnotused(is_func_start);
-    return rvi_t(); // know nothing about registers
+    return rvb_t(); // know nothing about registers
   }
 
   // is the content of memory at EA a constant?
@@ -1265,13 +1403,11 @@ protected:
     return reg == get_sp_reg(ea);
   }
 
-  // we can track only registers and stkvars (including BP-based)
-  virtual bool can_track_op(op_t *op, const insn_t &insn, func_t *pfn) const
+  // 9.3-ABI slot
+  // Kept inline so the vtable stays weak (no key function).
+  virtual bool can_track_op93(op_t *op, const insn_t &insn, range_t *pfn) const  //lint !e818
   {
-    qnotused(op);
-    qnotused(insn);
-    qnotused(pfn);
-    return false;
+    return can_track_op(op, insn, pfn != nullptr ? pfn->start_ea : BADADDR);
   }
 
   // is INSN a 'move' instruction? (or a simple add/sub instruction)
@@ -1329,7 +1465,7 @@ protected:
   // \retval true   the found value is in VALUE
   // \retval false  INSN does not modify OP
   virtual bool emulate_insn(
-        rvi_t *value,
+        rvb_t *value,
         const rfop_t &rfop,
         const insn_t &insn,
         flow_t flow)
@@ -1340,14 +1476,25 @@ protected:
     return true;
   }
 
+  // we can track only registers and stkvars (including BP-based)
+  // NB: added at the END of the vtable so can_track_op's original slot keeps
+  // the 9.3 signature via can_track_op93().
+  virtual bool can_track_op(op_t *op, const insn_t &insn, ea_t func_ea) const
+  {
+    qnotused(op);
+    qnotused(insn);
+    qnotused(func_ea);
+    return false;
+  }
+
   // helper methods for emulate_insn()
 
   // get values of the operand from emulate_insn()
   // \param flow       the control flow to get a starting insn
   // \param rfop       the operand to find a value of
-  rvi_t find(flow_t flow, rfop_t rfop)
+  rvb_t find(flow_t flow, rfop_t rfop)
   {
-    rvi_t ret;
+    rvb_t ret;
     reg_finder_find(this, &ret, flow.ea, flow.ds, rfop, 0, 0);
     return ret;
   }
@@ -1355,10 +1502,10 @@ protected:
   // get values of the register from emulate_insn()
   // \param flow       the control flow to get a starting insn
   // \param reg        the register to find a value of
-  rvi_t find(flow_t flow, int reg)
+  rvb_t find(flow_t flow, int reg)
   {
-    rvi_t ret;
-    rfop_t rfop = rfop_t::make_reg(pm, reg);
+    rvb_t ret;
+    rfop_t rfop = rfop_t::make_reg(reg, slotsize);
     reg_finder_find(this, &ret, flow.ea, flow.ds, rfop, 0, 0);
     return ret;
   }
@@ -1366,7 +1513,7 @@ protected:
   // get operand addresses (o_displ or o_phrase or o_mem)
   // \sa find_op_addr()
   void calc_op_addr(
-        rvi_t *addr,
+        rvb_t *addr,
         const op_t &memop,
         const insn_t &insn,
         flow_t flow)
@@ -1376,9 +1523,13 @@ protected:
                             &insn, flow.ea, flow.ds, 0);
   }
 
+  // get OP1 AOP OP2
+  // \note The operation is performed considering the value size is
+  // SLOTSIZE, i.e. for SAR, this means the value is sign-extended before
+  // the shift is applied.
   void emulate_binary_op(
-        rvi_t *value,
-        rvi_t::arith_op_t aop, // not NEG, NOT
+        rvb_t *value,
+        rvb_t::arith_op_t aop, // not NEG, NOT
         const op_t &op1,
         const op_t &op2,
         const insn_t &insn,
@@ -1391,9 +1542,11 @@ protected:
                                  &insn, flow.ea, flow.ds,
                                  adjust, ud);
   }
+
+  // get AOP REG
   void emulate_unary_op(
-        rvi_t *value,
-        rvi_t::arith_op_t aop, // only NEG, NOT
+        rvb_t *value,
+        rvb_t::arith_op_t aop, // only NEG, NOT
         int reg,
         const insn_t &insn,
         flow_t flow)
@@ -1403,18 +1556,38 @@ protected:
                                  &insn, flow.ea, flow.ds);
   }
 
+  // get OP1 AOP shift(extend(OP2, WIDTH, iS_SIGNED), SHIFT, SHIFT_COUNT)
+  void emulate_binary_op_shifted(
+        rvb_t *value,
+        rvb_t::arith_op_t aop,    // only ADD, SUB, OR, AND, XOR, AND_NOT
+        const op_t &op1,
+        const op_t &op2,
+        int width,                // 0 means no extension
+        bool is_signed,
+        rvb_t::arith_op_t shift,  // only SLL, SLR, SAR
+        uint8 shift_count,
+        const insn_t &insn,
+        flow_t flow)
+  {
+    reg_finder_emulate_binary_op_shifted(this, value,
+                                         aop, &op1, &op2,
+                                         width, is_signed,
+                                         shift, shift_count,
+                                         &insn, flow.ea, flow.ds);
+  }
+
   // this method returns 'true' and sets VALUE to UNKINSN if there is the
   // slightest possibility that INSN changes OP (it is a stkvar).
   // in the current implementation we assume that any store instruction with
   // an unknown address or any call instruction may modify stkvars.
-  bool may_modify_stkvar(rvi_t *value, rfop_t rfop, const insn_t &insn)
+  bool may_modify_stkvar(rvb_t *value, rfop_t rfop, const insn_t &insn)
   {
     return reg_finder_may_modify_stkvar(this, value, rfop, &insn);
   }
 
 private:
   // implementation methods
-  rvi_t find_chain(const flow_t flow, const rfop_t rfop);
+  rvb_t find_chain(const flow_t flow, const rfop_t rfop);
   void create_initial_block(const flow_t flow, const rfop_t rfop);
   // these 2 methods may set ABORTING_EA to abort tracking
   bool create_new_block(vref_t *res_vref, const pred_t &pred);
@@ -1429,18 +1602,18 @@ private:
         ea_t initial_ea) const;
   bool merge_loop_blocks(const block_t *loop_block, sval_t delta);
   bool decode_and_emulate_insn(
-        rvi_t *value,
+        rvb_t *value,
         rfop_t *rfop,
         sval_t *delta,
         flow_t flow);
   bool is_same_func(ea_t ea) const
   {
-    return cur_func != nullptr
-         ? func_contains(cur_func, ea)
-         : get_fchunk(ea) == nullptr;
+    return cur_func_ea != BADADDR
+         ? function_contains(cur_func_ea, ea)
+         : !get_fchunk_info(nullptr, ea);
   }
-  rvi_t make_aborted();
-  bool set_aborted_or_unkinsn(rvi_t *value, const insn_t &insn);
+  rvb_t make_aborted();
+  bool set_aborted_or_unkinsn(rvb_t *value, const insn_t &insn);
 
   // what to do after move handling?
   enum handle_move_res_t
@@ -1478,7 +1651,7 @@ private:
         sval_t *stkoff,
         const op_t &op,
         const insn_t &insn,
-        func_t *pfn);
+        ea_t func_ea);
 
   // to work with chains
   reg_value_ud_chain_t &get_chain(size_t chain_num);
@@ -1502,29 +1675,29 @@ private:
   // helper implementation
   void invalidate_cache_impl(ea_t to, ea_t from, cref_t cref);
   void invalidate_xrefs_cache_impl(ea_t ea, dref_t dref);
-  rvi_t find_impl(flow_t flow, rfop_t rfop, int max_depth, size_t linear_insns);
-  rvi_t find_impl2(flow_t flow, rfop_t rfop, int max_depth, size_t linear_insns);
-  rvi_t find_impl(flow_t flow, const op_t &op);
-  rvi_t find_impl(flow_t flow, int reg, int max_depth = 0)
+  rvb_t find_impl(flow_t flow, rfop_t rfop, int max_depth, size_t linear_insns);
+  rvb_t find_impl2(flow_t flow, rfop_t rfop, int max_depth, size_t linear_insns);
+  rvb_t find_impl(flow_t flow, const op_t &op);
+  rvb_t find_impl(flow_t flow, int reg, int max_depth = 0)
   {
-    return find_impl(flow, rfop_t::make_reg(pm, reg), max_depth, 0);
+    return find_impl(flow, rfop_t::make_reg(reg, slotsize), max_depth, 0);
   }
-  rfop_t make_rfop_impl(const op_t &op, const insn_t &insn, func_t *pfn);
+  rfop_t make_rfop_impl(const op_t &op, const insn_t &insn, ea_t func_ea);
   bool calc_op_addr_impl(
-        rvi_t *addr,
+        rvb_t *addr,
         const op_t &memop,
         const insn_t &insn,
         flow_t flow,
         int max_depth);
   bool emulate_mem_read_impl(
-        rvi_t *value,
-        const rvi_t &addr,
+        rvb_t *value,
+        const rvb_t &addr,
         int width,
         bool is_signed,
         const insn_t &insn);
   void emulate_binary_op_impl(
-        rvi_t *value,
-        rvi_t::arith_op_t aop, // not NEG, NOT
+        rvb_t *value,
+        rvb_t::arith_op_t aop, // not NEG, NOT
         const op_t &op1,
         const op_t &op2,
         const insn_t &insn,
@@ -1532,18 +1705,34 @@ private:
         reg_finder_binary_ops_adjust_fun adjust = nullptr,
         void *ud = nullptr);
   void emulate_unary_op_impl(
-        rvi_t *value,
-        rvi_t::arith_op_t aop, // only NEG, NOT
+        rvb_t *value,
+        rvb_t::arith_op_t aop, // only NEG, NOT
         int reg,
         const insn_t &insn,
         flow_t flow);
+  void emulate_binary_op_shifted_impl(
+        rvb_t *value,
+        rvb_t::arith_op_t aop,    // only ADD, SUB, OR, AND, XOR, AND_NOT
+        const op_t &op1,
+        const op_t &op2,
+        int width,                // 0 means no extension
+        bool is_signed,
+        rvb_t::arith_op_t shift,  // only SLL, SLR, SAR
+        uint8 shift_count,
+        const insn_t &insn,
+        flow_t flow);
   bool may_modify_stkvar_impl(
-        rvi_t *value,
+        rvb_t *value,
         rfop_t rfop,
         const insn_t &insn);
   bool can_resolve_mem_impl(ea_t ea) const;
-
 };
+
+//-------------------------------------------------------------------------
+// compatibility helpers
+//-------------------------------------------------------------------------
+idaman bool ida_export reg_finder94_find_reg_value_info(reg_value_info_t *out, ea_t ea, int reg, int max_depth);
+idaman int ida_export reg_finder94_find_nearest_rvi(reg_value_info_t *rvi, ea_t ea, const int reg[2]);
 
 //-------------------------------------------------------------------------
 // convenience functions
@@ -1558,7 +1747,7 @@ private:
 /// \retval 1         the found value is in VAL
 /// \retval -1        the processor module does not support a register
 ///                   tracker
-idaman int ida_export find_reg_value(uval_t *uval, ea_t ea, int reg);
+idaman int ida_export find_reg_value(uint64 *uval, ea_t ea, int reg);
 
 //-------------------------------------------------------------------------
 /// Find a value of the SP based register using the register tracker.
@@ -1596,10 +1785,39 @@ idaman int ida_export find_sp_value(sval_t *sval, ea_t ea, int reg = -1);
 /// \retval 'false'   the processor module does not support a register
 ///                   tracker
 /// \retval 'true'    the found value is in RVI
-idaman bool ida_export find_reg_value_info(
+#ifndef IDA_REGFINDER_LEGACY_COMPAT
+inline bool ida_export find_reg_value_info(
         reg_value_info_t *rvi,
         ea_t ea,
         int reg,
+        int max_depth = 0)
+{
+  return reg_finder94_find_reg_value_info(rvi, ea, reg, max_depth);
+}
+#endif
+
+//-------------------------------------------------------------------------
+/// Find register value using the register tracker.
+/// \note Unlike find_reg_value_info() above, the register size is derived
+/// from its name. For example, on ARM: "W0" tracks the 4-byte value of X0,
+/// whereas the function above would track the full 8-byte X0 register.
+/// \param [out] rvi  the found value with additional attributes
+/// \param ea         the address to find a value at
+/// \param regname    the name of the register to find
+/// \param max_depth  the number of basic blocks to look before aborting the
+///                   search and returning the unknown value.
+///                   0 means the value of REGTRACK_MAX_DEPTH from ida.cfg
+///                   for ordinal registers or REGTRACK_FUNC_MAX_DEPTH
+///                   for the function-wide registers,
+///                   -1 means the value of REGTRACK_FUNC_MAX_DEPTH from
+///                   ida.cfg.
+/// \retval 'false'   the processor module does not support a register
+///                   tracker
+/// \retval 'true'    the found value is in RVI
+idaman bool ida_export find_regname_value_info(
+        reg_value_info_t *rvi,
+        ea_t ea,
+        const char *regname,
         int max_depth = 0);
 
 //-------------------------------------------------------------------------
@@ -1611,10 +1829,15 @@ idaman bool ida_export find_reg_value_info(
 /// \param ea         the address to find a value at
 /// \param reg        the registers to find
 /// \return           the index of the found register or -1
-idaman int ida_export find_nearest_rvi(
+#ifndef IDA_REGFINDER_LEGACY_COMPAT
+inline int ida_export find_nearest_rvi(
         reg_value_info_t *rvi,
         ea_t ea,
-        const int reg[2]);
+        const int reg[2])
+{
+  return reg_finder94_find_nearest_rvi(rvi, ea, reg);
+}
+#endif
 
 //-------------------------------------------------------------------------
 /// The control flow from FROM to TO has removed (CREF==fl_U) or added
@@ -1637,41 +1860,12 @@ idaman void ida_export invalidate_regfinder_xrefs_cache(
 //-------------------------------------------------------------------------
 // inline methods
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::extend(
-        const procmod_t &pm,
-        int width,
-        bool is_signed)
-{
-  if ( !is_known() )
-    return;
-  for ( auto &p : vals )
-  {
-    p.val = extend_sign(p.val, width, is_signed);
-    if ( !is_spd() ) // SP delta is signed
-      p.val = pm.trunc_uval(p.val);
-    else
-      p.val = pm.ea2sval(p.val);
-  }
-  sort_multivals();
-}
-
-//-------------------------------------------------------------------------
-inline void reg_value_info_t::trunc_uval(const procmod_t &pm)
-{
-  if ( !is_num() )
-    return;
-  for ( auto &p : vals )
-    p.val = pm.trunc_uval(p.val);
-  sort_multivals();
-}
-
-//-------------------------------------------------------------------------
-inline bool reg_value_info_t::perform_binary_op(
-        const reg_value_info_t &r,
+inline bool reg_value_base_t::perform_binary_op(
+        const reg_value_base_t &r,
         arith_op_t aop,
         const insn_t &insn)
 {
-  const reg_value_info_t *mv;
+  const reg_value_base_t *mv;
   uint64 sv;
   if ( r.is_value_unique() )
   {
@@ -1700,10 +1894,10 @@ inline bool reg_value_info_t::perform_binary_op(
       case AND:     res = p.val & sv;  break;
       case XOR:     res = p.val ^ sv;  break;
       case AND_NOT: res = p.val & ~sv; break;
+      case MOVT:    res = (p.val & 0xFFFF) | ((sv & 0xFFFF) << 16); break;
       case SLL:     res = p.val << sv; break;
       case SLR:     res = p.val >> sv; break;
       case SAR:     res = int64(p.val) >> sv; break;
-      case MOVT:    res = (p.val & 0xFFFF) | ((sv & 0xFFFF) << 16); break;
       default: return false;
     }
     rvals.push_back(res);
@@ -1713,8 +1907,26 @@ inline bool reg_value_info_t::perform_binary_op(
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::add(
-        const reg_value_info_t &r,
+inline void reg_value_base_t::perform_binary_op_for_nums(
+        const reg_value_base_t &r,
+        arith_op_t aop,
+        const insn_t &insn)
+{
+  if ( is_num() && r.is_num() )
+  {
+    if ( perform_binary_op(r, aop, insn) )
+    {
+      state = NUMINSN;
+      return;
+    }
+  }
+  // not numbers or both THIS and R have multiple values
+  set_unkinsn(insn);
+}
+
+//-------------------------------------------------------------------------
+inline void reg_value_base_t::add(
+        const reg_value_base_t &r,
         const insn_t &insn)
 {
   if ( is_spd() && r.is_num()   // spd + num -> spd
@@ -1723,8 +1935,7 @@ inline void reg_value_info_t::add(
   {
     if ( perform_binary_op(r, ADD, insn) )
     {
-      if ( is_spd() || r.is_spd() )
-        state = SPDINSN;
+      state = is_spd() || r.is_spd() ? SPDINSN : NUMINSN;
       return;
     }
   }
@@ -1733,8 +1944,8 @@ inline void reg_value_info_t::add(
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::sub(
-        const reg_value_info_t &r,
+inline void reg_value_base_t::sub(
+        const reg_value_base_t &r,
         const insn_t &insn)
 {
   if ( is_spd() && r.is_num()   // spd - num -> spd
@@ -1743,8 +1954,7 @@ inline void reg_value_info_t::sub(
   {
     if ( perform_binary_op(r, SUB, insn) )
     {
-      if ( is_spd() )
-        state = r.is_spd() ? NUMINSN : SPDINSN;
+      state = is_spd() && r.is_num() ? SPDINSN : NUMINSN;
       return;
     }
   }
@@ -1753,24 +1963,19 @@ inline void reg_value_info_t::sub(
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::bor(
-        const reg_value_info_t &r,
+inline void reg_value_base_t::bor(
+        const reg_value_base_t &r,
         const insn_t &insn)
 {
-  if ( is_num() && r.is_num() )
-    if ( perform_binary_op(r, OR, insn) )
-      return;
-  // not numbers or both THIS and R have multiple values
-  set_unkinsn(insn);
+  return perform_binary_op_for_nums(r, OR, insn);
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::band(
-        const reg_value_info_t &r,
+inline void reg_value_base_t::band(
+        const reg_value_base_t &r,
         const insn_t &insn)
 {
-  uval_t mask;
-  if ( is_spd() && r.get_num(&mask) && is_pow2(mask + 1) && mask <= 31 )
+  if ( (is_spd() && r.is_mask()) || (is_num() && r.is_num()) )
   {
     if ( perform_binary_op(r, AND, insn) )
     {
@@ -1778,89 +1983,69 @@ inline void reg_value_info_t::band(
       return;
     }
   }
-  if ( is_num() && r.is_num() )
-  {
-    if ( perform_binary_op(r, AND, insn) )
-      return;
-  }
   // not numbers or not mask of SPD or both THIS and R have multiple values
   set_unkinsn(insn);
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::bxor(
-        const reg_value_info_t &r,
+inline void reg_value_base_t::bxor(
+        const reg_value_base_t &r,
         const insn_t &insn)
 {
-  if ( is_num() && r.is_num() )
-    if ( perform_binary_op(r, XOR, insn) )
-      return;
-  // not numbers or both THIS and R have multiple values
-  set_unkinsn(insn);
+  return perform_binary_op_for_nums(r, XOR, insn);
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::bandnot(
-        const reg_value_info_t &r,
+inline void reg_value_base_t::bandnot(
+        const reg_value_base_t &r,
         const insn_t &insn)
 {
-  uval_t mask;
-  if ( is_spd() && r.get_num(&mask) && is_pow2(mask + 1) && mask <= 31 )
+  if ( (is_spd() && r.is_mask()) || (is_num() && r.is_num()) )
+  {
     if ( perform_binary_op(r, AND_NOT, insn) )
+    {
+      state = is_spd() ? SPDINSN : NUMINSN;
       return;
-  if ( is_num() && r.is_num() )
-    if ( perform_binary_op(r, AND_NOT, insn) )
-      return;
+    }
+  }
   // not numbers or not SPD aligning or both THIS and R have multiple values
   set_unkinsn(insn);
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::sll(
-        const reg_value_info_t &r,
+inline void reg_value_base_t::sll(
+        const reg_value_base_t &r,
         const insn_t &insn)
 {
-  if ( is_num() && r.is_num() && perform_binary_op(r, SLL, insn) )
-    ;
-  else // not numbers
-    set_unkinsn(insn);
+  return perform_binary_op_for_nums(r, SLL, insn);
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::slr(
-        const reg_value_info_t &r,
+inline void reg_value_base_t::slr(
+        const reg_value_base_t &r,
         const insn_t &insn)
 {
-  if ( is_num() && r.is_num() && perform_binary_op(r, SLR, insn) )
-    ;
-  else // not numbers
-    set_unkinsn(insn);
+  return perform_binary_op_for_nums(r, SLR, insn);
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::sar(
-        const reg_value_info_t &r,
+inline void reg_value_base_t::sar(
+        const reg_value_base_t &r,
         const insn_t &insn)
 {
-  if ( is_num() && r.is_num() && perform_binary_op(r, SAR, insn) )
-    ;
-  else // not numbers
-    set_unkinsn(insn);
+  return perform_binary_op_for_nums(r, SAR, insn);
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::movt(
-        const reg_value_info_t &r,
+inline void reg_value_base_t::movt(
+        const reg_value_base_t &r,
         const insn_t &insn)
 {
-  if ( is_num() && r.is_num() && perform_binary_op(r, MOVT, insn) )
-    ;
-  else // not numbers
-    set_unkinsn(insn);
+  return perform_binary_op_for_nums(r, MOVT, insn);
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::neg(const insn_t &insn)
+inline void reg_value_base_t::neg(const insn_t &insn)
 {
   if ( is_num() )
   {
@@ -1869,6 +2054,7 @@ inline void reg_value_info_t::neg(const insn_t &insn)
     for ( auto &p : vals )
       rvals.push_back(0-p.val);
     set_multivals(&rvals, insn);
+    state = NUMINSN;
   }
   else // not a number
   {
@@ -1877,7 +2063,7 @@ inline void reg_value_info_t::neg(const insn_t &insn)
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::bnot(const insn_t &insn)
+inline void reg_value_base_t::bnot(const insn_t &insn)
 {
   if ( is_num() )
   {
@@ -1886,6 +2072,7 @@ inline void reg_value_info_t::bnot(const insn_t &insn)
     for ( auto &p : vals )
       rvals.push_back(~p.val);
     set_multivals(&rvals, insn);
+    state = NUMINSN;
   }
   else // not a number
   {
@@ -1894,7 +2081,7 @@ inline void reg_value_info_t::bnot(const insn_t &insn)
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::add_num(uval_t r, const insn_t &insn)
+inline void reg_value_base_t::add_num(uint64 r, const insn_t &insn)
 {
   if ( !is_known() || r == 0 )
     return;
@@ -1903,10 +2090,11 @@ inline void reg_value_info_t::add_num(uval_t r, const insn_t &insn)
   for ( auto &p : vals )
     rvals.push_back(p.val + r);
   set_multivals(&rvals, insn);
+  state = is_spd() ? SPDINSN : NUMINSN;
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::add_num(uval_t r)
+inline void reg_value_base_t::add_num(uint64 r)
 {
   if ( !is_known() || r == 0 )
     return;
@@ -1916,7 +2104,7 @@ inline void reg_value_info_t::add_num(uval_t r)
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::shift_left(uval_t r)
+inline void reg_value_base_t::shift_left(uint64 r)
 {
   if ( !is_known() || r == 0 )
     return;
@@ -1926,18 +2114,28 @@ inline void reg_value_info_t::shift_left(uval_t r)
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::shift_right(uval_t r)
+inline void reg_value_base_t::shift_right(uint64 r, int nbytes)
 {
   if ( !is_known() || r == 0 )
     return;
   for ( auto &p : vals )
-    p.val >>= r;
+  {
+    if ( nbytes != 0 )
+    {
+      auto sv = static_cast<int64>(extend_sign(p.val, nbytes, true));
+      p.val = sv >> r;
+    }
+    else
+    {
+      p.val >>= r;
+    }
+  }
   sort_multivals();
 }
 
 //-------------------------------------------------------------------------
 template<class V>
-inline void reg_value_info_t::set_multivals(
+inline void reg_value_base_t::set_multivals(
         V *rvals,
         const insn_t &insn)
 {
@@ -1950,13 +2148,77 @@ inline void reg_value_info_t::set_multivals(
 }
 
 //-------------------------------------------------------------------------
-inline void reg_value_info_t::sort_multivals()
+inline void reg_value_base_t::sort_multivals()
 {
   // at this point we use reg_value_def_t::operator<()
   std::sort(vals.begin(), vals.end());
   // at this point we use reg_value_def_t::operator==()
   size_t new_size = std::unique(vals.begin(), vals.end()) - vals.begin();
   vals.resize(new_size);
+}
+
+//-------------------------------------------------------------------------
+inline bool reg_value_base_t::get_num(uint64 *uval, int slotsize) const
+{
+  if ( slotsize == 0 || !is_num() || !is_value_unique() )
+    return false;
+  *uval = extend_sign(vals.begin()->val, slotsize, false);
+  return true;
+}
+
+//-------------------------------------------------------------------------
+inline bool reg_value_base_t::get_addr(ea_t *addr, int addrsize) const
+{
+  if ( addrsize == 0 || !is_num() || !is_value_unique() )
+    return false;
+  *addr = extend_sign(vals.begin()->val, addrsize, false);
+  return true;
+}
+
+//-------------------------------------------------------------------------
+inline bool reg_value_base_t::get_spd(sval_t *sval, int addrsize) const
+{
+  if ( addrsize == 0 || !is_spd() || !is_value_unique() )
+    return false;
+  *sval = extend_sign(vals.begin()->val, addrsize, true);
+  return true;
+}
+
+//-------------------------------------------------------------------------
+inline void reg_value_base_t::extend(int width, bool is_signed)
+{
+  if ( !is_known() )
+    return;
+  for ( auto &p : vals )
+    p.val = extend_sign(p.val, width, is_signed);
+  sort_multivals();
+}
+
+//-------------------------------------------------------------------------
+inline void reg_value_base_t::truncate(
+        int width,
+        int slotsize,
+        int addrsize)
+{
+  if ( !is_known() )
+    return;
+  bool is_signed = is_spd(); // SP delta is signed
+  if ( width == 0 )
+  {
+    width = is_spd() ? addrsize : slotsize;
+    if ( width == 0 )
+      return;
+  }
+  for ( auto &p : vals )
+    p.val = extend_sign(p.val, width, is_signed);
+  sort_multivals();
+}
+
+//-------------------------------------------------------------------------
+inline void reg_value_info_t::set_context(const reg_finder_t *rf)
+{
+  slotsize = rf->slotsize;
+  addrsize = rf->addrsize;
 }
 
 //-------------------------------------------------------------------------
@@ -2036,5 +2298,5 @@ inline uint32 reg_finder_op_t::pack_width(int width)
 //-------------------------------------------------------------------------
 inline int reg_finder_op_t::get_op_width(const op_t &op)
 {
-  return get_dtype_size(op.dtype);
+  return int(get_dtype_size(op.dtype));
 }

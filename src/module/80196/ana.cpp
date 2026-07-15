@@ -146,16 +146,18 @@ void i196_t::aop(insn_t &insn, uint code, op_t &op)
       break;
 
     case 2:   // indirect
-      op.dtype = dt_word;
       op.addr = insn.get_next_byte();
       op.type = (op.addr & 1) ? o_indirect_inc : o_indirect;
       op.addr = map(insn.ea, op.addr & ~1);
       break;
 
     case 3:   // indexed
-      op.dtype = dt_word;
       op.type  = o_indexed;
       op.value = insn.get_next_byte();   // short (reg file)
+      // assume that all displacements are unsigned
+      // although the doc for 809x says:
+      // "The 8- or 16-bit displacement field contains a signed
+      // displacement ..."
       op.addr  = (op.value & 1) ? insn.get_next_word() : insn.get_next_byte();
       op.value = map(insn.ea, op.value & ~1);
   }
@@ -487,6 +489,7 @@ cont3:
         if ( is_8x6x() )
           return 0;
         insn.itype = is_80196NP() ? I196_ebr : I196_br;
+        insn.Op1.dtype = dt_word;
         aop(insn, 2, insn.Op1);
         break;
 

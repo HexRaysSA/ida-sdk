@@ -3,7 +3,7 @@
 
 #include <windows.h>
 #include <Tlhelp32.h>
-#include "../../ldr/pe/pe.h"
+#include <ldr/pe/pe.h>
 #include "winbase_debmod.h"
 
 // Type definitions

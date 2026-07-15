@@ -225,7 +225,7 @@ struct m65816_iohandler_t : public iohandler_t
     if ( inf_like_binary() )
       return true;
     else
-      return get_segm_by_name("ppu") != nullptr;
+      return get_segment_ea_by_name("ppu") != BADADDR;
   }
 };
 
@@ -253,7 +253,7 @@ struct m65816_t : public procmod_t
   void m65816_assumes(outctx_t &ctx);
   ea_t calc_addr(const op_t &x, ea_t *orig_ea, const insn_t &insn);
   void m65816_header(outctx_t &ctx) const;
-  void m65816_segstart(outctx_t &ctx, segment_t *Srange) const;
+  void m65816_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void m65816_footer(outctx_t &ctx) const;
 
   void load_from_idb();

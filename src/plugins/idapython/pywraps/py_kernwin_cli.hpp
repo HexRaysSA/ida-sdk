@@ -16,14 +16,11 @@ struct py_cli_cbs_t
           int *p_sellen,
           int *vk_key,
           int shift);
-  bool (idaapi *find_completions)(
-          qstrvec_t *out_completions,
-          qstrvec_t *out_hints,
-          qstrvec_t *out_docs,
-          int *out_match_start,
-          int *out_match_end,
+  bool (idaapi *find_completions_ex)(
+          cli_completions_t *out,
           const char *line,
-          int x);
+          int x,
+          size_t max_count);
 };
 
 // CLI Python wrapper class
@@ -34,6 +31,11 @@ private:
   cli_t cli;
   PyObject *self;
   qstring cli_sname, cli_lname, cli_hint;
+  // Arity of self.OnFindCompletions, captured at bind() time. Old
+  // shape is (self, line, x) -- 3; new shape is
+  // (self, line, x, max_count) -- 4. -1 if the user did not define
+  // the callback.
+  int find_completions_arity = -1;
 
   //--------------------------------------------------------------------------
   static py_cli_t *py_clis[MAX_PY_CLI];
@@ -48,9 +50,9 @@ private:
   {                                                                     \
     return py_clis[CBN]->on_execute_line(line);                         \
   }                                                                     \
-  static bool idaapi s_find_completions##CBN(qstrvec_t *completions, qstrvec_t *hints, qstrvec_t *docs, int *out_start, int *out_end, const char *line, int x) \
+  static bool idaapi s_find_completions_ex##CBN(cli_completions_t *out, const char *line, int x, size_t max_count) \
   {                                                                     \
-    return py_clis[CBN]->on_find_completions(completions, hints, docs, out_start, out_end, line, x); \
+    return py_clis[CBN]->on_find_completions_ex(out, line, x, max_count); \
   }
 
   IMPL_PY_CLI_CB(0);    IMPL_PY_CLI_CB(1);   IMPL_PY_CLI_CB(2);   IMPL_PY_CLI_CB(3);
@@ -139,21 +141,31 @@ private:
     return ok;
   }
 
-  // callback: the user pressed Tab
-  // Find completions
-  // This callback is optional
-  bool on_find_completions(
-        qstrvec_t *out_completions,
-        qstrvec_t *out_hints,
-        qstrvec_t *out_docs,
-        int *out_match_start,
-        int *out_match_end,
+  // callback: the user pressed Tab. Find completions, bounded to
+  // max_count results when the user's OnFindCompletions takes a
+  // max_count parameter; if their override stuck to the legacy
+  // (line, x) signature we just call it without -- they get the
+  // pre-cap behavior, the framework still trims downstream.
+  bool on_find_completions_ex(
+        cli_completions_t *out,
         const char *line,
-        int x)
+        int x,
+        size_t max_count)
   {
     PYW_GIL_GET;
-    newref_t py_res(
-            PyObject_CallMethod(
+    // self counts toward the arity (it's a bound method).
+    const bool wants_max_count = find_completions_arity >= 4;
+    // See _cli_find_completions_ex(): use 'K' so size_t(-1) survives
+    // the trip to Python instead of wrapping to -1.
+    newref_t py_res(wants_max_count
+            ? PyObject_CallMethod(
+                    self,
+                    (char *)S_ON_FIND_COMPLETIONS,
+                    "siK",
+                    line,
+                    x,
+                    (unsigned long long)max_count)
+            : PyObject_CallMethod(
                     self,
                     (char *)S_ON_FIND_COMPLETIONS,
                     "si",
@@ -162,8 +174,7 @@ private:
     PyW_ShowCbErr(S_ON_FIND_COMPLETIONS);
     if ( PyErr_Occurred() != nullptr )
       return false;
-    return idapython_convert_cli_completions(
-            out_completions, out_hints, out_docs, out_match_start, out_match_end, py_res);
+    return idapython_convert_cli_completions_ex(out, py_res);
   }
 
   // Private ctor (use bind())
@@ -226,7 +237,19 @@ public:
         break;
       py_cli->cli.execute_line = py_cli_cbs[cli_idx].execute_line;
       py_cli->cli.keydown = PyObject_HasAttrString(py_obj, S_ON_KEYDOWN) ? py_cli_cbs[cli_idx].keydown : nullptr;
-      py_cli->cli.find_completions = PyObject_HasAttrString(py_obj, S_ON_FIND_COMPLETIONS) ? py_cli_cbs[cli_idx].find_completions : nullptr;
+      py_cli->cli.find_completions = nullptr;
+      py_cli->cli.find_completions_ex = nullptr;
+      if ( PyObject_HasAttrString(py_obj, S_ON_FIND_COMPLETIONS) )
+      {
+        // Inspect the user's override so we know whether to pass
+        // max_count at call time.
+        newref_t bound_method(PyObject_GetAttrString(py_obj, S_ON_FIND_COMPLETIONS));
+        py_cli->find_completions_arity = bound_method
+                ? int(get_callable_arg_count(bound_method))
+                : -1;
+        if ( py_cli->find_completions_arity > 0 )
+          py_cli->cli.find_completions_ex = py_cli_cbs[cli_idx].find_completions_ex;
+      }
 
       // install CLI
       install_command_interpreter(&py_cli->cli);
@@ -267,7 +290,7 @@ public:
   }
 };
 py_cli_t *py_cli_t::py_clis[MAX_PY_CLI] = { nullptr };
-#define DECL_PY_CLI_CB(CBN) { s_execute_line##CBN, s_keydown##CBN, s_find_completions##CBN }
+#define DECL_PY_CLI_CB(CBN) { s_execute_line##CBN, s_keydown##CBN, s_find_completions_ex##CBN }
 const py_cli_cbs_t py_cli_t::py_cli_cbs[MAX_PY_CLI] =
 {
   DECL_PY_CLI_CB(0),   DECL_PY_CLI_CB(1),  DECL_PY_CLI_CB(2),   DECL_PY_CLI_CB(3),

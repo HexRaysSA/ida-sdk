@@ -114,9 +114,9 @@ public:
       }
       if ( argsize == 0 )
       {
-        func_t *pfn = get_func(ea);
-        if ( pfn != nullptr )
-          argsize = pfn->argsize;
+        func_entry_info_t fi;
+        if ( get_func_entry_info(&fi, ea) )
+          argsize = fi.get_argsize();
       }
       item_t x;
       x.ord = ord;

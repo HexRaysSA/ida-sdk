@@ -59,16 +59,19 @@ enum choose_type_t
   chtype_idasgn,                 ///< see choose_idasgn()
   chtype_entry,                  ///< see choose_entry()
   chtype_name,                   ///< see choose_name()
-  chtype_stkvar_xref,            ///< see choose_stkvar_xref()
+  chtype_stkvar_xref,            ///< see choose_stkvar_xref(), \deprecated Use chtype_stkvar_xref_ea for safer access.
   chtype_xref,                   ///< see choose_xref()
-  chtype_func,                   ///< see choose_func()
-  chtype_segm,                   ///< see choose_segm()
+  chtype_func,                   ///< see choose_func(), \deprecated Use chtype_func_ea for safer access.
+  chtype_segm,                   ///< see choose_segm(), \deprecated Use chtype_segment for safer access.
   chtype_strpath,                ///< see choose_struc_path()
   chtype_idatil,                 ///< see choose_til()
   chtype_srcp,                   ///< see choose_srcp()
   chtype_struct,                 ///< see choose_struct()
   chtype_enum,                   ///< see choose_enum()
   chtype_enum_by_value_and_size, ///< see choose_enum_by_value()
+  chtype_segment,                ///< see choose_segment()
+  chtype_stkvar_xref_ea,         ///< see choose_stkvar_xref_ea()
+  chtype_func_ea,                ///< see choose_func_ea()
 };
 
 
@@ -321,6 +324,7 @@ union callui_t
   segment_t *segptr;
   plugin_t *pluginptr;
   sreg_range_t *sraptr;
+  ea_t ea;
 };
 
 //-------------------------------------------------------------------------
@@ -1066,15 +1070,35 @@ enum ui_notification_t
 
   ui_obsolete_action_ctx_base_ctl,
 
-  ui_prompt_function_prototype_ex,
+  ui_obsolete_prompt_function_prototype_2,
+
+  ui_open_ida_link,       ///< ui: see open_ida_link()
+                          ///< \param (const char *) URL of the resource to be displayed in UI
+
+  ui_prompt_function_prototype,
                           ///< ui: open Function Prototype Editor and return new type and new name for function
                           ///< \param[out] errbuf - (::qstring *) the output string for errors
                           ///< \param[out] out_tif - (tinfo_t *) tif for created type
                           ///< \param[out] out_name - (::qstring *) new name of type
-                          ///< \param      pfn - (func_t *) editing function
+                          ///< \param      func_ea - (ea_t) function start address
                           ///< \param      tif - (tinfo_t *) current function type
                           ///< \param      name - (const char *) function name
                           ///< \return     true if new type created successfully
+
+  ui_about_to_exit,     ///< cb: IDA is exiting. QApplication is still alive but
+                        ///< is about to be destroyed. Last chance to perform
+                        ///< cleanup that needs both the UI runtime and the
+                        ///< scripting runtime (e.g., IDAPython) to still be
+                        ///< usable. Unlike ui_database_closed, this fires only
+                        ///< at exit, not on every database close. Unlike
+                        ///< qatexit() handlers, which fire after PLUGIN_FIX
+                        ///< plugins have been unloaded, this fires while
+                        ///< those plugins are still fully operational.
+                        ///< \return void
+
+  ui_serve,             ///< ui: see serve()
+  ui_stop_serving,      ///< ui: see stop_serving()
+
 
   ui_last,              ///< the last notification code
 
@@ -1896,6 +1920,9 @@ typedef uval_t uval_t;
 /// A location in a tinfo_t
 typedef uint64 tif_cursor_t;
 struct til_type_ref_t;
+class segment_info_t;
+class func_entry_info_t;
+class fchunk_info_t;
 #define TIF_CURSOR_HEADER tif_cursor_t(-2)
 #define TIF_CURSOR_FOOTER tif_cursor_t(-1)
 
@@ -2477,6 +2504,16 @@ DECLARE_TYPE_AS_MOVABLE(line_section_t);
 typedef qvector<line_section_t> line_sections_t;
 
 //-------------------------------------------------------------------------
+struct tagged_line_section_t;
+#ifndef SWIG
+/// Out-of-line implementation of tagged_line_section_t::get_addr();
+/// uses tag_get_addr(), see <lines.hpp>.
+idaman THREAD_SAFE ea_t ida_export tagged_line_section_t_get_addr(
+        const tagged_line_section_t *sec,
+        const qstring &line);
+#endif // SWIG
+
+//-------------------------------------------------------------------------
 // A tagged section in a line.
 // Note: multiple sections with different tags can overlap.
 // For example, the portion of text `[ebp+char_in_main]`:
@@ -2538,6 +2575,15 @@ struct tagged_line_section_t : public line_section_t
     return ok;
   }
 
+  /// For COLOR_ADDR sections, decode the address embedded in `line`.
+  /// `line` must be the same raw line the section was parsed from.
+  /// Returns BADADDR if this is not a COLOR_ADDR section or `line`
+  /// does not match.
+  ea_t get_addr(const qstring &line) const
+  {
+    return tagged_line_section_t_get_addr(this, line);
+  }
+
 };
 DECLARE_TYPE_AS_MOVABLE(tagged_line_section_t);
 typedef qvector<tagged_line_section_t> tagged_line_section_vec_t;
@@ -2550,6 +2596,17 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
   {
     for ( const auto &one : *this )
       if ( one.tag == tag )
+        return &one;
+    return nullptr;
+  }
+
+  const tagged_line_section_t *next(
+        const tagged_line_section_t &anchor,
+        color_t tag) const
+  {
+    for ( const auto &one : *this )
+      if ( one.byte_offsets.text_start > anchor.byte_offsets.text_start
+        && one.tag == tag )
         return &one;
     return nullptr;
   }
@@ -2568,8 +2625,8 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
   // <on><xref>// XREF: <on><addr:FF001BAC>__loff_t/r <on><addr:FF001BC9>_IO_FILE/r<off><dref>
   // ^___ r1 ________________________________________________________________________________^
   //                    ^ r2                          ^ r3
-  // nearest_at(<any p>) --> r1 (because r2 and r3 are zero-length)
-  const tagged_line_section_t *nearest_at(
+  // innermost_at(<any p>) --> r1 (because r2 and r3 are zero-length)
+  const tagged_line_section_t *innermost_at(
         cpidx_t x,
         color_t tag=0) const
   {
@@ -2578,13 +2635,23 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
     {
       if ( one.contains(x)
         && (tag == 0 || one.tag == tag)
-        && (nearest == nullptr || one.start > nearest->start) )
+        && (nearest == nullptr || one.start >= nearest->start) )
       {
         nearest = &one;
       }
     }
     return nearest;
   }
+
+#ifndef NO_OBSOLETE_FUNCS
+  /// \deprecated Use innermost_at() instead.
+  DEPRECATED const tagged_line_section_t *nearest_at(
+        cpidx_t x,
+        color_t tag=0) const
+  {
+    return innermost_at(x, tag);
+  }
+#endif
 
   // For example, '// XREF: __loff_t/r _IO_FILE/r'
   // <on><xref>// XREF: <on><addr:FF001BAC>__loff_t/r <on><addr:FF001BC9>_IO_FILE/r<off><dref>
@@ -2607,7 +2674,9 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
       if ( range.contains(one.start)
         && one.start <= start
         && (tag == 0 || one.tag == tag)
-        && (nearest == nullptr || one.start > nearest->start) )
+        && (nearest == nullptr
+         || one.start > nearest->start
+         || one.byte_offsets.text_start > nearest->byte_offsets.text_start) )
       {
         nearest = &one;
       }
@@ -2694,133 +2763,190 @@ typedef int twidget_type_t; ///< \ref BWN_
 /// \defgroup BWN_ Window types
 /// also see \ref ui_open_builtin_funcs
 ///@{
-#define BWN_UNKNOWN       -1 ///< unknown window
-#define BWN_EXPORTS        0 ///< exports
-#define BWN_IMPORTS        1 ///< imports
-#define BWN_NAMES          2 ///< names
-#define BWN_FUNCS          3 ///< functions
-#define BWN_STRINGS        4 ///< strings
-#define BWN_SEGS           5 ///< segments
-#define BWN_SEGREGS        6 ///< segment registers
-#define BWN_SELS           7 ///< selectors
-#define BWN_SIGNS          8 ///< signatures
-#define BWN_TILS           9 ///< type libraries
-#define BWN_TITREE        10 ///< type library widget's (e.g., "Local types") tree
-#define BWN_RESERVED_1    11 ///< Reserved
-#define BWN_PROBS         12 ///< problems
-#define BWN_BPTS          13 ///< breakpoints
-#define BWN_THREADS       14 ///< threads
-#define BWN_MODULES       15 ///< modules
-#define BWN_TRACE         16 ///< tracing view
-#define BWN_CALL_STACK    17 ///< call stack
-#define BWN_XREFS         18 ///< xrefs
-#define BWN_SEARCH        19 ///< search results
-#define BWN_FRAME         25 ///< function frame
-#define BWN_NAVBAND       26 ///< navigation band
-#define BWN_DISASM        27 ///< disassembly views
-#define BWN_HEXVIEW       28 ///< hex view
-#define BWN_NOTEPAD       29 ///< notepad
-#define BWN_OUTPUT        30 ///< the text area, in the output window
-#define BWN_CLI           31 ///< the command-line, in the output window
-#define BWN_WATCH         32 ///< the 'watches' debugger window
-#define BWN_LOCALS        33 ///< the 'locals' debugger window
-#define BWN_STKVIEW       34 ///< the 'Stack view' debugger window
-#define BWN_CHOOSER       35 ///< a non-builtin chooser
-#define BWN_SHORTCUTCSR   36 ///< the shortcuts chooser (Qt version only)
-#define BWN_SHORTCUTWIN   37 ///< the shortcuts window (Qt version only)
-#define BWN_CPUREGS       38 ///< one of the 'General registers', 'FPU register', ... debugger windows
-#define BWN_SO_STRUCTS    39 ///< the 'Structure offsets' dialog's 'Structures and Unions' panel
-#define BWN_SO_OFFSETS    40 ///< the 'Structure offsets' dialog's offset panel
-#define BWN_CMDPALCSR     41 ///< the command palette chooser (Qt version only)
-#define BWN_CMDPALWIN     42 ///< the command palette window (Qt version only)
-#define BWN_SNIPPETS      43 ///< the 'Execute script' window
-#define BWN_CUSTVIEW      44 ///< custom viewers
-#define BWN_ADDRWATCH     45 ///< the 'Watch List' window
-#define BWN_PSEUDOCODE    46 ///< hexrays decompiler views
-#define BWN_RESERVED_2    47 ///< Reserved
-#define BWN_RESERVED_3    48 ///< Reserved
-#define BWN_MDVIEWCSR     49 ///< lumina metadata view chooser
-#define BWN_DISASM_ARROWS 50 ///< disassembly arrows widget
-#define BWN_CV_LINE_INFOS 51 ///< custom viewers' lineinfo widget
-#define BWN_SRCPTHMAP_CSR 52 ///< "Source paths..."'s path mappings chooser
-#define BWN_SRCPTHUND_CSR 53 ///< "Source paths..."'s undesired paths chooser
-#define BWN_UNDOHIST      54 ///< Undo history
-#define BWN_SNIPPETS_CSR  55 ///< the list of snippets in the 'Execute script' window
-#define BWN_SCRIPTS_CSR   56 ///< the "Recent scripts" chooser
-#define BWN_BOOKMARKS     57 ///< a persistent 'Bookmarks' widget
-#define BWN_TILIST        58 ///< a type listing widget
-#define BWN_TIL_VIEW      59 ///< a type library's toplevel widget
-#define BWN_TYPE_EDITOR   60 ///< a type editor
-#define BWN_MICROCODE     61 ///< microcode view (part of hexrays decompiler)
-#define BWN_XREF_TREE     62 ///< xref tree widget
+#define BWN_UNKNOWN                     -1 ///< unknown window
+#define BWN_EXPORTS                     0 ///< exports
+#define BWN_IMPORTS                     1 ///< imports
+#define BWN_NAMES                       2 ///< names
+#define BWN_FUNCS                       3 ///< functions
+#define BWN_STRINGS                     4 ///< strings
+#define BWN_SEGS                        5 ///< segments
+#define BWN_SEGREGS                     6 ///< segment registers
+#define BWN_SELS                        7 ///< selectors
+#define BWN_SIGNS                       8 ///< signatures
+#define BWN_TILS                        9 ///< type libraries
+#define BWN_TITREE                      10 ///< type library widget's (e.g., "Local types") tree
+#define BWN_RESERVED_1                  11 ///< Reserved
+#define BWN_PROBS                       12 ///< problems
+#define BWN_BPTS                        13 ///< breakpoints
+#define BWN_THREADS                     14 ///< threads
+#define BWN_MODULES                     15 ///< modules
+#define BWN_TRACE                       16 ///< tracing view
+#define BWN_CALL_STACK                  17 ///< call stack
+#define BWN_XREFS                       18 ///< xrefs
+#define BWN_SEARCH                      19 ///< search results
+#define BWN_FRAME                       25 ///< function frame
+#define BWN_NAVBAND                     26 ///< navigation band
+#define BWN_DISASM                      27 ///< disassembly views
+#define BWN_HEXVIEW                     28 ///< hex view
+#define BWN_NOTEPAD                     29 ///< notepad
+#define BWN_OUTPUT                      30 ///< the text area, in the output window
+#define BWN_CLI                         31 ///< the command-line, in the output window
+#define BWN_WATCH                       32 ///< the 'watches' debugger window
+#define BWN_LOCALS                      33 ///< the 'locals' debugger window
+#define BWN_STKVIEW                     34 ///< the 'Stack view' debugger window
+#define BWN_CHOOSER                     35 ///< a non-builtin chooser
+#define BWN_SHORTCUTCSR                 36 ///< the shortcuts chooser (Qt version only)
+#define BWN_SHORTCUTWIN                 37 ///< the shortcuts window (Qt version only)
+#define BWN_CPUREGS                     38 ///< one of the 'General registers', 'FPU register', ... debugger windows
+#define BWN_SO_STRUCTS                  39 ///< the 'Structure offsets' dialog's 'Structures and Unions' panel
+#define BWN_SO_OFFSETS                  40 ///< the 'Structure offsets' dialog's offset panel
+#define BWN_CMDPALCSR                   41 ///< the command palette chooser (Qt version only)
+#define BWN_CMDPALWIN                   42 ///< the command palette window (Qt version only)
+#define BWN_SNIPPETS                    43 ///< the 'Execute script' window
+#define BWN_CUSTVIEW                    44 ///< custom viewers
+#define BWN_ADDRWATCH                   45 ///< the 'Watch List' window
+#define BWN_PSEUDOCODE                  46 ///< hexrays decompiler views
+#define BWN_RESERVED_2                  47 ///< Reserved
+#define BWN_RESERVED_3                  48 ///< Reserved
+#define BWN_MDVIEWCSR                   49 ///< lumina metadata view chooser
+#define BWN_DISASM_ARROWS               50 ///< disassembly arrows widget
+#define BWN_CV_LINE_INFOS               51 ///< custom viewers' lineinfo widget
+#define BWN_SRCPTHMAP_CSR               52 ///< "Source paths..."'s path mappings chooser
+#define BWN_SRCPTHUND_CSR               53 ///< "Source paths..."'s undesired paths chooser
+#define BWN_UNDOHIST                    54 ///< Undo history
+#define BWN_SNIPPETS_TREE               55 ///< the IDB snippets dirtree (Scripts window, Snippets tab)
+#define BWN_SCRIPTS_CSR                 56 ///< obsolete: see BWN_RECENT_SCRIPTS_TREE
+#define BWN_BOOKMARKS                   57 ///< a persistent 'Bookmarks' widget
+#define BWN_TILIST                      58 ///< a type listing widget
+#define BWN_TIL_VIEW                    59 ///< a type library's toplevel widget
+#define BWN_TYPE_EDITOR                 60 ///< a type editor
+#define BWN_MICROCODE                   61 ///< microcode view (part of hexrays decompiler)
+#define BWN_XREF_TREE                   62 ///< xref tree widget
+#define BWN_TEAMS_VAULT_FILES           63 // the 'Vault files' chooser
+#define BWN_TEAMS_COMMITS               64 // the 'Commits' chooser
+#define BWN_TEAMS_LOCAL_FILES           65 // the 'Local files' dirtree
+#define BWN_TEAMS_WORKLISTS             66 // the 'Worklists' chooser
+#define BWN_TEAMS_SITES                 67 // the 'Sites' chooser
+#define BWN_TEAMS_USERS                 68 // the 'Users' chooser
+#define BWN_TEAMS_FILE_HISTORY          69 // the file history chooser
+#define BWN_TEAMS_COMMIT_FILES          70 // the commit files embedded chooser
+#define BWN_TEAMS_EXT_ASSOCS            71 // the file extension associations embedded chooser
+#define BWN_TEAMS_OPENED_FILES          72 // the opened files embedded chooser
+#define BWN_TEAMS_VAULT_FILE_PICKER     73 // the opened files embedded chooser
+#define BWN_DSC_INDEX                   74 ///< DyldSharedCache tree widget
+#define BWN_DSC_SYMBOLS                 75 ///< DyldSharedCache symbols search widget
+#define BWN_DSC_STRINGS                 76 ///< DyldSharedCache string-literal search widget
+#define BWN_XREF_GRAPH                  77 ///< Xref Graph widget
+#define BWN_GIT_REPOS                   78 // the git 'Manage Repositories' chooser
+#define BWN_XREF_GRAPH_MANAGER          79 ///< Xref Graph manager widget
+#define BWN_RECENT_SCRIPTS_TREE         80 ///< Recent scripts dirtree (Scripts window)
+#define BWN_EXAMPLE_SCRIPTS_TREE        81 ///< IDAPython examples dirtree (Scripts window)
+#define BWN_SEARCH_SCRIPTS_TREE         82 ///< Search results dirtree (Scripts window)
+#define BWN_PATHFINDER                  83 ///< Pathfinder (waypoints/exclusions)
+
+#define BWN_SNIPPETS_CSR BWN_SNIPPETS_TREE // bw-compat
+
 
 ///@}
 
 /// \defgroup IWID_ Window refresh flags
 /// passed as 'mask' parameter to mark_builtin_widgets()
 ///@{
-#define IWID_EXPORTS       builtin_widget_mask_from_id(BWN_EXPORTS      ) ///< exports
-#define IWID_IMPORTS       builtin_widget_mask_from_id(BWN_IMPORTS      ) ///< imports
-#define IWID_NAMES         builtin_widget_mask_from_id(BWN_NAMES        ) ///< names
-#define IWID_FUNCS         builtin_widget_mask_from_id(BWN_FUNCS        ) ///< functions
-#define IWID_STRINGS       builtin_widget_mask_from_id(BWN_STRINGS      ) ///< strings
-#define IWID_SEGS          builtin_widget_mask_from_id(BWN_SEGS         ) ///< segments
-#define IWID_SEGREGS       builtin_widget_mask_from_id(BWN_SEGREGS      ) ///< segment registers
-#define IWID_SELS          builtin_widget_mask_from_id(BWN_SELS         ) ///< selectors
-#define IWID_SIGNS         builtin_widget_mask_from_id(BWN_SIGNS        ) ///< signatures
-#define IWID_TILS          builtin_widget_mask_from_id(BWN_TILS         ) ///< type libraries
-#define IWID_TITREE        builtin_widget_mask_from_id(BWN_TITREE       ) ///< type library widget's (e.g., "Local types") chooser
-#define IWID_RESERVED_1    builtin_widget_mask_from_id(BWN_RESERVED_1   ) ///< Reserved
-#define IWID_PROBS         builtin_widget_mask_from_id(BWN_PROBS        ) ///< problems
-#define IWID_BPTS          builtin_widget_mask_from_id(BWN_BPTS         ) ///< breakpoints
-#define IWID_THREADS       builtin_widget_mask_from_id(BWN_THREADS      ) ///< threads
-#define IWID_MODULES       builtin_widget_mask_from_id(BWN_MODULES      ) ///< modules
-#define IWID_TRACE         builtin_widget_mask_from_id(BWN_TRACE        ) ///< tracing view
-#define IWID_CALL_STACK    builtin_widget_mask_from_id(BWN_CALL_STACK   ) ///< call stack
-#define IWID_XREFS         builtin_widget_mask_from_id(BWN_XREFS        ) ///< xrefs
-#define IWID_SEARCH        builtin_widget_mask_from_id(BWN_SEARCH       ) ///< search results
-#define IWID_FRAME         builtin_widget_mask_from_id(BWN_FRAME        ) ///< function frame
-#define IWID_NAVBAND       builtin_widget_mask_from_id(BWN_NAVBAND      ) ///< navigation band
-#define IWID_DISASM        builtin_widget_mask_from_id(BWN_DISASM       ) ///< disassembly views
-#define IWID_HEXVIEW       builtin_widget_mask_from_id(BWN_HEXVIEW      ) ///< hex views
-#define IWID_NOTEPAD       builtin_widget_mask_from_id(BWN_NOTEPAD      ) ///< notepad
-#define IWID_OUTPUT        builtin_widget_mask_from_id(BWN_OUTPUT       ) ///< output
-#define IWID_CLI           builtin_widget_mask_from_id(BWN_CLI          ) ///< input line
-#define IWID_WATCH         builtin_widget_mask_from_id(BWN_WATCH        ) ///< watches
-#define IWID_LOCALS        builtin_widget_mask_from_id(BWN_LOCALS       ) ///< locals
-#define IWID_STKVIEW       builtin_widget_mask_from_id(BWN_STKVIEW      ) ///< stack view
-#define IWID_CHOOSER       builtin_widget_mask_from_id(BWN_CHOOSER      ) ///< chooser
-#define IWID_SHORTCUTCSR   builtin_widget_mask_from_id(BWN_SHORTCUTCSR  ) ///< shortcuts chooser
-#define IWID_SHORTCUTWIN   builtin_widget_mask_from_id(BWN_SHORTCUTWIN  ) ///< shortcuts window
-#define IWID_CPUREGS       builtin_widget_mask_from_id(BWN_CPUREGS      ) ///< registers
-#define IWID_SO_STRUCTS    builtin_widget_mask_from_id(BWN_SO_STRUCTS   ) ///< stroff
-#define IWID_SO_OFFSETS    builtin_widget_mask_from_id(BWN_SO_OFFSETS   ) ///< stroff
-#define IWID_CMDPALCSR     builtin_widget_mask_from_id(BWN_CMDPALCSR    ) ///< command palette
-#define IWID_CMDPALWIN     builtin_widget_mask_from_id(BWN_CMDPALWIN    ) ///< command palette
-#define IWID_SNIPPETS      builtin_widget_mask_from_id(BWN_SNIPPETS     ) ///< snippets
-#define IWID_CUSTVIEW      builtin_widget_mask_from_id(BWN_CUSTVIEW     ) ///< custom viewers
-#define IWID_ADDRWATCH     builtin_widget_mask_from_id(BWN_ADDRWATCH    ) ///< address watches
-#define IWID_PSEUDOCODE    builtin_widget_mask_from_id(BWN_PSEUDOCODE   ) ///< decompiler
-#define IWID_RESERVED_2    builtin_widget_mask_from_id(BWN_RESERVED_2   ) ///< Reserved
-#define IWID_RESERVED_3    builtin_widget_mask_from_id(BWN_RESERVED_3   ) ///< Reserved
-#define IWID_MDVIEWCSR     builtin_widget_mask_from_id(BWN_MDVIEWCSR    ) ///< lumina md view
-#define IWID_DISASM_ARROWS builtin_widget_mask_from_id(BWN_DISASM_ARROWS) ///< arrows widget
-#define IWID_CV_LINE_INFOS builtin_widget_mask_from_id(BWN_CV_LINE_INFOS) ///< lineinfo widget
-#define IWID_SRCPTHMAP_CSR builtin_widget_mask_from_id(BWN_SRCPTHMAP_CSR) ///< mappings chooser
-#define IWID_SRCPTHUND_CSR builtin_widget_mask_from_id(BWN_SRCPTHUND_CSR) ///< undesired chooser
-#define IWID_UNDOHIST      builtin_widget_mask_from_id(BWN_UNDOHIST     ) ///< Undo history
-#define IWID_SNIPPETS_CSR  builtin_widget_mask_from_id(BWN_SNIPPETS_CSR ) ///< snippets chooser
-#define IWID_SCRIPTS_CSR   builtin_widget_mask_from_id(BWN_SCRIPTS_CSR  ) ///< recent scripts
-#define IWID_BOOKMARKS     builtin_widget_mask_from_id(BWN_BOOKMARKS    ) ///< bookmarks list
-#define IWID_TILIST        builtin_widget_mask_from_id(BWN_TILIST       ) ///< type listing
-#define IWID_TIL_VIEW      builtin_widget_mask_from_id(BWN_TIL_VIEW     ) ///< type library's toplevel widget
-#define IWID_TYPE_EDITOR   builtin_widget_mask_from_id(BWN_TYPE_EDITOR  ) ///< a type editor
-#define IWID_MICROCODE     builtin_widget_mask_from_id(BWN_MICROCODE    ) ///< microcode view (part of hexrays decompiler)
-#define IWID_XREF_TREE     builtin_widget_mask_from_id(BWN_XREF_TREE    ) ///< xref tree widget
+#define IWID_EXPORTS                    builtin_widget_mask_from_id(BWN_EXPORTS      )              ///< exports
+#define IWID_IMPORTS                    builtin_widget_mask_from_id(BWN_IMPORTS      )              ///< imports
+#define IWID_NAMES                      builtin_widget_mask_from_id(BWN_NAMES        )              ///< names
+#define IWID_FUNCS                      builtin_widget_mask_from_id(BWN_FUNCS        )              ///< functions
+#define IWID_STRINGS                    builtin_widget_mask_from_id(BWN_STRINGS      )              ///< strings
+#define IWID_SEGS                       builtin_widget_mask_from_id(BWN_SEGS         )              ///< segments
+#define IWID_SEGREGS                    builtin_widget_mask_from_id(BWN_SEGREGS      )              ///< segment registers
+#define IWID_SELS                       builtin_widget_mask_from_id(BWN_SELS         )              ///< selectors
+#define IWID_SIGNS                      builtin_widget_mask_from_id(BWN_SIGNS        )              ///< signatures
+#define IWID_TILS                       builtin_widget_mask_from_id(BWN_TILS         )              ///< type libraries
+#define IWID_TITREE                     builtin_widget_mask_from_id(BWN_TITREE       )              ///< type library widget's (e.g., "Local types") chooser
+#define IWID_RESERVED_1                 builtin_widget_mask_from_id(BWN_RESERVED_1   )              ///< Reserved
+#define IWID_PROBS                      builtin_widget_mask_from_id(BWN_PROBS        )              ///< problems
+#define IWID_BPTS                       builtin_widget_mask_from_id(BWN_BPTS         )              ///< breakpoints
+#define IWID_THREADS                    builtin_widget_mask_from_id(BWN_THREADS      )              ///< threads
+#define IWID_MODULES                    builtin_widget_mask_from_id(BWN_MODULES      )              ///< modules
+#define IWID_TRACE                      builtin_widget_mask_from_id(BWN_TRACE        )              ///< tracing view
+#define IWID_CALL_STACK                 builtin_widget_mask_from_id(BWN_CALL_STACK   )              ///< call stack
+#define IWID_XREFS                      builtin_widget_mask_from_id(BWN_XREFS        )              ///< xrefs
+#define IWID_SEARCH                     builtin_widget_mask_from_id(BWN_SEARCH       )              ///< search results
+#define IWID_FRAME                      builtin_widget_mask_from_id(BWN_FRAME        )              ///< function frame
+#define IWID_NAVBAND                    builtin_widget_mask_from_id(BWN_NAVBAND      )              ///< navigation band
+#define IWID_DISASM                     builtin_widget_mask_from_id(BWN_DISASM       )              ///< disassembly views
+#define IWID_HEXVIEW                    builtin_widget_mask_from_id(BWN_HEXVIEW      )              ///< hex views
+#define IWID_NOTEPAD                    builtin_widget_mask_from_id(BWN_NOTEPAD      )              ///< notepad
+#define IWID_OUTPUT                     builtin_widget_mask_from_id(BWN_OUTPUT       )              ///< output
+#define IWID_CLI                        builtin_widget_mask_from_id(BWN_CLI          )              ///< input line
+#define IWID_WATCH                      builtin_widget_mask_from_id(BWN_WATCH        )              ///< watches
+#define IWID_LOCALS                     builtin_widget_mask_from_id(BWN_LOCALS       )              ///< locals
+#define IWID_STKVIEW                    builtin_widget_mask_from_id(BWN_STKVIEW      )              ///< stack view
+#define IWID_CHOOSER                    builtin_widget_mask_from_id(BWN_CHOOSER      )              ///< chooser
+#define IWID_SHORTCUTCSR                builtin_widget_mask_from_id(BWN_SHORTCUTCSR  )              ///< shortcuts chooser
+#define IWID_SHORTCUTWIN                builtin_widget_mask_from_id(BWN_SHORTCUTWIN  )              ///< shortcuts window
+#define IWID_CPUREGS                    builtin_widget_mask_from_id(BWN_CPUREGS      )              ///< registers
+#define IWID_SO_STRUCTS                 builtin_widget_mask_from_id(BWN_SO_STRUCTS   )              ///< stroff
+#define IWID_SO_OFFSETS                 builtin_widget_mask_from_id(BWN_SO_OFFSETS   )              ///< stroff
+#define IWID_CMDPALCSR                  builtin_widget_mask_from_id(BWN_CMDPALCSR    )              ///< command palette
+#define IWID_CMDPALWIN                  builtin_widget_mask_from_id(BWN_CMDPALWIN    )              ///< command palette
+#define IWID_SNIPPETS                   builtin_widget_mask_from_id(BWN_SNIPPETS     )              ///< snippets
+#define IWID_CUSTVIEW                   builtin_widget_mask_from_id(BWN_CUSTVIEW     )              ///< custom viewers
+#define IWID_ADDRWATCH                  builtin_widget_mask_from_id(BWN_ADDRWATCH    )              ///< address watches
+#define IWID_PSEUDOCODE                 builtin_widget_mask_from_id(BWN_PSEUDOCODE   )              ///< decompiler
+#define IWID_RESERVED_2                 builtin_widget_mask_from_id(BWN_RESERVED_2   )              ///< Reserved
+#define IWID_RESERVED_3                 builtin_widget_mask_from_id(BWN_RESERVED_3   )              ///< Reserved
+#define IWID_MDVIEWCSR                  builtin_widget_mask_from_id(BWN_MDVIEWCSR    )              ///< lumina md view
+#define IWID_DISASM_ARROWS              builtin_widget_mask_from_id(BWN_DISASM_ARROWS)              ///< arrows widget
+#define IWID_CV_LINE_INFOS              builtin_widget_mask_from_id(BWN_CV_LINE_INFOS)              ///< lineinfo widget
+#define IWID_SRCPTHMAP_CSR              builtin_widget_mask_from_id(BWN_SRCPTHMAP_CSR)              ///< mappings chooser
+#define IWID_SRCPTHUND_CSR              builtin_widget_mask_from_id(BWN_SRCPTHUND_CSR)              ///< undesired chooser
+#define IWID_UNDOHIST                   builtin_widget_mask_from_id(BWN_UNDOHIST     )              ///< Undo history
+#define IWID_SNIPPETS_TREE              builtin_widget_mask_from_id(BWN_SNIPPETS_TREE)              ///< IDB snippets dirtree
+#define IWID_SCRIPTS_CSR                builtin_widget_mask_from_id(BWN_SCRIPTS_CSR  )              ///< obsolete: see IWID_RECENT_SCRIPTS_TREE
+#define IWID_BOOKMARKS                  builtin_widget_mask_from_id(BWN_BOOKMARKS    )              ///< bookmarks list
+#define IWID_TILIST                     builtin_widget_mask_from_id(BWN_TILIST       )              ///< type listing
+#define IWID_TIL_VIEW                   builtin_widget_mask_from_id(BWN_TIL_VIEW     )              ///< type library's toplevel widget
+#define IWID_TYPE_EDITOR                builtin_widget_mask_from_id(BWN_TYPE_EDITOR  )              ///< a type editor
+#define IWID_MICROCODE                  builtin_widget_mask_from_id(BWN_MICROCODE    )              ///< microcode view (part of hexrays decompiler)
+#define IWID_XREF_TREE                  builtin_widget_mask_from_id(BWN_XREF_TREE    )              ///< xref tree widget
+#define IWID_TEAMS_VAULT_FILES          builtin_widget_mask_from_id(BWN_TEAMS_VAULT_FILES)          ///< the 'Vault files' chooser
+#define IWID_TEAMS_COMMITS              builtin_widget_mask_from_id(BWN_TEAMS_COMMITS)              ///< the 'Commits' chooser
+#define IWID_TEAMS_LOCAL_FILES          builtin_widget_mask_from_id(BWN_TEAMS_LOCAL_FILES)          ///< the 'Local files' dirtree
+#define IWID_TEAMS_WORKLISTS            builtin_widget_mask_from_id(BWN_TEAMS_WORKLISTS)            ///< the 'Worklists' chooser
+#define IWID_TEAMS_SITES                builtin_widget_mask_from_id(BWN_TEAMS_SITES)                ///< the 'Sites' chooser
+#define IWID_TEAMS_USERS                builtin_widget_mask_from_id(BWN_TEAMS_USERS)                ///< the 'Users' chooser
+#define IWID_TEAMS_FILE_HISTORY         builtin_widget_mask_from_id(BWN_TEAMS_FILE_HISTORY)         ///< the file history chooser
+#define IWID_TEAMS_COMMIT_FILES         builtin_widget_mask_from_id(BWN_TEAMS_COMMIT_FILES)         ///< the commit files embedded chooser
+#define IWID_TEAMS_EXT_ASSOCS           builtin_widget_mask_from_id(BWN_TEAMS_EXT_ASSOCS)           ///< the file extension associations embedded chooser
+#define IWID_TEAMS_OPENED_FILES         builtin_widget_mask_from_id(BWN_TEAMS_OPENED_FILES)         ///< the opened files embedded chooser
+#define IWID_TEAMS_VAULT_FILE_PICKER    builtin_widget_mask_from_id(BWN_TEAMS_VAULT_FILE_PICKER)    ///< the opened files embedded chooser
+#define IWID_DSC_INDEX                  builtin_widget_mask_from_id(BWN_DSC_INDEX)                  ///< DyldSharedCache widget
+#define IWID_DSC_SYMBOLS                builtin_widget_mask_from_id(BWN_DSC_SYMBOLS)                ///< DyldSharedCache symbols widget
+#define IWID_DSC_STRINGS                builtin_widget_mask_from_id(BWN_DSC_STRINGS)                ///< DyldSharedCache strings widget
+#define IWID_XREF_GRAPH                 builtin_widget_mask_from_id(BWN_XREF_GRAPH)                 ///< Xref Graph widget
+#define IWID_GIT_REPOS                  builtin_widget_mask_from_id(BWN_GIT_REPOS)                  ///< the git 'Manage Repositories' chooser
+#define IWID_XREF_GRAPH_MANAGER         builtin_widget_mask_from_id(BWN_XREF_GRAPH_MANAGER)         ///< Xref Graph manager widget
+#define IWID_RECENT_SCRIPTS_TREE        builtin_widget_mask_from_id(BWN_RECENT_SCRIPTS_TREE)       ///< Recent scripts dirtree
+#define IWID_EXAMPLE_SCRIPTS_TREE       builtin_widget_mask_from_id(BWN_EXAMPLE_SCRIPTS_TREE)      ///< IDAPython examples dirtree
+#define IWID_SEARCH_SCRIPTS_TREE        builtin_widget_mask_from_id(BWN_SEARCH_SCRIPTS_TREE)       ///< Search results dirtree
+#define IWID_PATHFINDER                 builtin_widget_mask_from_id(BWN_PATHFINDER)               ///< Pathfinder
+/// the host form_widget_t plus the four trees inside it -- "the cursor
+/// is anywhere within the Scripts window".
+#define IWID_ANY_SCRIPTS_PART (IWID_SNIPPETS                  \
+                             | IWID_SNIPPETS_TREE             \
+                             | IWID_RECENT_SCRIPTS_TREE       \
+                             | IWID_EXAMPLE_SCRIPTS_TREE      \
+                             | IWID_SEARCH_SCRIPTS_TREE)
 
 #define IWID_ANY_LISTING   (IWID_DISASM|IWID_HEXVIEW|IWID_TILIST|IWID_FRAME|IWID_PSEUDOCODE|IWID_CUSTVIEW) ///< anything that uses a listing widget
 #define IWID_EA_LISTING    (IWID_DISASM|IWID_HEXVIEW|IWID_PSEUDOCODE)     ///< anything that can be used to represent data/code at an address
+#define IWID_TEAMS_FILES_WIDGETS (IWID_TEAMS_WORKLISTS|IWID_TEAMS_VAULT_FILES|IWID_TEAMS_LOCAL_FILES|IWID_TEAMS_FILE_HISTORY)
+
+
 #define IWID_ALL           (uint128(0)-1)                                 ///< mask
+
+#define IWID_SNIPPETS_CSR IWID_SNIPPETS_TREE // bw-compat
 
 ///@}
 
@@ -2836,10 +2962,13 @@ inline bool is_chooser_widget(twidget_type_t t)
       || t == BWN_SRCPTHMAP_CSR
       || t == BWN_SRCPTHUND_CSR
       || t == BWN_UNDOHIST
-      || t == BWN_SNIPPETS_CSR
-      || t == BWN_SCRIPTS_CSR;
+      || t == BWN_GIT_REPOS;
 }
 
+inline bool is_teams_widget(twidget_type_t t)
+{
+  return t >= BWN_TEAMS_VAULT_FILES && t <= BWN_TEAMS_OPENED_FILES;
+}
 
 //---------------------------------------------------------------------------
 //      D E B U G G I N G   F U N C T I O N S
@@ -3077,7 +3206,14 @@ inline bool is_action_enabled(action_state_t s)
                                     ///< match the navigator's "Library function",
                                     ///< "Lumina function" and
                                     ///< "External symbol" colors
-#define CHCOL_FORMAT    0x00070000  ///< column format mask
+#define CHCOL_SIZE      0x00060000  ///< human-friendly size (e.g., "1.5 MB").
+                                    ///< uses pretty_print_size() for display,
+                                    ///< raw numeric value for sorting
+#define CHCOL_TIMESTAMP 0x00070000  ///< UTC timestamp (seconds since epoch).
+                                    ///< displayed human-friendly ("Just now",
+                                    ///< "N minutes ago", "HH:mm", or a full
+                                    ///< date) and sorted by the raw value.
+#define CHCOL_FORMAT    0x000F0000  ///< column format mask
 
 #define CHCOL_DEFHIDDEN 0x00100000  ///< column should be hidden by default
 #define CHCOL_DRAGHINT  0x00200000  ///< the column number that will be used
@@ -3085,6 +3221,11 @@ inline bool is_action_enabled(action_state_t s)
                                     ///< label. This should be provided for at
                                     ///< most one column for any given chooser.
 #define OBSOLETE_CHCOL_INODENAME 0x00400000  // Deprecated
+#define CHCOL_CHECKBOX  0x00800000  ///< display a checkbox in this column.
+                                    ///< at most one column per chooser may
+                                    ///< carry this flag. The check state is
+                                    ///< communicated via #CHITEM_CHKST_MASK in
+                                    ///< chooser_item_attrs_t::flags.
 ///@}
 
 
@@ -3096,6 +3237,12 @@ inline bool is_action_enabled(action_state_t s)
 #define CHITEM_UNDER         0x0004 ///< underline the item
 #define CHITEM_STRIKE        0x0008 ///< strikeout the item
 #define CHITEM_GRAY          0x0010 ///< gray out the item
+#define CHITEM_CHKST_MASK        0x0060 ///< check state mask (2 bits), for
+                                    ///< columns with #CHCOL_CHECKBOX.
+                                    ///< values match Qt::CheckState:
+#define   CHITEM_CHKST_UNCHECKED  0x0000 ///<   unchecked
+#define   CHITEM_CHKST_PARTIAL    0x0020 ///<   partially checked
+#define   CHITEM_CHKST_CHECKED    0x0040 ///<   checked
 ///@}
 
 /// \name Chooser title
@@ -3223,8 +3370,9 @@ struct chooser_base_t
   %immutable;
 #endif
 protected:
-  uint8 version = 4;  ///< version of the class
+  uint8 version = 5;  ///< version of the class
                       // 4: extended storage for builtin id from 6 bits to 8
+                      // 5: added checked() for CHCOL_CHECKBOX support
   uint8 reserved = 0;
   uint8 flags2;      ///< \ref CH2_
   int8 builtin_id;
@@ -3561,7 +3709,7 @@ struct chooser_t : public chooser_base_t
   virtual cbret_t idaapi enter(size_t n) newapi
   {
     cbres_t changed = cbres_t(callui(ui_chooser_default_enter, this, &n).i);
-    return cbret_t(n, changed);
+    return cbret_t(ssize_t(n), changed);
   }
 
   /// The chooser needs to be refreshed.
@@ -3630,14 +3778,27 @@ struct chooser_t : public chooser_base_t
   /// \return the index
   virtual size_t idaapi inode_to_index(inode_t /*inode*/) const newapi { return size_t(-1); }
 
+  /// A checkbox was toggled by the user.
+  /// Only called when a column has the #CHCOL_CHECKBOX flag and
+  /// chooser_base_t::version >= 5.
+  /// \param  n            index of the element whose checkbox changed
+  /// \param  check_state  new check state (#CHITEM_CHKST_UNCHECKED,
+  ///                      #CHITEM_CHKST_PARTIAL, or #CHITEM_CHKST_CHECKED)
+  /// \return idx          index of the selected item (cursor)
+  ///         changed      what is changed
+  virtual cbret_t idaapi checked(size_t /*n*/, int /*check_state*/) newapi
+  {
+    return cbret_t();
+  }
+
 protected:
   ssize_t new_sel_after_del(size_t n) const
   {
     size_t cnt = get_count();
     // assert: n < cnt
     return n + 1 < cnt
-         ? n + 1
-         : n - 1; // the last item deleted => no selection
+         ? ssize_t(n + 1)
+         : ssize_t(n - 1); // the last item deleted => no selection
   }
   ssize_t adjust_last_item(size_t n) const
   {
@@ -3645,7 +3806,7 @@ protected:
     if ( cnt == 0 )
       return NO_SELECTION;
     // take in account deleting of the last item(s)
-    return n < cnt ? n : cnt - 1;
+    return ssize_t(n < cnt ? n : cnt - 1);
   }
 };
 
@@ -3788,6 +3949,19 @@ struct chooser_multi_t : public chooser_base_t
   /// \param inode inode of the item
   /// \return the index
   virtual size_t idaapi inode_to_index(inode_t /*inode*/) const newapi { return size_t(-1); }
+
+  /// A checkbox was toggled by the user.
+  /// Only called when a column has the #CHCOL_CHECKBOX flag and
+  /// chooser_base_t::version >= 5.
+  /// \param  n            index of the element whose checkbox changed
+  /// \param  check_state  new check state (#CHITEM_CHKST_UNCHECKED,
+  ///                      #CHITEM_CHKST_PARTIAL, or #CHITEM_CHKST_CHECKED)
+  /// \return idx          index of the selected item (cursor)
+  ///         changed      what is changed
+  virtual cbres_t idaapi checked(size_t /*n*/, int /*check_state*/) newapi
+  {
+    return NOTHING_CHANGED;
+  }
 
 protected:
   // used in the del() callback to iterate
@@ -3938,7 +4112,9 @@ enum custom_viewer_handler_id_t
   CDVH_LINES_LINENUM,        ///< see ::code_viewer_lines_linenum_t
   CDVH_LINES_ICONMARGIN,     ///< see set_code_viewer_lines_icon_margin()
   CDVH_LINES_RADIX,          ///< see set_code_viewer_lines_radix()
-  CDVH_LINES_ALIGNMENT       ///< see set_code_viewer_lines_alignment()
+  CDVH_LINES_ALIGNMENT,      ///< see set_code_viewer_lines_alignment()
+  CDVH_LINES_FOLD_STATE,     ///< see ::code_viewer_fold_state_t
+  CDVH_LINES_FOLD_TOGGLE,    ///< see ::code_viewer_fold_toggle_t
 };
 
 //-------------------------------------------------------------------------
@@ -4312,6 +4488,36 @@ typedef int idaapi code_viewer_lines_icon_t(TWidget *cv, const place_t *p, int *
 
 typedef bool idaapi code_viewer_lines_linenum_t(TWidget *cv, const place_t *p, uval_t *num, void *ud);
 
+/// Collapsible state of a line/place in a UI that supports folding.
+enum place_collapsible_state_t
+{
+  pcs_none = 0,  ///< not foldable
+  pcs_expanded,  ///< foldable and currently expanded
+  pcs_collapsed, ///< foldable and currently collapsed
+};
+
+
+/// Report the fold state for a line.
+/// Called by the UI for each visible line to draw the fold indicator.
+/// \param cv  pointer to the code viewer (nullptr for custom data viewers)
+/// \param p   the line position in the code viewer
+/// \param ud  user data registered with the callbacks
+/// \return the line's fold state
+/// \note Must be paired with ::code_viewer_fold_toggle_t.
+
+typedef place_collapsible_state_t idaapi code_viewer_fold_state_t(TWidget *cv, const place_t *p, void *ud);
+
+
+/// Toggle the fold state for a line.
+/// Invoked when the user clicks the fold indicator.
+/// \param cv  pointer to the code viewer (nullptr for custom data viewers)
+/// \param p   position of the clicked line
+/// \param ud  user data registered with the callbacks
+/// \return true if the fold state changed and the gutter should be repainted
+/// \note Must be paired with ::code_viewer_fold_state_t.
+
+typedef bool idaapi code_viewer_fold_toggle_t(TWidget *cv, const place_t *p, void *ud);
+
 #endif // SWIG
 
 //-------------------------------------------------------------------------
@@ -4369,6 +4575,40 @@ struct input_event_t
 };
 
 //------------------------------------------------------------------------
+struct cli_completion_t
+{
+  qstring text;
+  qstring hint;
+  qstring doc;
+};
+DECLARE_TYPE_AS_MOVABLE(cli_completion_t);
+typedef qvector<cli_completion_t> cli_completion_vec_t;
+
+//-------------------------------------------------------------------------
+struct cli_completions_t
+{
+  size_t cb = sizeof(cli_completions_t);
+  cli_completion_vec_t entries;
+  int match_start = -1;
+  int match_end = -1;
+
+  size_t size() const { return entries.size(); }
+  bool empty() const { return entries.empty(); }
+
+  void clear()
+  {
+    entries.clear();
+    match_start = -1;
+    match_end = -1;
+  };
+
+  void swap(cli_completions_t &r)
+  {
+    entries.swap(r.entries);
+    qswap(match_start, r.match_start);
+    qswap(match_end, r.match_end);
+  }
+};
 
 /// Command line interpreter.
 /// Provides functionality for the command line (located at the bottom of the main window).
@@ -4410,23 +4650,7 @@ struct cli_t
         int *p_vk_key,
         int shift);
 
-  /// Callback: the user pressed Tab/Shift+Tab.
-  /// This callback is optional.
-  /// \param[out] out_completions results of completion
-  /// \param[out] out_hints       one entry per completion result giving hints about the
-  ///                             candidate (function protype, variable type, etc ...)
-  ///                             Either has to be exactly the length of out_completions
-  ///                             or zero length to display no hints.
-  /// \param[out] out_docs        one entry per completion result giving the docstring
-  ///                             of the corresponding item in out_completions.
-  ///                             Either has to be exactly the length of out_completions
-  ///                             or zero length to display no docstrings.
-  /// \param[out] out_match_start the codepoint index in the line, where match starts
-  /// \param[out] out_match_end   the codepoint index in the line, where ends ends
-  /// \param line                 command line
-  /// \param x                    codepoint index of the cursor in line
-  /// \retval true                got results
-  /// \retval false               otherwise
+  /// \deprecated Use find_completions_ex() instead.
   bool (idaapi *find_completions)(
           qstrvec_t *out_completions,
           qstrvec_t *out_hints,
@@ -4435,6 +4659,20 @@ struct cli_t
           int *out_match_end,
           const char *line,
           int x);
+
+  /// Callback: the user pressed Tab/Shift+Tab.
+  /// This callback is optional.
+  /// \param[out] out results of completion
+  /// \param line        command line
+  /// \param x           codepoint index of the cursor in line
+  /// \param max_results maximum number of results back
+  /// \retval true  got results
+  /// \retval false otherwise
+  bool (idaapi *find_completions_ex)(
+          cli_completions_t *out,
+          const char *line,
+          int x,
+          size_t max_results);
 };
 
 //---------------------------------------------------------------------------
@@ -4606,6 +4844,9 @@ struct action_ctx_base_t
     graph_selection = nullptr;
     dirtree_selection = nullptr;
     type_ref = nullptr;
+    cur_seg_info = nullptr;
+    cur_func_info = nullptr;
+    cur_fchunk_info = nullptr;
   }
   TWidget *widget;
   twidget_type_t widget_type;     ///< type of current widget
@@ -4620,13 +4861,15 @@ struct action_ctx_base_t
   /// Check if the given flag is set
   bool has_flag(uint32 flag) const { return (cur_flags & flag) == flag; }
 
-  ea_t cur_ea;           ///< the current EA of the position in the view
+  ea_t cur_ea;           ///< the current EA of the position in the view;
+                         ///< use it to get current segment info, see #ACF_HAS_CURRENT_SEGMENT
+
   uval_t cur_value;      ///< the possible address, or value the cursor is positioned on
 
-  func_t *cur_func;      ///< the current function
-  func_t *cur_fchunk;    ///< the current function chunk
+  func_t *cur_func;      ///< the current function, \deprecated Use cur_func_info for safer access
+  func_t *cur_fchunk;    ///< the current function chunk, \deprecated Use cur_fchunk_info for safer access
 
-  segment_t *cur_seg;    ///< the current segment
+  segment_t *cur_seg;    ///< the current segment, \deprecated Use cur_seg_info for safer access
 
   action_ctx_base_cur_sel_t cur_sel; ///< the currently selected range. also see #ACF_HAS_SELECTION
 
@@ -4638,9 +4881,13 @@ struct action_ctx_base_t
   screen_graph_selection_t *graph_selection; ///< the current graph selection (if in a graph view)
   const selection_item_t *hovered; ///< the current item being hovered (if in a graph view)
 
-  dirtree_selection_t *dirtree_selection; ///< the current dirtree_t selection (if applicable)
+  dirtree_selection_t *dirtree_selection; ///< the current dirtree_t selection (if applicable). For performance reasons, the selection might be limited.
 
   til_type_ref_t *type_ref; ///< a reference to the current type (if 'widget' is a type listing widget; nullptr otherwise)
+
+  segment_info_t *cur_seg_info;      ///< a reference to the current segment info, nullptr otherwise
+  func_entry_info_t *cur_func_info;  ///< a reference to the current function info, nullptr otherwise
+  fchunk_info_t *cur_fchunk_info;    ///< a reference to the the current function chunk info, nullptr otherwise
 };
 
 //-------------------------------------------------------------------------
@@ -4740,6 +4987,7 @@ struct action_desc_t
   int flags;                 ///< See \ref ADF_
 };
 
+
 /// Get an ::action_desc_t instance with the provided plugmod_t as the owner
 /// This is meant for plugins
 #define ACTION_DESC_LITERAL_PLUGMOD(name, label, handler, plgmod, shortcut, tooltip, icon) \
@@ -4790,7 +5038,9 @@ public:
           custom_viewer_adjust_place_t *_adjust_place = nullptr,
           custom_viewer_get_place_xcoord_t *_get_place_xcoord = nullptr,
           custom_viewer_location_changed_t *_location_changed = nullptr,
-          custom_viewer_can_navigate_t *_can_navigate = nullptr)
+          custom_viewer_can_navigate_t *_can_navigate = nullptr,
+          code_viewer_fold_state_t *_fold_state = nullptr,
+          code_viewer_fold_toggle_t *_fold_toggle = nullptr)
     : cb(sizeof(*this)),
       keyboard(_keyboard),
       popup(_popup),
@@ -4804,7 +5054,9 @@ public:
       get_place_xcoord(_get_place_xcoord),
       location_changed(_location_changed),
       can_navigate(_can_navigate),
-      help(_help)
+      help(_help),
+      fold_state(_fold_state),
+      fold_toggle(_fold_toggle)
   {}
   custom_viewer_keydown_t *keyboard;
   custom_viewer_popup_t *popup;
@@ -4819,6 +5071,8 @@ public:
   custom_viewer_location_changed_t *location_changed;
   custom_viewer_can_navigate_t *can_navigate;
   custom_viewer_help_t *help;
+  code_viewer_fold_state_t *fold_state;
+  code_viewer_fold_toggle_t *fold_toggle;
 
   int size() const { return cb; }
 };
@@ -5048,6 +5302,9 @@ inline void gen_disasm_text(text_t &text, ea_t ea1, ea_t ea2, bool truncate_line
 
 
 /// Execute code in the main thread.
+/// In GUI mode the Qt event loop runs the request automatically; in
+/// headless builds (idalib/idat) the main thread must be inside serve()
+/// for queued requests to actually run.
 /// \param req   request specifying the code to execute
 /// \param reqf  \ref MFF_
 /// \return if \ref #MFF_NOWAIT is specified, return the request id.
@@ -5147,6 +5404,8 @@ typedef struct __qtimer_t {} *qtimer_t;
 
 
 /// Register a timer (::ui_register_timer).
+/// GUI-only: in headless builds (idalib/idat) registration fails and
+/// nullptr is returned.
 /// Timer functions are thread-safe and the callback is executed
 /// in the context of the main thread.
 /// \param interval_ms  interval in milliseconds
@@ -5165,12 +5424,39 @@ THREAD_SAFE inline qtimer_t register_timer(
 
 
 /// Unregister a timer (::ui_unregister_timer).
+/// GUI-only: in headless builds (idalib/idat) this always returns false
 /// \param t handle to a registered timer
 /// \return success
 
 THREAD_SAFE inline bool unregister_timer(qtimer_t t)
 {
   return callui(ui_unregister_timer, t).cnd;
+}
+
+
+/// Block the main thread, dispatching queued requests as they arrive
+/// (::ui_serve). Semantically equivalent to Qt's QApplication::exec():
+/// puts the calling thread to sleep on a semaphore that is signaled
+/// whenever something is queued for the main thread
+/// (execute_sync requests from worker threads), dispatches the
+/// queued work, then sleeps again. Returns when stop_serving() is called
+/// In GUI mode this is a no-op because Qt's own event loop
+/// already serves this role. Must be called from the main thread.
+
+inline void serve()
+{
+  callui(ui_serve);
+}
+
+
+/// Ask the serve() loop to return (::ui_stop_serving). Thread-safe;
+/// callable from any thread, including from inside a callback that is
+/// currently running on the main thread under serve(). Has no effect
+/// in GUI mode.
+
+THREAD_SAFE inline void stop_serving()
+{
+  callui(ui_stop_serving);
 }
 
 //-------------------------------------------------------------------------
@@ -5977,11 +6263,26 @@ inline TWidget *get_last_widget(builtin_widgets_mask_t mask=IWID_ALL)
   return (TWidget *)callui(ui_get_last_widget, low(mask), high(mask)).vptr;
 }
 
-/// Open function prototype editor to edit function type and create new type.
+/// Open function prototype editor to edit function type and create new type (::ui_prompt_function_prototype).
 /// Allows to change the function prototype either in the "old" one-liner mode
 /// or in the new multi-line editor, which supports shortcuts, etc.
 /// Note: changes will not apply! It is the caller's job to apply the resulting out_tif and out_name.
-/// Parameters:
+/// \param[out] errbuf   (::qstring *) the output string for errors
+/// \param[out] out_tif  (tinfo_t *) tif for created type
+/// \param[out] out_name (::qstring *) new name of type
+/// \param      func_ea  (::ea_t) function start address
+/// \param      tif      (tinfo_t *) current function type
+/// \param      name     (const char *) function name
+/// \return     true if new type created successfully
+
+inline bool prompt_function_prototype(qstring *errbuf, tinfo_t *out_tif, qstring *out_name, ea_t func_ea, tinfo_t *tif, const char *name)
+{
+  return callui(ui_prompt_function_prototype, errbuf, out_tif, out_name, func_ea, tif, name).cnd;
+}
+
+
+/// \deprecated Use prompt_function_prototype() for safer access.
+/// Open function prototype editor to edit function type and create new type (::ui_obsolete_prompt_function_prototype_2).
 /// \param[out] errbuf - (::qstring *) the output string for errors
 /// \param[out] out_tif - (tinfo_t *) tif for created type
 /// \param[out] out_name - (::qstring *) new name of type
@@ -5990,9 +6291,9 @@ inline TWidget *get_last_widget(builtin_widgets_mask_t mask=IWID_ALL)
 /// \param      name - (const char *) function name
 /// \return     true if new type created successfully
 
-inline bool prompt_function_prototype_ex(qstring *errbuf, tinfo_t *out_tif, qstring *out_name, func_t *pfn, tinfo_t *tif, const char *name)
+DEPRECATED inline bool prompt_function_prototype_ex(qstring *errbuf, tinfo_t *out_tif, qstring *out_name, func_t *pfn, tinfo_t *tif, const char *name)
 {
-  return callui(ui_prompt_function_prototype_ex, errbuf, out_tif, out_name, pfn, tif, name).cnd;
+  return callui(ui_obsolete_prompt_function_prototype_2, errbuf, out_tif, out_name, pfn, tif, name).cnd;
 }
 
 /// Collect tagged sections in a color-tagged line
@@ -6625,13 +6926,26 @@ inline TWidget *open_xrefs_window(ea_t ea)
 }
 
 
+/// Open the frame window for the given function (::ui_open_builtin2).
+/// \param func_ea  function start address
+/// \param offset   offset where the cursor is placed
+/// \return pointer to resulting window if 'func_ea' is a valid function and the window was displayed,  \n
+///                 nullptr otherwise
+
+inline TWidget *open_frame_window_ea(ea_t func_ea, uval_t offset)
+{
+  return (TWidget *) callui(ui_open_builtin2, BWN_FRAME, func_ea, offset).vptr;
+}
+
+
+/// \deprecated Use open_frame_window_ea() for safer access.
 /// Open the frame window for the given function (::ui_open_builtin).
 /// \param pfn     function to analyze
 /// \param offset  offset where the cursor is placed
 /// \return pointer to resulting window if 'pfn' is a valid function and the window was displayed,  \n
 ///                 nullptr otherwise
 
-inline TWidget *open_frame_window(func_t *pfn, uval_t offset)
+DEPRECATED inline TWidget *open_frame_window(func_t *pfn, uval_t offset)
 {
   return (TWidget *) callui(ui_open_builtin, BWN_FRAME, pfn, offset).vptr;
 }
@@ -6687,7 +7001,6 @@ inline TWidget *open_bookmarks_window(TWidget *w)
 {
   return (TWidget *) callui(ui_open_builtin, BWN_BOOKMARKS, w, 0).vptr;
 }
-
 
 ///@}
 
@@ -6754,12 +7067,26 @@ inline ea_t choose_name(const char *title)
 }
 
 
-/// Choose an xref to a stack variable (::ui_choose, ::chtype_name).
+/// Choose an xref to a stack variable (::ui_choose, ::chtype_stkvar_xref_ea).
+/// \param func_ea     function start address
+/// \param stkvar_tid  frame variable TID
+/// \return ea of the selected xref, BADADDR if none selected
+
+inline ea_t choose_stkvar_xref_ea(ea_t func_ea, tid_t stkvar_tid)
+{
+  ea_t ea;
+  callui(ui_choose, chtype_stkvar_xref_ea, &ea, func_ea, stkvar_tid);
+  return ea;
+}
+
+
+/// \deprecated Use choose_stkvar_xref_ea() for safer access.
+/// Choose an xref to a stack variable (::ui_choose, ::chtype_stkvar_xref).
 /// \param pfn         function
 /// \param srkvar_tid  frame variable TID
 /// \return ea of the selected xref, BADADDR if none selected
 
-inline ea_t choose_stkvar_xref(func_t *pfn, tid_t srkvar_tid)
+DEPRECATED inline ea_t choose_stkvar_xref(func_t *pfn, tid_t srkvar_tid)
 {
   ea_t ea;
   callui(ui_choose, chtype_stkvar_xref, &ea, pfn, srkvar_tid);
@@ -6815,6 +7142,18 @@ inline bool choose_enum_by_value(
   return callui(ui_choose, chtype_enum_by_value_and_size, out, default_ord, title, value, nbytes, serial).cnd;
 }
 
+/// Choose a function (::ui_choose, ::chtype_func_ea).
+/// \param title       chooser title
+/// \param default_ea  ea of function to select by default
+/// \return start ea of the selected function, BADADDR if none selected
+
+inline ea_t choose_func_ea(const char *title, ea_t default_ea)
+{
+  return callui(ui_choose, chtype_func_ea, title, default_ea).ea;
+}
+
+
+/// \deprecated Use choose_func_ea() for safer access.
 /// Choose a function (::ui_choose, ::chtype_func).
 /// \param title       chooser title
 /// \param default_ea  ea of function to select by default
@@ -6827,6 +7166,7 @@ inline func_t *choose_func(const char *title, ea_t default_ea)
 
 
 /// Choose a segment (::ui_choose, ::chtype_segm).
+/// \deprecated Use ::chtype_segment for safer access.
 /// \param title       chooser title
 /// \param default_ea  ea of segment to select by default
 /// \return pointer to segment that was selected, nullptr if none selected
@@ -6834,6 +7174,17 @@ inline func_t *choose_func(const char *title, ea_t default_ea)
 inline segment_t *choose_segm(const char *title, ea_t default_ea)
 {
   return callui(ui_choose, chtype_segm, title, default_ea).segptr;
+}
+
+
+/// Choose a segment (::ui_choose, ::chtype_segment).
+/// \param title       chooser title
+/// \param default_ea  ea of segment to select by default
+/// \return pointer to segment that was selected, nullptr if none selected
+
+inline ea_t choose_segment(const char *title, ea_t default_ea)
+{
+  return callui(ui_choose, chtype_segment, title, default_ea).ea;
 }
 
 
@@ -7167,7 +7518,7 @@ THREAD_SAFE AS_PRINTF(1, 2) inline ssize_t info(const char *format, ...)
 {
   va_list va;
   va_start(va, format);
-  size_t rc = vinfo(format, va);
+  ssize_t rc = vinfo(format, va);
   va_end(va);
   return rc;
 }
@@ -7216,6 +7567,38 @@ THREAD_SAFE AS_PRINTF(1, 2) inline int msg(const char *format, ...)
   va_end(va);
   return nbytes;
 }
+
+/// Open a resource using URL-style navigation with ida:// scheme.
+/// \param uri  Resource URI in format: ida://<source>/<idb-name>/<resource>?<params>
+///
+///             Source:
+///               - identifies the data source (currently only used by hcli)
+///               - empty source (ida:///...) matches any source
+///               \note The source concept may evolve in future versions.
+///
+///             Resources:
+///               - functions, addresses, strings, segments
+///               - names, imports, exports, types, bookmarks
+///
+///             Parameters:
+///               - rva=ADDRESS: relative virtual address, offset from imagebase
+///                              (required for most resources, mutually exclusive with ea)
+///               - ea=ADDRESS: absolute target address
+///                              (mutually exclusive with rva)
+///               - name=STRING: type name (required for types resource)
+///               - view=TYPE: target view (disasm, pseudocode, hexdump, graph,
+///                            functions, segments, names, imports,
+///                            exports, strings, types, bookmarks)
+///
+///             Examples:
+///               - ida:///myfile.i64/functions?rva=0x1000&view=pseudocode
+///               - ida:///myfile.i64/types?name=MyStruct&view=types
+///               - ida:///addresses?ea=0x401000 (current source, current IDB)
+///               - ida:///myfile.i64/functions?rva=0x1000 (current source, specific IDB)
+///
+/// \return true on success, false on failure (displays warning dialog on error)
+
+inline bool open_ida_link(const char *uri) { return callui(ui_open_ida_link, uri).cnd; }
 
 #ifndef SWIG
 
@@ -7822,6 +8205,7 @@ AS_PRINTF(2, 3) inline int ask_yn(int deflt, const char *format, ...)
 /// \note for all buttons:
 ///   - use "" or nullptr to take the default name for the button.
 ///   - prepend "HIDECANCEL\n" in 'format' to hide the Cancel button
+///   - prepend "HIDENO\n" in 'format' to hide the No button
 ///
 /// \param Yes     text for the first button
 /// \param No      text for the second button
@@ -7881,6 +8265,11 @@ AS_PRINTF(5, 6) inline int ask_buttons(
   To hide the cancel button the following keyword can be used:
 
   HIDECANCEL
+
+  To hide the No button (e.g., when only Yes/Cancel semantics are wanted),
+  the following keyword can be used:
+
+  HIDENO
 
   To enable rich text (i.e., HTML) in the Qt version of IDA,
   the following keyword can be used:

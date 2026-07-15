@@ -198,20 +198,18 @@ static const asm_t *const asms[] = { &motasm, &gas, nullptr };
 //----------------------------------------------------------------------
 ea_t dsp56k_t::AdditionalSegment(asize_t size, int offset, const char *name) const
 {
-  segment_t s;
   int step = is561xx() ? 0xF : 0x1000000-1;
-  s.start_ea = find_free_chunk(0x1000000, size, step);
-  s.end_ea   = s.start_ea + size;
-  s.sel     = allocate_selector((s.start_ea-offset) >> 4);
-  s.type    = SEG_DATA;
-  s.bitness = ph.dnbits > 16;
-  add_segm_ex(&s, name, "DATA", ADDSEG_NOSREG|ADDSEG_OR_DIE);
-  return s.start_ea - offset;
-}
-
-inline ea_t get_start(const segment_t *s)
-{
-  return s ? s->start_ea : BADADDR;
+  ea_t start = find_free_chunk(0x1000000, size, step);
+  segment_info_t si;
+  si.start_ea = start;
+  si.end_ea   = start + size;
+  si.set_sel(allocate_selector((start-offset) >> 4));
+  si.set_bitness(ph.dnbits > 16);
+  si.set_type(SEG_DATA);
+  si.set_name(name);
+  si.set_sclass("DATA");
+  add_segment_ex(&si, ADDSEG_NOSREG|ADDSEG_OR_DIE);
+  return start - offset;
 }
 
 //--------------------------------------------------------------------------
@@ -308,9 +306,9 @@ void dsp56k_t::set_cpu(int procno)
 //----------------------------------------------------------------------
 void dsp56k_t::load_from_idb()
 {
-  xmem = get_start(get_segm_by_name("XMEM"));
+  xmem = get_segment_ea_by_name("XMEM");
   if ( !is561xx() )
-    ymem = get_start(get_segm_by_name("YMEM"));
+    ymem = get_segment_ea_by_name("YMEM");
   ioh.restore_device();
 }
 
@@ -340,9 +338,9 @@ ssize_t idaapi dsp56k_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_newfile:      // new file loaded
       {
         // data memory could already be present, check it
-        xmem = get_start(get_segm_by_name("XMEM"));
+        xmem = get_segment_ea_by_name("XMEM");
         if ( !is561xx() )
-          ymem = get_start(get_segm_by_name("YMEM"));
+          ymem = get_segment_ea_by_name("YMEM");
 
         char cfgfile[QMAXFILE];
         ioh.get_cfg_filename(cfgfile, sizeof(cfgfile));
@@ -407,19 +405,19 @@ ssize_t idaapi dsp56k_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
+    case processor_t::ev_out_segment_end:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        segend(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        segend(*ctx, ea);
         return 1;
       }
 

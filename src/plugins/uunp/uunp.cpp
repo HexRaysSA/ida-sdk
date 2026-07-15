@@ -1,3 +1,5 @@
+#ifndef UUNP_CPP
+#define UUNP_CPP
 // Universal Unpacker based on IDA debugger 1.2
 // Unpacks PE files
 
@@ -141,11 +143,11 @@ static void move_entry(uunp_ctx_t &ctx, ea_t rstart)
   add_entry(rstart, rstart, "start", true);
   ctx.success = true;
 
-  segment_t *ps = getseg(rstart);
-  if ( ps != nullptr )
+  segment_info_t si;
+  if ( get_segment_info(&si, rstart) )
   {
-    ps->set_loader_segm(true);
-    ps->update();
+    si.set_loader_segm(true);
+    set_segment_info(&si);
   }
 }
 
@@ -183,18 +185,17 @@ static bool find_module(ea_t ea, modinfo_t *mi)
 //--------------------------------------------------------------------------
 static bool create_idata_segm(const range_t &impdir)
 {
-  segment_t ns;
-  segment_t *s = getseg(impdir.start_ea);
-  if ( s != nullptr )
-    ns = *s;
-  else
-    ns.sel = setup_selector(0);
+  segment_info_t si;
+  if ( !get_segment_info(&si, impdir.start_ea) )
+    si.set_sel(setup_selector(0));
 
-  ns.start_ea = impdir.start_ea;
-  ns.end_ea   = impdir.end_ea;
-  ns.type     = SEG_XTRN;
-  ns.set_loader_segm(true);
-  bool ok = add_segm_ex(&ns, ".idata", "XTRN", ADDSEG_NOSREG) != 0;
+  si.start_ea = impdir.start_ea;
+  si.end_ea   = impdir.end_ea;
+  si.set_type(SEG_XTRN);
+  si.set_loader_segm(true);
+  si.set_name(".idata");
+  si.set_sclass("XTRN");
+  bool ok = add_segment_ex(&si, ADDSEG_NOSREG) != 0;
   if ( !ok )
     ok = ask_yn(ASKBTN_NO,
                 "HIDECANCEL\n"
@@ -633,6 +634,19 @@ FORCE_STOP:
 }
 
 //--------------------------------------------------------------------------
+ssize_t idaapi idp_listener_t::on_event(ssize_t code, va_list va)
+{
+  switch ( code )
+  {
+    case processor_t::ev_create_merge_handlers:
+      {
+        merge_data_t *md = va_arg(va, merge_data_t *);
+        create_merge_handlers(*md);
+      }
+      break;
+  }
+  return 0;
+}
 
 //--------------------------------------------------------------------------
 // 0 - run uunp interactively
@@ -652,11 +666,11 @@ bool idaapi uunp_ctx_t::run(size_t arg)
     {
       // Populate default values
       oep = get_screen_ea();
-      segment_t *s = getseg(oep);
-      if ( s != nullptr )
+      segment_info_t seg;
+      if ( get_segment_info(&seg, oep) )
       {
-        oep_range.start_ea = s->start_ea;
-        oep_range.end_ea = s->end_ea;
+        oep_range.start_ea = seg.start_ea;
+        oep_range.end_ea = seg.end_ea;
       }
     }
     else
@@ -719,11 +733,12 @@ bool idaapi uunp_ctx_t::run(size_t arg)
   }
 
   // Determine the original entry point range
-  for ( segment_t *s = get_first_seg(); s != nullptr; s=get_next_seg(s->start_ea) )
+  for ( ea_t seg_ea = get_first_segment_ea(); seg_ea != BADADDR; seg_ea = get_next_segment_ea(seg_ea) )
   {
-    if ( s->type != SEG_GRP )
+    segment_info_t seg;
+    if ( get_segment_info(&seg, seg_ea) && seg.get_type() != SEG_GRP )
     {
-      oep_range = *s;
+      oep_range = seg;
       break;
     }
   }
@@ -805,6 +820,7 @@ static plugmod_t *idaapi init()
 //--------------------------------------------------------------------------
 uunp_ctx_t::uunp_ctx_t()
 {
+  hook_event_listener(HT_IDP, &idp_listener);
   set_module_data(&data_id, this);
 }
 
@@ -847,3 +863,4 @@ plugin_t PLUGIN =
   wanted_name,          // the preferred short name of the plugin
   ""                    // the preferred hotkey to run the plugin
 };
+#endif // UUNP_CPP

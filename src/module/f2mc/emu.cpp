@@ -124,9 +124,9 @@ void f2mc_t::handle_operand(const insn_t &insn, const op_t &x, bool use)
       process_imm(insn, x);
       if ( may_create_stkvars() && x.reg == RW3 )
       {
-        func_t *pfn = get_func(insn.ea);
-        if ( pfn != nullptr
-          && (pfn->flags & FUNC_FRAME) != 0
+        ea_t func_ea = get_func_start(insn.ea);
+        if ( func_ea != BADADDR
+          && (get_func_flags(func_ea) & FUNC_FRAME) != 0
           && insn.create_stkvar(x, x.addr, STKVAR_VALID_SIZE) )
         {
           op_stkvar(insn.ea, x.n);
@@ -140,16 +140,16 @@ void f2mc_t::handle_operand(const insn_t &insn, const op_t &x, bool use)
 }
 
 //----------------------------------------------------------------------
-inline bool add_stkpnt(func_t *pfn, sval_t delta, const insn_t &insn)
+inline bool add_stkpnt(ea_t func_ea, sval_t delta, const insn_t &insn)
 {
-  return add_auto_stkpnt(pfn, insn.ea + insn.size, delta);
+  return add_func_auto_stkpnt(func_ea, insn.ea + insn.size, delta);
 }
 
 //----------------------------------------------------------------------
 static void trace_sp(const insn_t &insn)
 {
-  func_t *pfn = get_func(insn.ea);
-  if ( pfn == nullptr )
+  ea_t func_ea = get_func_start(insn.ea);
+  if ( func_ea == BADADDR )
     return;
 
   switch ( insn.itype )
@@ -157,37 +157,37 @@ static void trace_sp(const insn_t &insn)
     case F2MC_int:
     case F2MC_intp:
     case F2MC_int9:
-      add_stkpnt(pfn, -6*2, insn);
+      add_stkpnt(func_ea, -6*2, insn);
       break;
     case F2MC_reti:
-      add_stkpnt(pfn, 6*2, insn);
+      add_stkpnt(func_ea, 6*2, insn);
       break;
     case F2MC_link:
-      add_stkpnt(pfn, -2-insn.Op1.value, insn);
+      add_stkpnt(func_ea, -2-insn.Op1.value, insn);
       break;
     case F2MC_unlink:
-      add_stkpnt(pfn, -get_spd(pfn, insn.ea), insn);
+      add_stkpnt(func_ea, -get_func_spd(func_ea, insn.ea), insn);
       break;
     case F2MC_ret:
-      add_stkpnt(pfn, 2, insn);
+      add_stkpnt(func_ea, 2, insn);
       break;
     case F2MC_retp:
-      add_stkpnt(pfn, 2*2, insn);
+      add_stkpnt(func_ea, 2*2, insn);
       break;
     case F2MC_pushw:
       if ( insn.Op1.type == o_reglist )
-        add_stkpnt(pfn, -get_reglist_size(insn.Op1.reg)*2, insn);
+        add_stkpnt(func_ea, -get_reglist_size(insn.Op1.reg)*2, insn);
       else
-        add_stkpnt(pfn, -2, insn);
+        add_stkpnt(func_ea, -2, insn);
       break;
     case F2MC_popw:
       if ( insn.Op1.type == o_reglist )
-        add_stkpnt(pfn, get_reglist_size(insn.Op1.reg)*2, insn);
+        add_stkpnt(func_ea, get_reglist_size(insn.Op1.reg)*2, insn);
       else
-        add_stkpnt(pfn, 2, insn);
+        add_stkpnt(func_ea, 2, insn);
       break;
     case F2MC_addsp:
-      add_stkpnt(pfn, insn.Op1.value, insn);
+      add_stkpnt(func_ea, insn.Op1.value, insn);
       break;
   }
 }
@@ -265,14 +265,15 @@ int f2mc_t::emu(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
-bool idaapi create_func_frame(func_t *pfn)
+bool idaapi create_func_frame(ea_t func_ea)
 {
-  if ( pfn != nullptr )
+  func_entry_info_t fi;
+  if ( get_func_entry_info(&fi, func_ea) )
   {
-    if ( pfn->frame == BADNODE )
+    if ( fi.get_frame_id() == BADNODE )
     {
-      ea_t ea = pfn->start_ea;
-      if ( ea + 4 < pfn->end_ea ) // minimum 2+1+1 bytes needed
+      ea_t ea = func_ea;
+      if ( ea + 4 < fi.end_ea ) // minimum 2+1+1 bytes needed
       {
         insn_t insn;
         decode_insn(&insn, ea);
@@ -281,8 +282,8 @@ bool idaapi create_func_frame(func_t *pfn)
           size_t localsize = (size_t)insn.Op1.value;
           ushort regsize   = 2;
           decode_insn(&insn, ea + 2);
-          pfn->flags |= FUNC_FRAME;
-          return add_frame(pfn, localsize, regsize, 0);
+          set_func_flag(func_ea, FUNC_FRAME);
+          return add_frame_ea(func_ea, localsize, regsize, 0);
         }
       }
     }

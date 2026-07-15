@@ -5,12 +5,13 @@
 //----------------------------------------------------------------------------
 static void map_io_seg(ea_t start, ea_t end, const char *const name)
 {
-  segment_t s;
+  segment_info_t s;
   s.start_ea = start;
   s.end_ea   = end;
-  s.type    = SEG_IMEM;
-  s.sel     = allocate_selector(start >> 4);
-  if ( !add_segm_ex(&s, name, nullptr, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+  s.set_type(SEG_IMEM);
+  s.set_sel(allocate_selector(start >> 4));
+  s.set_name(name);
+  if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
     loader_failure("Failed adding %s segment\n", name);
 }
 
@@ -30,15 +31,16 @@ static void map_hwregs()
 //----------------------------------------------------------------------------
 static void map_wram()
 {
-  segment_t s;
+  segment_info_t s;
   s.start_ea = 0x7e0000;
   s.end_ea   = 0x800000;
-  s.type    = SEG_IMEM;
-  s.sel     = allocate_selector(s.start_ea >> 4);
+  s.set_type(SEG_IMEM);
+  s.set_sel(allocate_selector(s.start_ea >> 4));
 
   char seg_name[0x10];
   qsnprintf(seg_name, sizeof(seg_name), "wram");
-  if ( !add_segm_ex(&s, seg_name, nullptr, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+  s.set_name(seg_name);
+  if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
     loader_failure("Failed adding %s segment\n", seg_name);
 }
 
@@ -57,15 +59,17 @@ static void map_lorom_sram_offset(uint32 ram_size, uint8 start_bank)
     if ( bank == 0x7e )
       bank = 0xfe;
 
-    segment_t s;
+    segment_info_t s;
     s.start_ea = uint32(bank << 16);
     s.end_ea   = s.start_ea + bank_size;
-    s.type    = SEG_IMEM;
-    s.sel     = allocate_selector(s.start_ea >> 4);
+    s.set_type(SEG_IMEM);
+    s.set_sel(allocate_selector(s.start_ea >> 4));
 
     char seg_name[0x10];
     qsnprintf(seg_name, sizeof(seg_name), ".%02X", bank);
-    if ( !add_segm_ex(&s, seg_name, "BANK_RAM", ADDSEG_NOSREG|ADDSEG_SPARSE) )
+    s.set_name(seg_name);
+    s.set_sclass("BANK_RAM");
+    if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
       loader_failure("Failed adding %s segment\n", seg_name);
   }
 }
@@ -78,15 +82,17 @@ static void map_hirom_sram_offset(uint32 ram_size, uint8 start_bank)
   uint32 ram_chunks = (ram_size + bank_size - 1) / bank_size;
   for ( uint32 mapped = 0, bank = start_bank; mapped < ram_chunks; bank++, mapped++ )
   {
-    segment_t s;
+    segment_info_t s;
     s.start_ea = uint32((bank << 16) + 0x6000);
     s.end_ea   = s.start_ea + bank_size;
-    s.type    = SEG_IMEM;
-    s.sel     = allocate_selector(s.start_ea >> 4);
+    s.set_type(SEG_IMEM);
+    s.set_sel(allocate_selector(s.start_ea >> 4));
 
     char seg_name[0x10];
     qsnprintf(seg_name, sizeof(seg_name), ".%02X", bank);
-    if ( !add_segm_ex(&s, seg_name, "BANK_RAM", ADDSEG_NOSREG|ADDSEG_SPARSE) )
+    s.set_name(seg_name);
+    s.set_sclass("BANK_RAM");
+    if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
       loader_failure("Failed adding %s segment\n", seg_name);
   }
 }
@@ -113,15 +119,17 @@ static void map_superfx_sram(uint32 ram_size)
   uint32 ram_chunks = (ram_size + bank_size - 1) / bank_size;
   for ( uint32 mapped = 0, bank = 0x70; mapped < ram_chunks; bank++, mapped++ )
   {
-    segment_t s;
+    segment_info_t s;
     s.start_ea = uint32(bank << 16);
     s.end_ea   = s.start_ea + bank_size;
-    s.type    = SEG_IMEM;
-    s.sel     = allocate_selector(s.start_ea >> 4);
+    s.set_type(SEG_IMEM);
+    s.set_sel(allocate_selector(s.start_ea >> 4));
 
     char seg_name[0x10];
     qsnprintf(seg_name, sizeof(seg_name), ".%02X", bank);
-    if ( !add_segm_ex(&s, seg_name, "BANK_RAM", ADDSEG_NOSREG|ADDSEG_SPARSE) )
+    s.set_name(seg_name);
+    s.set_sclass("BANK_RAM");
+    if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
       loader_failure("Failed adding %s segment\n", seg_name);
   }
 }
@@ -129,15 +137,16 @@ static void map_superfx_sram(uint32 ram_size)
 //----------------------------------------------------------------------------
 static void map_superfx_workram()
 {
-  segment_t s;
+  segment_info_t s;
   s.start_ea = 0x6000;
   s.end_ea   = 0x8000;
-  s.type    = SEG_IMEM;
-  s.sel     = allocate_selector(s.start_ea >> 4);
+  s.set_type(SEG_IMEM);
+  s.set_sel(allocate_selector(s.start_ea >> 4));
 
   char seg_name[0x10];
   qsnprintf(seg_name, sizeof(seg_name), "sfxram");
-  if ( !add_segm_ex(&s, seg_name, nullptr, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+  s.set_name(seg_name);
+  if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
     loader_failure("Failed adding %s segment\n", seg_name);
 }
 
@@ -155,15 +164,17 @@ static void map_sa1_bwram(uint32 ram_size)
   uint32 ram_chunks = (ram_size + bank_size - 1) / bank_size;
   for ( uint32 mapped = 0, bank = 0x40; mapped < ram_chunks; bank++, mapped++ )
   {
-    segment_t s;
+    segment_info_t s;
     s.start_ea = uint32(bank << 16);
     s.end_ea   = s.start_ea + bank_size;
-    s.type    = SEG_IMEM;
-    s.sel     = allocate_selector(s.start_ea >> 4);
+    s.set_type(SEG_IMEM);
+    s.set_sel(allocate_selector(s.start_ea >> 4));
 
     char seg_name[0x10];
     qsnprintf(seg_name, sizeof(seg_name), ".%02X", bank);
-    if ( !add_segm_ex(&s, seg_name, "BANK_RAM", ADDSEG_NOSREG|ADDSEG_SPARSE) )
+    s.set_name(seg_name);
+    s.set_sclass("BANK_RAM");
+    if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
       loader_failure("Failed adding %s segment\n", seg_name);
   }
 }
@@ -171,15 +182,16 @@ static void map_sa1_bwram(uint32 ram_size)
 //----------------------------------------------------------------------------
 static void map_sa1_iram()
 {
-  segment_t s;
+  segment_info_t s;
   s.start_ea = 0x3000;
   s.end_ea   = 0x3800;
-  s.type    = SEG_IMEM;
-  s.sel     = allocate_selector(s.start_ea >> 4);
+  s.set_type(SEG_IMEM);
+  s.set_sel(allocate_selector(s.start_ea >> 4));
 
   char seg_name[0x10];
   qsnprintf(seg_name, sizeof(seg_name), "iram");
-  if ( !add_segm_ex(&s, seg_name, nullptr, ADDSEG_NOSREG|ADDSEG_SPARSE) )
+  s.set_name(seg_name);
+  if ( !add_segment_ex(&s, ADDSEG_NOSREG|ADDSEG_SPARSE) )
     loader_failure("Failed adding %s segment\n", seg_name);
 }
 

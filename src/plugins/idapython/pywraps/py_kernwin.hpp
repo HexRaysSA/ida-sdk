@@ -362,6 +362,18 @@ static PyObject *py_restore_database_snapshot(
 }
 
 //------------------------------------------------------------------------
+// Release the GIL while serve() is blocked on its internal semaphore;
+// otherwise worker threads can't acquire the GIL to call execute_sync /
+// stop_serving / etc., and the loop deadlocks.
+static void py_serve()
+{
+  PYW_GIL_CHECK_LOCKED_SCOPE();
+  SWIG_PYTHON_THREAD_BEGIN_ALLOW;
+  serve();
+  SWIG_PYTHON_THREAD_END_ALLOW;
+}
+
+//------------------------------------------------------------------------
 static ssize_t py_execute_sync(PyObject *callable, int reqf)
 {
   PYW_GIL_CHECK_LOCKED_SCOPE();

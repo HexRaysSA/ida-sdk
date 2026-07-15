@@ -761,7 +761,7 @@ THREAD_SAFE inline void append_regval(bytevec_t &s, const regval_t &value)
   else if ( value.rvtype != RVT_UNAVAILABLE )
   {
     const bytevec_t &b = value.bytes();
-    s.pack_dd(b.size());
+    s.pack_dd(uint32(b.size()));
     s.append(b.begin(), b.size());
   }
 }
@@ -936,6 +936,10 @@ enum drc_t
   DRC_NOCHG  = -6,  ///< no changes
   DRC_ERROR  = -7,  ///< unclassified error, may be complemented by errbuf
 };
+
+#ifndef IDA_DBG_VALIDATE_REG_IDX
+#define IDA_DBG_VALIDATE_REG_IDX(idx, n) ((void)0)
+#endif
 
 //====================================================================
 /// This structure describes a debugger API module.
@@ -1140,6 +1144,7 @@ struct debugger_t
   // A function for accessing the 'registers' array
   inline register_info_t &regs(int idx)
   {
+    IDA_DBG_VALIDATE_REG_IDX(idx, nregisters);
     return registers[idx];
   }
 

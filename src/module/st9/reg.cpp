@@ -769,6 +769,10 @@ static ssize_t idaapi notify(void *, int msgid, va_list)
   return 0;
 }
 
+// forward declarations for event handlers
+static void gnu_func_header(outctx_t &ctx, ea_t func_ea);
+static void gnu_func_footer(outctx_t &ctx, ea_t func_ea);
+
 //----------------------------------------------------------------------
 // The kernel event notifications
 // Here you may take desired actions upon some kernel events
@@ -794,11 +798,12 @@ ssize_t idaapi st9_t::on_event(ssize_t msgid, va_list va)
         && ask_yn(ASKBTN_YES,
                   "Do you want to split the loaded file contents into 64K banks?") == ASKBTN_YES )
       {
-        segment_t *s = get_first_seg();
-        if ( s != nullptr )
+        segment_info_t si;
+        ea_t seg_ea = get_first_segment_ea();
+        if ( seg_ea != BADADDR && get_segment_info(&si, seg_ea) )
         {
-          ssize_t total = (ssize_t)s->size();
-          ea_t ea = s->start_ea;
+          ssize_t total = (ssize_t)(si.end_ea - si.start_ea);
+          ea_t ea = si.start_ea;
           // align the segment start at the memory bank start
           if ( (ea & 0xFFFF) != 0 )
           {
@@ -815,19 +820,21 @@ ssize_t idaapi st9_t::on_event(ssize_t msgid, va_list va)
             if ( total <= 0 )
               break;
             add_segm(ea>>4, ea, ea+total, nullptr, "CODE");
-            s = getseg(ea);
-            if ( !s->is_16bit() )
+            if ( get_segment_info(&si, ea) && !si.is_16bit() )
             {
-              s->bitness = 0;   // use 16-bit segments
-              s->update();
+              si.set_bitness(0);    // use 16-bit segments
+              set_segment_info(&si);
             }
           }
         }
         // check that a segment at 0...10000 exists
         // if not, create it
-        s = get_first_seg();
-        if ( s == nullptr || s->start_ea > 0x10000 )
+        seg_ea = get_first_segment_ea();
+        if ( seg_ea == BADADDR
+          || (get_segment_info(&si, seg_ea) && si.start_ea > 0x10000) )
+        {
           add_segm(0, 0, 0x10000, nullptr, "DATA");
+        }
       }
       // select_device(inf_like_binary() ? IORESP_ALL : (IORESP_ALL & ~IORESP_AREA));
       // file_loaded = true;
@@ -840,12 +847,12 @@ ssize_t idaapi st9_t::on_event(ssize_t msgid, va_list va)
       load_from_idb();
       break;
 
-    case processor_t::ev_creating_segm:
+    case processor_t::ev_creating_segment:
       {
-        segment_t *s = va_arg(va, segment_t *);
+        segment_info_t *si = va_arg(va, segment_info_t *);
         // set RW/RP segment registers initial values
-        s->defsr[rRW-ph.reg_first_sreg] = 0;
-        s->defsr[rRP-ph.reg_first_sreg] = BADSEL;
+        si->set_defsr(rRW-ph.reg_first_sreg, 0);
+        si->set_defsr(rRP-ph.reg_first_sreg, BADSEL);
       }
       break;
 
@@ -870,11 +877,11 @@ ssize_t idaapi st9_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        st9_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        st9_segstart(*ctx, ea);
         return 1;
       }
 
@@ -911,12 +918,36 @@ ssize_t idaapi st9_t::on_event(ssize_t msgid, va_list va)
         return out_opnd(*ctx, *op) ? 1 : -1;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
+
+    case processor_t::ev_out_function_header:
+      {
+        outctx_t *ctx = va_arg(va, outctx_t *);
+        ea_t func_ea = va_arg(va, ea_t);
+        if ( streq(ASH.name, "ST9 GNU Assembler") )
+        {
+          gnu_func_header(*ctx, func_ea);
+          return 1;
+        }
+      }
+      break;
+
+    case processor_t::ev_out_function_footer:
+      {
+        outctx_t *ctx = va_arg(va, outctx_t *);
+        ea_t func_ea = va_arg(va, ea_t);
+        if ( streq(ASH.name, "ST9 GNU Assembler") )
+        {
+          gnu_func_footer(*ctx, func_ea);
+          return 1;
+        }
+      }
+      break;
 
     case processor_t::ev_set_idp_options:
       {
@@ -999,30 +1030,30 @@ ssize_t idaapi st9_t::on_event(ssize_t msgid, va_list va)
 //
 
 // gets a function name
-static bool gnu_get_func_name(qstring *name, const func_t *pfn)
+static bool gnu_get_func_name(qstring *name, ea_t func_ea)
 {
-  ea_t ea = pfn->start_ea;
-  if ( get_demangled_name(name, ea, inf_get_long_demnames(), DEMNAM_NAME) <= 0 )
+  if ( get_demangled_name(name, func_ea, inf_get_long_demnames(), DEMNAM_NAME) <= 0 )
     return false;
 
-  tag_addr(name, ea, true);
+  tag_addr(name, func_ea, true);
   return true;
 }
 
 //----------------------------------------------------------------------
 // prints function header
-static void idaapi gnu_func_header(outctx_t &ctx, func_t *pfn)
+static void gnu_func_header(outctx_t &ctx, ea_t func_ea)
 {
-  ctx.gen_func_header(pfn);
+  ctx.gen_function_header(func_ea);
 
   qstring name;
-  if ( gnu_get_func_name(&name, pfn) )
+  if ( gnu_get_func_name(&name, func_ea) )
   {
+    bool is_far = (get_func_flags(func_ea) & FUNC_FAR) != 0;
     int saved_flags = ctx.forbid_annotations();
     ctx.gen_printf(DEFAULT_INDENT,
                     COLSTR(".desc %s, %s", SCOLOR_ASMDIR),
                     name.begin(),
-                    pfn->is_far() ? "far" : "near");
+                    is_far ? "far" : "near");
     ctx.restore_ctxflags(saved_flags);
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".proc %s", SCOLOR_ASMDIR), name.begin());
     ctx.ctxflags |= CTXF_LABEL_OK;
@@ -1032,11 +1063,10 @@ static void idaapi gnu_func_header(outctx_t &ctx, func_t *pfn)
 
 //----------------------------------------------------------------------
 // prints function footer
-//lint -esym(818,pfn)
-static void idaapi gnu_func_footer(outctx_t &ctx, func_t *pfn)
+static void gnu_func_footer(outctx_t &ctx, ea_t func_ea)
 {
   qstring name;
-  if ( gnu_get_func_name(&name, pfn) )
+  if ( gnu_get_func_name(&name, func_ea) )
   {
     ctx.gen_printf(DEFAULT_INDENT, COLSTR(".endproc", SCOLOR_ASMDIR) COLSTR("%s %s", SCOLOR_ASMDIR), ASH.cmnt, name.begin());
   }
@@ -1088,8 +1118,8 @@ static const asm_t gnu_asm =
   "equ",        // Equ
   nullptr,         // seg prefix
   "$",          // current IP (instruction pointer) symbol in assembler
-  gnu_func_header,     // func_header
-  gnu_func_footer,     // func_footer
+  nullptr,             // func_header (handled by ev_out_function_header)
+  nullptr,             // func_footer (handled by ev_out_function_footer)
   ".global",    // public
   nullptr,         // weak
   nullptr,         // extrn

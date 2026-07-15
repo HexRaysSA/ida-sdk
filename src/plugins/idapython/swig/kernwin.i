@@ -36,6 +36,10 @@ struct dirspec_t;
 %rename (request_refresh) py_request_refresh;
 %ignore is_refresh_requested;
 %rename (is_refresh_requested) py_is_refresh_requested;
+
+// Split the deprecated func_t* overload of prompt_function_prototype so
+// pywraps/py_kernwin.py can route deprecated callers via `_deprecated_overload`.
+%rename(_prompt_function_prototype_pfn) prompt_function_prototype(qstring *, tinfo_t *, func_t *, tinfo_t *, const char *);
 %ignore vask_form;
 %ignore ask_form;
 %ignore open_form;
@@ -166,6 +170,9 @@ struct dirspec_t;
 %ignore execute_sync;
 %ignore exec_request_t;
 %rename (execute_sync) py_execute_sync;
+
+%ignore serve;
+%rename (serve) py_serve;
 
 %ignore ea2str(char *, size_t, ea_t);
 
@@ -401,6 +408,7 @@ SWIG_DECLARE_PY_CLINKED_OBJECT(textctrl_info_t)
 %template(sections_lines_refs_t) qvector<section_lines_refs_t>;
 
 %uncomparable_elements_qvector(twinline_t, text_t);
+%uncomparable_elements_qvector(cli_completion_t, cli_completion_vec_t);
 
 %ignore qvector<sync_source_t>::grow;
 %ignore qvector<sync_source_t>::resize;

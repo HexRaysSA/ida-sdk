@@ -42,13 +42,12 @@ static void print_location(qstring *buf, const vdloc_t &vdloc)
 //--------------------------------------------------------------------------
 bool idaapi plugin_ctx_t::run(size_t)
 {
-  func_t *pfn = get_func(get_screen_ea());
-  if ( pfn == nullptr )
+  ea_t entry_ea = get_func_start(get_screen_ea());
+  if ( entry_ea == BADADDR )
   {
     warning("AUTOHIDE NONE\nPlease move the cursor into a function");
     return true;
   }
-  ea_t entry_ea = pfn->start_ea;
   msg("Dump of user-defined information for function at %a\n", entry_ea);
 
   // Display user defined labels.

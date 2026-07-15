@@ -73,14 +73,12 @@ int calc_opdispl_flags(const insn_t &insn);
 
 void idaapi h8500_header(outctx_t &ctx);
 
-void idaapi h8500_segend(outctx_t &ctx, segment_t *seg);
 
 int  idaapi is_align_insn(ea_t ea);
-bool idaapi create_func_frame(func_t *pfn);
+bool idaapi create_func_frame(ea_t func_ea);
 int  idaapi is_sp_based(const insn_t &insn, const op_t &x);
 
-int idaapi h8500_get_frame_retsize(const func_t *);
-int is_jump_func(const func_t *pfn, ea_t *jump_target);
+int idaapi h8500_get_frame_retsize(ea_t func_ea);
 int is_sane_insn(const insn_t &insn, int nocrefs);
 int may_be_func(const insn_t &insn); // can a function start here?
 
@@ -112,7 +110,7 @@ struct h8500_t : public procmod_t
   int h8500_emu(const insn_t &insn);
 
   void h8500_assume(outctx_t &ctx);
-  void h8500_segstart(outctx_t &ctx, segment_t *Srange) const;
+  void h8500_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void h8500_footer(outctx_t &ctx) const;
 
   void save_idpflags() { helper.altset(-1, idpflags); }

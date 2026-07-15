@@ -3090,8 +3090,8 @@ OPS_FII:
     if ( displ_op->type == o_mem )
     {
       // truncate address to 32 bits if needed
-      segment_t *s = getseg(displ_op->addr);
-      if ( s == nullptr || !s->is_64bit() )
+      segment_info_t si;
+      if ( !get_segment_info(&si, displ_op->addr) || !si.is_64bit() )
         displ_op->addr = uint32(displ_op->addr);
     }
 #endif
@@ -3189,10 +3189,10 @@ bool nec850_t::is_reg_used_after_insn(
   if ( reg == def_reg )
     return false;
 
-  const segment_t *seg = getseg(start.ea);
-  if ( seg == nullptr )
+  segment_info_t si;
+  if ( !get_segment_info(&si, start.ea) )
     return true;
-  ea_t end_ea = seg->end_ea;
+  ea_t end_ea = si.end_ea;
   if ( end_ea - start.ea <= start.size )
     return true;
   ea_t ea = start.ea + start.size;
@@ -3208,7 +3208,7 @@ bool nec850_t::is_reg_used_after_insn(
         && insn.Op1.type == o_near )
       {
         ea = insn.Op1.addr;
-        if ( !seg->contains(ea) )
+        if ( !si.contains(ea) )
           break;
         continue;
       }

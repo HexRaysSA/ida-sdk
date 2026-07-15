@@ -19,3 +19,8 @@
         const fixup_data_t &fd); // get_fixup_desc
 
 %include "fixup.hpp"
+
+%pythoncode %{
+#<pycode(py_fixup)>
+#</pycode(py_fixup)>
+%}

@@ -22,11 +22,14 @@ def main():
     # Get current ea
     ea = ida_kernwin.get_screen_ea()
 
-    # Get segment class
-    seg = ida_segment.getseg(ea)
+    # Get segment info
+    si = ida_segment.segment_info_t()
+    if not ida_segment.get_segment_info(si, ea):
+        print("Please position the cursor within a segment")
+        return
 
     # Loop from segment start to end
-    func_ea = seg.start_ea
+    func_ea = si.start_ea
 
     # Get a function at the start of the segment (if any)
     func = ida_funcs.get_func(func_ea)
@@ -34,7 +37,7 @@ def main():
         # No function there, try to get the next one
         func = ida_funcs.get_next_func(func_ea)
 
-    seg_end = seg.end_ea
+    seg_end = si.end_ea
     while func is not None and func.start_ea < seg_end:
         funcea = func.start_ea
         print("Function %s at 0x%x" % (ida_funcs.get_func_name(funcea), funcea))

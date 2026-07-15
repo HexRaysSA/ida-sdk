@@ -60,9 +60,9 @@ static const char *get_ar_modname(
       name++;
     if ( *name == '\0' )
     {
-      if ( lnames+off < lnames )
+      if ( end < lnames || off >= size_t(end - lnames) )
         return qstrncpy(buf, "?", bufsize);
-      return get_msft_module_name(lnames+off, end, buf, bufsize);
+      return get_msft_module_name(lnames + off, end, buf, bufsize);
     }
   }
   return qstrncpy(buf, name, bufsize);

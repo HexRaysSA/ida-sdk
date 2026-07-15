@@ -156,7 +156,7 @@ public:
 struct rh850_frame_t
 {
   nec850_t &pm;
-  func_t *pfn;
+  func_entry_info_t fi;
   pushinfo_t psi;             // info about pushed/stored registers
   eavec_t prolog_insns;       // additional prolog instructions
 
@@ -165,7 +165,7 @@ struct rh850_frame_t
   // candidates for saving (callee-saved registers + SP, LP)
   /*const*/ reglist_t preserving_regs;
 
-  rh850_frame_t(nec850_t &_pm, func_t *pfn_) : pm(_pm), pfn(pfn_)
+  rh850_frame_t(nec850_t &_pm, const func_entry_info_t &fi_) : pm(_pm), fi(fi_)
   {
     preserving_regs.add_range(rR20, 10);
     preserving_regs.add(rSP);
@@ -226,8 +226,8 @@ bool rh850_frame_t::analyze_frame(bool reanalyze)
 {
   // scan starting instructions
   insn_t insn;
-  for ( ea_t ea = pfn->start_ea;
-        ea < pfn->end_ea && decode_insn(&insn, ea) > 0;
+  for ( ea_t ea = fi.start_ea;
+        ea < fi.end_ea && decode_insn(&insn, ea) > 0;
         ea += insn.size )
   {
     // keep track of the stack modifications
@@ -254,8 +254,8 @@ bool rh850_frame_t::analyze_frame(bool reanalyze)
   std::sort(prolog_insns.begin(), prolog_insns.end());
 
   // save pushinfo in the database for future analysis
-  if ( pfn->size() != 1 ) // hack from arm_pushinfo_t::analyze_frame
-    psi.save_to_idb(pm, pfn->start_ea);
+  if ( fi.size() != 1 ) // hack from arm_pushinfo_t::analyze_frame
+    psi.save_to_idb(pm, fi.start_ea);
 
   // mark prolog instructions
   for ( const auto &pr : psi )
@@ -437,17 +437,17 @@ bool rh850_frame_t::prepare_frame(bool reanalyze)
   // save frame info
   asize_t frregs = -curoff;
   asize_t frsize = -sp_spd - frregs;
-  asize_t frsize_old = pfn->frsize;
+  asize_t frsize_old = fi.get_frsize();
   // trying to speed up the analysis:
   // Changing anything among FRSIZE, FRREGS, ARGSIZE results in a full
   // renanalysis of the function, which may take some time.
   // But reducing the frame size alone does not require such reanalysis.
   // If the frame size is larger than required, it will only result in free
   // space in the stack frame.
-  if ( reanalyze && frregs == pfn->frregs )
+  if ( reanalyze && frregs == fi.get_frregs() )
     if ( frsize < frsize_old )
       frsize = frsize_old;
-  if ( !set_frame_size(pfn, frsize, frregs, 0) )
+  if ( !set_frame_size_ea(fi.start_ea, frsize, frregs, 0) )
     return false;
   return true;
 }
@@ -511,8 +511,11 @@ void rh850_frame_t::save_reg(
 
 //----------------------------------------------------------------------
 // Create a function frame
-bool nec850_t::create_func_frame(func_t *pfn, bool reanalyze)
+bool nec850_t::create_func_frame(ea_t func_ea, bool reanalyze)
 {
-  rh850_frame_t frame(*this, pfn);
+  func_entry_info_t fi;
+  if ( !get_func_entry_info(&fi, func_ea) )
+    return false;
+  rh850_frame_t frame(*this, fi);
   return frame.analyze_frame(reanalyze);
 }

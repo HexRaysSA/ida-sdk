@@ -413,7 +413,7 @@ class msp430_processor_t(processor_t):
         'a_include_fmt': '.include "%s"',
     } # Assembler
 
-    def ev_get_frame_retsize(self, frsize, pfn):
+    def ev_get_function_retsize(self, frsize, func_ea):
         ida_pro.int_pointer.frompointer(frsize).assign(2)
         return 1
 
@@ -474,8 +474,8 @@ class msp430_processor_t(processor_t):
                 insn.add_off_drefs(op, dref_flag, OOF_ADDR)
             elif may_create_stkvars() and not def_arg and op.reg == self.ireg_SP:
                 # var_x(SP)
-                pfn = get_func(insn.ea)
-                if pfn and insn.create_stkvar(op, op.addr, STKVAR_VALID_SIZE):
+                func_ea = get_func_start(insn.ea)
+                if func_ea != BADADDR and insn.create_stkvar(op, op.addr, STKVAR_VALID_SIZE):
                     op_stkvar(insn.ea, op.n)
         elif optype == o_mem:
             insn.create_op_data(op.addr, op)
@@ -484,11 +484,11 @@ class msp430_processor_t(processor_t):
             insn.add_cref(op.addr, op.offb, fl_JN)
 
     # ----------------------------------------------------------------------
-    def add_stkpnt(self, pfn, insn, v):
-        if pfn:
+    def add_stkpnt(self, func_ea, insn, v):
+        if func_ea != BADADDR:
             end = insn.ea + insn.size
             if not is_fixed_spd(end):
-                ida_frame.add_auto_stkpnt(pfn, end, v)
+                ida_frame.add_func_auto_stkpnt(func_ea, end, v)
 
     # ----------------------------------------------------------------------
     def trace_sp(self, insn):
@@ -496,8 +496,8 @@ class msp430_processor_t(processor_t):
         Trace the value of the SP and create an SP change point if the current
         instruction modifies the SP.
         """
-        pfn = get_func(insn.ea)
-        if not pfn:
+        func_ea = get_func_start(insn.ea)
+        if func_ea == BADADDR:
             return
         spofs = 0
         if insn.itype in [self.itype_add, self.itype_addx, self.itype_adda, self.itype_addc, self.itype_addcx,
@@ -516,7 +516,7 @@ class msp430_processor_t(processor_t):
              self.itype_decdx, self.itype_incda, self.itype_decda] and \
              insn.Op1.is_reg(self.ireg_SP) and insn.auxpref in [AUX_WORD, AUX_A, AUX_AX]:
               spofs = 2 if insn.itype in [self.itype_incd, self.itype_incdx, self.itype_incda] else -2
-              self.add_stkpnt(pfn, insn, spofs)
+              self.add_stkpnt(func_ea, insn, spofs)
         elif insn.itype == self.itype_push:
             spofs = -2
         elif insn.itype in [self.itype_popm, self.itype_pushm, self.itype_popx, self.itype_pushx]:
@@ -541,7 +541,7 @@ class msp430_processor_t(processor_t):
               spofs = 2
 
         if spofs != 0:
-          self.add_stkpnt(pfn, insn, spofs)
+          self.add_stkpnt(func_ea, insn, spofs)
 
     # ----------------------------------------------------------------------
     def check_switch(self, insn):

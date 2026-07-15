@@ -59,3 +59,32 @@ def run_plugin(plg, arg):
     :returns: Boolean
     """
     pass
+
+def import_module(module: str, windir: str, modnode: int, importer: None, ostype: str) -> None:
+    """
+    Register imports in the database, the way file loaders do.
+
+    Before calling, populate ``modnode`` with the entries to register
+    using :func:`set_import_name` (named imports) and/or
+    :func:`set_import_ordinal` (ordinal imports). After the call the
+    module appears in the Imports view and is enumerable through
+    :func:`ida_nalt.get_import_module_qty`,
+    :func:`ida_nalt.get_import_module_name` and
+    :func:`ida_nalt.enum_import_names`.
+
+    :param module: DLL/library name (e.g. ``"libfoo.so"``)
+    :param windir: system directory with DLLs to probe; may be None
+    :param modnode: index of a netnode you previously created with
+                    ``netnode().create()`` and populated
+    :param importer: must be ``None``. In a C++ loader this slot
+                     accepts an optional callback IDA uses to walk a
+                     sibling DLL on disk and discover its exports
+                     (used by the PE/NE/LX loaders); a Python loader
+                     has already parsed its input and has no DLL on
+                     disk for IDA to probe, so the hook is not
+                     exposed. The argument is kept in the signature
+                     for one-to-one parity with the C++ API.
+    :param ostype: OS subdir under ``ids/`` to look in (e.g. ``"win"``,
+                   ``"linux"``); None means the IDS directory root
+    """
+    pass

@@ -44,7 +44,7 @@ def send_dbg_command(command):
     err = ida_expr.eval_idc_expr(rv, ida_idaapi.BADADDR, """send_dbg_command("%s");""" % command)
     if err:
         return False, "eval_idc_expr() failed: %s" % err
-    vtype = ord(rv.vtype)
+    vtype = rv.vtype
     if vtype == ida_expr.VT_STR:
         s = rv.c_str()
         if "IDC_FAILURE" in s:

@@ -151,7 +151,7 @@ static const char value_form[] =
 static bool check_table(ea_t table, uval_t elsize, uval_t tsize)
 {
   flags64_t F32;
-  if ( getseg(table) == nullptr
+  if ( !get_segment_info(nullptr, table)
     || is_code((F32=get_flags32(table)))
     || is_tail(F32) )
   {
@@ -178,8 +178,8 @@ bool plugin_ctx_t::callback()
 {
   // Calculate the default values to display in the form
   ea_t screen_ea = get_screen_ea();
-  segment_t *s = getseg(screen_ea);
-  if ( s == nullptr || !is_code(get_flags32(screen_ea)) )
+  segment_info_t seg;
+  if ( !get_segment_info(&seg, screen_ea) || !is_code(get_flags32(screen_ea)) )
   {
     warning("AUTOHIDE NONE\nThe cursor must be on the table jump instruction");
     return false;
@@ -190,13 +190,13 @@ bool plugin_ctx_t::callback()
   if ( get_switch_info(&si, screen_ea) <= 0 )
   {
     si.jumps = get_first_dref_from(screen_ea);
-    unsigned int jsize = (int)s->abytes();
+    unsigned int jsize = (int)seg.abytes();
     si.set_jtable_element_size(jsize);
     // calculate NCASES
     if ( si.jumps != BADADDR )
     {
-      const segment_t *jtable_seg = getseg(si.jumps);
-      ea_t jtable_end = jtable_seg != nullptr ? jtable_seg->end_ea : BADADDR;
+      segment_info_t jtable_seg;
+      ea_t jtable_end = get_segment_info(&jtable_seg, si.jumps) ? jtable_seg.end_ea : BADADDR;
       int size = int((jtable_end - si.jumps) / jsize);
       si.ncases = size > USHRT_MAX ? USHRT_MAX : size;
       trim_jtable(&si, screen_ea, false);

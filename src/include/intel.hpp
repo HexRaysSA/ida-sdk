@@ -9,7 +9,9 @@
 #define _INTEL_HPP
 #include <ua.hpp>
 #include <typeinf.hpp>
+#ifndef __PC_PRIVATE_BUILD
 #include <allins.hpp>
+#endif
 
 #define PROC_MAXOP 5  // max number of operands
 CASSERT(PROC_MAXOP <= UA_MAXOP);
@@ -878,6 +880,7 @@ struct pushinfo_t
   int cb = sizeof(pushinfo_t);  // size of this structure
 
   pushinfo_t(void) : flags(PINF_HAVE_SSIZE|PINF_PSI_FLAGS), eh_type(EH_NONE) {}
+  friend struct pushinfo_internal_t;
 };
 
 enum spec_func_type_t
@@ -1024,7 +1027,7 @@ namespace pc_module_t
 
   inline int prolog_analyzed(ea_t first_past_prolog_insn, pushinfo_t *pi)
   {
-    return processor_t::notify(idp_ev(ev_prolog_analyzed), first_past_prolog_insn, pi);
+    return int(processor_t::notify(idp_ev(ev_prolog_analyzed), first_past_prolog_insn, pi));
   }
 
   inline bool verify_epilog(int *answer, pushinfo_t *pi, const insn_t &insn)
@@ -1039,12 +1042,12 @@ namespace pc_module_t
 
   inline int is_get_pc_thunk(RegNo *p_reg, ea_t *p_end, const insn_t &insn)
   {
-    return processor_t::notify(idp_ev(ev_is_get_pc_thunk), p_reg, p_end, &insn);
+    return int(processor_t::notify(idp_ev(ev_is_get_pc_thunk), p_reg, p_end, &insn));
   }
 
   inline int vxd_loaded()
   {
-    return processor_t::notify(idp_ev(ev_vxd_loaded));
+    return int(processor_t::notify(idp_ev(ev_vxd_loaded)));
   }
 
   inline bool get_borland_template_node(netnode *node)

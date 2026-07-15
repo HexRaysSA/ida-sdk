@@ -77,6 +77,6 @@
 
 #define IMAGE_SYM_CLASS_TOKEN 107
 
-#include "../../ldr/coff/dbxstcla.h"
+#include "dbxstcla.h"
 
 #endif /* _H_STCLASS */

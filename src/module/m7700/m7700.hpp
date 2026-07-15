@@ -75,8 +75,8 @@ enum processor_subtype_t
 // exporting our routines
 void idaapi m7700_assumes(outctx_t &ctx);
 int idaapi ana(insn_t *_insn);
-bool idaapi create_func_frame(func_t *pfn);
-int idaapi idp_get_frame_retsize(const func_t *pfn);
+bool idaapi create_func_frame(ea_t func_ea);
+int idaapi idp_get_frame_retsize(ea_t func_ea);
 
 //------------------------------------------------------------------
 // 7700 addressing modes :
@@ -156,7 +156,7 @@ struct m7700_t : public procmod_t
 
   void m7700_header(outctx_t &ctx);
   void m7700_footer(outctx_t &ctx) const;
-  void m7700_segstart(outctx_t &ctx, segment_t *Srange) const;
+  void m7700_segstart(outctx_t &ctx, ea_t seg_ea) const;
   void m7700_assumes(outctx_t &ctx) const;
 
   void load_from_idb();

@@ -60,7 +60,7 @@ struct pdp11_t : public procmod_t
   void jmpoper(insn_t &insn, op_t *Op, uint16 nibble);
   int ana(insn_t *_insn);
 
-  void pdp_segstart(outctx_t &ctx, segment_t *seg);
+  void pdp_segstart(outctx_t &ctx, ea_t seg_ea);
 
   void loadR0data(const insn_t &insn, const op_t *x, int sme);
   void handle_operand(const insn_t &insn, const op_t &x, bool is_forced, bool isload);

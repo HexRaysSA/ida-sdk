@@ -180,18 +180,18 @@ static const asm_t *const asms[] = { &oakasm, &gas, nullptr };
 //----------------------------------------------------------------------
 ea_t oakdsp_t::add_data_segm(size_t size, int offset, const char *name) const
 {
-  segment_t s;
-  s.start_ea = find_free_chunk(0x1000000, size, 0xF);
-  s.end_ea   = s.start_ea + size;
-  s.sel     = allocate_selector((s.start_ea-offset) >> 4);
-  s.type    = SEG_DATA;
-  s.bitness = ph.dnbits > 16;
-  add_segm_ex(&s, name, "DATA", ADDSEG_NOSREG|ADDSEG_OR_DIE);
-  return s.start_ea - offset;
+  segment_info_t si;
+  si.start_ea = find_free_chunk(0x1000000, size, 0xF);
+  si.end_ea   = si.start_ea + size;
+  si.set_sel(allocate_selector((si.start_ea-offset) >> 4));
+  si.set_type(SEG_DATA);
+  si.set_bitness(ph.dnbits > 16);
+  si.set_name(name);
+  si.set_sclass("DATA");
+  add_segment_ex(&si, ADDSEG_NOSREG|ADDSEG_OR_DIE);
+  return si.start_ea - offset;
 }
 
-inline ea_t get_start(const segment_t *s)
-{  return s ? s->start_ea : BADADDR; }
 
 //--------------------------------------------------------------------------
 const char *oakdsp_iohandler_t::iocallback(const ioports_t &lports, const char *line)
@@ -276,7 +276,7 @@ static ssize_t idaapi notify(void *, int msgid, va_list)
 //--------------------------------------------------------------------------
 void oakdsp_t::load_from_idb()
 {
-  xmem = get_start(get_segm_by_name("XMEM"));
+  xmem = get_segment_ea_by_name("XMEM");
   char dev[MAXSTR];
   char *pdev = helper.supstr(-1, dev, sizeof(dev)) > 0 ? dev : nullptr;
   select_device(pdev, IORESP_NONE);
@@ -308,14 +308,15 @@ ssize_t idaapi oakdsp_t::on_event(ssize_t msgid, va_list va)
         else
           create_xmem();
 
-        segment_t *s0 = get_first_seg();
-        if ( s0 != nullptr )
+        ea_t s0 = get_first_segment_ea();
+        if ( s0 != BADADDR )
         {
-          segment_t *s1 = get_next_seg(s0->start_ea);
+          ea_t s1 = get_next_segment_ea(s0);
           for ( int i = PAGE; i <= vDS; i++ )
           {
-            set_default_sreg_value(s0, i, BADSEL);
-            set_default_sreg_value(s1, i, BADSEL);
+            set_default_sreg_value_ea(s0, i, BADSEL);
+            if ( s1 != BADADDR )
+              set_default_sreg_value_ea(s1, i, BADSEL);
           }
         }
       }
@@ -376,19 +377,19 @@ ssize_t idaapi oakdsp_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        oakdsp_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        oakdsp_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
+    case processor_t::ev_out_segment_end:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        oakdsp_segend(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        oakdsp_segend(*ctx, ea);
         return 1;
       }
 
@@ -440,18 +441,18 @@ ssize_t idaapi oakdsp_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        create_func_frame(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        create_func_frame(func_ea);
         return 1;
       }
 
-    case processor_t::ev_get_frame_retsize:
+    case processor_t::ev_get_function_retsize:
       {
         int *frsize = va_arg(va, int *);
-        const func_t *pfn = va_arg(va, const func_t *);
-        *frsize = OAK_get_frame_retsize(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        *frsize = OAK_get_frame_retsize(func_ea);
         return 1;
       }
 

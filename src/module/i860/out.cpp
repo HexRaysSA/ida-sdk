@@ -239,15 +239,17 @@ void idaapi i860_header(outctx_t &ctx)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Sarea) could be made const
-void i860_t::i860_segstart(outctx_t &ctx, segment_t *Sarea) const
+void i860_t::i860_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
-  qstring sname;
-  get_segm_name(&sname, Sarea);
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
+
+  qstring sname = si.get_name();
   ctx.gen_printf(DEFAULT_INDENT, COLSTR(".text %s %s",SCOLOR_ASMDIR), ash.cmnt, sname.c_str());
 
   const char *p = ".byte";
-  switch ( Sarea->align )
+  switch ( si.get_align() )
   {
     case saRelByte:   p = ".byte";    break;
     case saRelWord:   p = ".word";    break;
@@ -257,7 +259,7 @@ void i860_t::i860_segstart(outctx_t &ctx, segment_t *Sarea) const
 
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
-    ea_t org = ctx.insn_ea - get_segm_base(Sarea);
+    ea_t org = ctx.insn_ea - si.base();
     if ( org != 0 )
     {
       char buf[MAX_NUMBUF];

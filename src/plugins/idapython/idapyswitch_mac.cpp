@@ -1,11 +1,55 @@
 #include <sys/mman.h>
+
 #include "../../pro/registry.cpp"
 
+#define IDA_ADDLIB_VALUE "Python3TargetDLL"
+
 #define BUILD_IDAPYSWITCH
-#include "../../ldr/ar/ar.hpp"
-#include "../../ldr/ar/aixar.hpp"
-#include "../../ldr/ar/arcmn.cpp" // for is_ar_file
-#include "../../ldr/mach-o/common.cpp"
+
+#include "../../fmt/mach-o/common.h"
+
+// dummies
+bool is_ar_file(linput_t *, qoff64_t, bool) { return false; }
+
+//-------------------------------------------------------------------------
+static bool ends_with(const char *s, const char *suffix)
+{
+  const size_t len = qstrlen(s);
+  const size_t suffix_len = qstrlen(suffix);
+  return len >= suffix_len
+      && strcmp(s + len - suffix_len, suffix) == 0;
+}
+
+//-------------------------------------------------------------------------
+// idapyswitch normally runs from ida.app/Contents/MacOS on macOS, but
+// idalib's user-facing install dir is the .app bundle itself.
+static void platform_normalize_install_dir(char *path, size_t bufsize)
+{
+  const char *base = qbasename(path);
+  if ( base != nullptr && strcmp(base, "MacOS") == 0 )
+  {
+    char contents[QMAXPATH];
+    qstrncpy(contents, path, sizeof(contents));
+    qdirname(contents, sizeof(contents), contents);
+    const char *contents_base = qbasename(contents);
+    if ( contents_base != nullptr && strcmp(contents_base, "Contents") == 0 )
+    {
+      char app[QMAXPATH];
+      qstrncpy(app, contents, sizeof(app));
+      qdirname(app, sizeof(app), app);
+      const char *app_base = qbasename(app);
+      if ( app_base != nullptr && ends_with(app_base, ".app") )
+        qstrncpy(path, app, bufsize);
+    }
+  }
+  else
+  {
+    char app[QMAXPATH];
+    qmakepath(app, sizeof(app), path, "ida.app", nullptr);
+    if ( qisdir(app) )
+      qstrncpy(path, app, bufsize);
+  }
+}
 
 //-------------------------------------------------------------------------
 static void get_python_version(pylib_version_t *out, uint32 mask)
@@ -45,12 +89,11 @@ static bool get_python_lc_info(python_lc_info_t *plc, const char *path, qstring 
     errbuf->sprnt("Failed to open file: %s", winerr(errno));
     return false;
   }
-  linput_janitor_t lij(li);
 
   // here we are assuming the target binary was built by us, which means it is a non-fat,
   // 64-bit Mach-O file that links against a PythonX.X framework, and has its header padded
   // so that we can patch the load commands without issue.
-  macho_file_t mfile(li);
+  macho_file_t mfile(shared_linput_t(linput_holder_t::create(li)));
   if ( !mfile.parse_header() )
   {
     errbuf->sprnt("Failed to parse Mach-O header");
@@ -148,9 +191,8 @@ static bool get_pylib_entry_for_macho(
     errbuf->sprnt("Failed to open file: %s", winerr(errno));
     return false;
   }
-  linput_janitor_t lij(li);
 
-  macho_file_t mfile(li);
+  macho_file_t mfile(shared_linput_t(linput_holder_t::create(li)));
   if ( !mfile.parse_header() )
   {
     errbuf->sprnt("Failed to parse Mach-O header");
@@ -249,7 +291,7 @@ static bool get_pylib_entry_for_macho(
     return false;
   }
 
-  if ( entry->version.major < args.major_version || entry->version.minor < args.minor_version )
+  if ( entry->version.major != args.major_version || entry->version.minor < args.minor_version )
   {
     qstring verbuf;
     errbuf->sprnt("Unsupported python version %s (%d.%d+ is required)",
@@ -316,6 +358,13 @@ static int extract_pylib_bin(pylib_entries_t *result, const char *version_dir)
 
       result->path_history.push_back(binpath);
 
+      const char *basename = qbasename(binpath);
+      if ( stristr(basename, "python") == nullptr )
+      {
+        out_verb("Skipping %s: not a Python library\n", binpath);
+        return 0;
+      }
+
       qstring errbuf;
       pylib_version_t dummy;
       pylib_entry_t entry(dummy);
@@ -323,6 +372,12 @@ static int extract_pylib_bin(pylib_entries_t *result, const char *version_dir)
       if ( !get_pylib_entry_for_macho(&entry, binpath, &errbuf) )
       {
         out_verb("Skipping %s: %s\n", binpath, errbuf.c_str());
+        return 0;
+      }
+
+      if ( entry.version.modifiers.find('t') != qstring::npos )
+      {
+        out_verb("Skipping %s: freethreaded python is not supported\n", binpath);
         return 0;
       }
 
@@ -334,7 +389,8 @@ static int extract_pylib_bin(pylib_entries_t *result, const char *version_dir)
     }
   };
 
-  // the name of the Framework binary can vary. just be safe and examine all files.
+  // the name of the Framework binary can vary, but must contain "python".
+  // examine all files and filter by name.
   pylib_finder_t f(result);
   return visit_files(f, version_dir, "*");
 }
@@ -412,10 +468,23 @@ void pyver_tool_t::do_find_python_libs(pylib_entries_t *result) const
   // - /usr/local/opt/python@X.X/Frameworks (original)
   // - /usr/local/Cellar/python@X.X/Frameworks (Intel Macs)
   // - /opt/homebrew/Cellar/python@X.X/Frameworks (ARM Macs)
+  // - <custom_prefix>/Cellar/python@X.X/Frameworks (custom Homebrew prefix)
   homebrew_handler_t hh(&framework_dirs);
   visit_files(hh, "/usr/local/opt", "python*", FA_DIREC);
   visit_files(hh, "/usr/local/Cellar", "python*", FA_DIREC);
   visit_files(hh, "/opt/homebrew/Cellar", "python*", FA_DIREC);
+
+  qstrvec_t lines;
+  qstring errbuf;
+  if ( run_command("brew --prefix 2>/dev/null", &lines, &errbuf) == 0
+    && !lines.empty() )
+  {
+    char cellar[QMAXPATH];
+    qmakepath(cellar, sizeof(cellar), lines[0].c_str(), "Cellar", nullptr);
+    out_verb("Homebrew prefix: %s\n", cellar);
+    if ( qisdir(cellar) )
+      visit_files(hh, cellar, "python*", FA_DIREC);
+  }
 
   struct ida_local python_framework_finder_t : public file_visitor_t
   {
@@ -432,6 +501,63 @@ void pyver_tool_t::do_find_python_libs(pylib_entries_t *result) const
   python_framework_finder_t pff(result);
   for ( size_t i = 0, n = framework_dirs.size(); i < n; i++ )
     visit_files(pff, framework_dirs[i].c_str(), "Python*.framework", FA_DIREC);
+
+  //
+  // Scan uv-managed Python installations
+  //
+  scan_uv_python_list([result](const char *version_dir)
+  {
+    char libdir[QMAXPATH];
+    qmakepath(libdir, sizeof(libdir), version_dir, "lib", nullptr);
+    if ( qisdir(libdir) )
+      extract_pylib_bin(result, libdir);
+  });
+
+  //
+  // Scan conda-managed Python environments
+  //
+  scan_conda_envs([result](const char *env_dir)
+  {
+    char libdir[QMAXPATH];
+    qmakepath(libdir, sizeof(libdir), env_dir, "lib", nullptr);
+    if ( qisdir(libdir) )
+      extract_pylib_bin(result, libdir);
+  });
+
+  qstring existing;
+  if ( reg_read_string(&existing, IDA_ADDLIB_VALUE)
+    && qfileexist(existing.c_str()) )
+  {
+    out_verb("Previously used runtime: \"%s\"\n", existing.c_str());
+    bool found = false;
+    for ( pylib_entry_t &e : result->entries )
+    {
+      if ( e.paths.has(existing) )
+      {
+        found = true;
+        e.preferred = true;
+      }
+    }
+    if ( !found )
+    {
+      pylib_entry_t e((pylib_version_t()));
+      qstring probe_errbuf;
+      if ( get_pylib_entry_for_macho(&e, existing.c_str(), &probe_errbuf) )
+      {
+        qstring verbuf;
+        out("IDA previously used: \"%s\" (guessed version: %s). "
+            "Making this the preferred version.\n",
+            existing.c_str(), e.version.str(&verbuf));
+        e.preferred = true;
+        result->entries.push_back(e);
+      }
+      else
+      {
+        out_verb("Ignoring path \"%s\": %s\n",
+                 existing.c_str(), probe_errbuf.c_str());
+      }
+    }
+  }
 }
 
 //-------------------------------------------------------------------------
@@ -558,8 +684,6 @@ static bool patch_python_dylib_cmd(
   munmap(map, sbuf.qst_size);
   return ok;
 }
-
-#define IDA_ADDLIB_VALUE "Python3TargetDLL"
 
 //-------------------------------------------------------------------------
 bool pyver_tool_t::do_apply_version(

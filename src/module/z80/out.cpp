@@ -247,11 +247,14 @@ void z80_t::i5_header(outctx_t &ctx)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, segm) could be made const
-void z80_t::i5_segstart(outctx_t &ctx, segment_t *segm)
+void z80_t::i5_segstart(outctx_t &ctx, ea_t seg_ea)
 {
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
+
   qstring sname;
-  get_segm_name(&sname, segm);
+  get_segment_name(&sname, seg_ea);
 
   if ( ash.uflag & UAS_GBASM )
   {
@@ -280,11 +283,11 @@ void z80_t::i5_segstart(outctx_t &ctx, segment_t *segm)
   {
     validate_name(&sname, VNT_IDENT);
     ctx.gen_cmt_line("segment '%s'", sname.c_str());
-    ctx.gen_printf(DEFAULT_INDENT,COLSTR("%cseg",SCOLOR_ASMDIR),segm->align == saAbs ? 'a' : 'c');
+    ctx.gen_printf(DEFAULT_INDENT,COLSTR("%cseg",SCOLOR_ASMDIR),si.get_align() == saAbs ? 'a' : 'c');
   }
   if ( (inf_get_outflags() & OFLG_GEN_ORG) != 0 )
   {
-    ea_t org = ctx.insn_ea - get_segm_base(segm);
+    ea_t org = ctx.insn_ea - si.base();
     if ( org != 0 )
     {
       char buf[MAX_NUMBUF];

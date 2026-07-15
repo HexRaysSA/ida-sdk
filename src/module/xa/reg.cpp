@@ -307,17 +307,18 @@ ssize_t idaapi xa_t::on_event(ssize_t msgid, va_list va)
 
     case processor_t::ev_newfile:
       {
-        segment_t *sptr = get_first_seg();
-        if ( sptr != nullptr )
+        ea_t first_seg_ea = get_first_segment_ea();
+        segment_info_t si;
+        if ( first_seg_ea != BADADDR && get_segment_info(&si, first_seg_ea) )
         {
-          if ( sptr->start_ea-get_segm_base(sptr) == 0 )
+          if ( si.start_ea - si.base() == 0 )
           {
-            inf_set_start_ea(sptr->start_ea);
+            inf_set_start_ea(si.start_ea);
             inf_set_start_ip(BADADDR);
-            if ( sptr->size() > 0x10000 )
+            if ( si.size() > 0x10000 )
             {
-              ea_t end_ea = sptr->end_ea;
-              ea_t start_ea = sptr->start_ea;
+              ea_t end_ea = si.end_ea;
+              ea_t start_ea = si.start_ea;
 
               if ( end_ea & 0xFFFF )
               {
@@ -334,9 +335,8 @@ ssize_t idaapi xa_t::on_event(ssize_t msgid, va_list va)
 
                 add_segm(start>>4, start, start+0x10000, sname, "CODE");
               }
-              sptr = getseg(start_ea);
-              set_segm_name(sptr, "ROM00");
-              set_segm_class(sptr, "CODE");
+              set_segment_name(start_ea, "ROM00");
+              set_segment_class(start_ea, "CODE");
             }
             for ( int i=0; i < qnumber(entries); i++ )
             {
@@ -360,7 +360,9 @@ ssize_t idaapi xa_t::on_event(ssize_t msgid, va_list va)
         add_segm(INTMEMBASE>>4, SFRBASE, SFRBASE+0x400, "SFR", "DATA");
 
         // the default data segment will be INTMEM
-        set_default_dataseg(getseg(INTMEMBASE)->sel);
+        segment_info_t intmem_si;
+        if ( get_segment_info(&intmem_si, INTMEMBASE) )
+          set_default_dataseg(intmem_si.get_sel());
 
         const predefined_t *ptr;
         for ( ptr=iregs; ptr->name != nullptr; ptr++ )
@@ -387,13 +389,13 @@ ssize_t idaapi xa_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_oldfile:
       break;
 
-    case processor_t::ev_creating_segm:
+    case processor_t::ev_creating_segment:
         // make the default DS point to INTMEM
       {
-        segment_t *newseg = va_arg(va, segment_t *);
-        segment_t *intseg = getseg(INTMEMBASE);
-        if ( intseg != nullptr )
-          set_default_sreg_value(newseg, rDS, intseg->sel);
+        segment_info_t *si = va_arg(va, segment_info_t *);
+        segment_info_t intmem_si;
+        if ( get_segment_info(&intmem_si, INTMEMBASE) )
+          si->set_defsr(rDS - ph.reg_first_sreg, intmem_si.get_sel());
       }
       break;
 
@@ -426,11 +428,11 @@ ssize_t idaapi xa_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        xa_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        xa_segstart(*ctx, ea);
         return 1;
       }
 
@@ -475,18 +477,18 @@ ssize_t idaapi xa_t::on_event(ssize_t msgid, va_list va)
         return xa_is_switch(si, *insn) ? 1 : 0;
       }
 
-    case processor_t::ev_create_func_frame:
+    case processor_t::ev_create_function_frame:
       {
-        func_t *pfn = va_arg(va, func_t *);
-        xa_create_func(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        xa_create_func(func_ea);
         return 1;
       }
 
-    case processor_t::ev_get_frame_retsize:
+    case processor_t::ev_get_function_retsize:
       {
         int *frsize = va_arg(va, int *);
-        const func_t *pfn = va_arg(va, const func_t *);
-        *frsize = xa_frame_retsize(pfn);
+        ea_t func_ea = va_arg(va, ea_t);
+        *frsize = xa_frame_retsize(func_ea);
         return 1;
       }
 

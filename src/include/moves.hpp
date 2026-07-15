@@ -296,6 +296,8 @@ class navstack_t
 {
   DEFINE_NAVSTACK_T_HELPERS(friend)
   DEFINE_NAVSTACK_T_HELPERS_TB(friend)
+  friend struct kdata_t;
+  friend struct navstack_internal_t;
 
   netnode node = BADNODE;
 

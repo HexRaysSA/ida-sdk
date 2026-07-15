@@ -41,13 +41,5 @@ xa              Thanks to Petr Novak
 z8
 z80
 
-To compile them, just start make:
-
-        make -D__NT__
-
-or under linux:
-
-        idamake.pl
-
-The 64-bit versions are compiled as usual: you have to define the __EA64__
-environment symbol for make.
+To compile them, use the CMake build system shipped with the SDK
+(see the top-level SDK README for `cmake --preset ...` usage).

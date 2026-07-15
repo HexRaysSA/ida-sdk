@@ -5,9 +5,12 @@ import inspect
 import argparse
 import os
 
+# Force LF on stdout so api_contents.brief is byte-identical across platforms
+# (Python defaults to CRLF on Windows, which would falsely trip the drift check).
+sys.stdout.reconfigure(newline='\n')
+
 p = argparse.ArgumentParser()
 p.add_argument("-p", "--paths", type=str, required=True, help="Path(s) to the file(s) to parse")
-p.add_argument("-c", "--dump-doc", default=False, action="store_true", help="Dump python docstrings")
 args = p.parse_args()
 
 class scope_t(object):
@@ -86,104 +89,10 @@ class variable_t(scope_t):
         return self.variable_name
 
 
-DF_DOC  = 0x1
-
-# https://gist.github.com/MineRobber9000/485e648da3a77d5894fa1fe9189b5728
-def produce_function_prototype(node, name):
-
-    def get_value(node):
-        if isinstance(node, ast.Name):
-            return node.id
-        if isinstance(node, ast.Subscript):
-            return get_value(node.value)+"["+get_value(node.slice)+"]"
-        if isinstance(node, ast.Index):
-            return get_value(node.value)
-        if isinstance(node, ast.Tuple):
-            return ", ".join(map(get_value,node.elts))
-        if isinstance(node, ast.Attribute):
-            return get_value(node.value)+"."+node.attr
-        if isinstance(node, ast.Constant):
-            if node.value is Ellipsis:
-                return "..."
-            value = str(node.value)
-            if isinstance(node.value, str):
-                value = f'"{value}"'
-            return value
-        if isinstance(node, ast.List):
-            pieces = map(get_value, node.elts)
-            return "[" + ", ".join(pieces) + "]"
-        if isinstance(node, ast.UnaryOp):
-            return get_value(node.op) + get_value(node.operand)
-        if isinstance(node, ast.BinOp):
-            return get_value(node.left) + get_value(node.op) + get_value(node.right)
-        if isinstance(node, ast.USub):
-            return "-"
-        if isinstance(node, ast.BitOr):
-            return "|"
-        print(type(node))
-        return "???"
-
-    out = [name, "("]
-    def put(what):
-        if what is not None:
-            out.append(what)
-
-    defs = len(node.args.args) - len(node.args.defaults)
-    for n, arg in enumerate(node.args.args):
-        put(arg.arg)
-        if arg.annotation:
-            put(": ")
-            put(get_value(arg.annotation))
-        if n >= defs:
-            put(" = ")
-            put(get_value(node.args.defaults[n-defs]))
-        put(", ")
-    if node.args.vararg:
-        put("*")
-        put(node.args.vararg.arg)
-        if node.args.vararg.annotation:
-            put(": ")
-            put(get_value(node.args.vararg.annotation))
-        put(", ")
-    if node.args.kwarg:
-        put("**")
-        put(node.args.kwarg.arg)
-        if node.args.kwarg.annotation:
-            put(": ")
-            put(get_value(node.args.kwarg.annotation))
-        put(", ")
-    if node.args.kwonlyargs:
-        if not node.args.vararg:
-            put("*, ")
-        for n, arg in enumerate(node.args.kwonlyargs):
-            put(arg.arg)
-            if arg.annotation:
-                put(": ")
-                put(get_value(arg.annotation))
-            if node.args.kw_defaults[n]:
-                put(" = ")
-                put(get_value(node.args.kw_defaults[n]))
-            put(", ")
-    out = "".join(out)
-    out = (out[:-2] if (node.args.args or node.args.vararg or node.args.kwarg or node.args.kwonlyargs) else out)+")"
-    if node.returns:
-        out += " -> "+get_value(node.returns)
-
-    return out
-
-def dump(scope, flags=0, sort=True):
+def dump(scope, sort=True):
     lines = []
     def dump1(s):
-        name = s.get_full_name()
-        if (flags & DF_DOC) != 0 and isinstance(s, function_t):
-            line = [produce_function_prototype(s.node, name)]
-        else:
-            line = [name]
-        lines.append(" ".join(line))
-        if (flags & DF_DOC) != 0:
-            if s.doc is not None:
-                lines.extend(s.doc.split("\n"))
-            lines.append("")
+        lines.append(s.get_full_name())
         children = s.children[:]
         if sort:
             children = sorted(children, key=lambda n: n.get_name())
@@ -627,6 +536,5 @@ for path in args.paths.split(","):
     vc.visit(tree)
     toplevel_scopes.append(vc.scope)
 
-flags = (DF_DOC if args.dump_doc else 0)
 for s in toplevel_scopes:
-    print(dump(s, flags=flags))
+    print(dump(s))

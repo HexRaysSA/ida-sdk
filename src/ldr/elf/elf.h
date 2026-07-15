@@ -196,7 +196,7 @@ struct got_access_t : public range_t
   // Set the flag `create' if such segment is just created.
   // If .got segment doesn't exist or an error occurred while creating it,
   // the function returns nullptr.
-  segment_t *get_got_segment(elf_file_info_t &finfo, bool *create, uint32 init_size = 0) const;
+  ea_t get_got_segment_ea(elf_file_info_t &finfo, bool *create, uint32 init_size = 0) const;
 
   // Some relocations, such as ARM's R_ARM_TLS_IE32, require that a got entry
   // be present in the linked file, in order to point to that entry.
@@ -489,7 +489,7 @@ struct proc_def_t
   // Convert PIC form of loading '_GLOBAL_OFFSET_TABLE_[]' of address
   virtual bool proc_can_convert_pic_got() const { return false; }
   virtual size_t proc_convert_pic_got(
-        const segment_t * /*gotps*/,
+        const segment_info_t * /*gotps*/,
         reloc_tools_t * /*tools*/)
   {
     return 0;
@@ -767,7 +767,7 @@ struct elf_arm_t : public arm_base_t
         const elf_shdr_t *gotps) override;
   virtual bool proc_can_convert_pic_got() const override { return true; }
   virtual size_t proc_convert_pic_got(
-        const segment_t *gotps,
+        const segment_info_t *gotps,
         reloc_tools_t *tools) override;
   virtual void proc_on_start_data_loading(elf_ehdr_t &header) override;
   virtual bool proc_on_create_section(
@@ -898,6 +898,18 @@ struct elf_fr_t : public hexrays_procdef_t
         const elf_rela_t *reloc,
         reloc_tools_t *tools) override;
   virtual const char *proc_describe_flag_bit(uint32 *e_flags) override;
+};
+
+//----------------------------------------------------------------------------
+struct elf_mcore_t : public hexrays_procdef_t
+{
+  elf_mcore_t(elf_loader_t &ldr, reader_t &reader);
+  virtual const char *proc_handle_reloc(
+        const rel_data_t &rel_data,
+        const sym_rel *symbol,
+        const elf_rela_t *reloc,
+        reloc_tools_t *tools) override;
+  virtual const char *calc_procname(uint32 *e_flags, const char *procname) override;
 };
 
 //----------------------------------------------------------------------------
@@ -1368,7 +1380,7 @@ struct elf_sparc_t : public hexrays_procdef_t
   virtual void proc_on_start_data_loading(elf_ehdr_t &header) override;
   virtual bool proc_can_convert_pic_got() const override { return true; }
   virtual size_t proc_convert_pic_got(
-        const segment_t *gotps,
+        const segment_info_t *gotps,
         reloc_tools_t *tools) override;
 
   fixup_type_t get_hi22_reltype();
@@ -3312,7 +3324,7 @@ struct elf_loader_t
         bool is_rela,
         const char *name);
   void make_symtab_section(reader_t &reader, const dynamic_info_t::entry_t &entry);
-  void adjust_widebyte_code_segment(segment_t *seg) const;
+  void adjust_widebyte_code_segment(segment_info_t *seg) const;
   ea_t unwide_ea(ea_t ea, const char *diagn) const;
   void preprocess_symbols(
         elf_file_info_t &finfo,
@@ -3360,12 +3372,12 @@ struct elf_loader_t
         slice_type_t slice_type,
         bool skip_undef_symbols);
   bool call_add_segm_ex(
-        segment_t *s,
+        segment_info_t *s,
         const char *name,
         const char *sclass,
         int flags) const;
   bool add_or_merge_segm(
-        segment_t *s,
+        segment_info_t *s,
         const char *name,
         const char *sclass,
         int flags);
@@ -3385,7 +3397,7 @@ struct elf_loader_t
         asize_t *_size = nullptr);
   void load_huge_segment(
         reader_t &reader,
-        const segment_t &s,
+        const segment_info_t &s,
         const elf_phdr_t &p,
         const char *sclass,
         const char *name,
@@ -3394,7 +3406,7 @@ struct elf_loader_t
   // Allocate new selector for the new segment. If the flag use_cursel is
   // set then use currently allocated segment selector and allocate a new
   // one after creation.
-  segment_t *create_segment_at_top(
+  ea_t create_segment_at_top(
         reader_t &reader,
         uchar type,
         const char *name,
@@ -3476,8 +3488,10 @@ struct elf_loader_t
       return true;
     if ( rel_mode == 1 ) // symbol is STT_SECTION ?
     {
-      segment_t *s = getseg(S);
-      return s == nullptr || A < 0 || A >= s->size();
+      segment_info_t s;
+      if ( !get_segment_info(&s, S) )
+        return true;
+      return A < 0 || A >= s.size();
     }
     return false;
   }

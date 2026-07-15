@@ -89,6 +89,20 @@ enum
 };
 ///@}
 
+/// Separator used by fold_common_prefix() to join the folders of a
+/// collapsed single item folder chain. The UI must render it as '/' before
+/// displaying (see \ref dirtree_restore_prefix_sep).
+static constexpr char DIRTREE_FOLDED_SEP = '\x1d';  // ASCII GS
+
+/// Replace \ref DIRTREE_FOLDED_SEP bytes by '/' in-place, for display only.
+/// The result is NOT safe for using with dirtree path APIs (rmdir, cd,
+/// ...); the embedded '/' would be interpreted as a path separator.
+inline void dirtree_restore_prefix_sep(qstring *s)
+{
+  char from[2] = { DIRTREE_FOLDED_SEP, '\0' };
+  s->replace(from, "/");
+}
+
 //------------------------------------------------------------------------
 /// Directory tree specialization. This is an abstract base class that
 /// represents 'file items' of our directory structure.
@@ -269,6 +283,7 @@ idaman bool ida_export dirtree_get_abspath_by_cursor(qstring *out, const dirtree
 idaman bool ida_export dirtree_get_abspath_by_relpath(qstring *out, const dirtree_impl_t *d, const char *relpath);
 idaman dterr_t ida_export dirtree_mkdir(dirtree_impl_t *d, const char *path);
 idaman dterr_t ida_export dirtree_rmdir(dirtree_impl_t *d, const char *path);
+idaman dterr_t ida_export dirtree_fold_common_prefix(dirtree_impl_t *d, const char *path, char sep);
 idaman dterr_t ida_export dirtree_link(dirtree_impl_t *d, const char *path, bool do_link);
 idaman dterr_t ida_export dirtree_link_inode(dirtree_impl_t *d, inode_t inode, bool do_link);
 idaman dterr_t ida_export dirtree_rename(dirtree_impl_t *d, const char *from, const char *to);
@@ -300,10 +315,12 @@ class dirtree_t
 {
   dirtree_impl_t *d;
 
+  friend struct dirtree_internal_t;
 
 public:
   //lint -sem(dirtree_t::dirtree_t, custodial(1))
   dirtree_t(dirspec_t *ds) { d = create_dirtree(this, ds); }
+  dirtree_t(dirtree_impl_t *di) { d = di; }
   ~dirtree_t() { delete_dirtree(d); }
 
   /// Get textual representation of the error code
@@ -511,6 +528,20 @@ public:
     return dirtree_rename(d, from, to);
   }
 
+  /// Collapse single child folders into a single folder item
+  /// The default separator (\ref DIRTREE_FOLDED_SEP, ASCII 0x1D) is rendered
+  /// as '/' by the UI but is not split by the path parser, so folded folders
+  /// behave like a single item for rmdir/cd/rename/etc.
+  /// \param path starting directory; nullptr or "/" means root
+  /// \param sep  character used to join names
+  /// \return \ref dterr_t error code
+  dterr_t fold_common_prefix(
+        const char *path=nullptr,
+        char sep=DIRTREE_FOLDED_SEP)
+  {
+    return dirtree_fold_common_prefix(d, path, sep);
+  }
+
   /// Move many items to a directory
   /// \param items items to move
   /// \param dstdir destination directory. will be created if does not exist.
@@ -534,7 +565,7 @@ public:
         dirtree_cursor_vec_t *moved_items=nullptr,
         dirtree_bulk_results_t *errs=nullptr)
   {
-    return dirtree_bulk_move(d, items, dstdir, dst_rank, moved_items, errs);
+    return dirtree_bulk_move(d, items, dstdir, int(dst_rank), moved_items, errs);
   }
 
   /// Delete many items
@@ -653,6 +684,7 @@ enum dirtree_id_t
   DIRTREE_IDAPLACE_BOOKMARKS,
   DIRTREE_BPTS,
   DIRTREE_LTYPES_BOOKMARKS,
+  DIRTREE_SNIPPETS,                ///< IDB-backed script snippets
   DIRTREE_END,
 };
 idaman dirtree_t *ida_export get_std_dirtree(dirtree_id_t id);

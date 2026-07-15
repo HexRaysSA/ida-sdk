@@ -71,11 +71,11 @@ ssize_t idaapi mn102_t::on_event(ssize_t msgid, va_list va)
       load_from_idb();
       break;
 
-    case processor_t::ev_creating_segm:
+    case processor_t::ev_creating_segment:
       {
-        segment_t *s = va_arg(va, segment_t *);
+        segment_info_t *si = va_arg(va, segment_info_t *);
         // Set default value of DS register for all segments
-        set_default_dataseg(s->sel);
+        set_default_dataseg(si->get_sel());
       }
       break;
 
@@ -93,11 +93,11 @@ ssize_t idaapi mn102_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        mn102_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        mn102_segstart(*ctx, ea);
         return 1;
       }
 

@@ -54,7 +54,11 @@ BADDATA:
   ea_t offset = relocbase;
   fixup_data_t fd(FIXUP_OFF32);
   if ( code )
-    fd.set_sel(getseg(targetbase));
+  {
+    segment_info_t s;
+    if ( get_segment_info(&s, targetbase) )
+      fd.set_sel(s.get_sel());
+  }
   //msg("%d relocations\n", nrelocs);
   for ( uint i=0; i < nrelocs; i++ )
   {
@@ -722,7 +726,7 @@ void idaapi load_file(linput_t *li, ushort neflags, const char * fileformatname)
         loader_failure();
 
       // set DS for the segment to itself
-      set_default_sreg_value(get_segm_by_sel(sel), str2reg("DS"), sel);
+      set_default_sreg_value_ea(get_segment_ea_by_sel(sel), str2reg("DS"), sel);
       if ( bCodeWarrior )
         fixArmCW(start_ea, ea2);
       continue;
@@ -773,13 +777,15 @@ void idaapi load_file(linput_t *li, ushort neflags, const char * fileformatname)
     }
 
     {
-      segment_t s;
+      segment_info_t s;
       s.start_ea = ea1;
       s.end_ea = ea2;
-      s.sel = i+1;
-      s.bitness = 1;    // 32bit
+      s.set_sel(i+1);
+      s.set_bitness(1);    // 32bit
       set_selector(i+1, ea1 >> 4);
-      if ( !add_segm_ex(&s, segname, sclass, ADDSEG_FILLGAP|ADDSEG_OR_DIE|ADDSEG_SPARSE) )
+      s.set_name(segname);
+      s.set_sclass(sclass);
+      if ( !add_segment_ex(&s, ADDSEG_FILLGAP|ADDSEG_OR_DIE|ADDSEG_SPARSE) )
         loader_failure();
     }
   }
@@ -821,9 +827,10 @@ void idaapi load_file(linput_t *li, ushort neflags, const char * fileformatname)
     {
       if ( re[i].fcType == PILOT_RSC_CODE && re[i].id > 1 )
       {
-        segment_t *seg = get_segm_by_sel(i+1);
-        if ( seg != nullptr )
-          fix_jumptables(seg->start_ea, seg->end_ea, i+1, a5, a4);
+        ea_t seg_ea = get_segment_ea_by_sel(i+1);
+        segment_info_t seg;
+        if ( seg_ea != BADADDR && get_segment_info(&seg, seg_ea) )
+          fix_jumptables(seg.start_ea, seg.end_ea, i+1, a5, a4);
       }
     }
     // TODO: handle prc-tools and multilink's 'rloc' segments

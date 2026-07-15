@@ -25,20 +25,21 @@ def get_widget_lines(widget, tp0, tp1):
     """
     ud = ida_kernwin.get_viewer_user_data(widget)
     lnar = ida_kernwin.linearray_t(ud)
-    lnar.set_place(tp0.at)
+    # l_compare2 doesn't always match visual left-to-right order: in
+    # pseudocode, places on the same line are ordered by source EA, not
+    # column, so `callfn(arg)` may have `callfn > arg`. Walk from the
+    # smaller place to the larger one; tp0.x / tp1.x clip horizontally.
+    if ida_kernwin.l_compare2(tp0.at, tp1.at, ud) > 0:
+        start_at, end_at = tp1.at, tp0.at
+    else:
+        start_at, end_at = tp0.at, tp1.at
+    lnar.set_place(start_at)
     lines = []
-    while True:
-        cur_place = lnar.get_place()
-        first_line_ref = ida_kernwin.l_compare2(cur_place, tp0.at, ud)
-        last_line_ref = ida_kernwin.l_compare2(cur_place, tp1.at, ud)
-        if last_line_ref > 0: # beyond last line
-            break
-        line = ida_lines.tag_remove(lnar.down())
-        if last_line_ref == 0: # at last line
-            line = line[0:tp1.x]
-        elif first_line_ref == 0: # at first line
-            line = " " * tp0.x + line[tp0.x:]
-        lines.append(line)
+    while ida_kernwin.l_compare2(lnar.get_place(), end_at, ud) <= 0:
+        lines.append(ida_lines.tag_remove(lnar.down()))
+    if lines:
+        lines[-1] = lines[-1][:tp1.x]                 # clip selection end
+        lines[0] = " " * tp0.x + lines[0][tp0.x:]     # clip selection start
     return lines
 
 class dump_selection_handler_t(ida_kernwin.action_handler_t):

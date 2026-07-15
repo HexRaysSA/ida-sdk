@@ -65,6 +65,8 @@ if val:
 //<typemaps(lines)>
 //</typemaps(lines)>
 
+%template(sourcefilevec_t) qvector<sourcefile_t>;
+
 %include "lines.hpp"
 
 %pywraps_nonnul_argument_prototype(

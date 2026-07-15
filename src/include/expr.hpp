@@ -431,7 +431,6 @@ struct idc_global_t
   idc_global_t(void) {}
   idc_global_t(const char *n) : name(n) {}
 };
-typedef qvector<idc_global_t> idc_vars_t; ///< vector of global idc variables
 
 /// Prototype of an external IDC function (implemented in C).
 /// \param argv  vector of input arguments. IDA will convert all arguments
@@ -804,8 +803,19 @@ struct extlang_t
         const char *path,
         qstring *errbuf);
 
+  int icon;                         ///< Icon ID for the language (0 = no icon)
+
   bool is_idc(void) const { return (flags & EXTLANG_IDC) != 0; }
   bool is_namespace_aware(void) const { return (flags & EXTLANG_NS_AWARE) != 0; }
+  int get_icon(void) const
+  {
+    return size > qoffsetof(extlang_t, icon) ? icon : 0;
+  }
+  void set_icon(int id)
+  {
+    if ( size > qoffsetof(extlang_t, icon) )
+      icon = id;
+  }
   void release(void) {}
 };
 

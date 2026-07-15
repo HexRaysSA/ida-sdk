@@ -37,15 +37,18 @@ void z8_t::z8_footer(outctx_t &ctx)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Srange) could be made const
-void z8_t::z8_segstart(outctx_t &ctx, segment_t *Srange)
+void z8_t::z8_segstart(outctx_t &ctx, ea_t seg_ea)
 {
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
+
   qstring sname;
-  get_visible_segm_name(&sname, Srange);
+  si.visible_name(&sname);
 
   ctx.gen_cmt_line(COLSTR("segment %s", SCOLOR_AUTOCMT), sname.c_str());
 
-  ea_t org = ctx.insn_ea - get_segm_base(Srange);
+  ea_t org = ctx.insn_ea - si.base();
   if ( org != 0 )
   {
     char buf[MAX_NUMBUF];
@@ -55,11 +58,14 @@ void z8_t::z8_segstart(outctx_t &ctx, segment_t *Srange)
 }
 
 //--------------------------------------------------------------------------
-//lint -esym(818, seg) could be made const
-void z8_t::z8_segend(outctx_t &ctx, segment_t *seg)
+void z8_t::z8_segend(outctx_t &ctx, ea_t seg_ea)
 {
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME) )
+    return;
+
   qstring sname;
-  get_visible_segm_name(&sname, seg);
+  si.visible_name(&sname);
   ctx.gen_cmt_line("end of '%s'", sname.c_str());
 }
 
@@ -163,12 +169,12 @@ static void out_equ(outctx_t &ctx, const char *name, const char *equ, uchar off)
 void z8_t::z8_data(outctx_t &ctx, bool analyze_only)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *s = getseg(ea);
-  if ( s != nullptr && s->type == SEG_IMEM )
+  segment_info_t si;
+  if ( get_segment_info(&si, ea) && si.get_type() == SEG_IMEM )
   {
     qstring name;
     if ( get_visible_name(&name, ea) > 0 )
-      out_equ(ctx, name.begin(), ash.a_equ, uint16(ea - get_segm_base(s)));
+      out_equ(ctx, name.begin(), ash.a_equ, uint16(ea - si.base()));
   }
   else
   {
@@ -181,11 +187,11 @@ void z8_t::z8_data(outctx_t &ctx, bool analyze_only)
 void z8_t::z8_assumes(outctx_t &ctx)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *seg = getseg(ea);
-  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 || seg == nullptr )
+  segment_info_t si;
+  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 || !get_segment_info(&si, ea) )
     return;
   // always show at the start of code segments
-  bool seg_started = (ea == seg->start_ea) && (seg->type == SEG_CODE);
+  bool seg_started = (ea == si.start_ea) && (si.get_type() == SEG_CODE);
 
   sreg_range_t sra;
   if ( !get_sreg_range(&sra, ea, rRp) )

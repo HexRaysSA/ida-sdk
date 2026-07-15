@@ -286,8 +286,7 @@ void out_h8_t::out_insn(void)
 
 //--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
-//lint -esym(818, Srange) could be made const
-void h8_t::h8_segstart(outctx_t &ctx, segment_t *Srange) const
+void h8_t::h8_segstart(outctx_t &ctx, ea_t seg_ea) const
 {
   const char *predefined[] =
   {
@@ -300,13 +299,14 @@ void h8_t::h8_segstart(outctx_t &ctx, segment_t *Srange) const
     ".sbss",    // Small bss section, addressed through register $gp
   };
 
-  if ( Srange == nullptr || is_spec_segm(Srange->type) )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea, GSI_NAME|GSI_SCLASS) )
+    return;
+  if ( is_spec_segm(si.get_type()) )
     return;
 
-  qstring sname;
-  qstring sclas;
-  get_segm_name(&sname, Srange);
-  get_segm_class(&sclas, Srange);
+  qstring sname = si.get_name();
+  qstring sclas = si.get_sclass();
 
   if ( !print_predefined_segname(ctx, &sname, predefined, qnumber(predefined)) )
     ctx.gen_printf(DEFAULT_INDENT,
@@ -317,19 +317,14 @@ void h8_t::h8_segstart(outctx_t &ctx, segment_t *Srange) const
 }
 
 //--------------------------------------------------------------------------
-void idaapi h8_segend(outctx_t &, segment_t *)
-{
-}
-
-//--------------------------------------------------------------------------
 //lint -esym(1764, ctx) could be made const
 void h8_t::h8_assumes(outctx_t &ctx)
 {
   ea_t ea = ctx.insn_ea;
-  segment_t *seg = getseg(ea);
-  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 || seg == nullptr )
+  segment_info_t si;
+  if ( (inf_get_outflags() & OFLG_GEN_ASSUME) == 0 || !get_segment_info(&si, ea) )
     return;
-  bool seg_started = (ea == seg->start_ea);
+  bool seg_started = (ea == si.start_ea);
 
   for ( int i = ph.reg_first_sreg; i <= ph.reg_last_sreg; i++ )
   {

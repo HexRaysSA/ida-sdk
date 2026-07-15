@@ -40,13 +40,17 @@ static const entry_t entries[] =
 //----------------------------------------------------------------------
 static ea_t AdditionalSegment(size_t size, size_t offset, const char *name, const char *sclass, uchar stype)
 {
-  segment_t s;
-  s.start_ea = find_free_chunk(0, size, 0xF);
-  s.end_ea   = s.start_ea + size;
-  s.sel     = allocate_selector((s.start_ea-offset) >> 4);
-  s.type    = stype;
-  add_segm_ex(&s, name, sclass, ADDSEG_NOSREG|ADDSEG_OR_DIE);
-  return s.start_ea - offset;
+  segment_info_t si;
+  si.start_ea = find_free_chunk(0, size, 0xF);
+  si.end_ea   = si.start_ea + size;
+  si.set_sel(allocate_selector((si.start_ea-offset) >> 4));
+  si.set_type(stype);
+  if ( name != nullptr )
+    si.set_name(name);
+  if ( sclass != nullptr )
+    si.set_sclass(sclass);
+  add_segment_ex(&si, ADDSEG_NOSREG|ADDSEG_OR_DIE);
+  return si.start_ea - offset;
 }
 
 //----------------------------------------------------------------------
@@ -84,18 +88,20 @@ const char *z8_t::find_ioport(uval_t port)
 //----------------------------------------------------------------------
 static ea_t specialSeg(sel_t sel, bool make_imem = true)
 {
-  segment_t *s = get_segm_by_sel(sel);
+  ea_t seg_ea = get_segment_ea_by_sel(sel);
+  if ( seg_ea == BADADDR )
+    return BADADDR;
 
-  if ( s != nullptr )
+  segment_info_t si;
+  if ( !get_segment_info(&si, seg_ea) )
+    return BADADDR;
+
+  if ( make_imem && si.get_type() != SEG_IMEM )
   {
-    if ( make_imem && s->type != SEG_IMEM )
-    {
-      s->type = SEG_IMEM;
-      s->update();
-    }
-    return s->start_ea;
+    si.set_type(SEG_IMEM);
+    set_segment_info(&si);
   }
-  return BADADDR;
+  return si.start_ea;
 }
 
 //----------------------------------------------------------------------
@@ -197,32 +203,33 @@ ssize_t idaapi z8_t::on_event(ssize_t msgid, va_list va)
 
     case processor_t::ev_newfile:
       {
-        segment_t *sptr = get_first_seg();
-        if ( sptr != nullptr )
+        ea_t first_seg_ea = get_first_segment_ea();
+        segment_info_t si;
+        if ( first_seg_ea != BADADDR && get_segment_info(&si, first_seg_ea) )
         {
-          if ( sptr->start_ea - get_segm_base(sptr) == 0 )
+          if ( si.start_ea - si.base() == 0 )
           {
-            inf_set_start_ea(sptr->start_ea + 0xC);
+            inf_set_start_ea(si.start_ea + 0xC);
             inf_set_start_ip(0xC);
             if ( !inf_like_binary() )
             {
               // set default entries
               for ( int i = 0; i < qnumber(entries); i++ )
               {
-                ea_t ea = sptr->start_ea + entries[i].off;
+                ea_t ea = si.start_ea + entries[i].off;
                 if ( is_mapped(ea) )
                 {
                   create_word(ea, 2);
-                  op_plain_offset(ea, 0, sptr->start_ea);
-                  ea_t ea1 = sptr->start_ea + get_word(ea);
+                  op_plain_offset(ea, 0, si.start_ea);
+                  ea_t ea1 = si.start_ea + get_word(ea);
                   auto_make_proc(ea1);
                   set_name(ea, entries[i].name, SN_NODUMMY);
-                  set_cmt(sptr->start_ea+get_word(ea), entries[i].cmt, 1);
+                  set_cmt(si.start_ea+get_word(ea), entries[i].cmt, 1);
                 }
               }
             }
           }
-          set_segm_class(sptr, "CODE");
+          set_segment_class(first_seg_ea, "CODE");
         }
 
         select_device(IORESP_ALL);
@@ -254,19 +261,19 @@ ssize_t idaapi z8_t::on_event(ssize_t msgid, va_list va)
         return 1;
       }
 
-    case processor_t::ev_out_segstart:
+    case processor_t::ev_out_segment_start:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        z8_segstart(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        z8_segstart(*ctx, ea);
         return 1;
       }
 
-    case processor_t::ev_out_segend:
+    case processor_t::ev_out_segment_end:
       {
         outctx_t *ctx = va_arg(va, outctx_t *);
-        segment_t *seg = va_arg(va, segment_t *);
-        z8_segend(*ctx, seg);
+        ea_t ea = va_arg(va, ea_t);
+        z8_segend(*ctx, ea);
         return 1;
       }
 

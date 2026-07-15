@@ -19,13 +19,13 @@ import ida_dbg
 import idautils
 
 # -----------------------------------------------------------------------
-# class to take a copy of a segment_t
+# class to take a copy of segment info
 class Seg():
-    def __init__(self, s):
-        self.start_ea = s.start_ea
-        self.end_ea   = s.end_ea
-        self.perm     = s.perm
-        self.bitness  = s.bitness
+    def __init__(self, si):
+        self.start_ea = si.start_ea
+        self.end_ea   = si.end_ea
+        self.perm     = si.get_perm()
+        self.bitness  = si.get_bitness()
 
     def __cmp__(self, other):
         return cmp(self.start_ea, other.start_ea)
@@ -97,20 +97,21 @@ def CallStackWalk(nn):
 
     # get stack pointer
     sp = idautils.cpu.Esp
-    seg = ida_segment.getseg(sp)
-    if not seg:
+    si = ida_segment.segment_info_t()
+    if not ida_segment.get_segment_info(si, sp):
         return (False, "Could not locate stack segment!")
 
-    stack_seg = Seg(seg)
-    word_size = 2 ** (seg.bitness + 1)
+    stack_seg = Seg(si)
+    word_size = 2 ** (si.get_bitness() + 1)
     callers = []
     sp = idautils.cpu.Esp - word_size
     while sp < stack_seg.end_ea:
         sp += word_size
         ptr = next(idautils.GetDataList(sp, 1, word_size))
-        seg = ida_segment.getseg(ptr)
+        si = ida_segment.segment_info_t()
         # only accept executable segments
-        if (not seg) or ((seg.perm & ida_segment.SEGPERM_EXEC) == 0):
+        if not ida_segment.get_segment_info(si, ptr) \
+                or (si.get_perm() & ida_segment.SEGPERM_EXEC) == 0:
             continue
         # try to find caller
         caller = IsPrevInsnCall(ptr)

@@ -313,8 +313,8 @@ void idaapi arc_header(outctx_t &ctx);
 void idaapi arc_footer(outctx_t &ctx);
 
 int idaapi is_sp_based(const insn_t &insn, const op_t & x);
-bool idaapi create_func_frame(func_t * pfn);
-int idaapi arc_get_frame_retsize(const func_t * pfn);
+bool idaapi create_func_frame(ea_t func_ea);
+int idaapi arc_get_frame_retsize(ea_t func_ea);
 bool is_arc_return_insn(const insn_t &insn);
 bool arc_is_switch(switch_info_t *si, const insn_t &insn);
 inline bool is_arc_simple_branch(uint16 itype)
@@ -329,7 +329,7 @@ inline bool is_forbidden_in_arc_dslot(const insn_t &dslot_insn)
   // doc: "The Illegal Instruction Sequence type also occurs when any of the
   // following instructions are attempted in an executed delay slot of a
   // jump or branch:
-  // * Another jump or branch instruction (Bcc, BLcc, Jcc, JLcc)
+  // * Another jump or branch instruction (Bcc, BLcc, Jcc, JLcc, DBNZ)
   // * Conditional loop instruction (LPcc)
   // * Return from interrupt (RTIE)
   // * Any instruction with long-immediate data as a source operand"
@@ -339,7 +339,8 @@ inline bool is_forbidden_in_arc_dslot(const insn_t &dslot_insn)
       || dslot_insn.size > 4
       || dslot_insn.itype == ARC_br    // ARCompact instructions
       || dslot_insn.itype == ARC_bbit0
-      || dslot_insn.itype == ARC_bbit1;
+      || dslot_insn.itype == ARC_bbit1
+      || dslot_insn.itype == ARC_dbnz;
 }
 
 int get_arc_fastcall_regs(const int **regs);
@@ -523,7 +524,7 @@ struct arc_t : public procmod_t
         eavec_t *visited);
   void use_arc_arg_types(ea_t ea, func_type_data_t *fti, funcargvec_t *rargs);
 
-  void arc_segstart(outctx_t &ctx, segment_t *Sarea) const;
+  void arc_segstart(outctx_t &ctx, ea_t seg_ea) const;
 };
 extern int data_id;
 
