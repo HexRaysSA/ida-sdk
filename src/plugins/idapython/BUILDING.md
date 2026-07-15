@@ -2,28 +2,23 @@
 
 ## Build Requirements
 
-- [IDA C++ SDK](https://github.com/HexRaysSA/ida-sdk#requirements) built first (via CMake or make)
-- [Python 3.9–3.14](http://www.python.org/)
-- [swig](https://www.swig.org/)
-- zip, unzip
+- A released [IDA SDK](https://github.com/HexRaysSA/ida-sdk). IDAPython lives
+  inside the SDK and consumes it via `find_package(idasdk)`, so the SDK is
+  auto-detected when you build in place.
+- [CMake](https://cmake.org/) 3.25+ and a generator (Ninja recommended)
+- [Python 3.9-3.14](http://www.python.org/) with development headers
+- [SWIG 4.2.0+](https://www.swig.org/)
 
 ### Additional Windows Requirements
 
-- [Cygwin](https://cygwin.com/) — provides `make`, `cygpath`, and other Unix tools needed by the build system
-- Visual Studio 2022 with C++ workload
-- The following environment variables must be set:
-  - `VCINSTALLDIR` — Visual C++ install directory (e.g., `C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\`)
-  - `WindowsSdkDir` — Windows SDK install directory (e.g., `C:\Program Files (x86)\Windows Kits\10\`)
-
-> **Tip:** These are set automatically by the Visual Studio Developer Command Prompt or by running `vcvarsall.bat`.
->
-> When setting manually:
-> - cmd: `set "VCINSTALLDIR=C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\"`
-> - PowerShell: `$env:VCINSTALLDIR = 'C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\'`
+- Visual Studio 2022 with the C++ workload. `vcvarsall.bat` is not required
+  either way: with the Ninja generator MSVC is auto-detected (via vswhere); with
+  the default Visual Studio generator CMake locates MSVC itself.
 
 ## Runtime Requirements
 
-- [IDA 9.2+](http://www.hex-rays.com/idapro/)
+- An [IDA](https://www.hex-rays.com/ida-pro) install matching the SDK version you
+  built against
 
 ### SWIG
 
@@ -31,9 +26,9 @@ Simplified Wrapper Interface Generator (SWIG)
 
 SWIG can be installed in different ways or built from sources. In the past, only building from sources was supported. These days you can use any method you prefer.
 
-> Requires SWIG 4.2+
+> Requires SWIG 4.2.0+
 >
-> Tested with 4.2.0 — the latest available via `apt` on Ubuntu 24.04
+> Tested with 4.2.0 - the latest available via `apt` on Ubuntu 24.04
 >
 > Tested with 4.3.1 on Windows & Linux
 >
@@ -41,7 +36,16 @@ SWIG can be installed in different ways or built from sources. In the past, only
 
 #### Install
 
-SWIG can be installed using package managers on any platform.
+The easiest cross-platform way is the SWIG pip wheel, which bundles the binary:
+
+```shell
+python3 -m venv /tmp/swig421 && /tmp/swig421/bin/pip install swig==4.2.1
+```
+
+Then point the build at it with `-DIDA_SWIG=/tmp/swig421/bin/swig` (on Windows,
+`...\Scripts\swig.exe`) - or `build.py --swig <path>` - or just add it to the `PATH`.
+
+Or use a package manager:
 
 ##### Linux
 
@@ -79,16 +83,14 @@ winget install swig
 Cygwin example:
 
 ```cmd
-setup-x86_64.exe -q -P zip -P unzip -P swig
+setup-x86_64.exe -q -P swig
 ```
 
 Choco example:
 
 ```cmd
-choco install zip unzip swig
+choco install swig
 ```
-
-> **Note:** On Windows there are no zip & unzip commands, so they can be installed with a package manager as well.
 
 #### Build From Sources
 
@@ -103,46 +105,60 @@ make install
 
 If you face any problems, see the **Troubleshooting** section of the mentioned README.
 
-On Windows, no build is required—just unpack and it's ready to use.
+On Windows, no build is required - just unpack and it's ready to use.
 
 > **NOTE**: Do not move swig after building or rebuild after moving because
 > SWiG do hardcore of library paths
 
 ## Building
 
-1. Make sure all the [build requirements](#build-requirements) are on the PATH.
+Make sure the [build requirements](#build-requirements) are on the `PATH`.
 
-   > **Note:** If you want to build for a specific Python version (let's say Python 3.12), please set the following environment variables:
-   >
-   > - `PYTHON_VERSION_MAJOR=3`
-   > - `PYTHON_VERSION_MINOR=12`
-   >
-   > If `PYTHON_VERSION_MINOR` is not set, `build.py` will use the version of the Python that runs it.
-   >
-   > On Windows, `build.py` also auto-detects `PYTHON_ROOT` from the running Python if not set. You can override it to point to a specific Python installation.
-   >
-   > See the default values in SDK's `allmake.mk`
-   >
-   >> How to:
-   >>
-   >> - Linux/macOS: `export PYTHON_VERSION_MAJOR=3; export PYTHON_VERSION_MINOR=12`
-   >> - Windows cmd/bat: `set PYTHON_VERSION_MAJOR=3 && set PYTHON_VERSION_MINOR=11`
-   >> - Windows PowerShell: `$env:PYTHON_VERSION_MAJOR=3; $env:PYTHON_VERSION_MINOR=12`
+Because IDAPython ships inside the SDK, the SDK is auto-detected from this
+directory's location - so from an unpacked SDK you can just:
 
-2. Make sure the [SDK is built](https://github.com/HexRaysSA/ida-sdk?tab=readme-ov-file#getting-started).
+```shell
+cmake -B build && cmake --build build
+```
 
-3. Build the plugin:
+That uses CMake's default generator (Unix Makefiles, or the Visual Studio
+generator on Windows). Ninja is recommended for faster builds - add `-G Ninja`
+(`build.py` picks it up automatically when `ninja` is on the `PATH`):
 
-   ```shell
-   python3 build.py
-   ```
+```shell
+cmake -B build -G Ninja && cmake --build build
+```
 
-   You can also run `build.py --help` for more information.
+Or use the convenience wrapper (same defaults):
+
+```shell
+python3 build.py
+```
+
+To build against a different SDK, or when building outside an SDK tree, pass it
+explicitly (or set the `IDASDK` environment variable):
+
+```shell
+cmake -B build -DIDASDK=/path/to/idasdk && cmake --build build
+# or: python3 build.py --idasdk /path/to/idasdk
+```
+
+Notes:
+
+- The build uses the Python 3 that `find_package(Python3)` discovers (normally
+  the first `python3` on the `PATH`); override with `-DPython3_EXECUTABLE=...`.
+- If `swig` is not on the `PATH`, pass `-DIDA_SWIG=/path/to/swig` (or
+  `build.py --swig ...`).
+- Output is written to `build/bin/` and, by default, also merged into the SDK's
+  `bin/` (disable with `-DIDAPYTHON_DEPLOY_TO_SDK=OFF`).
 
 ## Plug In
 
-1. Copy all `src/bin/plugins/idapython3.*` files to `<IDADIR>/plugins/`
-2. Copy the entire `src/bin/python` directory to `<IDADIR>/`
+The build output lives in `build/bin/` (and, unless disabled, is also merged into
+the SDK's `bin/`). To install it into an IDA:
+
+1. Copy `build/bin/plugins/idapython3.*` to `<IDADIR>/plugins/`
+2. Copy the entire `build/bin/python` directory to `<IDADIR>/`
 3. Copy `idapython.cfg` to `<IDADIR>/cfg/` or `<IDAUSR>/cfg/`
 
 > **Notes:**
