@@ -13,6 +13,10 @@ on:
       os:
         required: true
         type: string
+      ref:
+        required: false
+        type: string
+        default: ''       # empty -> checkout the triggering ref (CI default)
 
 jobs:
   build:
@@ -25,6 +29,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
 
     - name: Setup Visual Studio Developer Environment
       if: runner.os == 'Windows'
@@ -68,10 +74,11 @@ jobs:
         ls -la bin/plugins/idapython3* 2>/dev/null || echo "  (none found)"
 
     - name: Upload IDAPython artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: idapython-${{ inputs.platform }}-py${{ matrix.python }}
         path: |
           src/bin/plugins/idapython3*
           src/bin/python/
-        retention-days: 7
+        if-no-files-found: error
+        retention-days: 30
