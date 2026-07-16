@@ -6,6 +6,11 @@ name: IDAPython Build - all platforms (reusable)
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ''       # empty -> checkout the triggering ref (CI default)
 
 jobs:
   windows:
@@ -13,15 +18,18 @@ jobs:
     with:
       platform: windows
       os: windows-latest
+      ref: ${{ inputs.ref }}
 
   linux:
     uses: ./.github/workflows/idapython-build.yml
     with:
       platform: linux
       os: ubuntu-latest
+      ref: ${{ inputs.ref }}
 
   macos:
     uses: ./.github/workflows/idapython-build.yml
     with:
       platform: macos
       os: macos-latest
+      ref: ${{ inputs.ref }}

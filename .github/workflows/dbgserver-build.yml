@@ -7,6 +7,11 @@ name: Debug Server Build (reusable)
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ''       # empty -> checkout the triggering ref (CI default)
 
 jobs:
   build:
@@ -23,6 +28,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
 
     - name: Setup Visual Studio Developer Environment
       if: runner.os == 'Windows'
@@ -56,8 +63,9 @@ jobs:
         ls -la bin/dbgsrv/ 2>/dev/null || echo "  (none found)"
 
     - name: Upload debug server artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: dbgserver-${{ matrix.label }}
         path: src/bin/dbgsrv/
-        retention-days: 7
+        if-no-files-found: error
+        retention-days: 30

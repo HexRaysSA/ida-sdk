@@ -1,19 +1,20 @@
 name: Release
 
-# Build every SDK component on a version tag, then publish a DRAFT GitHub
-# Release with per-platform archives + checksums. Reuses the same reusable
-# workflows as CI (build.yml) so nothing is built differently for releases.
+# On a vX.Y.Z-release tag (or manual dispatch), publish a DRAFT GitHub Release
+# with separate per-component archives + checksums: SDK, IDAPython (3.9,
+# unlabelled), and debug server, one each per platform, plus SDK docs.
 #
-# IDAPython is still built for all Python versions (the release is gated on
-# every one succeeding), but only the 3.9 plugin is shipped, unlabelled.
+# Reuse: if build.yml already succeeded for this exact commit and its
+# artifacts are still available, download and repackage those instead of
+# rebuilding. Otherwise build here (same reusable workflows as CI).
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v*-release']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to release (e.g. v9.4.0)'
+        description: 'Existing tag to release (e.g. v9.4.0-release or v9.4.0-rc.1)'
         required: true
         type: string
 
@@ -25,24 +26,86 @@ permissions:
   contents: read
 
 jobs:
-  # build-sdk       -> windows | linux | macos | docs
-  build-sdk:
-    uses: ./.github/workflows/sdk-build.yml
-
-  # build-dbgserver -> linux | linux-ea32 | windows | windows-ea32
-  build-dbgserver:
-    uses: ./.github/workflows/dbgserver-build.yml
-
-  # build-idapython -> windows|linux|macos, each with py3.9..py3.14
-  build-idapython:
-    uses: ./.github/workflows/idapython-os.yml
-
-  # ---- Package + publish the draft release --------------------------------
-  release:
-    needs: [build-sdk, build-dbgserver, build-idapython]
+  # 1. Reuse a prior successful build for this commit iff all the artifacts
+  #    the release consumes are still present (non-expired); else rebuild.
+  resolve:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # least privilege: only this job can write the release
+      actions: read
+    outputs:
+      run_id: ${{ steps.f.outputs.run_id }}
+      sha:    ${{ steps.f.outputs.sha }}
+    steps:
+      - name: Find reusable build artifacts
+        id: f
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          SHA=$(gh api "repos/$GH_REPO/commits/$TAG" -q .sha)
+          echo "Tag $TAG -> commit $SHA"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"   # so rebuilds check out this exact commit
+
+          # Artifacts the release actually packages.
+          REQUIRED="sdk-build-windows sdk-build-linux sdk-build-macos
+                    idapython-windows-py3.9 idapython-linux-py3.9 idapython-macos-py3.9
+                    dbgserver-linux dbgserver-linux-ea32 dbgserver-windows dbgserver-windows-ea32
+                    sdk-docs-html"
+
+          REUSE=""
+          RID=$(gh run list --workflow build.yml --commit "$SHA" \
+                  --status success --limit 1 --json databaseId -q '.[0].databaseId // ""')
+          if [ -n "$RID" ]; then
+            LIVE=$(gh api "repos/$GH_REPO/actions/runs/$RID/artifacts?per_page=100" \
+                     -q '.artifacts[] | select(.expired==false) | .name')
+            ok=1
+            for r in $REQUIRED; do
+              grep -qxF "$r" <<<"$LIVE" || { echo "missing/expired: $r"; ok=0; }
+            done
+            if [ "$ok" = 1 ]; then
+              REUSE="$RID"; echo "Reusing artifacts from build run $RID."
+            else
+              echo "Build run $RID artifacts incomplete/expired -> rebuild."
+            fi
+          else
+            echo "No prior successful build for $SHA -> build."
+          fi
+          echo "run_id=$REUSE" >> "$GITHUB_OUTPUT"
+
+  # 2. Build only when there is nothing to reuse (these jobs skip otherwise).
+  build-sdk:
+    needs: resolve
+    if: needs.resolve.outputs.run_id == ''
+    uses: ./.github/workflows/sdk-build.yml
+    with:
+      ref: ${{ needs.resolve.outputs.sha }}
+
+  build-dbgserver:
+    needs: resolve
+    if: needs.resolve.outputs.run_id == ''
+    uses: ./.github/workflows/dbgserver-build.yml
+    with:
+      ref: ${{ needs.resolve.outputs.sha }}
+
+  build-idapython:
+    needs: resolve
+    if: needs.resolve.outputs.run_id == ''
+    uses: ./.github/workflows/idapython-os.yml
+    with:
+      ref: ${{ needs.resolve.outputs.sha }}
+
+  # 3. Package + publish the draft release.
+  release:
+    needs: [resolve, build-sdk, build-dbgserver, build-idapython]
+    # Run even when the build-* jobs were skipped (reuse path); only bail on
+    # a genuine failure/cancellation of a dependency.
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create the release
+      actions: read     # download artifacts from the reused run
     steps:
     - name: Resolve version and tag
       id: ver
@@ -50,74 +113,75 @@ jobs:
       run: |
         set -euo pipefail
         TAG="${{ github.event.inputs.tag || github.ref_name }}"
+        VERSION="${TAG#v}"; VERSION="${VERSION%-release}"   # v9.4.0-release -> 9.4.0
+        case "$VERSION" in
+          *rc*|*beta*|*alpha*) PRE=true ;;
+          *)                   PRE=false ;;
+        esac
         echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-        echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
-        # A tag like v9.4.0-rc1 / -beta.2 is a prerelease.
-        if [[ "$TAG" == *-* ]]; then
-          echo "prerelease=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "prerelease=false" >> "$GITHUB_OUTPUT"
-        fi
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "prerelease=$PRE" >> "$GITHUB_OUTPUT"
 
-    # No name -> downloads every artifact from this run into artifacts/<name>/.
-    - name: Download all build artifacts
-      uses: actions/download-artifact@v4
+    # Pull from the reused run when resolve found one, else from this run.
+    - name: Download build artifacts
+      uses: actions/download-artifact@v8
       with:
         path: artifacts
+        github-token: ${{ github.token }}
+        run-id: ${{ needs.resolve.outputs.run_id || github.run_id }}
 
     - name: Package release assets
       shell: bash
       run: |
         set -euo pipefail
-        VER="${{ steps.ver.outputs.version }}"
         A=artifacts
         OUT=dist
         mkdir -p "$OUT"
+        # Asset filenames are version-less on purpose: the version lives in the
+        # tag/release, so /releases/latest/download/<name> links never rot.
 
-        # $1 = platform label (windows|linux|macos)
-        assemble() {
-          local plat="$1"
-          local stage="stage/$plat"
-          rm -rf "$stage"; mkdir -p "$stage"
-
-          # C++ SDK bin/
-          if [ -d "$A/sdk-build-$plat" ]; then
-            mkdir -p "$stage/sdk"
-            cp -a "$A/sdk-build-$plat/." "$stage/sdk/"
-          fi
-
-          # IDAPython plugin - 3.9 only, shipped unlabelled under idapython/
-          if [ -d "$A/idapython-$plat-py3.9" ]; then
-            mkdir -p "$stage/idapython"
-            cp -a "$A/idapython-$plat-py3.9/." "$stage/idapython/"
-          fi
-
-          # Debug server (Linux/Windows only): dbgserver-<plat> + -<plat>-ea32
-          case "$plat" in
-            linux|windows)
-              for ds in "$A/dbgserver-$plat" "$A/dbgserver-$plat"-*; do
-                [ -d "$ds" ] || continue
-                mkdir -p "$stage/dbgsrv"
-                cp -a "$ds/." "$stage/dbgsrv/"
-              done
-              ;;
-          esac
-
-          # Windows -> zip, others -> tar.gz
-          if [ "$plat" = windows ]; then
-            (cd "$stage" && zip -qr "$OLDPWD/$OUT/ida-sdk-$VER-windows.zip" .)
+        # Archive stage/<name>/ as <name>.zip (windows) or .tar.gz (else), so
+        # each asset unpacks into its own top-level directory (no tarbombs).
+        pack() {  # <name> <plat>
+          [ -d "stage/$1" ] || return 0
+          if [ "$2" = windows ]; then
+            (cd stage && zip -qr "$OLDPWD/$OUT/$1.zip" "$1")
           else
-            tar -C "$stage" -czf "$OUT/ida-sdk-$VER-$plat.tar.gz" .
+            tar -C stage -czf "$OUT/$1.tar.gz" "$1"
           fi
         }
+        # Copy an artifact dir into a freshly-named stage dir (skip if absent).
+        stage_into() {  # <srcdir> <name>
+          [ -d "$1" ] || return 1
+          rm -rf "stage/$2"; mkdir -p "stage/$2"
+          cp -a "$1/." "stage/$2/"
+        }
 
+        # One archive per component, per platform.
         for plat in windows linux macos; do
-          assemble "$plat"
+          # C++ SDK build output
+          stage_into "$A/sdk-build-$plat" "ida-sdk-$plat" \
+            && pack "ida-sdk-$plat" "$plat"
+
+          # IDAPython plugin (Python 3.9)
+          stage_into "$A/idapython-$plat-py3.9" "idapython-$plat" \
+            && pack "idapython-$plat" "$plat"
+
+          # Debug servers (Linux/Windows only): 64- and 32-bit into one archive
+          case "$plat" in
+            linux|windows)
+              n="dbgserver-$plat"; rm -rf "stage/$n"; mkdir -p "stage/$n"; found=0
+              for ds in "$A/dbgserver-$plat" "$A/dbgserver-$plat"-*; do
+                [ -d "$ds" ] || continue; cp -a "$ds/." "stage/$n/"; found=1
+              done
+              [ "$found" = 1 ] && pack "$n" "$plat"
+              ;;
+          esac
         done
 
-        # SDK HTML docs
-        if [ -d "$A/sdk-docs-html" ]; then
-          (cd "$A/sdk-docs-html" && zip -qr "$OLDPWD/$OUT/ida-sdk-$VER-docs.zip" .)
+        # SDK HTML docs (always zip)
+        if stage_into "$A/sdk-docs-html" "ida-sdk-docs"; then
+          (cd stage && zip -qr "$OLDPWD/$OUT/ida-sdk-docs.zip" "ida-sdk-docs")
         fi
 
         # Checksums over the final asset set
@@ -133,7 +197,13 @@ jobs:
       run: |
         set -euo pipefail
         TAG="${{ steps.ver.outputs.tag }}"
-        flags=(--draft --generate-notes --title "$TAG")
+        # Auto-generate notes from merged PRs, but drop the "by @author"
+        # attribution (--generate-notes can't be customised, so post-process).
+        NOTES=$(gh api "repos/$GH_REPO/releases/generate-notes" \
+                  -f tag_name="$TAG" -q .body \
+                | sed -E 's/ by @[A-Za-z0-9-]+ in / in /')
+        # Title is for humans; the tag stays the machine identifier.
+        flags=(--draft --title "IDA SDK ${{ steps.ver.outputs.version }}" --notes "$NOTES")
         if [ "${{ steps.ver.outputs.prerelease }}" = "true" ]; then
           flags+=(--prerelease)
         fi

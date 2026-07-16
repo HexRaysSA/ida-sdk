@@ -9,6 +9,11 @@ name: SDK Build (reusable)
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ''       # empty -> checkout the triggering ref (CI default)
 
 jobs:
   build:
@@ -24,6 +29,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
 
     - name: Setup Visual Studio Developer Environment
       if: runner.os == 'Windows'
@@ -79,12 +86,14 @@ jobs:
         done
 
     - name: Upload SDK build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: sdk-build-${{ matrix.platform }}
         path: |
           src/bin/
-        retention-days: 7
+          !src/bin/dbgsrv/**
+        if-no-files-found: error
+        retention-days: 30
 
   # SDK HTML documentation (Doxygen). Reads src/include/ only, so no build.
   docs:
@@ -92,6 +101,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
 
     - name: Install Doxygen
       run: |
@@ -109,8 +120,9 @@ jobs:
       run: test -f docs/build/html/index.html
 
     - name: Upload SDK docs artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: sdk-docs-html
         path: docs/build/html/
-        retention-days: 7
+        if-no-files-found: error
+        retention-days: 30

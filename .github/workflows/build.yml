@@ -2,9 +2,10 @@ name: Build
 
 on:
   push:
-    branches: [ main, build/cmake ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, build/cmake ]
+    branches: [ main ]
+  workflow_dispatch:      # run on demand for a given ref (feeds release reuse)
 
 jobs:
   # build-sdk       -> windows | linux | macos | docs
