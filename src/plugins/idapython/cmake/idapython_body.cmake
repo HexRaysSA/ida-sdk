@@ -240,6 +240,20 @@ if(IDA_WARNINGS STREQUAL "none")
     set(_swig_quiet_flag "-w315,361,503,509")
 endif()
 
+# CCACHE_CPP2=1 keeps %inline + -MMD working; set CCACHE_DIR only when asked,
+# otherwise ccache-swig uses its own default.
+set(_swig_cmd "${IDA_SWIG}")
+set(_swig_tool_deps "${IDA_SWIG}")
+if(IDA_SWIG_CCACHE)
+    set(_swig_env CCACHE_CPP2=1)
+    if(IDA_SWIG_CCACHE_DIR)
+        list(APPEND _swig_env "CCACHE_DIR=${IDA_SWIG_CCACHE_DIR}")
+    endif()
+    set(_swig_cmd "${CMAKE_COMMAND}" -E env ${_swig_env}
+        "${IDA_SWIG_CCACHE}" "${IDA_SWIG}")
+    list(APPEND _swig_tool_deps "${IDA_SWIG_CCACHE}")
+endif()
+
 foreach(_mod ${MODULE_NAMES})
 
     # --- 5a. Deploy .i (tools/deploy.py) ---
@@ -295,12 +309,20 @@ foreach(_mod ${MODULE_NAMES})
     )
 
     # --- 5b. SWIG codegen ---
-    # Per-module deps via SWIG's -MMD depfile.
+    # Per-module deps via SWIG's -MMD depfile. When caching, delete the outputs
+    # first: ccache-swig otherwise mistakes a stale -oh header for a second input
+    # ("multiple source files") and bails to a no-cache passthrough on rebuilds.
+    set(_swig_rm)
+    if(IDA_SWIG_CCACHE)
+        set(_swig_rm COMMAND "${CMAKE_COMMAND}" -E rm -f
+            "${ST_WRAP}/${_mod}.cpp.in1" "${ST_WRAP}/${_mod}.h")
+    endif()
     add_custom_command(
         OUTPUT "${ST_WRAP}/${_mod}.cpp.in1"
                "${ST_WRAP}/${_mod}.h"
                "${ST_WRAP}/ida_${_mod}.py"
-        COMMAND "${IDA_SWIG}" ${SWIG_HEXRAYS_FLAG}
+        ${_swig_rm}
+        COMMAND ${_swig_cmd} ${SWIG_HEXRAYS_FLAG}
             -python -DPY3=1 -threads -c++ -shadow
             -D__GNUC__ -DSWIG_PYTHON_LEGACY_BOOL=1
             ${SWIGFLAGS}
@@ -318,6 +340,7 @@ foreach(_mod ${MODULE_NAMES})
                 "${ST_SWIG}/header.i"
                 idapython_staging_sdk
                 ${_extra_sdk_outputs}
+                ${_swig_tool_deps}
         DEPFILE "${ST_WRAP}/${_mod}.d"
         WORKING_DIRECTORY "${IDAPYTHON_SRC}"
         COMMENT "swig: ${_mod}"

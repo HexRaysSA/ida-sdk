@@ -1,0 +1,830 @@
+; Python stable ABI (Limited API) for python3.dll
+; Compatible with Python >= 3.9
+; Generate ARM64 import lib: lib /def:python3_stable_abi.def /out:python3.lib /machine:ARM64
+; Generate x64 import lib:   lib /def:python3_stable_abi.def /out:python3.lib /machine:X64
+LIBRARY python3
+EXPORTS
+    PyArg_Parse
+    PyArg_ParseTuple
+    PyArg_ParseTupleAndKeywords
+    PyArg_UnpackTuple
+    PyArg_VaParse
+    PyArg_VaParseTupleAndKeywords
+    PyArg_ValidateKeywordArguments
+    PyBaseObject_Type DATA
+    PyBool_FromLong
+    PyBool_Type DATA
+    PyByteArrayIter_Type DATA
+    PyByteArray_AsString
+    PyByteArray_Concat
+    PyByteArray_FromObject
+    PyByteArray_FromStringAndSize
+    PyByteArray_Resize
+    PyByteArray_Size
+    PyByteArray_Type DATA
+    PyBytesIter_Type DATA
+    PyBytes_AsString
+    PyBytes_AsStringAndSize
+    PyBytes_Concat
+    PyBytes_ConcatAndDel
+    PyBytes_DecodeEscape
+    PyBytes_FromFormat
+    PyBytes_FromFormatV
+    PyBytes_FromObject
+    PyBytes_FromString
+    PyBytes_FromStringAndSize
+    PyBytes_Repr
+    PyBytes_Size
+    PyBytes_Type DATA
+    PyCFunction_Call
+    PyCFunction_GetFlags
+    PyCFunction_GetFunction
+    PyCFunction_GetSelf
+    PyCFunction_New
+    PyCFunction_NewEx
+    PyCFunction_Type DATA
+    PyCallIter_New
+    PyCallIter_Type DATA
+    PyCallable_Check
+    PyCapsule_GetContext
+    PyCapsule_GetDestructor
+    PyCapsule_GetName
+    PyCapsule_GetPointer
+    PyCapsule_Import
+    PyCapsule_IsValid
+    PyCapsule_New
+    PyCapsule_SetContext
+    PyCapsule_SetDestructor
+    PyCapsule_SetName
+    PyCapsule_SetPointer
+    PyClassMethodDescr_Type DATA
+    PyCodec_BackslashReplaceErrors
+    PyCodec_Decode
+    PyCodec_Decoder
+    PyCodec_Encode
+    PyCodec_Encoder
+    PyCodec_IgnoreErrors
+    PyCodec_IncrementalDecoder
+    PyCodec_IncrementalEncoder
+    PyCodec_KnownEncoding
+    PyCodec_LookupError
+    PyCodec_NameReplaceErrors
+    PyCodec_Register
+    PyCodec_RegisterError
+    PyCodec_ReplaceErrors
+    PyCodec_StreamReader
+    PyCodec_StreamWriter
+    PyCodec_StrictErrors
+    PyCodec_Unregister
+    PyCodec_XMLCharRefReplaceErrors
+    PyComplex_FromDoubles
+    PyComplex_ImagAsDouble
+    PyComplex_RealAsDouble
+    PyComplex_Type DATA
+    PyDescr_NewClassMethod
+    PyDescr_NewGetSet
+    PyDescr_NewMember
+    PyDescr_NewMethod
+    PyDictItems_Type DATA
+    PyDictIterItem_Type DATA
+    PyDictIterKey_Type DATA
+    PyDictIterValue_Type DATA
+    PyDictKeys_Type DATA
+    PyDictProxy_New
+    PyDictProxy_Type DATA
+    PyDictRevIterItem_Type DATA
+    PyDictRevIterKey_Type DATA
+    PyDictRevIterValue_Type DATA
+    PyDictValues_Type DATA
+    PyDict_Clear
+    PyDict_Contains
+    PyDict_Copy
+    PyDict_DelItem
+    PyDict_DelItemString
+    PyDict_GetItem
+    PyDict_GetItemString
+    PyDict_GetItemWithError
+    PyDict_Items
+    PyDict_Keys
+    PyDict_Merge
+    PyDict_MergeFromSeq2
+    PyDict_New
+    PyDict_Next
+    PyDict_SetItem
+    PyDict_SetItemString
+    PyDict_Size
+    PyDict_Type DATA
+    PyDict_Update
+    PyDict_Values
+    PyEllipsis_Type DATA
+    PyEnum_Type DATA
+    PyErr_BadArgument
+    PyErr_BadInternalCall
+    PyErr_CheckSignals
+    PyErr_Clear
+    PyErr_Display
+    PyErr_ExceptionMatches
+    PyErr_Fetch
+    PyErr_Format
+    PyErr_FormatV
+    PyErr_GetExcInfo
+    PyErr_GivenExceptionMatches
+    PyErr_NewException
+    PyErr_NewExceptionWithDoc
+    PyErr_NoMemory
+    PyErr_NormalizeException
+    PyErr_Occurred
+    PyErr_Print
+    PyErr_PrintEx
+    PyErr_ProgramText
+    PyErr_ResourceWarning
+    PyErr_Restore
+    PyErr_SetExcFromWindowsErr
+    PyErr_SetExcFromWindowsErrWithFilename
+    PyErr_SetExcFromWindowsErrWithFilenameObject
+    PyErr_SetExcFromWindowsErrWithFilenameObjects
+    PyErr_SetExcInfo
+    PyErr_SetFromErrno
+    PyErr_SetFromErrnoWithFilename
+    PyErr_SetFromErrnoWithFilenameObject
+    PyErr_SetFromErrnoWithFilenameObjects
+    PyErr_SetFromWindowsErr
+    PyErr_SetFromWindowsErrWithFilename
+    PyErr_SetImportError
+    PyErr_SetImportErrorSubclass
+    PyErr_SetInterrupt
+    PyErr_SetInterruptEx
+    PyErr_SetNone
+    PyErr_SetObject
+    PyErr_SetString
+    PyErr_SyntaxLocation
+    PyErr_SyntaxLocationEx
+    PyErr_WarnEx
+    PyErr_WarnExplicit
+    PyErr_WarnFormat
+    PyErr_WriteUnraisable
+    PyEval_AcquireLock
+    PyEval_AcquireThread
+    PyEval_CallFunction
+    PyEval_CallMethod
+    PyEval_CallObjectWithKeywords
+    PyEval_EvalCode
+    PyEval_EvalCodeEx
+    PyEval_EvalFrame
+    PyEval_EvalFrameEx
+    PyEval_GetBuiltins
+    PyEval_GetFrame
+    PyEval_GetFuncDesc
+    PyEval_GetFuncName
+    PyEval_GetGlobals
+    PyEval_GetLocals
+    PyEval_InitThreads
+    PyEval_ReleaseLock
+    PyEval_ReleaseThread
+    PyEval_RestoreThread
+    PyEval_SaveThread
+    PyEval_ThreadsInitialized
+    PyExc_ArithmeticError DATA
+    PyExc_AssertionError DATA
+    PyExc_AttributeError DATA
+    PyExc_BaseException DATA
+    PyExc_BaseExceptionGroup DATA
+    PyExc_BlockingIOError DATA
+    PyExc_BrokenPipeError DATA
+    PyExc_BufferError DATA
+    PyExc_BytesWarning DATA
+    PyExc_ChildProcessError DATA
+    PyExc_ConnectionAbortedError DATA
+    PyExc_ConnectionError DATA
+    PyExc_ConnectionRefusedError DATA
+    PyExc_ConnectionResetError DATA
+    PyExc_DeprecationWarning DATA
+    PyExc_EOFError DATA
+    PyExc_EncodingWarning DATA
+    PyExc_EnvironmentError DATA
+    PyExc_Exception DATA
+    PyExc_FileExistsError DATA
+    PyExc_FileNotFoundError DATA
+    PyExc_FloatingPointError DATA
+    PyExc_FutureWarning DATA
+    PyExc_GeneratorExit DATA
+    PyExc_IOError DATA
+    PyExc_ImportError DATA
+    PyExc_ImportWarning DATA
+    PyExc_IndentationError DATA
+    PyExc_IndexError DATA
+    PyExc_InterruptedError DATA
+    PyExc_IsADirectoryError DATA
+    PyExc_KeyError DATA
+    PyExc_KeyboardInterrupt DATA
+    PyExc_LookupError DATA
+    PyExc_MemoryError DATA
+    PyExc_ModuleNotFoundError DATA
+    PyExc_NameError DATA
+    PyExc_NotADirectoryError DATA
+    PyExc_NotImplementedError DATA
+    PyExc_OSError DATA
+    PyExc_OverflowError DATA
+    PyExc_PendingDeprecationWarning DATA
+    PyExc_PermissionError DATA
+    PyExc_ProcessLookupError DATA
+    PyExc_RecursionError DATA
+    PyExc_ReferenceError DATA
+    PyExc_ResourceWarning DATA
+    PyExc_RuntimeError DATA
+    PyExc_RuntimeWarning DATA
+    PyExc_StopAsyncIteration DATA
+    PyExc_StopIteration DATA
+    PyExc_SyntaxError DATA
+    PyExc_SyntaxWarning DATA
+    PyExc_SystemError DATA
+    PyExc_SystemExit DATA
+    PyExc_TabError DATA
+    PyExc_TimeoutError DATA
+    PyExc_TypeError DATA
+    PyExc_UnboundLocalError DATA
+    PyExc_UnicodeDecodeError DATA
+    PyExc_UnicodeEncodeError DATA
+    PyExc_UnicodeError DATA
+    PyExc_UnicodeTranslateError DATA
+    PyExc_UnicodeWarning DATA
+    PyExc_UserWarning DATA
+    PyExc_ValueError DATA
+    PyExc_Warning DATA
+    PyExc_WindowsError DATA
+    PyExc_ZeroDivisionError DATA
+    PyExceptionClass_Name
+    PyException_GetArgs
+    PyException_GetCause
+    PyException_GetContext
+    PyException_GetTraceback
+    PyException_SetArgs
+    PyException_SetCause
+    PyException_SetContext
+    PyException_SetTraceback
+    PyFile_FromFd
+    PyFile_GetLine
+    PyFile_WriteObject
+    PyFile_WriteString
+    PyFilter_Type DATA
+    PyFloat_AsDouble
+    PyFloat_FromDouble
+    PyFloat_FromString
+    PyFloat_GetInfo
+    PyFloat_GetMax
+    PyFloat_GetMin
+    PyFloat_Type DATA
+    PyFrozenSet_New
+    PyFrozenSet_Type DATA
+    PyGC_Collect
+    PyGC_Disable
+    PyGC_Enable
+    PyGC_IsEnabled
+    PyGILState_Ensure
+    PyGILState_GetThisThreadState
+    PyGILState_Release
+    PyGetSetDescr_Type DATA
+    PyImport_AddModule
+    PyImport_AddModuleObject
+    PyImport_AppendInittab
+    PyImport_ExecCodeModule
+    PyImport_ExecCodeModuleEx
+    PyImport_ExecCodeModuleObject
+    PyImport_ExecCodeModuleWithPathnames
+    PyImport_GetImporter
+    PyImport_GetMagicNumber
+    PyImport_GetMagicTag
+    PyImport_GetModule
+    PyImport_GetModuleDict
+    PyImport_Import
+    PyImport_ImportFrozenModule
+    PyImport_ImportFrozenModuleObject
+    PyImport_ImportModule
+    PyImport_ImportModuleLevel
+    PyImport_ImportModuleLevelObject
+    PyImport_ImportModuleNoBlock
+    PyImport_ReloadModule
+    PyIndex_Check
+    PyInterpreterState_Clear
+    PyInterpreterState_Delete
+    PyInterpreterState_Get
+    PyInterpreterState_GetDict
+    PyInterpreterState_GetID
+    PyInterpreterState_New
+    PyIter_Check
+    PyIter_Next
+    PyListIter_Type DATA
+    PyListRevIter_Type DATA
+    PyList_Append
+    PyList_AsTuple
+    PyList_GetItem
+    PyList_GetSlice
+    PyList_Insert
+    PyList_New
+    PyList_Reverse
+    PyList_SetItem
+    PyList_SetSlice
+    PyList_Size
+    PyList_Sort
+    PyList_Type DATA
+    PyLongRangeIter_Type DATA
+    PyLong_AsDouble
+    PyLong_AsLong
+    PyLong_AsLongAndOverflow
+    PyLong_AsLongLong
+    PyLong_AsLongLongAndOverflow
+    PyLong_AsSize_t
+    PyLong_AsSsize_t
+    PyLong_AsUnsignedLong
+    PyLong_AsUnsignedLongLong
+    PyLong_AsUnsignedLongLongMask
+    PyLong_AsUnsignedLongMask
+    PyLong_AsVoidPtr
+    PyLong_FromDouble
+    PyLong_FromLong
+    PyLong_FromLongLong
+    PyLong_FromSize_t
+    PyLong_FromSsize_t
+    PyLong_FromString
+    PyLong_FromUnsignedLong
+    PyLong_FromUnsignedLongLong
+    PyLong_FromVoidPtr
+    PyLong_GetInfo
+    PyLong_Type DATA
+    PyMap_Type DATA
+    PyMapping_Check
+    PyMapping_GetItemString
+    PyMapping_HasKey
+    PyMapping_HasKeyString
+    PyMapping_Items
+    PyMapping_Keys
+    PyMapping_Length
+    PyMapping_SetItemString
+    PyMapping_Size
+    PyMapping_Values
+    PyMarshal_ReadObjectFromString
+    PyMarshal_WriteObjectToString
+    PyMem_Calloc
+    PyMem_Free
+    PyMem_Malloc
+    PyMem_RawCalloc
+    PyMem_RawFree
+    PyMem_RawMalloc
+    PyMem_RawRealloc
+    PyMem_Realloc
+    PyMemberDescr_Type DATA
+    PyMember_GetOne
+    PyMember_SetOne
+    PyMemoryView_FromBuffer
+    PyMemoryView_FromMemory
+    PyMemoryView_FromObject
+    PyMemoryView_GetContiguous
+    PyMemoryView_Type DATA
+    PyMethodDescr_Type DATA
+    PyModuleDef_Init
+    PyModuleDef_Type DATA
+    PyModule_AddFunctions
+    PyModule_AddIntConstant
+    PyModule_AddObject
+    PyModule_AddStringConstant
+    PyModule_AddType
+    PyModule_Create2
+    PyModule_ExecDef
+    PyModule_FromDefAndSpec2
+    PyModule_GetDef
+    PyModule_GetDict
+    PyModule_GetFilename
+    PyModule_GetFilenameObject
+    PyModule_GetName
+    PyModule_GetNameObject
+    PyModule_GetState
+    PyModule_New
+    PyModule_NewObject
+    PyModule_Type DATA
+    PyNumber_Absolute
+    PyNumber_Add
+    PyNumber_And
+    PyNumber_AsSsize_t
+    PyNumber_Check
+    PyNumber_Divmod
+    PyNumber_Float
+    PyNumber_FloorDivide
+    PyNumber_InPlaceAdd
+    PyNumber_InPlaceAnd
+    PyNumber_InPlaceFloorDivide
+    PyNumber_InPlaceLshift
+    PyNumber_InPlaceMatrixMultiply
+    PyNumber_InPlaceMultiply
+    PyNumber_InPlaceOr
+    PyNumber_InPlacePower
+    PyNumber_InPlaceRemainder
+    PyNumber_InPlaceRshift
+    PyNumber_InPlaceSubtract
+    PyNumber_InPlaceTrueDivide
+    PyNumber_InPlaceXor
+    PyNumber_Index
+    PyNumber_Invert
+    PyNumber_Long
+    PyNumber_Lshift
+    PyNumber_MatrixMultiply
+    PyNumber_Multiply
+    PyNumber_Negative
+    PyNumber_Or
+    PyNumber_Positive
+    PyNumber_Power
+    PyNumber_Remainder
+    PyNumber_Rshift
+    PyNumber_Subtract
+    PyNumber_ToBase
+    PyNumber_TrueDivide
+    PyNumber_Xor
+    PyOS_CheckStack
+    PyOS_FSPath
+    PyOS_InputHook DATA
+    PyOS_InterruptOccurred
+    PyOS_double_to_string
+    PyOS_getsig
+    PyOS_mystricmp
+    PyOS_mystrnicmp
+    PyOS_setsig
+    PyOS_snprintf
+    PyOS_string_to_double
+    PyOS_strtol
+    PyOS_strtoul
+    PyOS_vsnprintf
+    PyObject_ASCII
+    PyObject_AsCharBuffer
+    PyObject_AsFileDescriptor
+    PyObject_AsReadBuffer
+    PyObject_AsWriteBuffer
+    PyObject_Bytes
+    PyObject_Call
+    PyObject_CallFunction
+    PyObject_CallFunctionObjArgs
+    PyObject_CallMethod
+    PyObject_CallMethodObjArgs
+    PyObject_CallObject
+    PyObject_Calloc
+    PyObject_CheckReadBuffer
+    PyObject_ClearWeakRefs
+    PyObject_DelAttr
+    PyObject_DelAttrString
+    PyObject_DelItem
+    PyObject_DelItemString
+    PyObject_Dir
+    PyObject_Format
+    PyObject_Free
+    PyObject_GC_Del
+    PyObject_GC_Track
+    PyObject_GC_UnTrack
+    PyObject_GenericGetAttr
+    PyObject_GenericSetAttr
+    PyObject_GetAIter
+    PyObject_GetAttr
+    PyObject_GetAttrString
+    PyObject_GetItem
+    PyObject_GetIter
+    PyObject_HasAttr
+    PyObject_HasAttrString
+    PyObject_Hash
+    PyObject_HashNotImplemented
+    PyObject_Init
+    PyObject_InitVar
+    PyObject_IsInstance
+    PyObject_IsSubclass
+    PyObject_IsTrue
+    PyObject_Length
+    PyObject_Malloc
+    PyObject_Not
+    PyObject_Realloc
+    PyObject_Repr
+    PyObject_RichCompare
+    PyObject_RichCompareBool
+    PyObject_SelfIter
+    PyObject_SetAttr
+    PyObject_SetAttrString
+    PyObject_SetItem
+    PyObject_Size
+    PyObject_Str
+    PyObject_Type
+    PyProperty_Type DATA
+    PyRangeIter_Type DATA
+    PyRange_Type DATA
+    PyReversed_Type DATA
+    PySeqIter_New
+    PySeqIter_Type DATA
+    PySequence_Check
+    PySequence_Concat
+    PySequence_Contains
+    PySequence_Count
+    PySequence_DelItem
+    PySequence_DelSlice
+    PySequence_Fast
+    PySequence_GetItem
+    PySequence_GetSlice
+    PySequence_In
+    PySequence_InPlaceConcat
+    PySequence_InPlaceRepeat
+    PySequence_Index
+    PySequence_Length
+    PySequence_List
+    PySequence_Repeat
+    PySequence_SetItem
+    PySequence_SetSlice
+    PySequence_Size
+    PySequence_Tuple
+    PySetIter_Type DATA
+    PySet_Add
+    PySet_Clear
+    PySet_Contains
+    PySet_Discard
+    PySet_New
+    PySet_Pop
+    PySet_Size
+    PySet_Type DATA
+    PySlice_AdjustIndices
+    PySlice_GetIndices
+    PySlice_GetIndicesEx
+    PySlice_New
+    PySlice_Type DATA
+    PySlice_Unpack
+    PyState_AddModule
+    PyState_FindModule
+    PyState_RemoveModule
+    PyStructSequence_GetItem
+    PyStructSequence_New
+    PyStructSequence_NewType
+    PyStructSequence_SetItem
+    PyStructSequence_UnnamedField DATA
+    PySuper_Type DATA
+    PySys_AddWarnOption
+    PySys_AddWarnOptionUnicode
+    PySys_AddXOption
+    PySys_FormatStderr
+    PySys_FormatStdout
+    PySys_GetObject
+    PySys_GetXOptions
+    PySys_HasWarnOptions
+    PySys_ResetWarnOptions
+    PySys_SetArgv
+    PySys_SetArgvEx
+    PySys_SetObject
+    PySys_SetPath
+    PySys_WriteStderr
+    PySys_WriteStdout
+    PyThreadState_Clear
+    PyThreadState_Delete
+    PyThreadState_DeleteCurrent
+    PyThreadState_Get
+    PyThreadState_GetDict
+    PyThreadState_New
+    PyThreadState_SetAsyncExc
+    PyThreadState_Swap
+    PyThread_GetInfo
+    PyThread_ReInitTLS
+    PyThread_acquire_lock
+    PyThread_acquire_lock_timed
+    PyThread_allocate_lock
+    PyThread_create_key
+    PyThread_delete_key
+    PyThread_delete_key_value
+    PyThread_exit_thread
+    PyThread_free_lock
+    PyThread_get_key_value
+    PyThread_get_stacksize
+    PyThread_get_thread_ident
+    PyThread_get_thread_native_id
+    PyThread_init_thread
+    PyThread_release_lock
+    PyThread_set_key_value
+    PyThread_set_stacksize
+    PyThread_start_new_thread
+    PyThread_tss_alloc
+    PyThread_tss_create
+    PyThread_tss_delete
+    PyThread_tss_free
+    PyThread_tss_get
+    PyThread_tss_is_created
+    PyThread_tss_set
+    PyTraceBack_Here
+    PyTraceBack_Print
+    PyTraceBack_Type DATA
+    PyTupleIter_Type DATA
+    PyTuple_GetItem
+    PyTuple_GetSlice
+    PyTuple_New
+    PyTuple_Pack
+    PyTuple_SetItem
+    PyTuple_Size
+    PyTuple_Type DATA
+    PyType_ClearCache
+    PyType_FromSpec
+    PyType_FromSpecWithBases
+    PyType_GenericAlloc
+    PyType_GenericNew
+    PyType_GetFlags
+    PyType_GetSlot
+    PyType_IsSubtype
+    PyType_Modified
+    PyType_Ready
+    PyType_Type DATA
+    PyUnicodeDecodeError_Create
+    PyUnicodeDecodeError_GetEncoding
+    PyUnicodeDecodeError_GetEnd
+    PyUnicodeDecodeError_GetObject
+    PyUnicodeDecodeError_GetReason
+    PyUnicodeDecodeError_GetStart
+    PyUnicodeDecodeError_SetEnd
+    PyUnicodeDecodeError_SetReason
+    PyUnicodeDecodeError_SetStart
+    PyUnicodeEncodeError_GetEncoding
+    PyUnicodeEncodeError_GetEnd
+    PyUnicodeEncodeError_GetObject
+    PyUnicodeEncodeError_GetReason
+    PyUnicodeEncodeError_GetStart
+    PyUnicodeEncodeError_SetEnd
+    PyUnicodeEncodeError_SetReason
+    PyUnicodeEncodeError_SetStart
+    PyUnicodeIter_Type DATA
+    PyUnicodeTranslateError_GetEnd
+    PyUnicodeTranslateError_GetObject
+    PyUnicodeTranslateError_GetReason
+    PyUnicodeTranslateError_GetStart
+    PyUnicodeTranslateError_SetEnd
+    PyUnicodeTranslateError_SetReason
+    PyUnicodeTranslateError_SetStart
+    PyUnicode_Append
+    PyUnicode_AppendAndDel
+    PyUnicode_AsASCIIString
+    PyUnicode_AsCharmapString
+    PyUnicode_AsDecodedObject
+    PyUnicode_AsDecodedUnicode
+    PyUnicode_AsEncodedObject
+    PyUnicode_AsEncodedString
+    PyUnicode_AsEncodedUnicode
+    PyUnicode_AsLatin1String
+    PyUnicode_AsMBCSString
+    PyUnicode_AsRawUnicodeEscapeString
+    PyUnicode_AsUCS4
+    PyUnicode_AsUCS4Copy
+    PyUnicode_AsUTF16String
+    PyUnicode_AsUTF32String
+    PyUnicode_AsUTF8String
+    PyUnicode_AsUnicodeEscapeString
+    PyUnicode_AsWideChar
+    PyUnicode_AsWideCharString
+    PyUnicode_BuildEncodingMap
+    PyUnicode_Compare
+    PyUnicode_CompareWithASCIIString
+    PyUnicode_Concat
+    PyUnicode_Contains
+    PyUnicode_Count
+    PyUnicode_Decode
+    PyUnicode_DecodeASCII
+    PyUnicode_DecodeCharmap
+    PyUnicode_DecodeCodePageStateful
+    PyUnicode_DecodeFSDefault
+    PyUnicode_DecodeFSDefaultAndSize
+    PyUnicode_DecodeLatin1
+    PyUnicode_DecodeLocale
+    PyUnicode_DecodeLocaleAndSize
+    PyUnicode_DecodeMBCS
+    PyUnicode_DecodeMBCSStateful
+    PyUnicode_DecodeRawUnicodeEscape
+    PyUnicode_DecodeUTF16
+    PyUnicode_DecodeUTF16Stateful
+    PyUnicode_DecodeUTF32
+    PyUnicode_DecodeUTF32Stateful
+    PyUnicode_DecodeUTF7
+    PyUnicode_DecodeUTF7Stateful
+    PyUnicode_DecodeUTF8
+    PyUnicode_DecodeUTF8Stateful
+    PyUnicode_DecodeUnicodeEscape
+    PyUnicode_EncodeCodePage
+    PyUnicode_EncodeFSDefault
+    PyUnicode_EncodeLocale
+    PyUnicode_FSConverter
+    PyUnicode_FSDecoder
+    PyUnicode_Find
+    PyUnicode_FindChar
+    PyUnicode_Format
+    PyUnicode_FromEncodedObject
+    PyUnicode_FromFormat
+    PyUnicode_FromFormatV
+    PyUnicode_FromObject
+    PyUnicode_FromOrdinal
+    PyUnicode_FromString
+    PyUnicode_FromStringAndSize
+    PyUnicode_FromWideChar
+    PyUnicode_GetDefaultEncoding
+    PyUnicode_GetLength
+    PyUnicode_GetSize
+    PyUnicode_InternFromString
+    PyUnicode_InternInPlace
+    PyUnicode_IsIdentifier
+    PyUnicode_Join
+    PyUnicode_Partition
+    PyUnicode_RPartition
+    PyUnicode_RSplit
+    PyUnicode_ReadChar
+    PyUnicode_Replace
+    PyUnicode_Resize
+    PyUnicode_RichCompare
+    PyUnicode_Split
+    PyUnicode_Splitlines
+    PyUnicode_Substring
+    PyUnicode_Tailmatch
+    PyUnicode_Translate
+    PyUnicode_Type DATA
+    PyUnicode_WriteChar
+    PyWeakref_GetObject
+    PyWeakref_NewProxy
+    PyWeakref_NewRef
+    PyWrapperDescr_Type DATA
+    PyWrapper_New
+    PyZip_Type DATA
+    Py_AddPendingCall
+    Py_AtExit
+    Py_BuildValue
+    Py_BytesMain
+    Py_CompileString
+    Py_DecRef
+    Py_DecodeLocale
+    Py_EncodeLocale
+    Py_EndInterpreter
+    Py_EnterRecursiveCall
+    Py_Exit
+    Py_FatalError
+    Py_FileSystemDefaultEncodeErrors DATA
+    Py_FileSystemDefaultEncoding DATA
+    Py_Finalize
+    Py_FinalizeEx
+    Py_GenericAlias
+    Py_GenericAliasType DATA
+    Py_GetArgcArgv
+    Py_GetBuildInfo
+    Py_GetCompiler
+    Py_GetCopyright
+    Py_GetExecPrefix
+    Py_GetPath
+    Py_GetPlatform
+    Py_GetPrefix
+    Py_GetProgramFullPath
+    Py_GetProgramName
+    Py_GetPythonHome
+    Py_GetRecursionLimit
+    Py_GetVersion
+    Py_HasFileSystemDefaultEncoding DATA
+    Py_IncRef
+    Py_Initialize
+    Py_InitializeEx
+    Py_Is
+    Py_IsFinalizing
+    Py_IsInitialized
+    Py_LeaveRecursiveCall
+    Py_Main
+    Py_MakePendingCalls
+    Py_NewInterpreter
+    Py_NewRef
+    Py_ReprEnter
+    Py_ReprLeave
+    Py_SetPath
+    Py_SetProgramName
+    Py_SetPythonHome
+    Py_SetRecursionLimit
+    Py_UTF8Mode DATA
+    Py_VaBuildValue
+    Py_XNewRef
+    _PyArg_ParseTupleAndKeywords_SizeT
+    _PyArg_ParseTuple_SizeT
+    _PyArg_Parse_SizeT
+    _PyArg_VaParseTupleAndKeywords_SizeT
+    _PyArg_VaParse_SizeT
+    _PyErr_BadInternalCall
+    _PyObject_CallFunction_SizeT
+    _PyObject_CallMethod_SizeT
+    _PyObject_GC_New
+    _PyObject_GC_NewVar
+    _PyObject_GC_Resize
+    _PyObject_New
+    _PyObject_NewVar
+    _PyState_AddModule
+    _PyThreadState_Init
+    _PyThreadState_Prealloc
+    _PyWeakref_CallableProxyType DATA
+    _PyWeakref_ProxyType DATA
+    _PyWeakref_RefType DATA
+    _Py_BuildValue_SizeT
+    _Py_CheckRecursiveCall
+    _Py_Dealloc
+    _Py_DecRef
+    _Py_EllipsisObject DATA
+    _Py_FalseStruct DATA
+    _Py_IncRef
+    _Py_NoneStruct DATA
+    _Py_NotImplementedStruct DATA
+    _Py_RefTotal DATA
+    _Py_SwappedOp DATA
+    _Py_TrueStruct DATA
+    _Py_VaBuildValue_SizeT
+

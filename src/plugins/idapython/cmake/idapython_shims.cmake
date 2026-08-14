@@ -34,36 +34,12 @@ find_package(idasdk REQUIRED PATHS "${IDASDK_CMAKE}"
 
 # --- 2. Python / SWIG (find only if the includer hasn't set them) ------
 if(NOT Python3_INCLUDE_DIRS)
-    find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+    include("${CMAKE_CURRENT_LIST_DIR}/idapython_python.cmake")
+    ida_find_python()
 endif()
-if(NOT IDA_PYTHON)
-    set(IDA_PYTHON "${Python3_EXECUTABLE}")
-endif()
-if(NOT IDA_PYTHON_VERNAME)
-    set(IDA_PYTHON_VERNAME "python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
-endif()
-if(NOT IDA_SWIG)
-    find_program(IDA_SWIG NAMES swig REQUIRED)
-endif()
-# 4.2.0 is the oldest SWIG validated against the IDAPython wrappers.
-execute_process(COMMAND "${IDA_SWIG}" -version OUTPUT_VARIABLE _swig_ver)
-if(_swig_ver MATCHES "SWIG Version ([0-9]+\\.[0-9]+\\.[0-9]+)")
-    if(CMAKE_MATCH_1 VERSION_LESS 4.2.0)
-        message(FATAL_ERROR
-            "IDAPython requires SWIG 4.2.0+, found ${CMAKE_MATCH_1} "
-            "(${IDA_SWIG}); pass -DIDA_SWIG=<swig>.")
-    endif()
-endif()
-if(NOT IDA_SWIG_LIB)
-    execute_process(
-        COMMAND "${IDA_SWIG}" -swiglib
-        OUTPUT_VARIABLE IDA_SWIG_LIB
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE _swiglib_rc)
-    if(NOT _swiglib_rc EQUAL 0 OR NOT IDA_SWIG_LIB)
-        message(FATAL_ERROR "Could not determine SWIG library dir (swig -swiglib).")
-    endif()
-endif()
+
+# SWIG (build-from-source / find + ccache-swig) lives in its own module.
+include("${CMAKE_CURRENT_LIST_DIR}/idapython_swig.cmake")
 
 # --- 4. Seam variables ----------------------------------------------------
 # _lib_dir / IDA_STUB_LIB are include-safe: an includer's own values win.
@@ -153,9 +129,13 @@ if(NOT TARGET idapython_staging_sdk)
     add_custom_target(idapython_staging_sdk)
 endif()
 
-# Parsed hook notifications: regenerate via doxygen when available, else unzip
-# the shipped bundle.
+# Parsed hook notifications: a forced IDA_DOXYGEN_BIN regenerates them, else the
+# shipped bundle is used, else doxygen is searched for.
 set(PARSED_HEADERS_MARKER "${ST_PARSED_HEADERS}/headers_generated.marker")
+set(_notif_zip "${IDAPYTHON_SRC}/out_of_tree/parsed_notifications.zip")
+if(NOT IDA_DOXYGEN_BIN AND NOT EXISTS "${_notif_zip}")
+    find_program(IDA_DOXYGEN_BIN NAMES doxygen)
+endif()
 if(IDA_DOXYGEN_BIN AND EXISTS "${IDA_DOXYGEN_BIN}")
     set(_gh "${IDAPYTHON_SRC}/tools/genhooks")
     set(_doxycfg "${ST_PARSED_HEADERS_NOXML}/doxy_gen_notifs.cfg")
@@ -181,9 +161,10 @@ if(IDA_DOXYGEN_BIN AND EXISTS "${IDA_DOXYGEN_BIN}")
         COMMENT "doxygen: generating parsed headers"
         VERBATIM)
 else()
-    set(_notif_zip "${IDAPYTHON_SRC}/out_of_tree/parsed_notifications.zip")
     if(NOT EXISTS "${_notif_zip}")
-        message(FATAL_ERROR "Missing ${_notif_zip} and no doxygen (IDA_DOXYGEN_BIN).")
+        message(FATAL_ERROR
+            "Missing ${_notif_zip} and no doxygen found; install doxygen or pass "
+            "-DIDA_DOXYGEN_BIN=<path>.")
     endif()
     add_custom_command(OUTPUT "${PARSED_HEADERS_MARKER}"
         COMMAND ${CMAKE_COMMAND} -E rm -rf "${ST_PARSED_HEADERS}"

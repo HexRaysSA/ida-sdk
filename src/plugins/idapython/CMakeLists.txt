@@ -18,8 +18,7 @@ cmake_minimum_required(VERSION 3.25)
 
 # Dual-mode: only declare a project when built standalone (top-level).
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    # Auto-detect MSVC on Windows (self-guards) so vcvarsall isn't required.
-    include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/find_msvc.cmake" OPTIONAL)
+    include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/idasdk_standalone.cmake" OPTIONAL)
     project(idapython CXX)
 endif()
 
