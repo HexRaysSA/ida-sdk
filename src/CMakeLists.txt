@@ -1,17 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-# On Windows with Ninja, auto-detect MSVC if not already in environment.
-# Cross-compile toolchain files include find_msvc themselves (after setting
-# CMAKE_SYSTEM_PROCESSOR), so this top-level invocation only fires for the
-# native (no-toolchain) case.
-if(NOT CMAKE_TOOLCHAIN_FILE)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/find_msvc.cmake)
-endif()
-
-# Before project(): shipped SDK libs are Release-only.
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
-endif()
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/idasdk_standalone.cmake)
 
 project(idasdk)
 set(CMAKE_CXX_STANDARD 17)

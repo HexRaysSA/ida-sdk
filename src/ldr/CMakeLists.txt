@@ -1,5 +1,6 @@
 if(NOT PROJECT_NAME)
     cmake_minimum_required(VERSION 3.25)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/idasdk_standalone.cmake)
     project(idasdk_loaders)
     set(CMAKE_CXX_STANDARD 17)
     include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/idasdk_init.cmake)
