@@ -6,8 +6,10 @@
   inside the SDK and consumes it via `find_package(idasdk)`, so the SDK is
   auto-detected when you build in place.
 - [CMake](https://cmake.org/) 3.25+ and a generator (Ninja recommended)
-- [Python 3.9-3.14](http://www.python.org/) with development headers
-- [SWIG 4.2.0+](https://www.swig.org/)
+- [Python 3.9-3.14](http://www.python.org/) with development headers - plus its
+  `venv` + `pip` if SWIG is auto-installed (see below; e.g. Debian's `python3-venv`)
+- [SWIG](https://www.swig.org/) - installed from PyPI by default (see below); no
+  compiler or autotools needed, just a Python with `venv` + `pip`
 
 ### Additional Windows Requirements
 
@@ -20,19 +22,73 @@
 - An [IDA](https://www.hex-rays.com/ida-pro) install matching the SDK version you
   built against
 
+### Python
+
+Python 3.9 to 3.14 is supported. The build takes the **lowest** version installed
+in that range: the wrappers target the 3.9 limited API, so a module built against
+the oldest supported Python also loads in every newer one. To choose another, pass
+any of:
+
+- `-DPython3_EXECUTABLE=<path>` - CMake's own knob
+- `-DIDA_PYTHON=<path>` - the same effect
+- `-DIDA_PYTHON_VERSION_MINOR=<n>` - exact minor, e.g. `12` for 3.12
+
+Only `Development.Module` (the headers) is needed, not a full `Development`
+install. On Windows the stable-ABI `python3.lib` is generated from a `.def` shipped
+with the SDK, so no Python development files are required there at all.
+
 ### SWIG
 
-Simplified Wrapper Interface Generator (SWIG)
+Simplified Wrapper Interface Generator (SWIG).
 
-SWIG can be installed in different ways or built from sources. In the past, only building from sources was supported. These days you can use any method you prefer.
+By default the build first looks for an existing SWIG (>= 4.2.0) via
+`find_package(SWIG)`; only if none is found does it install SWIG 4.4.1 from PyPI
+(the `swig` wheel) into a venv in the build folder - the first release with arm
+wheels, so this covers every platform we target (incl. Windows and macOS on arm)
+and needs only a Python with `venv` + `pip` and network access the first time -
+no compiler or autotools.
 
-> Requires SWIG 4.2.0+
->
+Overrides:
+- `-DIDA_SWIG=/path/to/swig` (or `build.py --swig <path>`) - use this exact binary.
+- `-DIDA_SWIG_FROM_PYPI=ON` - skip the search and install from PyPI.
+- `-DIDA_SWIG_VERSION=<x.y.z>` - use exactly this version: an installed one is
+  accepted only if it matches, otherwise that version is installed from PyPI.
+
+SWIG runs are cached with `ccache-swig` when one is available (next to `swig` or on
+the `PATH`); the PyPI wheel ships none, so a pip-provisioned swig runs uncached.
+The cache lives in `~/.ccache` - `$HOME/.ccache`, or `%USERPROFILE%\.ccache` on
+Windows - and is created if missing, which ccache-swig itself will not do (it fails
+outright on a missing directory). To put it elsewhere, either pass
+`-DIDA_SWIG_CCACHE_DIR=<dir>` or set `CCACHE_DIR` in the environment; both override
+the default. On Windows with a roaming profile, prefer a machine-local path so the
+cache is not synced:
+
+```cmd
+cmake -B build -DIDA_SWIG_CCACHE_DIR=%LOCALAPPDATA%\.ccache
+```
+
+Turn caching off with `-DIDA_SWIG_CACHE=OFF`.
+
 > Tested with 4.2.0 - the latest available via `apt` on Ubuntu 24.04
 >
 > Tested with 4.3.1 on Windows & Linux
 >
 > Tested with 4.4.1 on macOS
+
+#### Known issues
+
+- Always take the latest patch release of whichever SWIG minor you use.
+- **SWIG 4.4.0 with Python 3.13 or 3.14** does not build: 4.4.0 emits
+  `PyImport_AddModuleRef()` guarded on the Python version alone, but 3.13+ declares
+  it only when `Py_LIMITED_API` is unset or `>= 0x030d0000`, and IDAPython builds
+  against the 3.9 limited API. Use 4.4.1 or newer, or stay on 4.3.x. A 4.4.0
+  already on the `PATH` satisfies the 4.2.0 minimum and will be picked up, so pass
+  `-DIDA_SWIG` or `-DIDA_SWIG_VERSION` if you have one installed.
+- **On arm hosts the auto-install needs 4.4.1+**, the first release with arm
+  wheels. An older SWIG there has to come from a package manager or a local build,
+  and be passed with `-DIDA_SWIG`.
+
+The rest of this section is only relevant if you provide your own SWIG.
 
 #### Install
 
@@ -147,8 +203,9 @@ Notes:
 
 - The build uses the Python 3 that `find_package(Python3)` discovers (normally
   the first `python3` on the `PATH`); override with `-DPython3_EXECUTABLE=...`.
-- If `swig` is not on the `PATH`, pass `-DIDA_SWIG=/path/to/swig` (or
-  `build.py --swig ...`).
+- SWIG is found via `find_package(SWIG)` and only installed from PyPI as a fallback;
+  override with `-DIDA_SWIG=/path/to/swig` (or `build.py --swig ...`), or force the
+  PyPI install with `-DIDA_SWIG_FROM_PYPI=ON`.
 - Output is written to `build/bin/` and, by default, also merged into the SDK's
   `bin/` (disable with `-DIDAPYTHON_DEPLOY_TO_SDK=OFF`).
 
