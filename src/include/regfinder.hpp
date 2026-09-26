@@ -72,6 +72,10 @@ struct reg_value_def_t
                                 ///< only for numbers \sa is_num()
   DEF_BIT LIKE_GOT   = 0x0020;  ///< the value is like GOT
                                 ///< only for numbers \sa is_num()
+  DEF_BIT HAD_DELTA  = 0x0040;  ///< the value is the result of the insn at
+                                ///< DEF_EA plus a constant, i.e. that insn
+                                ///< does not produce the value itself
+                                ///< only for numbers \sa is_num()
 #undef DEF_BIT
   static bool is_short_insn(const insn_t &insn)
   {
@@ -90,6 +94,7 @@ struct reg_value_def_t
   bool is_short_insn() const { return (flags & SHORT_INSN) != 0; }
   bool is_pc_based()   const { return (flags & PC_BASED)   != 0; }
   bool is_like_got()   const { return (flags & LIKE_GOT)   != 0; }
+  bool had_delta()     const { return (flags & HAD_DELTA)  != 0; }
 
   bool operator==(const reg_value_def_t &r) const
   {
@@ -164,6 +169,10 @@ protected:
     NUMADDR,  // the value is a number before the address
     SPDINSN,  // the value is a SP delta after executing the insn
     SPDADDR,  // the value is a SP delta before the address
+    NUMLOOP,  // the value is a number changed in a loop by adding a
+              // constant stride each iteration.
+              // no INSN/ADDR pair: the flavor is per-val (def_itype != 0)
+              // NB: appended to the end to keep the 9.3/9.4 state values
   };
   // the SP delta is the value of SP minus the initial value of SP at the
   // function start.
@@ -186,9 +195,14 @@ protected:
   // NUMADDR  B  the address after which the value became known
   // SPDINSN  A  the address of the defining insn
   // SPDADDR  B  the address after which the value became known
+  // NUMLOOP A/B  the address defining the initial value
 
   qvector<val_def_t> vals;  // sorted
   state_t state = UNDEF;    // state of the value being tracked
+  int8 stride = 0;          // NUMLOOP: the register delta per one loop
+                            // iteration (never 0 for a valid NUMLOOP).
+                            // the field lives in the tail padding, so
+                            // the layout is unchanged
 
   explicit reg_value_base_t(
         state_t _state,
@@ -215,6 +229,7 @@ public:
   void clear()
   {
     state = UNDEF;
+    stride = 0;
     vals.qclear();
   }
   /// Return 'true' if we know nothing about a value.
@@ -223,6 +238,7 @@ public:
   void swap(reg_value_base_t &r) noexcept
   {
     std::swap(state, r.state);
+    std::swap(stride, r.stride);
     vals.swap(r.vals);
   }
 
@@ -362,6 +378,16 @@ public:
   /// Return 'true' if the value is known (i.e. it is a number or SP delta).
   bool is_known() const { return is_num() || is_spd(); }
 
+  /// Return 'true' if the value is a number changed in a loop by adding
+  /// a constant stride each iteration.
+  /// \note Such a value is neither known nor unknown: is_known() and
+  /// is_unknown() return 'false', consumers must opt in explicitly.
+  bool is_numloop() const { return state == NUMLOOP; }
+  /// Return the loop stride of a NUMLOOP value.
+  /// \note 0 means the stride was lost (e.g. by a member-wise copy in
+  /// code compiled with an old header), treat such a value as UNKLOOP.
+  int get_stride() const { return stride; }
+
   /// Return the defining address.
   ea_t get_def_ea() const
   {
@@ -450,6 +476,10 @@ public:
   {
     return have_all_vals_flag(val_def_t::LIKE_GOT);
   }
+  bool is_any_vals_had_delta() const
+  {
+    return has_any_vals_flag(val_def_t::HAD_DELTA);
+  }
   bool is_any_vals_like_got() const
   {
     return has_any_vals_flag(val_def_t::LIKE_GOT);
@@ -469,6 +499,10 @@ public:
   {
     return set_all_vals_flag(val_def_t::LIKE_GOT);
   }
+  void set_all_vals_had_delta()
+  {
+    return set_all_vals_flag(val_def_t::HAD_DELTA);
+  }
 
   //-----------------------------------------------------------------------
   // modification methods
@@ -478,6 +512,7 @@ public:
   void set_dead_end(ea_t dead_end_ea)
   {
     state = DEADEND;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(BADADDR, dead_end_ea));
   }
@@ -487,6 +522,7 @@ public:
   void set_badinsn(ea_t insn_ea)
   {
     state = BADINSN;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(BADADDR, insn_ea));
   }
@@ -496,6 +532,7 @@ public:
   void set_unkinsn(const insn_t &insn)
   {
     state = UNKINSN;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(BADADDR, insn));
   }
@@ -505,6 +542,7 @@ public:
   void set_unkfunc(ea_t func_ea)
   {
     state = UNKFUNC;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(BADADDR, func_ea));
   }
@@ -514,6 +552,7 @@ public:
   void set_unkloop(ea_t bblk_ea)
   {
     state = UNKLOOP;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(BADADDR, bblk_ea));
   }
@@ -523,6 +562,7 @@ public:
   void set_unkmult(ea_t bblk_ea)
   {
     state = UNKMULT;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(BADADDR, bblk_ea));
   }
@@ -532,6 +572,7 @@ public:
   void set_unkxref(ea_t bblk_ea)
   {
     state = UNKXREF;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(BADADDR, bblk_ea));
   }
@@ -541,6 +582,7 @@ public:
   void set_unkvals(ea_t bblk_ea)
   {
     state = UNKVALS;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(BADADDR, bblk_ea));
   }
@@ -550,6 +592,7 @@ public:
   void set_aborted(ea_t bblk_ea, int aborting_depth = -1)
   {
     state = ABORTED;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(uint32(aborting_depth), bblk_ea));
   }
@@ -559,6 +602,7 @@ public:
   void set_num(uint64 rval, const insn_t &insn, uint16 val_flags = 0)
   {
     state = NUMINSN;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(rval, insn, val_flags));
   }
@@ -569,14 +613,28 @@ public:
   {
     set_multivals(rvals, insn);
     state = NUMINSN;
+    stride = 0;
   }
   /// Set the value to be a number before an address.
   /// \sa is_num()
   void set_num(uint64 rval, ea_t val_ea, uint16 val_flags = 0)
   {
     state = NUMADDR;
+    stride = 0;
     vals.qclear();
     vals.push_back(val_def_t(rval, val_ea, val_flags));
+  }
+
+  /// Turn a number into the NUMLOOP value: the register is changed in a
+  /// loop by adding LOOP_STRIDE each iteration, VALS keeps the initial
+  /// value(s).
+  /// \sa is_numloop()
+  void set_numloop(int loop_stride)
+  {
+    if ( !is_num() || loop_stride == 0 || loop_stride != int8(loop_stride) )
+      TB_INTERR_OR_RETURN(3490);
+    state = NUMLOOP;
+    stride = int8(loop_stride);
   }
 
   /// The result of comparison of 2 value sets.
@@ -867,7 +925,7 @@ public:
   inline void set_signness(bool is_signed);
   inline void set_width_signness(int width, bool is_signed);
 
-  bool is_reg()    const { return (packed & STKVAR) == 0; }
+  bool is_reg()    const { return !empty() && (packed & STKVAR) == 0; }
   bool is_stkvar() const { return (packed & STKVAR) != 0; }
   bool is_signed() const { return (packed & SIGNED) != 0; }
   int get_width() const
@@ -909,6 +967,7 @@ typedef void (*reg_finder_binary_ops_adjust_fun)(
 #define DECLARE_REG_FINDER_HELPERS(decl)\
 decl void ida_export reg_finder_invalidate_cache(reg_finder_t *_this, ea_t to, ea_t from, cref_t cref);\
 decl void ida_export reg_finder_invalidate_xrefs_cache(reg_finder_t *_this, ea_t ea, dref_t dref);\
+decl void ida_export reg_finder94_find(reg_finder_t *_this, reg_value_base_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insns);\
 decl void ida_export reg_finder_find(reg_finder_t *_this, reg_value_base_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insns);\
 decl void ida_export reg_finder94_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, ea_t func_ea);\
 decl bool ida_export reg_finder_calc_op_addr(reg_finder_t *_this, reg_value_base_t *addr, const op_t *memop, const insn_t *insn, ea_t ea, ea_t ds, int max_depth);\
@@ -922,6 +981,14 @@ decl void ida_export reg_finder_ctr(reg_finder_t *_this);\
 decl void ida_export reg_finder_dtr(reg_finder_t *_this);
 
 DECLARE_REG_FINDER_HELPERS(idaman)
+
+//-------------------------------------------------------------------------
+/// The constituent registers of a wide register.
+struct reg_slots_t
+{
+  reg_finder_op_t low;
+  reg_finder_op_t high;
+};
 
 //-------------------------------------------------------------------------
 //lint -e{958} padding needed
@@ -985,6 +1052,8 @@ protected:
   size_t linear_flow_cnt = 0;   // the number of insn to search in the
                                 // linear flow (if != 0)
   bool only_linear_flow() const { return linear_flow_cnt != 0; }
+  // bring a chain value to the canonical uint64 form
+  void canonize_value(rvb_t *value, const rfop_t &rfop) const;
   // ABORTING_EA is kept at its 9.3 offset (72): a 9.3-built make_rfop() writes
   // aborting_ea=BADADDR, and if it were elsewhere it would clobber another
   // field. Keep it before BBLK_CNT for that reason.
@@ -1192,9 +1261,17 @@ public:
         int max_depth = 0,
         size_t linear_insns = 0)
   {
+    // A register wider than slotsize may be split it into narrower slots
+    // that we resolve here independently and concatenate.
+    if ( rfop.is_reg() && rfop.get_width() > slotsize )
+    {
+      reg_slots_t reg_slots;
+      if ( split_reg(&reg_slots, rfop) )
+        return combine_wide_reg(ea, rfop, reg_slots, max_depth, linear_insns);
+    }
     rvb_t ret;
     flow_t flow = process_delay_slot(pm.trunc_uval(ea), fl_U);
-    reg_finder_find(this, &ret,
+    reg_finder94_find(this, &ret,
                     flow.ea, flow.ds, rfop,
                     max_depth, linear_insns);
     return rvi_t(std::move(ret), rfop.get_width(), addrsize);
@@ -1414,7 +1491,11 @@ protected:
   struct move_desc_t
   {
     // the first case (if !new_rfop.empty()):
-    // is_move_insn() already knows the new tracked operand
+    // is_move_insn() computed the new tracked operand and the delta
+    // itself, possibly using out-of-band knowledge (e.g. the frame info
+    // for SP), so the kernel applies them without the overlap/width
+    // checks. It is a shortcut: the same could be expressed via
+    // DST_OP/SRC_OP, but this way is faster for the hot SP path.
     rfop_t new_rfop;
 
     // the second case (if new_rfop.empty()):
@@ -1428,8 +1509,9 @@ protected:
     // will be sign extended
     bool is_signed = false;
 
-    // if non-zero then the instruction is a simple 'add/sub' insn with an
-    // immediate value. the operands must have the same size.
+    // if non-zero then the value of the tracked operand after the insn
+    // is the value of the new tracked operand plus DELTA
+    // (e.g. a simple 'add/sub reg, #imm' insn).
     // \note this member is used by both cases.
     // DELTA is positive for the 'add' insn.
     sval_t delta = 0;
@@ -1477,8 +1559,7 @@ protected:
   }
 
   // we can track only registers and stkvars (including BP-based)
-  // NB: added at the END of the vtable so can_track_op's original slot keeps
-  // the 9.3 signature via can_track_op93().
+  // \note can_track_op's original slot was renamed into can_track_op93()
   virtual bool can_track_op(op_t *op, const insn_t &insn, ea_t func_ea) const
   {
     qnotused(op);
@@ -1487,6 +1568,22 @@ protected:
     return false;
   }
 
+  // Split a register operand into the narrower "slots" that the finder
+  // can track individually. A typical case is the Tricore extended register
+  // E[c] = {D[c], D[c+1]}: it yields the slots c and c+1.
+  // \param [out] reg_slots  the slots covering the whole operand
+  // \param [in]  rfop       the register operand
+  // \retval true            the slots are in reg_slots
+  // \retval false           the register operand cannot be decomposed
+  virtual bool split_reg(reg_slots_t *reg_slots, const rfop_t &rfop) const
+  {
+    qnotused(reg_slots);
+    qnotused(rfop);
+    return false;
+  }
+
+  // \note: New virtual methods are appended at the END of the vtable to
+  // preserve backward binary compatibility.
   // helper methods for emulate_insn()
 
   // get values of the operand from emulate_insn()
@@ -1495,7 +1592,7 @@ protected:
   rvb_t find(flow_t flow, rfop_t rfop)
   {
     rvb_t ret;
-    reg_finder_find(this, &ret, flow.ea, flow.ds, rfop, 0, 0);
+    reg_finder94_find(this, &ret, flow.ea, flow.ds, rfop, 0, 0);
     return ret;
   }
 
@@ -1506,7 +1603,7 @@ protected:
   {
     rvb_t ret;
     rfop_t rfop = rfop_t::make_reg(reg, slotsize);
-    reg_finder_find(this, &ret, flow.ea, flow.ds, rfop, 0, 0);
+    reg_finder94_find(this, &ret, flow.ea, flow.ds, rfop, 0, 0);
     return ret;
   }
 
@@ -1585,6 +1682,47 @@ protected:
     return reg_finder_may_modify_stkvar(this, value, rfop, &insn);
   }
 
+  // Resolve each slot of a split wide register at EA and combine the
+  // results into a single value. Any slot that is not a single constant makes
+  // the whole value unknown.
+  rvi_t combine_wide_reg(
+        ea_t ea,
+        const rfop_t &rfop,
+        const reg_slots_t &reg_slots,
+        int max_depth,
+        size_t linear_insns)
+  {
+    bool known = false;
+    ea_t def_ea = BADADDR;
+    uint64 high_val;
+    uint64 low_val;
+
+    rvi_t low = find(ea, reg_slots.low, max_depth, linear_insns);
+    if ( low.get_num(&low_val) )
+    {
+      rvi_t high = find(ea, reg_slots.high, max_depth, linear_insns);
+      if ( high.get_num(&high_val) )
+      {
+        known = true;
+        def_ea = qmax(low.get_def_ea(), high.get_def_ea());
+      }
+    }
+
+    rvi_t res;
+    if ( known )
+    {
+      int shift = reg_slots.low.get_width() * 8;
+      res.set_num(low_val | (high_val << shift), def_ea);
+    }
+    else
+    {
+      res.set_unkvals(ea);
+    }
+    res.set_context(rfop.get_width(), addrsize);
+    return res;
+  }
+
+
 private:
   // implementation methods
   rvb_t find_chain(const flow_t flow, const rfop_t rfop);
@@ -1618,18 +1756,20 @@ private:
   // what to do after move handling?
   enum handle_move_res_t
   {
-    HANDLED,      // the move is handled, we get a new tracked operand or
-                  // we are sure that it is not spoiled
-    UNSUPPORTED,  // the move does not touch the tracked operand
+    HANDLED,      // the move is handled, we get a new tracked operand;
+                  // the caller applies move_desc_t::delta to it
+    UNSUPPORTED,  // cannot handle the move, emulate_insn() should do it
     SPOILED,      // a partial modification of the tracked operand is
                   // detected
+    UNTOUCHED,    // the move does not touch the tracked operand,
+                  // the value flows through the insn unchanged
+                  // NB: appended to the end to keep the 9.3/9.4 codes
   };
   // handle a move to a tracked register
   // \note the operand types should be byte/word/dword/qword.
   // \note it may set ABORTING_EA if it returned SPOILED.
   // \param [inout] rfop  the tracked operand
   // \param move_desc     the decription of the 'move' insn
-  //                      (move_desc_t::delta is not used in this function)
   // \param insn          the move instruction
   handle_move_res_t handle_move(
         rfop_t *rfop,
@@ -1662,13 +1802,19 @@ private:
         size_t from_chain_num,
         size_t to_chain_num,
         sval_t delta);
+  // move addresses of the path block FROM_IDX to the path block TO_IDX
+  // adjusting deltas (see move_addrs()).
+  // DELTA is the register change from the start of the block TO_IDX to the
+  // start of the block FROM_IDX, i.e. the value at the start of FROM_IDX is
+  // the value at the start of TO_IDX plus DELTA.
+  void move_path_addrs(size_t from_idx, size_t to_idx, sval_t delta);
   void adjust_deltas(const qvector<addr_t> &addrs, sval_t delta);
   void trim_cache(ea_t ea, int max_cache_size);
-  // does RFOP has at FLOW a value different from CHAIN_NUM?
+  // does RFOP has at FLOW a value different from VREF?
   bool is_rfop_changed(
         const flow_t flow,
         const rfop_t rfop,
-        size_t chain_num);
+        const vref_t &vref);
 
   DECLARE_REG_FINDER_HELPERS(friend)
 
@@ -1677,10 +1823,10 @@ private:
   void invalidate_xrefs_cache_impl(ea_t ea, dref_t dref);
   rvb_t find_impl(flow_t flow, rfop_t rfop, int max_depth, size_t linear_insns);
   rvb_t find_impl2(flow_t flow, rfop_t rfop, int max_depth, size_t linear_insns);
-  rvb_t find_impl(flow_t flow, const op_t &op);
-  rvb_t find_impl(flow_t flow, int reg, int max_depth = 0)
+  rvb_t find_impl(flow_t flow, const op_t &op, const insn_t &insn);
+  rvb_t find_impl(flow_t flow, int reg, int size, int max_depth = 0)
   {
-    return find_impl(flow, rfop_t::make_reg(reg, slotsize), max_depth, 0);
+    return find_impl(flow, rfop_t::make_reg(reg, size), max_depth, 0);
   }
   rfop_t make_rfop_impl(const op_t &op, const insn_t &insn, ea_t func_ea);
   bool calc_op_addr_impl(
@@ -1689,7 +1835,7 @@ private:
         const insn_t &insn,
         flow_t flow,
         int max_depth);
-  bool emulate_mem_read_impl(
+  void emulate_mem_read_impl(
         rvb_t *value,
         const rvb_t &addr,
         int width,
@@ -1821,6 +1967,23 @@ idaman bool ida_export find_regname_value_info(
         int max_depth = 0);
 
 //-------------------------------------------------------------------------
+/// Find the value of an instruction operand using the register tracker.
+/// Works for register and stack-variable operands; returns 'false' for
+/// operands the tracker cannot turn into a tracked object.
+/// \param [out] rvi   the found value with additional attributes
+/// \param insn        the instruction owning the operand
+/// \param op          the operand to find a value of
+/// \param max_depth   as in find_regname_value_info()
+/// \retval 'false'    the processor module does not support a register
+///                    tracker, or the operand cannot be tracked
+/// \retval 'true'     the found value is in RVI
+idaman bool ida_export find_op_value_info(
+        reg_value_info_t *rvi,
+        const insn_t &insn,
+        const op_t &op,
+        int max_depth = 0);
+
+//-------------------------------------------------------------------------
 /// Find the value of any of the two registers using the register tracker.
 /// First, this function tries to find the registers in the basic block of
 /// EA, and if it could not do this, then it tries to find in the entire
@@ -1865,17 +2028,22 @@ inline bool reg_value_base_t::perform_binary_op(
         arith_op_t aop,
         const insn_t &insn)
 {
+  // one side has one value; iterate over the other, keeping the operand
+  // order (SUB, AND_NOT, the shifts and MOVT are not commutative)
   const reg_value_base_t *mv;
   uint64 sv;
+  bool single_lhs;
   if ( r.is_value_unique() )
   {
     mv = this;
     sv = r.vals.begin()->val;
+    single_lhs = false;
   }
   else if ( is_value_unique() )
   {
     mv = &r;
     sv = vals.begin()->val;
+    single_lhs = true;
   }
   else
   {
@@ -1885,19 +2053,23 @@ inline bool reg_value_base_t::perform_binary_op(
   rvals.reserve(mv->vals.size());
   for ( const auto &p : mv->vals )
   {
+    uint64 a = single_lhs ? sv : p.val;
+    uint64 b = single_lhs ? p.val : sv;
     uint64 res;
     switch ( aop )
     {
-      case ADD:     res = p.val + sv;  break;
-      case SUB:     res = p.val - sv;  break;
-      case OR:      res = p.val | sv;  break;
-      case AND:     res = p.val & sv;  break;
-      case XOR:     res = p.val ^ sv;  break;
-      case AND_NOT: res = p.val & ~sv; break;
-      case MOVT:    res = (p.val & 0xFFFF) | ((sv & 0xFFFF) << 16); break;
-      case SLL:     res = p.val << sv; break;
-      case SLR:     res = p.val >> sv; break;
-      case SAR:     res = int64(p.val) >> sv; break;
+      case ADD:     res = a + b;  break;
+      case SUB:     res = a - b;  break;
+      case OR:      res = a | b;  break;
+      case AND:     res = a & b;  break;
+      case XOR:     res = a ^ b;  break;
+      case AND_NOT: res = a & ~b; break;
+      case MOVT:    res = (a & 0xFFFF) | ((b & 0xFFFF) << 16); break;
+      // a C++ shift by 64 or more is undefined; the processor modules
+      // mask the count as their ISA does
+      case SLL:     res = b < 64 ? a << b : 0; break;
+      case SLR:     res = b < 64 ? a >> b : 0; break;
+      case SAR:     res = uint64(int64(a) >> (b < 64 ? b : 63)); break;
       default: return false;
     }
     rvals.push_back(res);
@@ -1912,6 +2084,12 @@ inline void reg_value_base_t::perform_binary_op_for_nums(
         arith_op_t aop,
         const insn_t &insn)
 {
+  if ( is_numloop() || r.is_numloop() )
+  {
+    // the operation is not linear with the loop stride
+    set_unkloop(insn.ea);
+    return;
+  }
   if ( is_num() && r.is_num() )
   {
     if ( perform_binary_op(r, aop, insn) )
@@ -1929,9 +2107,23 @@ inline void reg_value_base_t::add(
         const reg_value_base_t &r,
         const insn_t &insn)
 {
-  if ( is_spd() && r.is_num()   // spd + num -> spd
-    || is_num() && r.is_spd()   // num + spd -> spd
-    || is_num() && r.is_num() ) // num + num -> num
+  if ( is_numloop() && r.is_num()   // numloop + num -> numloop
+    || is_num() && r.is_numloop() ) // num + numloop -> numloop
+  {
+    // the stride is unchanged
+    if ( perform_binary_op(r, ADD, insn) )
+    {
+      if ( r.is_numloop() )
+      {
+        state = r.state;
+        stride = r.stride;
+      }
+      return;
+    }
+  }
+  else if ( is_spd() && r.is_num()   // spd + num -> spd
+         || is_num() && r.is_spd()   // num + spd -> spd
+         || is_num() && r.is_num() ) // num + num -> num
   {
     if ( perform_binary_op(r, ADD, insn) )
     {
@@ -1939,8 +2131,12 @@ inline void reg_value_base_t::add(
       return;
     }
   }
-  // spd + spd or unknown or both THIS and R have multiple values
-  set_unkinsn(insn);
+  // spd + spd, numloop with spd/numloop/unknown,
+  // or both THIS and R have multiple values
+  if ( is_numloop() || r.is_numloop() )
+    set_unkloop(insn.ea);
+  else
+    set_unkinsn(insn);
 }
 
 //-------------------------------------------------------------------------
@@ -1948,9 +2144,15 @@ inline void reg_value_base_t::sub(
         const reg_value_base_t &r,
         const insn_t &insn)
 {
-  if ( is_spd() && r.is_num()   // spd - num -> spd
-    || is_spd() && r.is_spd()   // spd - spd -> num
-    || is_num() && r.is_num() ) // num - num -> num
+  if ( is_numloop() && r.is_num() ) // numloop - num -> numloop
+  {
+    // the stride is unchanged
+    if ( perform_binary_op(r, SUB, insn) )
+      return;
+  }
+  else if ( is_spd() && r.is_num()   // spd - num -> spd
+         || is_spd() && r.is_spd()   // spd - spd -> num
+         || is_num() && r.is_num() ) // num - num -> num
   {
     if ( perform_binary_op(r, SUB, insn) )
     {
@@ -1958,8 +2160,13 @@ inline void reg_value_base_t::sub(
       return;
     }
   }
-  // num - spd or unknown or both THIS and R have multiple values
-  set_unkinsn(insn);
+  // num - spd, num - numloop (not linear with the stride),
+  // numloop with spd/numloop/unknown,
+  // or both THIS and R have multiple values
+  if ( is_numloop() || r.is_numloop() )
+    set_unkloop(insn.ea);
+  else
+    set_unkinsn(insn);
 }
 
 //-------------------------------------------------------------------------
@@ -2056,6 +2263,11 @@ inline void reg_value_base_t::neg(const insn_t &insn)
     set_multivals(&rvals, insn);
     state = NUMINSN;
   }
+  else if ( is_numloop() )
+  {
+    // the operation is not linear with the loop stride
+    set_unkloop(insn.ea);
+  }
   else // not a number
   {
     set_unkinsn(insn);
@@ -2074,6 +2286,11 @@ inline void reg_value_base_t::bnot(const insn_t &insn)
     set_multivals(&rvals, insn);
     state = NUMINSN;
   }
+  else if ( is_numloop() )
+  {
+    // the operation is not linear with the loop stride
+    set_unkloop(insn.ea);
+  }
   else // not a number
   {
     set_unkinsn(insn);
@@ -2083,20 +2300,22 @@ inline void reg_value_base_t::bnot(const insn_t &insn)
 //-------------------------------------------------------------------------
 inline void reg_value_base_t::add_num(uint64 r, const insn_t &insn)
 {
-  if ( !is_known() || r == 0 )
+  if ( (!is_known() && !is_numloop()) || r == 0 )
     return;
   qvector<uint64> rvals;
   rvals.reserve(vals.size());
   for ( auto &p : vals )
     rvals.push_back(p.val + r);
   set_multivals(&rvals, insn);
-  state = is_spd() ? SPDINSN : NUMINSN;
+  if ( !is_numloop() ) // a numloop stays a numloop, the stride is unchanged
+    state = is_spd() ? SPDINSN : NUMINSN;
 }
 
 //-------------------------------------------------------------------------
 inline void reg_value_base_t::add_num(uint64 r)
 {
-  if ( !is_known() || r == 0 )
+  // numloop + num -> numloop (the stride is unchanged)
+  if ( (!is_known() && !is_numloop()) || r == 0 )
     return;
   for ( auto &p : vals )
     p.val += r;
@@ -2106,8 +2325,18 @@ inline void reg_value_base_t::add_num(uint64 r)
 //-------------------------------------------------------------------------
 inline void reg_value_base_t::shift_left(uint64 r)
 {
-  if ( !is_known() || r == 0 )
+  if ( (!is_known() && !is_numloop()) || r == 0 )
     return;
+  if ( is_numloop() )
+  {
+    // the stride is scaled together with the value
+    if ( r > 7 || int8(stride << r) >> r != stride )
+    {
+      set_unkloop(vals.begin()->def_ea);
+      return;
+    }
+    stride <<= r;
+  }
   for ( auto &p : vals )
     p.val <<= r;
   sort_multivals();
@@ -2116,8 +2345,18 @@ inline void reg_value_base_t::shift_left(uint64 r)
 //-------------------------------------------------------------------------
 inline void reg_value_base_t::shift_right(uint64 r, int nbytes)
 {
-  if ( !is_known() || r == 0 )
+  if ( (!is_known() && !is_numloop()) || r == 0 )
     return;
+  if ( is_numloop() )
+  {
+    // the stride is scaled together with the value
+    if ( r > 7 || (stride >> r) << r != stride )
+    {
+      set_unkloop(vals.begin()->def_ea);
+      return;
+    }
+    stride >>= r;
+  }
   for ( auto &p : vals )
   {
     if ( nbytes != 0 )
@@ -2187,7 +2426,8 @@ inline bool reg_value_base_t::get_spd(sval_t *sval, int addrsize) const
 //-------------------------------------------------------------------------
 inline void reg_value_base_t::extend(int width, bool is_signed)
 {
-  if ( !is_known() )
+  // a numloop value is extended as a number, the stride is unchanged
+  if ( !is_known() && !is_numloop() )
     return;
   for ( auto &p : vals )
     p.val = extend_sign(p.val, width, is_signed);
@@ -2200,7 +2440,8 @@ inline void reg_value_base_t::truncate(
         int slotsize,
         int addrsize)
 {
-  if ( !is_known() )
+  // a numloop value is truncated as a number, the stride is unchanged
+  if ( !is_known() && !is_numloop() )
     return;
   bool is_signed = is_spd(); // SP delta is signed
   if ( width == 0 )

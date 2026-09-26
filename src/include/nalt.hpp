@@ -1368,6 +1368,7 @@ inline void idaapi del_op_tinfo(ea_t ea, int n) { set_op_tinfo(ea, n, nullptr); 
 #define RIDX_ALT_IDSNODE        uval_t(-7) ///< ids modnode id (for import_module)
 #define RIDX_ALT_FSIZE          uval_t(-8) ///< input file size
 #define RIDX_ALT_OUTFILEENC     uval_t(-9) ///< output file encoding index
+#define RIDX_ALT_NAME_POLICY    uval_t(-10)///< name-garbling policy (GarbleNames) fixed at creation
 ///@}
 
 //---------------------------------------------------------------------------

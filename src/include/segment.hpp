@@ -1591,18 +1591,6 @@ DEPRECATED inline ssize_t idaapi get_visible_segm_name(qstring *buf, const segme
   return s != nullptr ? get_segment_name(buf, s->start_ea, 1) : -1;
 }
 
-
-/// Get colored segment name expression in the form (segname + displacement).
-/// \param buf      output buffer to hold segment expression
-/// \param from     linear address of instruction operand or data referring to
-///                 the name. This address will be used to get fixup information,
-///                 so it should point to exact position of operand in the
-///                 instruction.
-/// \param sel      value to convert to segment expression
-/// \return size of segment expression or -1
-
-ssize_t get_segm_expr(qstring *buf, ea_t from, sel_t sel);
-
 ///@} seg_name
 
 //-------------------------------------------------------------------------

@@ -22,6 +22,13 @@
 */
 
 struct range_t;
+class idc_value_t;
+class place_t;             // fwd (kernwin.hpp) -- listing_line_t uses it by pointer
+struct lines_gen_range_t;  // fwd (kernwin.hpp) -- lines_gen_range_vec_t / export_listing_t use it
+typedef qvector<lines_gen_range_t> lines_gen_range_vec_t;
+struct dual_text_options_t;
+struct simpleline_t;       // fwd (kernwin.hpp) -- export_listing_t::add_pseudocode
+typedef qvector<simpleline_t> strvec_t;
 
 //---------------------------------------------------------------------------
 //      C O L O R   D E F I N I T I O N S
@@ -159,11 +166,34 @@ const color_t
 
   COLOR_ADDR_EXPR = COLOR_ADDR+13,///< Wraps an "address expression" - possibly composed of sub-expressions
 
-  COLOR_GROUP     = COLOR_ADDR+14;///< Groups together a run of tagged text so
-                                  ///< it can be looked up as a single span
-                                  ///< (like COLOR_ADDR_EXPR), but without
-                                  ///< influencing rendering: no associated
-                                  ///< style color key (\ref sck_) exists.
+  COLOR_SEMSPAN   = COLOR_ADDR+14,///< Semantics-bearing span: groups together a
+                                  ///< run of tagged text so it can be looked up
+                                  ///< as a single span (like COLOR_ADDR_EXPR)
+                                  ///< and says something about what that span
+                                  ///< is, all without influencing rendering: no
+                                  ///< associated style color key (\ref sck_)
+                                  ///< exists. The #COLOR_ON side is followed by
+                                  ///< a header, the #COLOR_OFF side by nothing:
+                                  ///< #COLOR_ON #COLOR_SEMSPAN <kind> [<payload>] text #COLOR_OFF #COLOR_SEMSPAN
+                                  ///< <kind> is a single byte telling what the
+                                  ///< span represents: a \ref SCOLOR_ color code
+                                  ///< (e.g. #COLOR_CNAME/#COLOR_LOCNAME = a
+                                  ///< symbol name), or #COLOR_DEFAULT for "no
+                                  ///< specific kind". It is never 0 (that would
+                                  ///< terminate the string). Read it with
+                                  ///< tag_get_semspan_kind().
+                                  ///< <payload> is what <kind> bundles along.
+                                  ///< Of *variable size* - empty for every kind
+                                  ///< so far, but we reserve the right to grow
+                                  ///< it - and never contains a 0 byte. Never
+                                  ///< assume a size for the header: step over it
+                                  ///< with tag_skipcode(), tag_skipcodes() or
+                                  ///< tag_advance().
+                                  ///< See tag_semspan().
+
+  COLOR_GROUP     = COLOR_SEMSPAN;///< Old name of ::COLOR_SEMSPAN, kept for
+                                  ///< sources written against IDA 9.4.
+                                  ///< \deprecated Use ::COLOR_SEMSPAN
 ///@}
 
 /// Size of a tagged address (see ::COLOR_ADDR)
@@ -212,6 +242,19 @@ const color_t
 #define SCOLOR_UNAME     "\x26"  ///< Regular unknown name
 #define SCOLOR_COLLAPSED "\x27"  ///< Collapsed line
 #define SCOLOR_ADDR      "\x28"  ///< Hidden address mark
+#define SCOLOR_OPND1     "\x29"  ///< Instruction operand 1
+#define SCOLOR_OPND2     "\x2A"  ///< Instruction operand 2
+#define SCOLOR_OPND3     "\x2B"  ///< Instruction operand 3
+#define SCOLOR_OPND4     "\x2C"  ///< Instruction operand 4
+#define SCOLOR_OPND5     "\x2D"  ///< Instruction operand 5
+#define SCOLOR_OPND6     "\x2E"  ///< Instruction operand 6
+#define SCOLOR_OPND7     "\x2F"  ///< Instruction operand 7
+#define SCOLOR_OPND8     "\x30"  ///< Instruction operand 8
+#define SCOLOR_RESERVED1 "\x33"  ///< Reserved for internal IDA use
+#define SCOLOR_LUMINA    "\x34"  ///< Lumina-related (navigation band only)
+#define SCOLOR_ADDR_EXPR "\x35"  ///< Address expression
+#define SCOLOR_SEMSPAN   "\x36"  ///< Semantics-bearing span (see ::COLOR_SEMSPAN)
+
 ///@}
 
 //----------------- Line prefix colors --------------------------------------
@@ -288,6 +331,38 @@ idaman THREAD_SAFE void ida_export tag_addr(qstring *buf, ea_t ea, bool ins=fals
 idaman THREAD_SAFE ea_t ida_export tag_get_addr(const char *line);
 
 
+/// Open a ::COLOR_SEMSPAN span with the given semantic kind.
+/// Appends the span header: #COLOR_ON #COLOR_SEMSPAN <kind>.
+/// Close the span with tag_semspan_off().
+/// \param buf   output buffer to append to
+/// \param kind  a \ref SCOLOR_ color code describing the span (e.g.
+///              #COLOR_CNAME for a symbol name); #COLOR_DEFAULT = no specific
+///              kind. Must not be 0.
+
+idaman THREAD_SAFE void ida_export tag_semspan(qstring *buf, color_t kind=COLOR_DEFAULT);
+
+
+/// Close a ::COLOR_SEMSPAN span opened with tag_semspan().
+/// Appends #COLOR_OFF #COLOR_SEMSPAN (the closing side carries no header).
+
+idaman THREAD_SAFE void ida_export tag_semspan_off(qstring *buf);
+
+
+/// Decode the semantic kind of a ::COLOR_SEMSPAN span, and what it bundles.
+/// \param at       points to the span header:
+///                 COLOR_ON COLOR_SEMSPAN <kind> [<payload>]
+/// \param payload  if non-nullptr, receives the payload, decoded according to
+///                 the returned kind. Cleared first, and left cleared for a
+///                 kind that bundles nothing - which is every kind so far.
+///                 Only ever #VT_LONG, #VT_INT64 or #VT_STR.
+///                 Pass nullptr if only the kind is wanted.
+/// \return         the kind (a \ref SCOLOR_ code), or 0 on malformed input
+
+idaman THREAD_SAFE color_t ida_export tag_get_semspan_kind(
+        const char *at,
+        idc_value_t *payload=nullptr);
+
+
 /// Move pointer to a 'line' to 'cnt' positions right.
 /// Take into account escape sequences.
 /// \param line  pointer to string
@@ -304,7 +379,9 @@ idaman THREAD_SAFE const char *ida_export tag_advance(const char *line, int cnt)
 idaman THREAD_SAFE const char *ida_export tag_skipcodes(const char *line);
 
 
-/// Skip one color code.
+/// Skip one color code, including any payload it carries: this is the right way
+/// to step over an entire ::COLOR_ADDR or ::COLOR_SEMSPAN header - whose size is
+/// not something a caller may assume - starting from its #COLOR_ON byte.
 /// This function should be used if you are interested in color codes
 /// and want to analyze all of them.
 /// Otherwise tag_skipcodes() function is better since it will skip all colors at once.
@@ -689,5 +766,337 @@ typedef int idaapi html_line_cb_t(
 
 ///-------------------------------------------------------------------\endcond
 
+//-------------------------------------------------------------------------
+// Listing generation: a streaming generator of a listing's lines, its line
+// type, and the config an HTML-export template receives. Scripts/plugins and
+// the UI (which implements the generator) both see these.
+
+/// Listing text encoding; the low 8 bits of a listing flags word.
+enum listing_format_t : uchar
+{
+  LLFMT_TAGGED,       ///< IDA color-tagged text (as gen_disasm_text produces)
+  LLFMT_PLAIN,        ///< tags stripped
+  LLFMT_HTML_INLINE,  ///< inline-styled HTML span runs (self-contained)
+  LLFMT_HTML_CLASSES, ///< class-based HTML span runs (styled by get_style_block())
+};
+
+/// listing_lines_t flags: a 32-bit word whose low 8 bits hold the
+/// ::listing_format_t and whose upper bits are decorations.
+#define LLF_FORMAT_MASK 0x000000FF ///< extract the ::listing_format_t
+#define LLF_LINKS       0x00000100 ///< HTML: emit in-document anchors/links
+
+/// \defgroup LAF_ link_anchor_t::flags: describe a navigational endpoint
+///@{
+#define LAF_INCOMING 0x00000001 ///< the owning line is this identifier's
+                                ///< definition: links from elsewhere land here
+#define LAF_OUTGOING 0x00000002 ///< the owning line references this identifier,
+                                ///< whose definition lives in this same document
+#define LAF_XREF     0x00000004 ///< a cross-reference endpoint (rather than the
+                                ///< direct flow/jump the line's own text spells
+                                ///< out); higher bits carry its kind (reserved)
+///@}
+
+/// One navigational endpoint attached to a listing line: an anchor identifier
+/// plus flags describing the edge it takes part in. A tiny movable value, so a
+/// line can carry a vector of them: its own anchor, an outgoing reference, and
+/// -- later -- each of its cross-references.
+struct link_anchor_t
+{
+  /// Listing-kind-agnostic anchor id -- a name in a disassembly, the analogous
+  /// computed id in pseudocode / type listings; never an address -- used as the
+  /// HTML element id and as the link target. On both ends of one edge the
+  /// identifier holds the same value, so a reference and its definition match by
+  /// string.
+  qstring identifier;
+  uint32 flags = 0;             ///< \ref LAF_ bits qualifying \ref identifier
+  link_anchor_t() {}
+  link_anchor_t(const qstring &id, uint32 f) : identifier(id), flags(f) {}
+  bool operator==(const link_anchor_t &r) const
+    { return flags == r.flags && identifier == r.identifier; }
+  bool operator!=(const link_anchor_t &r) const { return !(*this == r); }
+};
+DECLARE_TYPE_AS_MOVABLE(link_anchor_t);
+typedef qvector<link_anchor_t> link_anchors_t; ///< a line's navigational endpoints
+
+/// One produced line. \ref cb is set by the constructor; extend this struct
+/// only by appending fields.
+struct listing_line_t
+{
+  size_t cb = sizeof(listing_line_t); ///< set on construction; hidden in Python
+  qstring text;                       ///< encoded per the format's ::listing_format_t
+  link_anchors_t anchors;             ///< navigational endpoints of this line;
+                                      ///< empty when it takes no part in the link
+                                      ///< graph. See \ref link_anchor_t.
+  place_t *place = nullptr;           ///< borrow (whole instance is const-returned by next())
+  color_t prefix_color = 0;           ///< the line-prefix color tag
+  bgcolor_t bg_color = DEFCOLOR;      ///< line background, or DEFCOLOR for none
+};
+DECLARE_TYPE_AS_MOVABLE(listing_line_t);
+
+/// A streaming generator of a listing's lines. The UI builds it; a script that
+/// receives one (e.g. an HTML-export template's run() argument) borrows it and
+/// must not delete it.
+class listing_lines_t
+{
+public:
+  uint32 flags = 0; ///< low 8 bits: ::listing_format_t; upper bits: LLF_*
+  qstring title;    ///< suggested document title (the exported subject: a
+                    ///< function, a type, the database), filled by the UI; a
+                    ///< template may use it (empty => none suggested)
+  bool cancelled = false; ///< set once the stream stops early because the user
+                          ///< cancelled; read it through was_cancelled()
+  virtual ~listing_lines_t() {}
+  /// The next line, or \c nullptr at end.
+  /// WARNING: the returned instance is a BORROW owned by the stream and valid
+  /// ONLY until the next next() call (which overwrites it) or until the stream
+  /// is destroyed. Do not store the pointer or any part of it (text, place,
+  /// ...); copy what you need before calling next() again.
+  virtual const listing_line_t *idaapi next() = 0;
+  /// The CSS style block for ::LLFMT_HTML_CLASSES (empty otherwise).
+  /// \return false if there is nothing to emit.
+  virtual bool idaapi get_style_block(qstring *out) = 0;
+  /// The anchor identifier of the definition rendered at \p place (populated
+  /// lazily as lines are produced); false if none. For a function sidebar etc.
+  virtual bool idaapi place_to_identifier(qstring *out, const place_t *place) const = 0;
+  /// The listing text encoding (the low 8 bits of \ref flags).
+  listing_format_t format() const
+    { return listing_format_t(flags & LLF_FORMAT_MASK); }
+  /// HTML: emit in-document anchors/links (::LLF_LINKS).
+  bool emit_links() const { return (flags & LLF_LINKS) != 0; }
+  /// Whether the stream stopped early because the user cancelled: next() then
+  /// returns \c nullptr as at end. The stream polls the wait box's Cancel as it
+  /// produces lines, so a consumer (e.g. an HTML-export template) need not poll.
+  bool was_cancelled() const { return cancelled; }
+};
+
+//-------------------------------------------------------------------------
+/// \defgroup SYNTAX_COLORIZE Syntax colorizer
+/// Convert color-tagged listing text to HTML. The colors are supplied as data
+/// (a per-tag list), so the conversion has no dependency on the GUI.
+///@{
+
+/// One tag's look: its color (::DEFCOLOR => inherit) and CSS class ("" => none).
+struct listing_palette_entry_t
+{
+  bgcolor_t rgb = DEFCOLOR;   ///< 0xAARRGGBB, or ::DEFCOLOR to inherit
+  qstring css;                ///< CSS class name for class-based HTML, else ""
+};
+
+/// A listing's color palette: for each ::COLOR_ tag, the color (and optional CSS
+/// class) to draw it with, kept separately for text runs (\ref fg) and line
+/// prefixes (\ref pfx) -- a tag can mean different things in the two roles (e.g.
+/// ::COLOR_DEFAULT is the default text color as text, the default background as a
+/// prefix). A plain value object: fill the entries you know and set \ref inited;
+/// the export engine seeds an un-initialized palette from the built-in default
+/// palette. The HTML renderer reads \ref listing_palette_entry_t::rgb in inline
+/// mode and \ref listing_palette_entry_t::css in class mode.
+struct listing_palette_t
+{
+  typedef listing_palette_entry_t entry_t;
+  entry_t fg[COLOR_FG_MAX];     ///< text palette, indexed by ::COLOR_ tag
+  entry_t pfx[COLOR_FG_MAX];    ///< line-prefix (gutter) palette, by ::COLOR_ tag
+  bool inited = false;          ///< have the built-in defaults been applied?
+
+  /// \return the tag's text color, or ::DEFCOLOR to inherit.
+  bgcolor_t resolve_tag_color(color_t tag) const
+    { return tag < COLOR_FG_MAX ? fg[tag].rgb : DEFCOLOR; }
+  /// \return the tag's line-prefix (gutter) color, or ::DEFCOLOR to inherit.
+  bgcolor_t resolve_tag_prefix(color_t tag) const
+    { return tag < COLOR_FG_MAX ? pfx[tag].rgb : DEFCOLOR; }
+  /// \return true and set \p out to the tag's text CSS class, else false (inline).
+  bool resolve_tag_color_class(qstring *out, color_t tag) const
+  {
+    if ( tag < COLOR_FG_MAX && !fg[tag].css.empty() )
+    {
+      *out = fg[tag].css;
+      return true;
+    }
+    return false;
+  }
+  /// \return true and set \p out to the tag's line-prefix CSS class, else false.
+  bool resolve_tag_prefix_class(qstring *out, color_t tag) const
+  {
+    if ( tag < COLOR_FG_MAX && !pfx[tag].css.empty() )
+    {
+      *out = pfx[tag].css;
+      return true;
+    }
+    return false;
+  }
+};
+
+///@}
+
+//-------------------------------------------------------------------------
+/// \defgroup EXPORT_LISTING Listing export
+/// Turn a listing's place ranges into styled lines, and whole HTML
+/// documents/fragments -- all without a GUI. The caller supplies the data the
+/// engine needs (palette, display options, ...) as an ::export_listing_t.
+///@{
+
+struct export_listing_t;   // defined below
+
+/// export_listing_ctl() control codes: one per \ref export_listing_t scope
+/// builder, which documents it.
+enum export_listing_ctl_code_t
+{
+  ELCTL_ADD_DISASM_RANGE,       ///< arg1 = start ea, arg2 = end ea, arg3 = expand
+  ELCTL_ADD_WHOLE_DISASSEMBLY,  ///< arg1 = expand
+  ELCTL_ADD_FUNCTION,           ///< arg1 = ea, arg2 = expand
+  ELCTL_ADD_ITEM,               ///< arg1 = ea, arg2 = expand
+  ELCTL_ADD_TYPE,               ///< arg1 = type ordinal
+  ELCTL_ADD_ALL_TYPES,          ///< no args
+  ELCTL_ADD_PSEUDOCODE,         ///< arg1 = const strvec_t * (copied), arg2 = function ea
+  ELCTL_ENSURE_SCOPE,           ///< arg1 = current thing (vs entire), arg2 = expand
+  ELCTL_FREE_RESERVED,          ///< cfg = nullptr, arg1 = the reserved ptr to free
+  ELCTL_CREATE_LINES,           ///< arg1 = listing_lines_t ** (out; caller owns),
+                                ///< arg2 = rendering flags, arg3 = range index
+};
+
+/// The scope-builder dispatcher. Not called directly: the
+/// \ref export_listing_t methods pass the right code and arguments.
+idaman bool ida_export export_listing_ctl(
+        export_listing_t *cfg,
+        export_listing_ctl_code_t code,
+        size_t arg1=0,
+        size_t arg2=0,
+        size_t arg3=0);
+
+/// Owner of a config's internal bookkeeping (\ref export_listing_t::reserved);
+/// releases it on destruction. Uncopyable, which also makes ::export_listing_t
+/// non-copyable (pass it by reference).
+struct export_listing_reserved_holder_t
+{
+  void *ptr = nullptr;   ///< opaque, kernel-managed
+  export_listing_reserved_holder_t() {}
+  DECLARE_UNCOPYABLE(export_listing_reserved_holder_t)
+  ~export_listing_reserved_holder_t()
+  {
+    if ( ptr != nullptr )
+      export_listing_ctl(nullptr, ELCTL_FREE_RESERVED, size_t(ptr));
+  }
+};
+
+/// Everything a listing export needs, as data (no view): WHAT to export (the
+/// \ref ranges) and the caller-supplied look (palette, style block, title).
+/// HOW to render is not config state: it is the flags argument of
+/// export_listing(). Strings and ranges are owned; the remaining pointers are
+/// borrowed. Non-copyable; pass it by reference. \ref cb is set on
+/// construction; append-only.
+///
+/// Scope with the add_* builders (calls accumulate) or fill \ref ranges
+/// directly. The current_* triplet is the originating listing's position:
+/// ensure_scope() materializes a whole scope from it.
+struct export_listing_t
+{
+  size_t cb = sizeof(export_listing_t);        ///< set on construction; hidden in Python
+  lines_gen_range_vec_t ranges;                ///< what to export (owned)
+  listing_palette_t palette;                         ///< colors; the exporter fills
+                                                     ///< the built-in defaults if the
+                                                     ///< caller left it un-initialized
+  qstring style_block;                               ///< <style> body for HTML_CSS_CLASSES
+  qstring title;                                     ///< document title (empty => none)
+  qstring template_path;                             ///< export_listing_to_file: a template
+                                                     ///< .py (empty => built-in document)
+  const place_t *current_place = nullptr;            ///< the originating listing's
+                                                     ///< current place (borrowed)
+  void *current_ud = nullptr;                        ///< ... its linearray place cookie (borrowed)
+  const dual_text_options_t *current_disp = nullptr; ///< ... its display options (borrowed)
+  export_listing_reserved_holder_t reserved;         ///< internal bookkeeping (owned: e.g.
+                                                     ///< the pseudocode snapshots the ranges
+                                                     ///< walk), managed through
+                                                     ///< export_listing_ctl(). Not for callers.
+
+  /// \name Scope builders
+  /// One call per thing to export; calls accumulate, so a mixed export is a
+  /// sequence of calls, emitted in insertion order. Each builder stamps the
+  /// appended ranges with the right walking context; `expand` sets their
+  /// \ref lines_gen_range_t::expand_hidden.
+  ///@{
+
+  /// Append a disassembly address range: [start, end), end-exclusive like a
+  /// func_t/range_t; BADADDR as `end` means "to the listing end".
+  void add_disasm_range(ea_t start, ea_t end=BADADDR, bool expand=false)
+    { export_listing_ctl(this, ELCTL_ADD_DISASM_RANGE, size_t(start), size_t(end), expand); }
+
+  /// Append the whole disassembly listing.
+  void add_whole_disassembly(bool expand=false)
+    { export_listing_ctl(this, ELCTL_ADD_WHOLE_DISASSEMBLY, expand); }
+
+  /// Append the function containing `ea`, tail chunks included.
+  /// \return false if there is no function there
+  bool add_function(ea_t ea, bool expand=false)
+    { return export_listing_ctl(this, ELCTL_ADD_FUNCTION, size_t(ea), expand); }
+
+  /// Append the disassembly item at `ea` (its whole listing lines).
+  /// \return false if `ea` is not mapped
+  bool add_item(ea_t ea, bool expand=false)
+    { return export_listing_ctl(this, ELCTL_ADD_ITEM, size_t(ea), expand); }
+
+  /// Append a single local type, by ordinal (its header down to its footer).
+  /// \return false if there is no such type
+  bool add_type(uint32 ordinal)
+    { return export_listing_ctl(this, ELCTL_ADD_TYPE, ordinal); }
+
+  /// Append the whole local-types listing.
+  void add_all_types()
+    { export_listing_ctl(this, ELCTL_ADD_ALL_TYPES); }
+
+  /// Append a pseudocode listing over `lines` (e.g. a cfunc's pseudocode).
+  /// The lines are COPIED into the config: no lifetime obligation on the
+  /// caller's vector or the cfunc. `ea` is the decompiled function's address;
+  /// the range's places are built from it (through the registered place
+  /// converter), so the export anchors the function (sidebar, incoming links)
+  /// and links its calls to other exported functions.
+  /// \return false if the decompiler is not available
+  bool add_pseudocode(const strvec_t *lines, ea_t ea)
+    { return export_listing_ctl(this, ELCTL_ADD_PSEUDOCODE, size_t(lines), size_t(ea)); }
+
+  /// Materialize a scope from \ref current_place into \ref ranges: the
+  /// current thing (`current`: the function/item, the type, the pseudocode)
+  /// or the entire listing. Built ranges inherit \ref current_disp and
+  /// `expand`. A config with non-empty ranges is left untouched (true).
+  /// \return false when nothing can be built (no current place, or a listing
+  /// kind whose entire-listing scope cannot be derived from a place).
+  bool ensure_scope(bool current, bool expand=false)
+    { return export_listing_ctl(this, ELCTL_ENSURE_SCOPE, current, expand); }
+  ///@}
+
+  /// The streaming engine: a generator over the range `range_index`,
+  /// rendering per `flags` (::listing_format_t | ::LLF_LINKS) -- the consumer
+  /// loops over the ranges itself, so it always knows which region it is
+  /// rendering. The document is the config: in-document links may target any
+  /// of its ranges, and the generators of one generation pass share the
+  /// document's navigation state (a name anchors once per document), so
+  /// create them in range order -- a non-monotonic index starts a new pass.
+  /// The caller owns the result and must delete it; the config is borrowed
+  /// and must outlive it. \return nullptr for an out-of-range index.
+  listing_lines_t *create_lines(uint32 flags, size_t range_index)
+  {
+    listing_lines_t *gen = nullptr;
+    export_listing_ctl(this, ELCTL_CREATE_LINES, size_t(&gen), flags, range_index);
+    return gen;
+  }
+};
+
+/// Whole-output producer: every range's lines joined into one string (no
+/// trailing newline), rendered per `flags`.
+idaman bool ida_export export_listing_to_string(
+        qstring *out,
+        export_listing_t *cfg,
+        uint32 flags);
+
+/// Whole-output producer: write a complete HTML document to \p path. When
+/// \ref export_listing_t::template_path is set, that .py template's
+/// `run(path, cfg)` takes over (receiving \p cfg, borrowed) and builds its
+/// own generator(s); otherwise the built-in css-class document is emitted.
+/// \return false with \p errbuf set on failure; \p out_lines (optional)
+/// receives the built-in document's line count.
+idaman bool ida_export export_listing_to_file(
+        const char *path,
+        export_listing_t *cfg,
+        qstring *errbuf,
+        int *out_lines=nullptr);
+///@}
 
 #endif

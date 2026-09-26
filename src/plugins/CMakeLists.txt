@@ -37,6 +37,7 @@ if(IDA_BUILD_IDAPYTHON AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/idapython/CMakeLi
     add_subdirectory(idapython)
 endif()
 add_subdirectory(indexer_search)
+add_subdirectory(licinfo)
 add_subdirectory(mex1)
 add_subdirectory(mex2)
 add_subdirectory(mex3)

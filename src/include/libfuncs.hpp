@@ -12,7 +12,7 @@ struct idasgn_header_t
 {
   char magic[6];                // 'IDASGN'
 #define SIGN_HEADER_MAGIC  "IDASGN"
-  uchar version;                // currently 7 (see fix_version() below)
+  uchar version;                // latest version represented by this public header
 #define SIGN_HEADER_VERSION 10
   uchar processor_id;           // idp id
   uint32 file_formats;          // allowed file formats (filetype_t)
@@ -42,8 +42,12 @@ struct idasgn_header_t
 #define LS_CTYPE        0x0002  // has ctype
 #define LS_CTYPE2       0x0004  // ctype element is 2 bytes
 #define LS_CTYPE_ALT    0x0008  // alternative ctype checksum present
-#define LS_ZIP          0x0010  // compressed signature
+#define LS_ZIP          0x0010  // compressed signature (zlib/deflate)
 #define LS_CTYPE_3V     0x0020  // 3rd variant of ctype checksum present
+#define LS_ZSTD         0x0040  // compressed signature (zstd). v11+ only; older
+                                // IDA rejects v11 by version, so this never
+                                // reaches a reader that cannot decode it. LS_ZIP
+                                // is left clear when LS_ZSTD is set.
   uint16 number_of_modules_v5;
   uint16 ctype_crc;
   char   ctype_name[12];
@@ -56,6 +60,13 @@ struct idasgn_header_t
   void fix_version(FILE *infp);
 };
 #pragma pack(pop)
+
+// Signature toolchain classes (the signature header's toolchain byte).
+#define FLIRT_TC_NONE   0       // unspecified (older sigs read back as this)
+#define FLIRT_TC_MSVC   1       // Microsoft Visual C runtime
+#define FLIRT_TC_MINGW  2       // MinGW / GCC-on-Windows
+#define FLIRT_TC_GLIBC  3       // GNU C library (ELF)
+#define FLIRT_TC_USER   0x80    // and up: free for third-party toolchains
 
 /// Get idasgn header by a short signature name.
 /// \param out_header buffer for the signature file header

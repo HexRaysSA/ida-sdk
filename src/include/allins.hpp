@@ -2338,6 +2338,27 @@ Z80_otdrw,      // Output and decrement, repeat (word)
 // Gameboy instructions
 GB_ldh,
 GB_stop,
+// eZ80 instructions
+Z80_lea,        // Load effective address
+Z80_pea,        // Push effective address
+Z80_inim,       // Input from I/O and increment
+Z80_inimr,      // Input from I/O and increment, repeat
+Z80_indm,       // Input from I/O and decrement
+Z80_indmr,      // Input from I/O and decrement, repeat
+Z80_ini2,       // Input from I/O and increment (16-bit port)
+Z80_ini2r,      // Input from I/O and increment, repeat (16-bit port)
+Z80_ind2,       // Input from I/O and decrement (16-bit port)
+Z80_ind2r,      // Input from I/O and decrement, repeat (16-bit port)
+Z80_outi2,      // Output to I/O and increment (16-bit port)
+Z80_oti2r,      // Output to I/O and increment, repeat (16-bit port)
+Z80_outd2,      // Output to I/O and decrement (16-bit port)
+Z80_otd2r,      // Output to I/O and decrement, repeat (16-bit port)
+Z80_inirx,      // Input from I/O and increment (DE port)
+Z80_otirx,      // Output to I/O and increment (DE port)
+Z80_indrx,      // Input from I/O and decrement (DE port)
+Z80_otdrx,      // Output to I/O and decrement (DE port)
+Z80_stmix,      // Set ADL interrupt mode
+Z80_rsmix,      // Reset ADL interrupt mode
 I5_last,
     };
 /*
@@ -4793,11 +4814,6 @@ ARM_vins,  // Vector move Insertion.
 ARM_vjcvt,    // Javascript Convert to signed fixed-point, rounding toward Zero
 // ARMv8.3-JSConv (A64)
 ARM_fjcvtzs, // Javascript Convert to signed fixed-point, rounding toward Zero
-/*
-// ARMv8.3-CompNum, SIMD complex number support
-ARM_fcadd, // Floating-point complex add
-ARM_fcmla, // Floating-point complex multiply accumulate
-*/
 // ARMv8.4-RCPC
 ARM_ldapur,             // Load-Acquire RCpc Register (unscaled offset)
 ARM_stlur,              // Store-Release Register (unscaled offset)
@@ -5070,8 +5086,8 @@ ARM_rdvl,                 // Read multiple of vector register size to scalar reg
 ARM_rdsvl,                 // Read multiple of Streaming SVE vector register size to scalar register
 // SVE integer binary arithmetic (predicated)
 ARM_subr,                 // Reversed subtract vectors
-ARM_addpt,                // Add checked pointer vectors (predicated)
-ARM_subpt,                // Subtract checked pointer vectors (predicated)
+ARM_addpt,                // Add checked pointer
+ARM_subpt,                // Subtract checked pointer
 ARM_sdivr,                // SVE Signed Divide Reversed
 ARM_udivr,                // SVE Unsigned Divide Reversed
 ARM_add_sve,              // Add (SVE)
@@ -5683,6 +5699,176 @@ ARM_orqv,               // Bitwise OR Reduction (quadwords)
 ARM_eorqv,              // Bitwise EOR Reduction (quadwords)
 ARM_andqv,              // Bitwise AND Reduction (quadwords)
 ARM_movprfx,            // Move Prefix
+// C4.1.11 SME2 Move into/from Lookup table
+ARM_movt_sme,           // SME2 Move to/from lookup table register ZT0
+// SVE Permute
+ARM_rev_sve,            // SVE Reverse elements in vector or predicate
+// C4.1.32.7 SME2 Multi-vector convert to BFloat16
+ARM_bfcvtn_sme,         // SME2 Single-precision Convert to BFloat16 (interleaved)
+// C4.1.22.3/23.3 SME2 vertical dot products
+ARM_bfvdot,             // SME2 Multi-vector BFloat16 Vertical Dot Product
+ARM_suvdot,             // SME2 Multi-vector Signed by Unsigned Vertical Dot Product
+ARM_usvdot,             // SME2 Multi-vector Unsigned by Signed Vertical Dot Product
+// C4.1.42.1 SME streaming stack allocation
+ARM_addsvl,             // Add multiple of Streaming SVE vector register size to scalar register
+ARM_addspl,             // Add multiple of Streaming SVE predicate register size to scalar register
+// FEAT_SME PSTATE aliases (MSR SVCR{SM|ZA|SMZA}, #imm)
+ARM_smstart,            // Enable access to Streaming SVE mode and SME architectural state
+ARM_smstop,             // Disable access to Streaming SVE mode and SME architectural state
+// FEAT_LS64: single-copy atomic 64-byte load/store (Xt..Xt+7)
+ARM_ld64b,              // Single-copy atomic 64-byte load
+ARM_st64b,              // Single-copy atomic 64-byte store without status result
+ARM_st64bv,             // Single-copy atomic 64-byte store with status result
+ARM_st64bv0,            // Single-copy atomic 64-byte EL0 store with status result
+// FEAT_SVE_B16B16/FEAT_SME_B16B16: non-widening BFloat16 arithmetic
+ARM_bfadd,              // BFloat16 Add
+ARM_bfsub,              // BFloat16 Subtract
+ARM_bfmul,              // BFloat16 Multiply
+ARM_bfmla,              // BFloat16 Multiply-Add
+ARM_bfmls,              // BFloat16 Multiply-Subtract
+ARM_bfmax,              // BFloat16 Maximum
+ARM_bfmaxnm,            // BFloat16 Maximum Number
+ARM_bfmin,              // BFloat16 Minimum
+ARM_bfminnm,            // BFloat16 Minimum Number
+ARM_bfclamp,            // BFloat16 Clamp
+ARM_bfadd_sme,          // SME2 BFloat16 Add to array accumulator
+ARM_bfsub_sme,          // SME2 BFloat16 Subtract from array accumulator
+ARM_bfmax_destr,        // SME2 BFloat16 Maximum (destructive)
+ARM_bfmaxnm_destr,      // SME2 BFloat16 Maximum Number (destructive)
+ARM_bfmin_destr,        // SME2 BFloat16 Minimum (destructive)
+ARM_bfminnm_destr,      // SME2 BFloat16 Minimum Number (destructive)
+// FEAT_SME2p1/FEAT_SVE2p1
+ARM_movaz,              // Move and zero ZA tile slice to vector register
+ARM_movaz_multi,        // Move and zero multiple ZA slices to vector registers
+ARM_pmov,               // Move predicate to/from vector
+ARM_ld2q,               // Contiguous load two-quadword structures to two vectors
+ARM_ld3q,               // Contiguous load three-quadword structures to three vectors
+ARM_ld4q,               // Contiguous load four-quadword structures to four vectors
+ARM_st2q,               // Contiguous store two-quadword structures from two vectors
+ARM_st3q,               // Contiguous store three-quadword structures from three vectors
+ARM_st4q,               // Contiguous store four-quadword structures from four vectors
+ARM_tblq,               // Programmable table lookup within each quadword vector segment (zeroing)
+ARM_tbxq,               // Programmable table lookup within each quadword vector segment (merging)
+ARM_zipq1,              // Interleave elements from low halves of each pair of quadword segments
+ARM_zipq2,              // Interleave elements from high halves of each pair of quadword segments
+ARM_uzpq1,              // Concatenate even elements within each pair of quadword vector segments
+ARM_uzpq2,              // Concatenate odd elements within each pair of quadword vector segments
+ARM_faddqv,             // Floating-point add recursive reduction of quadword vector segments
+ARM_fmaxnmqv,           // Floating-point maximum number recursive reduction of quadword vector segments
+ARM_fmaxqv,             // Floating-point maximum recursive reduction of quadword vector segments
+ARM_fminnmqv,           // Floating-point minimum number recursive reduction of quadword vector segments
+ARM_fminqv,             // Floating-point minimum recursive reduction of quadword vector segments
+// FEAT_SME_MOP4/FEAT_SME_TMOP
+ARM_fmop4a,             // Floating-point quarter-tile outer products (accumulating)
+ARM_fmop4s,             // Floating-point quarter-tile outer products (subtracting)
+ARM_bfmop4a,            // BFloat16 quarter-tile outer products (accumulating)
+ARM_bfmop4s,            // BFloat16 quarter-tile outer products (subtracting)
+ARM_smop4a,             // Signed integer quarter-tile outer products (accumulating)
+ARM_smop4s,             // Signed integer quarter-tile outer products (subtracting)
+ARM_umop4a,             // Unsigned integer quarter-tile outer products (accumulating)
+ARM_umop4s,             // Unsigned integer quarter-tile outer products (subtracting)
+ARM_sumop4a,            // Signed by unsigned integer quarter-tile outer products (accumulating)
+ARM_sumop4s,            // Signed by unsigned integer quarter-tile outer products (subtracting)
+ARM_usmop4a,            // Unsigned by signed integer quarter-tile outer products (accumulating)
+ARM_usmop4s,            // Unsigned by signed integer quarter-tile outer products (subtracting)
+ARM_ftmopa,             // Floating-point sparse outer product (accumulating)
+ARM_bftmopa,            // BFloat16 sparse outer product (accumulating)
+ARM_stmopa,             // Signed integer sparse outer product (accumulating)
+ARM_utmopa,             // Unsigned integer sparse outer product (accumulating)
+ARM_sutmopa,            // Signed by unsigned integer sparse outer product (accumulating)
+ARM_ustmopa,            // Unsigned by signed integer sparse outer product (accumulating)
+// FEAT_PAuth_LR: the other forms reuse ARM_pac/ARM_aut/ARM_ret with PAC_MOD2.
+// Placed right after the last itype shared with 9.4 to keep the same value
+// in the backport; everything below exists only in 9.5.
+ARM_pacnb,              // Pointer Authentication Code for return address, not a branch target
+// FEAT_CMPBR: compare and branch (keep contiguous, see is_cmpbr_insn)
+ARM_cbgt,               // Compare signed greater than and branch
+ARM_cbge,               // Compare signed greater than or equal and branch
+ARM_cbhi,               // Compare unsigned higher and branch
+ARM_cbhs,               // Compare unsigned higher or same and branch
+ARM_cbeq,               // Compare equal and branch
+ARM_cbne,               // Compare not equal and branch
+ARM_cblt,               // Compare signed less than and branch
+ARM_cblo,               // Compare unsigned lower and branch
+ARM_cbbgt,              // Compare bytes signed greater than and branch
+ARM_cbbge,              // Compare bytes signed greater than or equal and branch
+ARM_cbbhi,              // Compare bytes unsigned higher and branch
+ARM_cbbhs,              // Compare bytes unsigned higher or same and branch
+ARM_cbbeq,              // Compare bytes equal and branch
+ARM_cbbne,              // Compare bytes not equal and branch
+ARM_cbhgt,              // Compare halfwords signed greater than and branch
+ARM_cbhge,              // Compare halfwords signed greater than or equal and branch
+ARM_cbhhi,              // Compare halfwords unsigned higher and branch
+ARM_cbhhs,              // Compare halfwords unsigned higher or same and branch
+ARM_cbheq,              // Compare halfwords equal and branch
+ARM_cbhne,              // Compare halfwords not equal and branch
+// FEAT_CLRBHB, FEAT_CHK, FEAT_PAuth_LR, FEAT_GCS: hint aliases
+ARM_clrbhb,             // Clear Branch History
+ARM_chkfeat,            // Check Feature Status
+ARM_pacm,               // Pointer Authentication Modifier
+ARM_gcsb,               // Guarded Control Stack Barrier
+// FEAT_CPA: checked pointer arithmetic
+ARM_maddpt,             // Multiply-Add checked pointer
+ARM_msubpt,             // Multiply-Subtract checked pointer
+ARM_mlapt,              // Multiply-Add checked pointer vectors (unpredicated)
+ARM_madpt,              // Multiply-Add checked pointer vectors (unpredicated, destructive)
+// FEAT_LSUI: unprivileged load/store
+// the atomic groups must keep the order used by the other atomic operations:
+// no ordering, Release, Acquire, Acquire and release, store, store Release
+ARM_ldtxr,              // Load unprivileged exclusive register
+ARM_ldatxr,             // Load-acquire unprivileged exclusive register
+ARM_sttxr,              // Store unprivileged exclusive register
+ARM_stltxr,             // Store-release unprivileged exclusive register
+ARM_cast,               // Compare and swap unprivileged
+ARM_caslt,              // Compare and swap unprivileged, Release
+ARM_casat,              // Compare and swap unprivileged, Acquire
+ARM_casalt,             // Compare and swap unprivileged, Acquire and release
+ARM_caspt,              // Compare and swap pair unprivileged
+ARM_casplt,             // Compare and swap pair unprivileged, Release
+ARM_caspat,             // Compare and swap pair unprivileged, Acquire
+ARM_caspalt,            // Compare and swap pair unprivileged, Acquire and release
+ARM_ldtadd,             // Atomic add unprivileged
+ARM_ldtaddl,            // Atomic add unprivileged, Release
+ARM_ldtadda,            // Atomic add unprivileged, Acquire
+ARM_ldtaddal,           // Atomic add unprivileged, Acquire and release
+ARM_sttadd,             // Atomic add unprivileged, no return
+ARM_sttaddl,            // Atomic add unprivileged, no return, Release
+ARM_ldtclr,             // Atomic bit clear unprivileged
+ARM_ldtclrl,            // Atomic bit clear unprivileged, Release
+ARM_ldtclra,            // Atomic bit clear unprivileged, Acquire
+ARM_ldtclral,           // Atomic bit clear unprivileged, Acquire and release
+ARM_sttclr,             // Atomic bit clear unprivileged, no return
+ARM_sttclrl,            // Atomic bit clear unprivileged, no return, Release
+ARM_ldtset,             // Atomic bit set unprivileged
+ARM_ldtsetl,            // Atomic bit set unprivileged, Release
+ARM_ldtseta,            // Atomic bit set unprivileged, Acquire
+ARM_ldtsetal,           // Atomic bit set unprivileged, Acquire and release
+ARM_sttset,             // Atomic bit set unprivileged, no return
+ARM_sttsetl,            // Atomic bit set unprivileged, no return, Release
+ARM_swpt,               // Swap unprivileged
+ARM_swptl,              // Swap unprivileged, Release
+ARM_swpta,              // Swap unprivileged, Acquire
+ARM_swptal,             // Swap unprivileged, Acquire and release
+ARM_ldtp,               // Load unprivileged pair of registers
+ARM_sttp,               // Store unprivileged pair of registers
+ARM_ldtnp,              // Load unprivileged pair of registers, non-temporal
+ARM_sttnp,              // Store unprivileged pair of registers, non-temporal
+// FEAT_MOPS: memory copy and memory set (keep contiguous, see is_mops_insn)
+ARM_cpyfp,              // Memory copy forward-only, prologue
+ARM_cpyfm,              // Memory copy forward-only, main
+ARM_cpyfe,              // Memory copy forward-only, epilogue
+ARM_cpyp,               // Memory copy, prologue
+ARM_cpym,               // Memory copy, main
+ARM_cpye,               // Memory copy, epilogue
+ARM_setp,               // Memory set, prologue
+ARM_setm,               // Memory set, main
+ARM_sete,               // Memory set, epilogue
+ARM_setgp,              // Memory set with tag setting, prologue
+ARM_setgm,              // Memory set with tag setting, main
+ARM_setge,              // Memory set with tag setting, epilogue
+// FEAT_FCMA: Advanced SIMD complex numbers
+ARM_fcadd,              // Floating-point Complex Add
+ARM_fcmla,              // Floating-point Complex Multiply Accumulate
 ARM_last
 };
 /*
@@ -8299,6 +8485,80 @@ MIPS_byterevw,        // Reverse all bytes
 MIPS_byterevh,        // Reverse bytes in halfs
 MIPS_lwm2,            // Load Word Multiple (w/o reglist)
 MIPS_swm2,            // Store Word Multiple (w/o reglist)
+// MIPS32/64 release 6 compact branches and jumps (no delay slot)
+MIPS_jic,             // Jump Indexed, Compact
+MIPS_jialc,           // Jump Indexed and Link, Compact
+MIPS_bovc,            // Branch on Overflow, Compact
+MIPS_bnvc,            // Branch on No Overflow, Compact
+MIPS_beqzalc,         // Branch if Equal to Zero and Link, Compact
+MIPS_bnezalc,         // Branch if Not Equal to Zero and Link, Compact
+MIPS_blezalc,         // Branch if Less than or Equal to Zero and Link, Compact
+MIPS_bgezalc,         // Branch if Greater than or Equal to Zero and Link, Compact
+MIPS_bgtzalc,         // Branch if Greater than Zero and Link, Compact
+MIPS_bltzalc,         // Branch if Less than Zero and Link, Compact
+MIPS_blezc,           // Branch if Less than or Equal to Zero, Compact
+MIPS_bgezc,           // Branch if Greater than or Equal to Zero, Compact
+MIPS_bgtzc,           // Branch if Greater than Zero, Compact
+MIPS_bltzc,           // Branch if Less than Zero, Compact
+// MIPS32/64 release 6: the multiply and divide instructions write a GPR
+// instead of the removed HI/LO pair
+MIPS_dmuh,            // Multiply Doubleword High
+MIPS_dmulu,           // Multiply Doubleword Unsigned
+MIPS_dmuhu,           // Multiply Doubleword High Unsigned
+MIPS_dmod,            // Modulo Doubleword
+MIPS_dmodu,           // Modulo Doubleword Unsigned
+// MIPS32/64 release 6 FPU: the condition codes are gone, a compare writes
+// a mask to an FPR and the branches test that register
+MIPS_bc1eqz,          // Branch if FP Register Bit 0 Equal to Zero
+MIPS_bc1nez,          // Branch if FP Register Bit 0 Not Equal to Zero
+MIPS_fcmp_af,         // Floating-point Compare, Always False
+MIPS_fcmp_un,         // Floating-point Compare, Unordered
+MIPS_fcmp_eq,         // Floating-point Compare, Equal
+MIPS_fcmp_ueq,        // Floating-point Compare, Unordered or Equal
+MIPS_fcmp_lt,         // Floating-point Compare, Less Than
+MIPS_fcmp_ult,        // Floating-point Compare, Unordered or Less Than
+MIPS_fcmp_le,         // Floating-point Compare, Less Than or Equal
+MIPS_fcmp_ule,        // Floating-point Compare, Unordered or Less or Equal
+MIPS_fcmp_saf,        // Floating-point Compare, Signaling Always False
+MIPS_fcmp_sun,        // Floating-point Compare, Signaling Unordered
+MIPS_fcmp_seq,        // Floating-point Compare, Signaling Equal
+MIPS_fcmp_sueq,       // Floating-point Compare, Signaling Unordered or Equal
+MIPS_fcmp_slt,        // Floating-point Compare, Signaling Less Than
+MIPS_fcmp_sult,       // Floating-point Compare, Signaling Unordered or Less
+MIPS_fcmp_sle,        // Floating-point Compare, Signaling Less or Equal
+MIPS_fcmp_sule,       // Floating-point Compare, Signaling Unord or Less or Eq
+MIPS_fcmp_or,         // Floating-point Compare, Ordered
+MIPS_fcmp_une,        // Floating-point Compare, Unordered or Not Equal
+MIPS_fcmp_ne,         // Floating-point Compare, Not Equal
+MIPS_fcmp_sor,        // Floating-point Compare, Signaling Ordered
+MIPS_fcmp_sune,       // Floating-point Compare, Signaling Unord or Not Equal
+MIPS_fcmp_sne,        // Floating-point Compare, Signaling Not Equal
+// MIPS32/64 release 6 additions
+MIPS_aui,             // Add Upper Immediate
+MIPS_daui,            // Add Upper Immediate to Doubleword
+MIPS_dahi,            // Add Higher Immediate to Doubleword
+MIPS_dati,            // Add Top Immediate to Doubleword
+MIPS_nal,             // Branch Never and Link
+MIPS_auipc,           // Add Upper Immediate to PC
+MIPS_lwupc,           // Load Word Unsigned PC relative
+MIPS_ldpc,            // Load Doubleword PC relative
+MIPS_seleqz,          // Select if Equal to Zero
+MIPS_selnez,          // Select if Not Equal to Zero
+MIPS_align,           // Concatenate two GPRs and extract a word
+MIPS_dalign,          // Concatenate two GPRs and extract a doubleword
+MIPS_bitswap,         // Reverse the bits in each byte of a word
+MIPS_dbitswap,        // Reverse the bits in each byte of a doubleword
+MIPS_fsel,            // Floating-point Select
+MIPS_fseleqz,         // Floating-point Select if Equal to Zero
+MIPS_fselnez,         // Floating-point Select if Not Equal to Zero
+MIPS_fmaddf,          // Floating-point Fused Multiply Add
+MIPS_fmsubf,          // Floating-point Fused Multiply Subtract
+MIPS_frint,           // Floating-point Round to Integral Value
+MIPS_fclass,          // Floating-point Class Mask
+MIPS_fmin_r6,         // Floating-point Minimum
+MIPS_fmax_r6,         // Floating-point Maximum
+MIPS_fmina,           // Floating-point Minimum of Absolute Value
+MIPS_fmaxa,           // Floating-point Maximum of Absolute Value
 MIPS_last,
 };
 /*
@@ -24176,4 +24436,2024 @@ enum
 // XTENSA_sac2x32,       // ?
 // XTENSA_sac32_r,       // ?
   XTENSA_last
+};
+/*
+ *      Interactive disassembler (IDA).
+ *      Copyright (c) 1990-2026 Hex-Rays
+ *      ALL RIGHTS RESERVED.
+ *
+ *      Hexagon module
+ *
+ */
+enum
+{
+  Hex_NONE = 0,
+  // ALU - Basic arithmetic and logic (1-30)
+  Hex_abs,                    // %0=abs(%1)
+  Hex_add,                    // %0=add(%1,%2)
+  Hex_add_add,                // %0=add(%1,add(%2,%3))
+  Hex_add_asl,                // %0=add(%1,asl(%0,%2))
+  Hex_add_clb,                // %0=add(clb(%1),%2)
+  Hex_add_lsr,                // %0=add(%1,lsr(%0,%2))
+  Hex_add_mpyi,               // %0=add(%1,mpyi(%2,%3))
+  Hex_add_sub,                // %0=add(%1,sub(%3,%2))
+  Hex_addasl,                 // %0=addasl(%2,%1,%3)
+  Hex_addc,                   // %0=add(%1,%2,%3) with carry
+  Hex_all8,                   // %0=all8(%1)
+  Hex_and,                    // %0=and(%1,%2)
+  Hex_and_and,                // %0=and(%1,and(%2,%3))
+  Hex_and_asl,                // %0=and(%1,asl(%0,%2))
+  Hex_and_lsr,                // %0=and(%1,lsr(%0,%2))
+  Hex_and_or,                 // %0=and(%1,or(%2,%3))
+  Hex_any8,                   // %0=any8(%1)
+  Hex_neg,                    // %0=neg(%1)
+  Hex_not,                    // %0=not(%1)
+  Hex_or,                     // %0=or(%1,%2)
+  Hex_or_and,                 // %0=or(%1,and(%2,%3))
+  Hex_or_asl,                 // %0=or(%1,asl(%0,%2))
+  Hex_or_lsr,                 // %0=or(%1,lsr(%0,%2))
+  Hex_or_or,                  // %0=or(%1,or(%2,%3))
+  Hex_sub,                    // %0=sub(%2,%1)
+  Hex_sub_asl,                // %0=sub(%1,asl(%0,%2))
+  Hex_sub_lsr,                // %0=sub(%1,lsr(%0,%2))
+  Hex_subc,                   // %0=sub(%1,%2,%3) with carry
+  Hex_xor,                    // %0=xor(%1,%2)
+  // SHIFT - Shift operations (30-36)
+  Hex_asl,                    // %0=asl(%1,%2)
+  Hex_aslh,                   // %0=aslh(%1)
+  Hex_asr,                    // %0=asr(%1,%2)
+  Hex_asrh,                   // %0=asrh(%1)
+  Hex_lsl,                    // %0=lsl(%1,%2)
+  Hex_lsr,                    // %0=lsr(%1,%2)
+  Hex_rol,                    // %0=rol(%1,%2)
+  // BIT - Bit operations (37-61)
+  Hex_bitsclr,                // %0=bitsclr(%1,%2)
+  Hex_bitsplit,               // %0=bitsplit(%1,%2)
+  Hex_bitsset,                // %0=bitsset(%1,%2)
+  Hex_brev,                   // %0=brev(%1)
+  Hex_cl0,                    // %0=cl0(%1)
+  Hex_cl1,                    // %0=cl1(%1)
+  Hex_clb,                    // %0=clb(%1)
+  Hex_clrbit,                 // %0=clrbit(%1)
+  Hex_clrbit2,                // %0=clrbit(%1,%2)
+  Hex_ct0,                    // %0=ct0(%1)
+  Hex_ct1,                    // %0=ct1(%1)
+  Hex_extract,                // %0=extract(%1,%2)
+  Hex_extract3,               // %0=extract(%1,%2,%3)
+  Hex_extractu,               // %0=extractu(%1,%2)
+  Hex_extractu3,              // %0=extractu(%1,%2,%3)
+  Hex_insert,                 // %0=insert(%1,%2)
+  Hex_insert3,                // %0=insert(%1,%2,%3)
+  Hex_mask,                   // %0=mask(%1)
+  Hex_mask2,                  // %0=mask(%1,%2)
+  Hex_popcount,               // %0=popcount(%1)
+  Hex_setbit,                 // %0=setbit(%1)
+  Hex_setbit2,                // %0=setbit(%1,%2)
+  Hex_togglebit,              // %0=togglebit(%1,%2)
+  Hex_tstbit,                 // %0=tstbit(%1,%2)
+  // CMP - Compare, min/max, saturation (61-73)
+  Hex_boundscheck,            // %0=boundscheck(%1,%2)
+  Hex_clip,                   // %0=clip(%1,%2)
+  Hex_cmp,                    // %0=cmp%s%c(%1,%2)
+  Hex_cround,                 // %0=cround(%1,%2)
+  Hex_max,                    // %0=max(%1,%2)
+  Hex_maxu,                   // %0=maxu(%1,%2)
+  Hex_min,                    // %0=min(%2,%1)
+  Hex_minu,                   // %0=minu(%2,%1)
+  Hex_modwrap,                // %0=modwrap(%1,%2)
+  Hex_normamt,                // %0=normamt(%1)
+  Hex_round,                  // %0=round(%1)
+  Hex_round2,                 // %0=round(%1,%2)
+  Hex_sat,                    // %0=sat%s(%1)
+  // DATA - Data movement (74-95)
+  Hex_combine,                // %0=combine(%1,%2)
+  Hex_decbin,                 // %0=decbin(%1,%2)
+  Hex_deinterleave,           // %0=deinterleave(%1)
+  Hex_fastcorner9,            // %0=fastcorner9(%1,%2)
+  Hex_interleave,             // %0=interleave(%1)
+  Hex_lfs,                    // %0=lfs(%1,%2)
+  Hex_mov,                    // %0=%1
+  Hex_mux,                    // %0=mux(%1,%2,%3)
+  Hex_nop,                    // nop
+  Hex_packhl,                 // %0=packhl(%1,%2)
+  Hex_parity,                 // %0=parity(%1,%2)
+  Hex_shuffeb,                // %0=shuffeb(%1,%2)
+  Hex_shuffeh,                // %0=shuffeh(%1,%2)
+  Hex_shuffob,                // %0=shuffob(%2,%1)
+  Hex_shuffoh,                // %0=shuffoh(%2,%1)
+  Hex_swiz,                   // %0=swiz(%1)
+  Hex_sxtb,                   // %0=sxtb(%1)
+  Hex_sxth,                   // %0=sxth(%1)
+  Hex_sxtw,                   // %0=sxtw(%1)
+  Hex_tableidx,               // %0=tableidx%s(%1,%2,%3)
+  Hex_zxtb,                   // %0=zxtb(%1)
+  Hex_zxth,                   // %0=zxth(%1)
+  // BRANCH - Control flow (96-108)
+  Hex_hintjr,                 // hintjr(%0)
+  Hex_call,                   // call %0
+  Hex_callr,                  // callr %0
+  Hex_callrh,                 // callrh %0
+  Hex_jump,                   // jump%t %0
+  Hex_jumpr,                  // jumpr%t %0
+  Hex_jumprh,                 // jumprh %0
+  Hex_cmp_jump,               // %0=cmp%c(%1,%2);if(%3)jump%t %4
+  Hex_set_jump,               // %0=%1;jump %2
+  Hex_tstbit_jump,            // %0=tstbit(%1,%2);if(%3)jump%t %4
+  // LOOP - Hardware loops (106-110)
+  Hex_loop0,                  // loop0(%0,%1)
+  Hex_loop1,                  // loop1(%0,%1)
+  Hex_sp1loop0,               // %0=sp1loop0(%1,%2)
+  Hex_sp2loop0,               // %0=sp2loop0(%1,%2)
+  Hex_sp3loop0,               // %0=sp3loop0(%1,%2)
+  // FRAME - Stack frame (111-116)
+  Hex_allocframe_raw,         // allocframe(%0,%1):raw
+  Hex_allocframe,             // allocframe(%0)
+  Hex_deallocframe_raw,       // %0=deallocframe(%1):raw
+  Hex_deallocframe,           // deallocframe
+  Hex_return_raw,             // %0=dealloc_return(%1)%t:raw
+  Hex_return,                 // dealloc_return%t
+  // SYSTEM - User mode system (117-140)
+  Hex_barrier,                // barrier
+  Hex_brkpt,                  // brkpt
+  Hex_dccleana,               // dccleana(%0)
+  Hex_dccleaninva,            // dccleaninva(%0)
+  Hex_dcfetch,                // dcfetch(%0)
+  Hex_dcinva,                 // dcinva(%0)
+  Hex_dczeroa,                // dczeroa(%0)
+  Hex_diag,                   // diag(%0)
+  Hex_diag0,                  // diag0(%0,%1)
+  Hex_diag1,                  // diag1(%0,%1)
+  Hex_icinva,                 // icinva(%0)
+  Hex_isync,                  // isync
+  Hex_l2fetch,                // l2fetch(%0,%1)
+  Hex_memcpy,                 // memcpy(%0,%1,%2)
+  Hex_pause,                  // pause(%0)
+  Hex_syncht,                 // syncht
+  Hex_tlbmatch,               // %0=tlbmatch(%1,%2)
+  Hex_trace,                  // trace(%0)
+  Hex_trap0,                  // trap0(%0)
+  Hex_trap1,                  // trap1(%0)
+  Hex_trap1_2,                // trap1(%0,%1)
+  // SYSTEM - Monitor mode (138-180)
+  Hex_ciad,
+  Hex_crswap,
+  Hex_cswi,
+  Hex_ctlbw,
+  Hex_dccleanidx,
+  Hex_dccleaninvidx,
+  Hex_dcinvidx,
+  Hex_dckill,
+  Hex_dctagr,
+  Hex_dctagw,
+  Hex_getimask,
+  Hex_iassignr,
+  Hex_iassignw,
+  Hex_icdatar,
+  Hex_icdataw,
+  Hex_icinvidx,
+  Hex_ickill,
+  Hex_ictagr,
+  Hex_ictagw,
+  Hex_k0lock,
+  Hex_k0unlock,
+  Hex_l2cleanidx,
+  Hex_l2cleaninvidx,
+  Hex_l2gclean,
+  Hex_l2gclean1,
+  Hex_l2gcleaninv,
+  Hex_l2gcleaninv1,
+  Hex_l2gunlock,
+  Hex_l2invidx,
+  Hex_l2kill,
+  Hex_l2locka,
+  Hex_l2tagr,
+  Hex_l2tagw,
+  Hex_l2unlocka,
+  Hex_ldphys,
+  Hex_nmi,
+  Hex_resume,
+  Hex_rte,
+  Hex_setimask,
+  Hex_setprio,
+  Hex_siad,
+  Hex_start,
+  Hex_stop,
+  Hex_swi,
+  Hex_tlbinvasid,
+  Hex_tlblock,
+  Hex_tlboc,
+  Hex_tlbp,
+  Hex_tlbr,
+  Hex_tlbunlock,
+  Hex_tlbw,
+  Hex_unpause,
+  Hex_wait,
+  // MULTIPLY (191-202)
+  Hex_cmpy,
+  Hex_cmpyi,
+  Hex_cmpyiw,
+  Hex_cmpyiwh,
+  Hex_cmpyr,
+  Hex_cmpyrw,
+  Hex_cmpyrwh,
+  Hex_mpy,
+  Hex_mpyi,
+  Hex_mpysu,
+  Hex_mpyu,
+  Hex_pmpyw,
+  // FLOAT - Conversions and operations (203-244)
+  Hex_conv_d2df,
+  Hex_conv_d2sf,
+  Hex_conv_df2d,
+  Hex_conv_df2sf,
+  Hex_conv_df2ud,
+  Hex_conv_df2uw,
+  Hex_conv_df2w,
+  Hex_conv_sf2d,
+  Hex_conv_sf2df,
+  Hex_conv_sf2ud,
+  Hex_conv_sf2uw,
+  Hex_conv_sf2w,
+  Hex_conv_ud2df,
+  Hex_conv_ud2sf,
+  Hex_conv_uw2df,
+  Hex_conv_uw2sf,
+  Hex_conv_w2df,
+  Hex_conv_w2sf,
+  Hex_dfadd,
+  Hex_dfclass,
+  Hex_dfcmp,
+  Hex_dfmake,
+  Hex_dfmax,
+  Hex_dfmin,
+  Hex_dfmpyfix,
+  Hex_dfmpyhh,
+  Hex_dfmpylh,
+  Hex_dfmpyll,
+  Hex_dfsub,
+  Hex_sfadd,
+  Hex_sfclass,
+  Hex_sfcmp,
+  Hex_sffixupd,
+  Hex_sffixupn,
+  Hex_sffixupr,
+  Hex_sfinvsqrta,
+  Hex_sfmake,
+  Hex_sfmax,
+  Hex_sfmin,
+  Hex_sfmpy,
+  Hex_sfmpy3,
+  Hex_sfrecipa,
+  Hex_sfsub,
+  // SIMD - Scalar vector (64-bit in GPRs) (246-343)
+  Hex_svabsdiff,
+  Hex_svabsh,
+  Hex_svabsw,
+  Hex_svacsh,
+  Hex_svaddh,
+  Hex_svaddhub,
+  Hex_svaddub,
+  Hex_svadduh,
+  Hex_svaddw,
+  Hex_svalignb,
+  Hex_svaslh,
+  Hex_svaslw,
+  Hex_svasrh,
+  Hex_svasrhub,
+  Hex_svasrw,
+  Hex_svavg,
+  Hex_svclip,
+  Hex_svcmp,
+  Hex_svcmpbeq_any,
+  Hex_svcmpyi,
+  Hex_svcmpyr,
+  Hex_svcnegh,
+  Hex_svconj,
+  Hex_svcrotate,
+  Hex_svdmpy,
+  Hex_svdmpybsu,
+  Hex_svitpack,
+  Hex_svlslh,
+  Hex_svlslw,
+  Hex_svlsrh,
+  Hex_svlsrw,
+  Hex_svmaxb,
+  Hex_svmaxh,
+  Hex_svmaxub,
+  Hex_svmaxuh,
+  Hex_svmaxuw,
+  Hex_svmaxw,
+  Hex_svminb,
+  Hex_svminh,
+  Hex_svminub,
+  Hex_svminub2d,
+  Hex_svminuh,
+  Hex_svminuw,
+  Hex_svminw,
+  Hex_svmpybsu,
+  Hex_svmpybu,
+  Hex_svmpyeh,
+  Hex_svmpyh,
+  Hex_svmpyhsu,
+  Hex_svmpyweh,
+  Hex_svmpyweuh,
+  Hex_svmpywoh,
+  Hex_svmpywouh,
+  Hex_svmux,
+  Hex_svnavg,
+  Hex_svpmpyh,
+  Hex_svraddh,
+  Hex_svraddub,
+  Hex_svradduh,
+  Hex_svrcmpyi,
+  Hex_svrcmpyr,
+  Hex_svrcmpys,
+  Hex_svrcnegh,
+  Hex_svrcrotate,
+  Hex_svrmax,
+  Hex_svrmin,
+  Hex_svrmpybsu,
+  Hex_svrmpybu,
+  Hex_svrmpyh,
+  Hex_svrmpyweh,
+  Hex_svrmpywoh,
+  Hex_svrndwh,
+  Hex_svrsadub,
+  Hex_svsathb,
+  Hex_svsathub,
+  Hex_svsatwh,
+  Hex_svsatwuh,
+  Hex_svsplatb,
+  Hex_svsplath,
+  Hex_svspliceb,
+  Hex_svsubh,
+  Hex_svsubub,
+  Hex_svsubuh,
+  Hex_svsubw,
+  Hex_svsxtbh,
+  Hex_svsxthw,
+  Hex_svtrunehb,
+  Hex_svtrunehb2,
+  Hex_svtrunewh,
+  Hex_svtrunohb,
+  Hex_svtrunohb2,
+  Hex_svtrunowh,
+  Hex_svxaddsubh,
+  Hex_svxaddsubw,
+  Hex_svxsubaddh,
+  Hex_svxsubaddw,
+  Hex_svzxtbh,
+  Hex_svzxthw,
+  // DMA (344-354)
+  Hex_dmcfgrd,
+  Hex_dmcfgwr,
+  Hex_dmlink,
+  Hex_dmpause,
+  Hex_dmpoll,
+  Hex_dmresume,
+  Hex_dmstart,
+  Hex_dmsyncht,
+  Hex_dmtlbsynch,
+  Hex_dmwait,
+  Hex_release,
+  Hex_prefixsum,
+  Hex_v6mpy,
+  Hex_vabs,
+  Hex_vabsdiff,
+  Hex_vadd,
+  Hex_vadd3,
+  Hex_vadd2d,
+  Hex_vaddclb,
+  Hex_vavg,
+  Hex_vcl0,
+  Hex_vmax,
+  Hex_vmin,
+  Hex_vnavg,
+  Hex_vnormamt,
+  Hex_vpopcount,
+  Hex_vsat,
+  Hex_vsatdw,
+  Hex_vsub,
+  Hex_vsub3,
+  Hex_vsub2d,
+  Hex_vdmpy,
+  Hex_vdmpy3,
+  Hex_vdsad,
+  Hex_vmpa,
+  Hex_vmpa3,
+  Hex_vmps,
+  Hex_vmpy,
+  Hex_vmpye,
+  Hex_vmpyi,
+  Hex_vmpyie,
+  Hex_vmpyieo,
+  Hex_vmpyio,
+  Hex_vmpyo,
+  Hex_vrmpy,
+  Hex_vrmpy3,
+  Hex_vrmpyz,
+  Hex_vr16mpyz,
+  Hex_vr16mpyzs,
+  Hex_vr8mpyz,
+  Hex_vrsad,
+  Hex_vtmpy,
+  Hex_vand,
+  Hex_vnot,
+  Hex_vor,
+  Hex_vxor,
+  Hex_vasl,
+  Hex_vasr,
+  Hex_vasr3,
+  Hex_vasrinto,
+  Hex_vlsr,
+  Hex_vror,
+  Hex_vrotr,
+  Hex_vcmp,
+  Hex_valign,
+  Hex_vcombine,
+  Hex_vdeal,
+  Hex_vdeal3,
+  Hex_vdeal4,
+  Hex_vdeale,
+  Hex_vdelta,
+  Hex_vextract,
+  Hex_vinsert,
+  Hex_vlalign,
+  Hex_vmerge,
+  Hex_vmux,
+  Hex_vpack,
+  Hex_vpacke,
+  Hex_vpacko,
+  Hex_vrdelta,
+  Hex_vround,
+  Hex_vsetq,
+  Hex_vsetq2,
+  Hex_vshuff,
+  Hex_vshuff3,
+  Hex_vshuff4,
+  Hex_vshuffe,
+  Hex_vshuffo,
+  Hex_vshuffoe,
+  Hex_vsplat,
+  Hex_vswap,
+  Hex_vsxt,
+  Hex_vunpack,
+  Hex_vunpacko,
+  Hex_vzxt,
+  Hex_vcvt,
+  Hex_vcvt_2,
+  Hex_vcvt2,
+  Hex_vcvt2_2,
+  Hex_vfmax,
+  Hex_vfmin,
+  Hex_vfmv,
+  Hex_vfneg,
+  Hex_vgetqfext,
+  Hex_vsetqfext,
+  Hex_vlut16,
+  Hex_vlut32,
+  Hex_vlut4,
+  Hex_vhist,
+  Hex_vhist1,
+  Hex_vwhist128,
+  Hex_vwhist128_1,
+  Hex_vwhist128_2,
+  Hex_vwhist256,
+  Hex_vwhist256_1,
+  Hex_vgather,
+  Hex_vscatter,
+  Hex_vscatterrls,
+  Hex_zextract,
+  // SPECIAL - Constant extender (463)
+  Hex_immext,                 // immext(%0)
+  // HMX - Matrix extensions (464+)
+  Hex_mxclr,
+  Hex_mxshl,
+  Hex_mxswap,
+  Hex_NUM_INSN,
+};
+/*
+ *      Processor module for Motorola MCORE - instruction definitions
+ */
+//----------------------------------------------------------------------
+// MCORE instruction types
+//
+// Organized by instruction category for readability.
+// Note: bmaski and bgeni each had 3 separate enum values (_0, _1, base)
+// for different encoding ranges. These have been consolidated since they
+// all produce the same mnemonic. The decoder handles encoding variants.
+//
+enum
+{
+  mcore_null = 0,
+  //=======================================================================
+  // No-operand instructions (system control)
+  //=======================================================================
+  mcore_bkpt,    // Breakpoint
+  mcore_sync,    // Synchronize CPU
+  mcore_rte,     // Return from exception
+  mcore_rfi,     // Return from fast interrupt
+  mcore_stop,    // Enter low-power stop mode
+  mcore_wait,    // Stop execution and wait for interrupt
+  mcore_doze,    // Enter low-power doze mode
+  //=======================================================================
+  // Single-register instructions
+  //=======================================================================
+  mcore_mvc,     // Move C bit to register
+  mcore_mvcv,    // Move inverted C bit to register
+  mcore_ldq,     // Load register quadrant (r4-r7 from [rX])
+  mcore_stq,     // Store register quadrant (r4-r7 to [rX])
+  mcore_ldm,     // Load multiple registers
+  mcore_stm,     // Store multiple registers
+  mcore_dect,    // Decrement if true condition
+  mcore_decf,    // Decrement if false condition
+  mcore_inct,    // Increment if true condition
+  mcore_incf,    // Increment if false condition
+  mcore_jmp,     // Unconditional jump (register indirect)
+  mcore_jsr,     // Jump to subroutine (register indirect)
+  mcore_ff1,     // Find first one
+  mcore_brev,    // Bit reverse
+  mcore_xtrb3,   // Extract byte 3 (low-order) into r1, zero-extend
+  mcore_xtrb2,   // Extract byte 2 into r1, zero-extend
+  mcore_xtrb1,   // Extract byte 1 into r1, zero-extend
+  mcore_xtrb0,   // Extract byte 0 (high-order) into r1, zero-extend
+  mcore_zextb,   // Zero-extend byte
+  mcore_sextb,   // Sign-extend byte
+  mcore_zexth,   // Zero-extend halfword
+  mcore_sexth,   // Sign-extend halfword
+  mcore_declt,   // Decrement and set C if result < 0
+  mcore_tstnbz,  // Test for no byte equal zero
+  mcore_decgt,   // Decrement and set C if result > 0
+  mcore_decne,   // Decrement and set C if result != 0
+  mcore_clrt,    // Clear register on condition true
+  mcore_clrf,    // Clear register on condition false
+  mcore_abs,     // Absolute value
+  mcore_not,     // Logical complement
+  mcore_trap,    // Trap to OS (with immediate trap number)
+  //=======================================================================
+  // Single-register instructions (shift/divide, no second operand)
+  //=======================================================================
+  mcore_xsr,     // Extended shift right (shift in C bit)
+  mcore_asrc,    // Arithmetic shift right, update C bit
+  mcore_lslc,    // Logical shift left, update C bit
+  mcore_lsrc,    // Logical shift right, update C bit
+  mcore_divu,    // Unsigned divide (implicit r1 operand)
+  mcore_divs,    // Signed divide (implicit r1 operand)
+  //=======================================================================
+  // Register-register instructions
+  //=======================================================================
+  mcore_mov,     // Move register
+  mcore_movt,    // Move if condition true
+  mcore_movf,    // Move if condition false
+  mcore_bgenr,   // Bit generate from register
+  mcore_rsub,    // Reverse subtract (rS - rD -> rD)
+  mcore_addu,    // Add unsigned
+  mcore_subu,    // Subtract unsigned
+  mcore_addc,    // Add with carry
+  mcore_subc,    // Subtract with carry
+  mcore_and,     // Logical AND
+  mcore_andn,    // AND NOT
+  mcore_or,      // Logical OR
+  mcore_xor,     // Logical XOR
+  mcore_asr,     // Arithmetic shift right (by register)
+  mcore_lsl,     // Logical shift left (by register)
+  mcore_lsr,     // Logical shift right (by register)
+  mcore_ixw,     // Index word: rD + rS*4 -> rD
+  mcore_ixh,     // Index halfword: rD + rS*2 -> rD
+  mcore_mult,    // Multiply
+  mcore_cmphs,   // Compare higher or same (unsigned >=)
+  mcore_cmplt,   // Compare less than (signed <)
+  mcore_cmpne,   // Compare not equal
+  mcore_tst,     // Test (AND without storing result)
+  //=======================================================================
+  // Register-immediate instructions
+  //=======================================================================
+  mcore_movi,    // Move immediate (7-bit)
+  mcore_addi,    // Add immediate (5-bit, value+1)
+  mcore_subi,    // Subtract immediate (5-bit, value+1)
+  mcore_rsubi,   // Reverse subtract immediate
+  mcore_cmplti,  // Compare less than immediate (5-bit, value+1)
+  mcore_cmpnei,  // Compare not equal immediate
+  mcore_andi,    // AND immediate (5-bit)
+  mcore_bmaski,  // Bit mask immediate: generates mask of N ones
+  mcore_bgeni,   // Bit generate immediate: generates 1 << N
+  mcore_bclri,   // Clear bit N
+  mcore_bseti,   // Set bit N
+  mcore_btsti,   // Test bit N
+  mcore_rotli,   // Rotate left immediate
+  mcore_asri,    // Arithmetic shift right immediate
+  mcore_lsli,    // Logical shift left immediate
+  mcore_lsri,    // Logical shift right immediate
+  //=======================================================================
+  // Control register instructions
+  //=======================================================================
+  mcore_mfcr,    // Move from control register
+  mcore_mtcr,    // Move to control register
+  //=======================================================================
+  // Branch instructions
+  //=======================================================================
+  mcore_bt,      // Branch if true (11-bit signed displacement)
+  mcore_bf,      // Branch if false
+  mcore_br,      // Unconditional branch
+  mcore_bsr,     // Branch to subroutine
+  mcore_loopt,   // Decrement and branch if true (4-bit backward disp)
+  //=======================================================================
+  // Load/Store instructions
+  //=======================================================================
+  mcore_ld,      // Load word (32-bit)
+  mcore_st,      // Store word
+  mcore_ld_b,    // Load byte
+  mcore_st_b,    // Store byte
+  mcore_ld_h,    // Load halfword (16-bit)
+  mcore_st_h,    // Store halfword
+  mcore_lrw,     // Load PC-relative word (indirect)
+  //=======================================================================
+  // PC-relative indirect jump/call
+  //=======================================================================
+  mcore_jmpi,    // Jump indirect (PC-relative literal pool)
+  mcore_jsri,    // Jump to subroutine indirect
+  //=======================================================================
+  // Hardware accelerator instructions (M-CORE only)
+  //=======================================================================
+  mcore_h_exec,  // Hardware accelerator execute
+  mcore_h_ret,   // Hardware accelerator return
+  mcore_h_call,  // Hardware accelerator call
+  mcore_h_ld,    // Hardware accelerator load word
+  mcore_h_st,    // Hardware accelerator store word
+  mcore_h_ld_h,  // Hardware accelerator load halfword
+  mcore_h_st_h,  // Hardware accelerator store halfword
+  //=======================================================================
+  // C-SKY exclusive instructions (CK610+)
+  //=======================================================================
+  mcore_idly4,   // Interrupt delay 4 cycles (allows pending interrupts)
+  mcore_psrclr,  // Clear PSR bits (immediate mask)
+  mcore_psrset,  // Set PSR bits (immediate mask)
+  mcore_mulsh,   // Multiply signed halfwords
+  //=======================================================================
+  // C-SKY CK620+ exclusive instructions
+  //=======================================================================
+  mcore_mtlo,    // Move to LO register
+  mcore_mthi,    // Move to HI register
+  mcore_mflo,    // Move from LO register
+  mcore_mfhi,    // Move from HI register
+  mcore_omega,   // Omega operation (omega c, rx, ry)
+  mcore_mac,     // Multiply accumulate
+  //=======================================================================
+  // C-SKY CK610E+ exclusive instructions
+  //=======================================================================
+  mcore_mvtc,    // Move overflow bit to C
+  mcore_mflos,   // Move from LO register with saturation
+  mcore_mfhis,   // Move from HI register with saturation
+  mcore_muls,    // Multiply signed
+  mcore_mulsa,   // Multiply signed accumulate
+  mcore_mulss,   // Multiply signed subtract
+  mcore_mulu,    // Multiply unsigned
+  mcore_mulua,   // Multiply unsigned accumulate
+  mcore_mulus,   // Multiply unsigned subtract
+  mcore_vmulsh,  // Vector multiply signed halfword
+  mcore_vmulsha, // Vector multiply signed halfword accumulate
+  mcore_vmulshs, // Vector multiply signed halfword subtract
+  mcore_vmulsw,  // Vector multiply signed word
+  mcore_vmulswa, // Vector multiply signed word accumulate
+  mcore_vmulsws, // Vector multiply signed word subtract
+  mcore_mulsha,  // Multiply signed halfword accumulate
+  mcore_mulshs,  // Multiply signed halfword subtract
+  mcore_mulsw,   // Multiply signed word
+  mcore_mulswa,  // Multiply signed word accumulate
+  mcore_mulsws,  // Multiply signed word subtract
+  //=======================================================================
+  // Coprocessor instructions (CK610F and other coprocessor-capable types)
+  //=======================================================================
+  mcore_cprc,    // Read coprocessor condition bit to C
+  mcore_cpseti,
+  mcore_cprgr,
+  mcore_cpwgr,
+  mcore_cpwir,
+  mcore_cprsr,
+  mcore_cpwsr,
+  mcore_cprcr,
+  mcore_cpwcr,
+  mcore_last
+};
+/*
+ *      Interactive disassembler (IDA).
+ *      Copyright (c) 1990-2026 Hex-Rays
+ *      ALL RIGHTS RESERVED.
+ *
+ */
+enum spc_itype_t
+{
+  SPC_adc,
+  SPC_addw,
+  SPC_and,
+  SPC_and1,
+  SPC_asl,
+  SPC_bbc0,
+  SPC_bbc1,
+  SPC_bbc2,
+  SPC_bbc3,
+  SPC_bbc4,
+  SPC_bbc5,
+  SPC_bbc6,
+  SPC_bbc7,
+  SPC_bbs0,
+  SPC_bbs1,
+  SPC_bbs2,
+  SPC_bbs3,
+  SPC_bbs4,
+  SPC_bbs5,
+  SPC_bbs6,
+  SPC_bbs7,
+  SPC_bcc,
+  SPC_bcs,
+  SPC_beq,
+  SPC_bmi,
+  SPC_bne,
+  SPC_bpl,
+  SPC_bra,
+  SPC_brk,
+  SPC_bvc,
+  SPC_bvs,
+  SPC_call,
+  SPC_cbne,
+  SPC_clr0,
+  SPC_clr1,
+  SPC_clr2,
+  SPC_clr3,
+  SPC_clr4,
+  SPC_clr5,
+  SPC_clr6,
+  SPC_clr7,
+  SPC_clrc,
+  SPC_clrp,
+  SPC_clrv,
+  SPC_cmp,
+  SPC_cpx, // cmp x
+  SPC_cpy, // cmp y
+  SPC_cmpw,
+  SPC_daa,
+  SPC_das,
+  SPC_dbnz,
+  SPC_dec,
+  SPC_dex, // dec x
+  SPC_dey, // dec y
+  SPC_decw,
+  SPC_di,
+  SPC_div,
+  SPC_ei,
+  SPC_eor,
+  SPC_eor1,
+  SPC_inc,
+  SPC_inx,
+  SPC_iny,
+  SPC_incw,
+  SPC_jmp,
+  SPC_lda, // mov a, *
+  SPC_ldx, // mov x, *
+  SPC_ldy, // mov y, *
+  SPC_lsr,
+  SPC_mov,
+  SPC_movw,
+  SPC_mov1,
+  SPC_mul,
+  SPC_nop,
+  SPC_not1,
+  SPC_notc,
+  SPC_or,
+  SPC_or1,
+  SPC_pcall,
+  SPC_pha, // push a
+  SPC_php, // push psw
+  SPC_phx, // push x
+  SPC_phy, // push y
+  SPC_pla, // pop a
+  SPC_plp, // pop psw
+  SPC_plx, // pop x
+  SPC_ply, // pop y
+  SPC_ret,
+  SPC_reti,
+  SPC_rol,
+  SPC_ror,
+  SPC_sbc,
+  SPC_set0,
+  SPC_set1,
+  SPC_set2,
+  SPC_set3,
+  SPC_set4,
+  SPC_set5,
+  SPC_set6,
+  SPC_set7,
+  SPC_setc,
+  SPC_setp,
+  SPC_sleep,
+  SPC_stop,
+  SPC_sta, // mov
+  SPC_stx, // mov
+  SPC_sty, // mov
+  SPC_subw,
+  SPC_tax, // mov x, a
+  SPC_tay, // mov y, a
+  SPC_tsx, // mov x, sp
+  SPC_txa, // mov a, x
+  SPC_txs, // mov sp, x
+  SPC_tya, // mov a, y
+  SPC_tcall,
+  SPC_tclr1,
+  SPC_tset1,
+  SPC_xcn,
+  SPC_last
+};
+/************************************************************************/
+/* Disassembler for Samsung SAM8 processors                             */
+/************************************************************************/
+/************************************************************************/
+/* Instructions enumeration                                             */
+/************************************************************************/
+enum
+{
+  SAM8_null = 0,   // Unknown Operation
+  SAM8_ADC,        // Add with carry
+  SAM8_ADD,        // Add
+  SAM8_AND,        // Logical and
+  SAM8_BAND,       // Bit and
+  SAM8_BCP,        // Bit compare
+  SAM8_BITC,       // Bit complement
+  SAM8_BITR,       // Bit reset
+  SAM8_BITS,       // Bit set
+  SAM8_BOR,        // Bit or
+  SAM8_BTJRF,      // Bit test, jump relative on false
+  SAM8_BTJRT,      // Bit test, jump relative on true
+  SAM8_BXOR,       // Bit xor
+  SAM8_CALL,       // Call procedure
+  SAM8_CCF,        // Complement carry flag
+  SAM8_CLR,        // Clear
+  SAM8_COM,        // Complement
+  SAM8_CP,         // Compare
+  SAM8_CPIJE,      // Compare, increment, and jump on equal
+  SAM8_CPIJNE,     // Compare, increment, and jump on non-equal
+  SAM8_DA,         // Decimal adjust
+  SAM8_DEC,        // Decrement
+  SAM8_DECW,       // Decrement word
+  SAM8_DI,         // Disable interrupts
+  SAM8_DIV,        // Divide (unsigned)
+  SAM8_DJNZ,       // Decrement and jump if non-zero
+  SAM8_EI,         // Enable interrupts
+  SAM8_ENTER,      // Enter
+  SAM8_EXIT,       // Exit
+  SAM8_IDLE,       // Idle operation
+  SAM8_INC,        // Increment
+  SAM8_INCW,       // Increment word
+  SAM8_IRET,       // Interrupt return
+  SAM8_JP,         // Jump
+  SAM8_JR,         // Jump relative
+  SAM8_LD,         // Load
+  SAM8_LDB,        // Load bit
+  SAM8_LDC,        // Load program memory
+  SAM8_LDE,        // Load external data memory
+  SAM8_LDCD,       // Load program memory and decrement
+  SAM8_LDED,       // Load external data memory and decrement
+  SAM8_LDCI,       // Load program memory and increment
+  SAM8_LDEI,       // Load external data memory and increment
+  SAM8_LDCPD,      // Load program memory with pre-decrement
+  SAM8_LDEPD,      // Load external data memory with pre-decrement
+  SAM8_LDCPI,      // Load program memory with pre-increment
+  SAM8_LDEPI,      // Load external data memory with pre-increment
+  SAM8_LDW,        // Load word
+  SAM8_MULT,       // Multiply (unsigned)
+  SAM8_NEXT,       // Next
+  SAM8_NOP,        // No operation
+  SAM8_OR,         // Logical or
+  SAM8_POP,        // Pop from stack
+  SAM8_POPUD,      // Pop user stack (decrementing)
+  SAM8_POPUI,      // Pop user stack (incrementing)
+  SAM8_PUSH,       // Push to stack
+  SAM8_PUSHUD,     // Push user stack (decrementing)
+  SAM8_PUSHUI,     // Push user stack (incrementing)
+  SAM8_RCF,        // Reset carry flag
+  SAM8_RET,        // Return
+  SAM8_RL,         // Rotate left
+  SAM8_RLC,        // Rotate left through carry
+  SAM8_RR,         // Rotate right
+  SAM8_RRC,        // Rotate right through carry
+  SAM8_SB0,        // Select bank 0
+  SAM8_SB1,        // Select bank 1
+  SAM8_SBC,        // Subtract with carry
+  SAM8_SCF,        // Set carry flag
+  SAM8_SRA,        // Shift right arithmetic
+  SAM8_SRP,        // Set register pointer
+  SAM8_SRP0,       // Set register pointer 0
+  SAM8_SRP1,       // Set register pointer 1
+  SAM8_STOP,       // Stop operation
+  SAM8_SUB,        // Subtract
+  SAM8_SWAP,       // Swap nibbles
+  SAM8_TCM,        // Test complement under mask
+  SAM8_TM,         // Test under mask
+  SAM8_WFI,        // Wait for interrupt
+  SAM8_XOR,        // Logical exclusive or
+  SAM8_last
+};
+/*
+        This module has been created by Petr Novak
+ */
+enum
+{
+XA_null = 0,   // Unknown Operation
+XA_add,         // Add Second Operand to Acc
+XA_addc,        // Add Second Operand to Acc with carry
+XA_adds,        // Add Second Operand to Acc
+XA_and,         // Logical AND (op1 &= op2)
+XA_anl,         // Logical AND Carry and Bit
+XA_asl,         // Logical shift left
+XA_asr,         // Arithmetic shift left
+XA_bcc,         // Branch if Carry clear
+XA_bcs,         // Branch if Carry set
+XA_beq,         // Branch if Zero
+XA_bg,          // Branch if Greater than (unsigned)
+XA_bge,         // Branch if Greater than or equal to (signed)
+XA_bgt,         // Branch if Greater than (signed)
+XA_bkpt,        // Breakpoint
+XA_bl,          // Branch if Less than or equal to (unsigned)
+XA_ble,         // Branch if less than or equal to (signed)
+XA_blt,         // Branch if less than (signed)
+XA_bmi,         // Branch if negative
+XA_bne,         // Branch if not equal
+XA_bnv,         // Branch if no overflow
+XA_bov,         // Branch if overflow flag
+XA_bpl,         // Branch if positive
+XA_br,          // Branch always
+XA_call,        // Call Subroutine
+XA_cjne,        // Compare Operands and JNE
+XA_clr,         // Clear Operand (0)
+XA_cmp,         // Compare destination and source registers
+XA_cpl,         // Complement Operand
+XA_da,          // Decimal Adjust Accumulator
+XA_div,         // Divide
+XA_divu,        // Divide
+XA_djnz,        // Decrement Operand and JNZ
+XA_fcall,       // Far Call
+XA_fjmp,        // Far Jump
+XA_jb,          // Jump if Bit is set
+XA_jbc,         // Jump if Bit is set & clear Bit
+XA_jmp,         // Jump indirect relative to Data Pointer
+XA_jnb,         // Jump if Bit is clear
+XA_jnz,         // Jump if Acc is not zero
+XA_jz,          // Jump if Acc is zero
+XA_lea,         // Load effective address
+XA_lsr,         // Logical shift right
+XA_mov,         // Move (Op1 <- Op2)
+XA_movc,        // Move code byte relative to second op to Acc
+XA_movs,        // Move short
+XA_movx,        // Move from/to external RAM
+XA_mul,         // Multiply
+XA_mulu,        // Multiply unsigned
+XA_neg,         // Negate
+XA_nop,         // No operation
+XA_norm,        // Normalize
+XA_or,          // Logical OR (op1 |= op2)
+XA_orl,         // Logical OR Carry
+XA_pop,         // Pop  from Stack and put in Direct RAM
+XA_popu,        // Pop  from Stack and put in Direct RAM
+XA_push,        // Push from Direct RAM to Stack
+XA_pushu,       // Push from Direct RAM to Stack
+XA_reset,       // Software reset
+XA_ret,         // Return from subroutine
+XA_reti,        // Return from Interrupt
+XA_rl,          // Rotate Acc left
+XA_rlc,         // Rotate Acc left through Carry
+XA_rr,          // Rotate Acc right
+XA_rrc,         // Rotate Acc right through Carry
+XA_setb,        // Set Direct Bit
+XA_sext,        // Sign extend
+XA_sub,         // Subtract Second Operand from Acc with Borrow
+XA_subb,        // Subtract Second Operand from Acc with Borrow
+XA_trap,        // Software TRAP
+XA_xch,         // Exchange Operands
+XA_xor,         // Exclusive OR (op1 ^= op2)
+XA_last,
+    };
+// $Id: ins.hpp,v 1.6 2000/11/06 22:11:16 jeremy Exp $
+//
+// Copyright (c) 2000 Jeremy Cooper.  All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+// 3. All advertising materials mentioning features or use of this software
+//    must display the following acknowledgement:
+//    This product includes software developed by Jeremy Cooper.
+// 4. The name of the author may not be used to endorse or promote products
+//    derived from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+// IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+// IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+// NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+// THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// IDA TMS320C1X processor module.
+//     Software representation of TMS320C1X instructions.
+//
+enum
+{
+  // Accumulator Memory Reference Instructions
+  I__FIRST = 0,
+  I_ABS = 0,
+  I_ADD,
+  I_ADDH,
+  I_ADDS,
+  I_AND,
+  I_LAC,
+  I_LACK,
+  I_OR,
+  I_SACH,
+  I_SACL,
+  I_SUB,
+  I_SUBC,
+  I_SUBH,
+  I_SUBS,
+  I_XOR,
+  I_ZAC,
+  I_ZALH,
+  I_ZALS,
+  // Auxiliary Register and Data Page Pointer Instructions
+  I_LAR,
+  I_LARK,
+  I_LARP,
+  I_LDP,
+  I_LDPK,
+  I_MAR,
+  I_SAR,
+  // T Register, P Register, and Multiply Instructions
+  I_APAC,
+  I_LT,
+  I_LTA,
+  I_LTD,
+  I_MPY,
+  I_MPYK,
+  I_PAC,
+  I_SPAC,
+  // Branch/Call Instructions
+  I_B,
+  I_BANZ,
+  I_BGEZ,
+  I_BGZ,
+  I_BIOZ,
+  I_BLEZ,
+  I_BLZ,
+  I_BNZ,
+  I_BV,
+  I_BZ,
+  I_CALA,
+  I_CALL,
+  I_RET,
+  // Control Instructions
+  I_DINT,
+  I_EINT,
+  I_LST,
+  I_NOP,
+  I_POP,
+  I_PUSH,
+  I_ROVM,
+  I_SOVM,
+  I_SST,
+  // I/O and Data Memory Instructions
+  I_DMOV,
+  I_IN,
+  I_OUT,
+  I_TBLR,
+  I_TBLW,
+  I__LAST
+};
+//
+// TMS320C1X register phrases.
+// These are used to represent instruction operands that are not either
+// immediate values or registers.
+//
+enum regPhrase
+{
+  IPH_AR,      // Dereference current aux register
+  IPH_AR_INCR, // Dereference current aux register and post-increment
+  IPH_AR_DECR, // Dereference current aux register and post-decrement
+};
+//
+// Auxilliary instruction information.
+// This is information that this processor module can add to the instruction,
+// only to be examined and consumed by the processor module itself.
+//
+/*
+ *      Analog Devices 2106x processor module for IDA.
+ *      Copyright (c) 2026 Hex-Rays SA <info@hex-rays.com>
+ */
+//
+// Filler to match line numbers with ins.cpp
+//
+//
+//
+//
+//
+//
+//
+enum
+{
+AD2106X_null = 0,       // Unknown Operation
+AD2106X_nop,
+AD2106X_idle,
+AD2106X_idle16,
+AD2106X_rframe,
+AD2106X_cjump,
+// AD2106X_rchachl,
+// shifters
+AD2106X_s_lshift1,
+AD2106X_s_ashift1,
+AD2106X_s_rot,
+AD2106X_s_lshift2,
+AD2106X_s_ashift2,
+AD2106X_s_fdep1,
+AD2106X_s_fext1,
+AD2106X_s_fdep2,
+AD2106X_s_fext2,
+AD2106X_s_fdep3,
+AD2106X_s_fdep4,
+AD2106X_s_exp1,
+AD2106X_s_exp2,
+AD2106X_s_leftz,
+AD2106X_s_lefto,
+AD2106X_sf_pack,
+AD2106X_sf_funpack,
+AD2106X_s_bset,
+AD2106X_s_bclr,
+AD2106X_s_btgl,
+AD2106X_s_btst,
+// alu single ops
+AD2106X_a_plus,
+AD2106X_a_minus,
+AD2106X_a_plus_ci,
+AD2106X_a_minus_ci,
+AD2106X_a_plus_half,
+AD2106X_a_comp,
+AD2106X_a_plus_ci2,
+AD2106X_a_plus_ci2_m1,
+AD2106X_a_plus_1,
+AD2106X_a_minus_1,
+AD2106X_a_neg_x,
+AD2106X_a_abs_x,
+AD2106X_a_pass_x,
+AD2106X_a_and,
+AD2106X_a_or,
+AD2106X_a_xor,
+AD2106X_a_not_x,
+AD2106X_a_min,
+AD2106X_a_max,
+AD2106X_a_clip,
+AD2106X_a_fadd,
+AD2106X_a_fsub,
+AD2106X_a_fabs_plus,
+AD2106X_a_fabs_minus,
+AD2106X_a_fplus_half,
+AD2106X_a_fcomp,
+AD2106X_a_fneg_x,
+AD2106X_a_fabs_x,
+AD2106X_a_fpass_x,
+AD2106X_a_rnd_x,
+AD2106X_a_scalb,
+AD2106X_a_mant,
+AD2106X_a_log_x,
+AD2106X_a_fix,
+AD2106X_a_fix_x,
+AD2106X_a_trunc,
+AD2106X_a_trunc_x,
+AD2106X_a_float,
+AD2106X_a_float_x,
+AD2106X_a_recips_x,
+AD2106X_a_rsqrts_x,
+AD2106X_a_copysign,
+AD2106X_a_fmin,
+AD2106X_a_fmax,
+AD2106X_a_fclip,
+AD2106x_a_dualadd,
+AD2106x_a_dualaddf,
+// parallel multipliers
+AD2106X_muladdsub,
+AD2106X_fmuladdsub,
+AD2106X_pa_mrdataf,
+AD2106X_pa_mrdataf2,
+AD2106X_pa_mrdatab,
+AD2106X_pa_mrdatab2,
+AD2106X_pa_mulplus_ssfr,
+AD2106X_pa_mulminus_ssfr,
+AD2106X_pa_mulhalf_ssfr,
+AD2106X_pa_rfmulplus_ssf,
+AD2106X_pa_rfmulminus_ssf,
+AD2106X_pa_rfmulhalf_ssf,
+AD2106X_pa_mulplusrf_ssfr,
+AD2106X_pa_mulminusrf_ssfr,
+AD2106X_pa_mulhalfrf_ssfr,
+AD2106X_pa_rfmulplus_ssf2,
+AD2106X_pa_rfmulmius_ssf2,
+AD2106X_pa_rfmulhalf_ssf2,
+AD2106X_pa_mulplusrf_ssfr2,
+AD2106X_pa_mulminusrf_ssfr2,
+AD2106X_pa_mulhalfrf_ssfr2,
+AD2106X_pa_fmulplus,
+AD2106X_pa_fmulminus,
+AD2106X_pa_fmulhalf,
+AD2106X_pa_fmulfix,
+AD2106X_pa_fmulhalf2,
+AD2106X_pa_fmulabs,
+AD2106X_pa_fmulmax,
+AD2106X_pa_fmulmin,
+// single op multipler
+// y y-input; 1=signed, 0=unsigned x x-input; 1=signed, 0=unsigned f format; 1=fractional, 0=integer r rounding; 1=yes, 0=no
+AD2106X_m_mul_uui,       // "Rn =  Rx * Ry (UUI)", 0 },            // 0100 0000
+AD2106X_m_mul_uuir,      // "Rn =  Rx * Ry (UUIR)", 0 },           // 0100 0001
+AD2106X_m_mul_uuf,       // "Rn =  Rx * Ry (UUF)", 0 },            // 0100 1000
+AD2106X_m_mul_uufr,      // "Rn =  Rx * Ry (UUFR)", 0 },           // 0100 1001
+AD2106X_m_mul_usi,       // "Rn =  Rx * Ry (USI)", 0 },            // 0110 0000
+AD2106X_m_mul_usir,      // "Rn =  Rx * Ry (USIR)", 0 },           // 0110 0001
+AD2106X_m_mul_usf,       // "Rn =  Rx * Ry (USF)", 0 },            // 0110 1000
+AD2106X_m_mul_usfr,      // "Rn =  Rx * Ry (USFR)", 0 },           // 0110 1001
+AD2106X_m_mul_sui,       // "Rn =  Rx * Ry (SUI)", 0 },            // 0101 0000
+AD2106X_m_mul_suir,      // "Rn =  Rx * Ry (SUIR)", 0 },           // 0101 0001
+AD2106X_m_mul_suf,       // "Rn =  Rx * Ry (SUF)", 0 },            // 0101 1000
+AD2106X_m_mul_sufr,      // "Rn =  Rx * Ry (SuFR)", 0 },           // 0101 1001
+AD2106X_m_mul_ssi,       // "Rn =  Rx * Ry (SSI)", 0 },            // 0111 0000
+AD2106X_m_mul_ssir,      // "Rn =  Rx * Ry (SSIR)", 0 },           // 0111 0001
+AD2106X_m_mul_ssf,       // "Rn =  Rx * Ry (SSF)", 0 },            // 0111 1000
+AD2106X_m_mul_ssfr,      // "Rn =  Rx * Ry (SSFR)", 0 },           // 0111 1001
+AD2106X_m_mulrf_uui,     // "MRF =  Rx * Ry (UUI)", 0 },           // 0100 0100
+AD2106X_m_mulrf_uuir,    // "MRF =  Rx * Ry (UUIR)", 0 },          // 0100 0101
+AD2106X_m_mulrf_uuf,     // "MRF =  Rx * Ry (UUF)", 0 },           // 0100 1100
+AD2106X_m_mulrf_uufr,    // "MRF =  Rx * Ry (UUFR)", 0 },          // 0100 1101
+AD2106X_m_mulrf_usi,     // "MRF =  Rx * Ry (USI)", 0 },           // 0110 0100
+AD2106X_m_mulrf_usir,    // "MRF =  Rx * Ry (USIR)", 0 },          // 0110 0101
+AD2106X_m_mulrf_usf,     // "MRF =  Rx * Ry (USF)", 0 },           // 0110 1100
+AD2106X_m_mulrf_usfr,    // "MRF =  Rx * Ry (USFR)", 0 },          // 0110 1101
+AD2106X_m_mulrf_sui,     // "MRF =  Rx * Ry (SUI)", 0 },           // 0101 0100
+AD2106X_m_mulrf_suir,    // "MRF =  Rx * Ry (SUIR)", 0 },          // 0101 0101
+AD2106X_m_mulrf_suf,     // "MRF =  Rx * Ry (SUF)", 0 },           // 0101 1100
+AD2106X_m_mulrf_sufr,    // "MRF =  Rx * Ry (SuFR)", 0 },          // 0101 1101
+AD2106X_m_mulrf_ssi,     // "MRF =  Rx * Ry (SSI)", 0 },           // 0111 0100
+AD2106X_m_mulrf_ssir,    // "MRF =  Rx * Ry (SSIR)", 0 },          // 0111 0101
+AD2106X_m_mulrf_ssf,     // "MRF =  Rx * Ry (SSF)", 0 },           // 0111 1100
+AD2106X_m_mulrf_ssfr,    // "MRF =  Rx * Ry (SSFR)", 0 },          // 0111 1101
+AD2106X_m_mulrb_uui,     // "MRB =  Rx * Ry (UUI)", 0 },           // 0100 0110
+AD2106X_m_mulrb_uuir,    // "MRB =  Rx * Ry (UUIR)", 0 },          // 0100 0111
+AD2106X_m_mulrb_uuf,     // "MRB =  Rx * Ry (UUF)", 0 },           // 0100 1110
+AD2106X_m_mulrb_uufr,    // "MRB =  Rx * Ry (UUFR)", 0 },          // 0100 1111
+AD2106X_m_mulrb_usi,     // "MRB =  Rx * Ry (USI)", 0 },           // 0110 0110
+AD2106X_m_mulrb_usir,    // "MRB =  Rx * Ry (USIR)", 0 },          // 0110 0111
+AD2106X_m_mulrb_usf,     // "MRB =  Rx * Ry (USF)", 0 },           // 0110 1110
+AD2106X_m_mulrb_usfr,    // "MRB =  Rx * Ry (USFR)", 0 },          // 0110 1111
+AD2106X_m_mulrb_sui,     // "MRB =  Rx * Ry (SUI)", 0 },           // 0101 0110
+AD2106X_m_mulrb_suir,    // "MRB =  Rx * Ry (SUIR)", 0 },          // 0101 0111
+AD2106X_m_mulrb_suf,     // "MRB =  Rx * Ry (SUF)", 0 },           // 0101 1110
+AD2106X_m_mulrb_sufr,    // "MRB =  Rx * Ry (SuFR)", 0 },          // 0101 1111
+AD2106X_m_mulrb_ssi,     // "MRB =  Rx * Ry (SSI)", 0 },           // 0111 0110
+AD2106X_m_mulrb_ssir,    // "MRB =  Rx * Ry (SSIR)", 0 },          // 0111 0111
+AD2106X_m_mulrb_ssf,     // "MRB =  Rx * Ry (SSF)", 0 },           // 0111 1110
+AD2106X_m_mulrb_ssfr,    // "MRB =  Rx * Ry (SSFR)", 0 },          // 0111 1111
+//------------------------------------
+AD2106X_m_rfmul_uui,     // "Rn = MRF + Rx * Ry (UUI)", 0 },       // 1000 0000
+AD2106X_m_rfmul_uuir,    // "Rn = MRF + Rx * Ry (UUIR)", 0 },      // 1000 0001
+AD2106X_m_rfmul_uuf,     // "Rn = MRF + Rx * Ry (UUF)", 0 },       // 1000 1000
+AD2106X_m_rfmul_uufr,    // "Rn = MRF + Rx * Ry (UUFR)", 0 },      // 1000 1001
+AD2106X_m_rfmul_usi,     // "Rn = MRF + Rx * Ry (USI)", 0 },       // 1010 0000
+AD2106X_m_rfmul_usir,    // "Rn = MRF + Rx * Ry (USIR)", 0 },      // 1010 0001
+AD2106X_m_rfmul_usf,     // "Rn = MRF + Rx * Ry (USF)", 0 },       // 1010 1000
+AD2106X_m_rfmul_usfr,    // "Rn = MRF + Rx * Ry (USFR)", 0 },      // 1010 1001
+AD2106X_m_rfmul_sui,     // "Rn = MRF + Rx * Ry (SUI)", 0 },       // 1001 0000
+AD2106X_m_rfmul_suir,    // "Rn = MRF + Rx * Ry (SUIR)", 0 },      // 1001 0001
+AD2106X_m_rfmul_suf,     // "Rn = MRF + Rx * Ry (SUF)", 0 },       // 1001 1000
+AD2106X_m_rfmul_sufr,    // "Rn = MRF + Rx * Ry (SuFR)", 0 },      // 1001 1001
+AD2106X_m_rfmul_ssi,     // "Rn = MRF + Rx * Ry (SSI)", 0 },       // 1011 0000
+AD2106X_m_rfmul_ssir,    // "Rn = MRF + Rx * Ry (SSIR)", 0 },      // 1011 0001
+AD2106X_m_rfmul_ssf,     // "Rn = MRF + Rx * Ry (SSF)", 0 },       // 1011 1000
+AD2106X_m_rfmul_ssfr,    // "Rn = MRF + Rx * Ry (SSFR)", 0 },      // 1011 1001
+AD2106X_m_rbmul_uui,     // "Rn = MRB + Rx * Ry (UUI)", 0 },       // 1000 0010
+AD2106X_m_rbmul_uuir,    // "Rn = MRB + Rx * Ry (UUIR)", 0 },      // 1000 0011
+AD2106X_m_rbmul_uuf,     // "Rn = MRB + Rx * Ry (UUF)", 0 },       // 1000 1010
+AD2106X_m_rbmul_uufr,    // "Rn = MRB + Rx * Ry (UUFR)", 0 },      // 1000 1011
+AD2106X_m_rbmul_usi,     // "Rn = MRB + Rx * Ry (USI)", 0 },       // 1010 0010
+AD2106X_m_rbmul_usir,    // "Rn = MRB + Rx * Ry (USIR)", 0 },      // 1010 0011
+AD2106X_m_rbmul_usf,     // "Rn = MRB + Rx * Ry (USF)", 0 },       // 1010 1010
+AD2106X_m_rbmul_usfr,    // "Rn = MRB + Rx * Ry (USFR)", 0 },      // 1010 1011
+AD2106X_m_rbmul_sui,     // "Rn = MRB + Rx * Ry (SUI)", 0 },       // 1001 0010
+AD2106X_m_rbmul_suir,    // "Rn = MRB + Rx * Ry (SUIR)", 0 },      // 1001 0011
+AD2106X_m_rbmul_suf,     // "Rn = MRB + Rx * Ry (SUF)", 0 },       // 1001 1010
+AD2106X_m_rbmul_sufr,    // "Rn = MRB + Rx * Ry (SuFR)", 0 },      // 1001 1011
+AD2106X_m_rbmul_ssi,     // "Rn = MRB + Rx * Ry (SSI)", 0 },       // 1011 0010
+AD2106X_m_rbmul_ssir,    // "Rn = MRB + Rx * Ry (SSIR)", 0 },      // 1011 0011
+AD2106X_m_rbmul_ssf,     // "Rn = MRB + Rx * Ry (SSF)", 0 },       // 1011 1010
+AD2106X_m_rbmul_ssfr,    // "Rn = MRB + Rx * Ry (SSFR)", 0 },      // 1011 1011
+AD2106X_m_rfmulrf_uui,   // "MRF = MRF + Rx * Ry (UUI)", 0 },      // 1000 0100
+AD2106X_m_rfmulrf_uuir,  // "MRF = MRF + Rx * Ry (UUIR)", 0 },     // 1000 0101
+AD2106X_m_rfmulrf_uuf,   // "MRF = MRF + Rx * Ry (UUF)", 0 },      // 1000 1100
+AD2106X_m_rfmulrf_uufr,  // "MRF = MRF + Rx * Ry (UUFR)", 0 },     // 1000 1101
+AD2106X_m_rfmulrf_usi,   // "MRF = MRF + Rx * Ry (USI)", 0 },      // 1010 0100
+AD2106X_m_rfmulrf_usir,  // "MRF = MRF + Rx * Ry (USIR)", 0 },     // 1010 0101
+AD2106X_m_rfmulrf_usf,   // "MRF = MRF + Rx * Ry (USF)", 0 },      // 1010 1100
+AD2106X_m_rfmulrf_usfr,  // "MRF = MRF + Rx * Ry (USFR)", 0 },     // 1010 1101
+AD2106X_m_rfmulrf_sui,   // "MRF = MRF + Rx * Ry (SUI)", 0 },      // 1001 0100
+AD2106X_m_rfmulrf_suir,  // "MRF = MRF + Rx * Ry (SUIR)", 0 },     // 1001 0101
+AD2106X_m_rfmulrf_suf,   // "MRF = MRF + Rx * Ry (SUF)", 0 },      // 1001 1100
+AD2106X_m_rfmulrf_sufr,  // "MRF = MRF + Rx * Ry (SuFR)", 0 },     // 1001 1101
+AD2106X_m_rfmulrf_ssi,   // "MRF = MRF + Rx * Ry (SSI)", 0 },      // 1011 0100
+AD2106X_m_rfmulrf_ssir,  // "MRF = MRF + Rx * Ry (SSIR)", 0 },     // 1011 0101
+AD2106X_m_rfmulrf_ssf,   // "MRF = MRF + Rx * Ry (SSF)", 0 },      // 1011 1100
+AD2106X_m_rfmulrf_ssfr,  // "MRF = MRF + Rx * Ry (SSFR)", 0 },     // 1011 1101
+AD2106X_m_rbmulrb_uui,   // "MRB = MRB + Rx * Ry (UUI)", 0 },      // 1000 0110
+AD2106X_m_rbmulrb_uuir,  // "MRB = MRB + Rx * Ry (UUIR)", 0 },     // 1000 0111
+AD2106X_m_rbmulrb_uuf,   // "MRB = MRB + Rx * Ry (UUF)", 0 },      // 1000 1110
+AD2106X_m_rbmulrb_uufr,  // "MRB = MRB + Rx * Ry (UUFR)", 0 },     // 1000 1111
+AD2106X_m_rbmulrb_usi,   // "MRB = MRB + Rx * Ry (USI)", 0 },      // 1010 0110
+AD2106X_m_rbmulrb_usir,  // "MRB = MRB + Rx * Ry (USIR)", 0 },     // 1010 0111
+AD2106X_m_rbmulrb_usf,   // "MRB = MRB + Rx * Ry (USF)", 0 },      // 1010 1110
+AD2106X_m_rbmulrb_usfr,  // "MRB = MRB + Rx * Ry (USFR)", 0 },     // 1010 1111
+AD2106X_m_rbmulrb_sui,   // "MRB = MRB + Rx * Ry (SUI)", 0 },      // 1001 0110
+AD2106X_m_rbmulrb_suir,  // "MRB = MRB + Rx * Ry (SUIR)", 0 },     // 1001 0111
+AD2106X_m_rbmulrb_suf,   // "MRB = MRB + Rx * Ry (SUF)", 0 },      // 1001 1110
+AD2106X_m_rbmulrb_sufr,  // "MRB = MRB + Rx * Ry (SuFR)", 0 },     // 1001 1111
+AD2106X_m_rbmulrb_ssi,   // "MRB = MRB + Rx * Ry (SSI)", 0 },      // 1011 0110
+AD2106X_m_rbmulrb_ssir,  // "MRB = MRB + Rx * Ry (SSIR)", 0 },     // 1011 0111
+AD2106X_m_rbmulrb_ssf,   // "MRB = MRB + Rx * Ry (SSF)", 0 },      // 1011 1110
+AD2106X_m_rbmulrb_ssfr,  // "MRB = MRB + Rx * Ry (SSFR)", 0 },     // 1011 1111
+//------------------------------------
+AD2106X_m_rfmul_uui2,    // "RN = MRF - Rx * Ry (UUI)", 0 },       // 1100 0000
+AD2106X_m_rfmul_uuir2,   // "RN = MRF - Rx * Ry (UUIR)", 0 },      // 1100 0001
+AD2106X_m_rfmul_uuf2,    // "RN = MRF - Rx * Ry (UUF)", 0 },       // 1100 1000
+AD2106X_m_rfmul_uufr2,   // "RN = MRF - Rx * Ry (UUFR)", 0 },      // 1100 1001
+AD2106X_m_rfmul_usi2,    // "RN = MRF - Rx * Ry (USI)", 0 },       // 1110 0000
+AD2106X_m_rfmul_usir2,   // "RN = MRF - Rx * Ry (USIR)", 0 },      // 1110 0001
+AD2106X_m_rfmul_usf2,    // "RN = MRF - Rx * Ry (USF)", 0 },       // 1110 1000
+AD2106X_m_rfmul_usfr2,   // "RN = MRF - Rx * Ry (USFR)", 0 },      // 1110 1001
+AD2106X_m_rfmul_sui2,    // "RN = MRF - Rx * Ry (SUI)", 0 },       // 1101 0000
+AD2106X_m_rfmul_suir2,   // "RN = MRF - Rx * Ry (SUIR)", 0 },      // 1101 0001
+AD2106X_m_rfmul_suf2,    // "RN = MRF - Rx * Ry (SUF)", 0 },       // 1101 1000
+AD2106X_m_rfmul_sufr2,   // "RN = MRF - Rx * Ry (SuFR)", 0 },      // 1101 1001
+AD2106X_m_rfmul_ssi2,    // "RN = MRF - Rx * Ry (SSI)", 0 },       // 1111 0000
+AD2106X_m_rfmul_ssir2,   // "RN = MRF - Rx * Ry (SSIR)", 0 },      // 1111 0001
+AD2106X_m_rfmul_ssf2,    // "RN = MRF - Rx * Ry (SSF)", 0 },       // 1111 1000
+AD2106X_m_rfmul_ssfr2,   // "RN = MRF - Rx * Ry (SSFR)", 0 },      // 1111 1001
+AD2106X_m_rbmul_uui2,    // "Rn = MRB - Rx * Ry (UUI)", 0 },       // 1100 0010
+AD2106X_m_rbmul_uuir2,   // "Rn = MRB - Rx * Ry (UUIR)", 0 },      // 1100 0011
+AD2106X_m_rbmul_uuf2,    // "Rn = MRB - Rx * Ry (UUF)", 0 },       // 1100 1010
+AD2106X_m_rbmul_uufr2,   // "Rn = MRB - Rx * Ry (UUFR)", 0 },      // 1100 1011
+AD2106X_m_rbmul_usi2,    // "Rn = MRB - Rx * Ry (USI)", 0 },       // 1110 0010
+AD2106X_m_rbmul_usir2,   // "Rn = MRB - Rx * Ry (USIR)", 0 },      // 1110 0011
+AD2106X_m_rbmul_usf2,    // "Rn = MRB - Rx * Ry (USF)", 0 },       // 1110 1010
+AD2106X_m_rbmul_usfr2,   // "Rn = MRB - Rx * Ry (USFR)", 0 },      // 1110 1011
+AD2106X_m_rbmul_sui2,    // "Rn = MRB - Rx * Ry (SUI)", 0 },       // 1101 0010
+AD2106X_m_rbmul_suir2,   // "Rn = MRB - Rx * Ry (SUIR)", 0 },      // 1101 0011
+AD2106X_m_rbmul_suf2,    // "Rn = MRB - Rx * Ry (SUF)", 0 },       // 1101 1010
+AD2106X_m_rbmul_sufr2,   // "Rn = MRB - Rx * Ry (SuFR)", 0 },      // 1101 1011
+AD2106X_m_rbmul_ssi2,    // "Rn = MRB - Rx * Ry (SSI)", 0 },       // 1111 0010
+AD2106X_m_rbmul_ssir2,   // "Rn = MRB - Rx * Ry (SSIR)", 0 },      // 1111 0011
+AD2106X_m_rbmul_ssf2,    // "Rn = MRB - Rx * Ry (SSF)", 0 },       // 1111 1010
+AD2106X_m_rbmul_ssfr2,   // "Rn = MRB - Rx * Ry (SSFR)", 0 },      // 1111 1011
+AD2106X_m_rfmulrf_uui2,  // "MRF = MRF - Rx * Ry (UUI)", 0 },      // 1100 0100
+AD2106X_m_rfmulrf_uuir2, // "MRF = MRF - Rx * Ry (UUIR)", 0 },     // 1100 0101
+AD2106X_m_rfmulrf_uuf2,  // "MRF = MRF - Rx * Ry (UUF)", 0 },      // 1100 1100
+AD2106X_m_rfmulrf_uufr2, // "MRF = MRF - Rx * Ry (UUFR)", 0 },     // 1100 1101
+AD2106X_m_rfmulrf_usi2,  // "MRF = MRF - Rx * Ry (USI)", 0 },      // 1110 0100
+AD2106X_m_rfmulrf_usir2, // "MRF = MRF - Rx * Ry (USIR)", 0 },     // 1110 0101
+AD2106X_m_rfmulrf_usf2,  // "MRF = MRF - Rx * Ry (USF)", 0 },      // 1110 1100
+AD2106X_m_rfmulrf_usfr2, // "MRF = MRF - Rx * Ry (USFR)", 0 },     // 1110 1101
+AD2106X_m_rfmulrf_sui2,  // "MRF = MRF - Rx * Ry (SUI)", 0 },      // 1101 0100
+AD2106X_m_rfmulrf_suir2, // "MRF = MRF - Rx * Ry (SUIR)", 0 },     // 1101 0101
+AD2106X_m_rfmulrf_suf2,  // "MRF = MRF - Rx * Ry (SUF)", 0 },      // 1101 1100
+AD2106X_m_rfmulrf_sufr2, // "MRF = MRF - Rx * Ry (SuFR)", 0 },     // 1101 1101
+AD2106X_m_rfmulrf_ssi2,  // "MRF = MRF - Rx * Ry (SSI)", 0 },      // 1111 0100
+AD2106X_m_rfmulrf_ssir2, // "MRF = MRF - Rx * Ry (SSIR)", 0 },     // 1111 0101
+AD2106X_m_rfmulrf_ssf2,  // "MRF = MRF - Rx * Ry (SSF)", 0 },      // 1111 1100
+AD2106X_m_rfmulrf_ssfr2, // "MRF = MRF - Rx * Ry (SSFR)", 0 },     // 1111 1101
+AD2106X_m_rbmulrb_uui2,  // "MRB = MRB - Rx * Ry (UUI)", 0 },      // 1100 0110
+AD2106X_m_rbmulrb_uuir2, // "MRB = MRB - Rx * Ry (UUIR)", 0 },     // 1100 0111
+AD2106X_m_rbmulrb_uuf2,  // "MRB = MRB - Rx * Ry (UUF)", 0 },      // 1100 1110
+AD2106X_m_rbmulrb_uufr2, // "MRB = MRB - Rx * Ry (UUFR)", 0 },     // 1100 1111
+AD2106X_m_rbmulrb_usi2,  // "MRB = MRB - Rx * Ry (USI)", 0 },      // 1110 0110
+AD2106X_m_rbmulrb_usir2, // "MRB = MRB - Rx * Ry (USIR)", 0 },     // 1110 0111
+AD2106X_m_rbmulrb_usf2,  // "MRB = MRB - Rx * Ry (USF)", 0 },      // 1110 1110
+AD2106X_m_rbmulrb_usfr2, // "MRB = MRB - Rx * Ry (USFR)", 0 },     // 1110 1111
+AD2106X_m_rbmulrb_sui2,  // "MRB = MRB - Rx * Ry (SUI)", 0 },      // 1101 0110
+AD2106X_m_rbmulrb_suir2, // "MRB = MRB - Rx * Ry (SUIR)", 0 },     // 1101 0111
+AD2106X_m_rbmulrb_suf2,  // "MRB = MRB - Rx * Ry (SUF)", 0 },      // 1101 1110
+AD2106X_m_rbmulrb_sufr2, // "MRB = MRB - Rx * Ry (SuFR)", 0 },     // 1101 1111
+AD2106X_m_rbmulrb_ssi2,  // "MRB = MRB - Rx * Ry (SSI)", 0 },      // 1111 0110
+AD2106X_m_rbmulrb_ssir2, // "MRB = MRB - Rx * Ry (SSIR)", 0 },     // 1111 0111
+AD2106X_m_rbmulrb_ssf2,  // "MRB = MRB - Rx * Ry (SSF)", 0 },      // 1111 1110
+AD2106X_m_rbmulrb_ssfr2, // "MRB = MRB - Rx * Ry (SSFR)", 0 },     // 1111 1111
+AD2106X_m_satrf_ui,   // "Rn = SAT MRF" 0000 0000
+AD2106X_m_satrf_si,   // "Rn = SAT MRF" 0000 0001
+AD2106X_m_satrf_uf,   // "Rn = SAT MRF" 0000 1000
+AD2106X_m_satrf_sf,   // "Rn = SAT MRF" 0000 1001
+AD2106X_m_satrb_ui,   // "Rn = SAT MRB" 0000 0010
+AD2106X_m_satrb_si,   // "Rn = SAT MRB" 0000 0011
+AD2106X_m_satrb_uf,   // "Rn = SAT MRB" 0000 1010
+AD2106X_m_satrb_sf,   // "Rn = SAT MRB" 0000 1011
+AD2106X_m_rfsatrf_ui, // "MRF = SAT MRF" 0000 0100
+AD2106X_m_rfsatrf_si, // "MRF = SAT MRF" 0000 0101
+AD2106X_m_rfsatrf_uf, // "MRF = SAT MRF" 0000 1100
+AD2106X_m_rfsatrf_sf, // "MRF = SAT MRF" 0000 1101
+AD2106X_m_rbsatrb_ui, // "MRB = SAT MRB" 0000 0110
+AD2106X_m_rbsatrb_si, // "MRB = SAT MRB" 0000 0111
+AD2106X_m_rbsatrb_uf, // "MRB = SAT MRB" 0000 1110
+AD2106X_m_rbsatrb_sf, // "MRB = SAT MRB" 0000 1111
+AD2106X_m_rndrf_u,   // "Rn = RND MRF" 0001 1000
+AD2106X_m_rndrf_s,   // "Rn = RND MRF" 0001 1001
+AD2106X_m_rndrb_u,   // "Rn = RND MRB" 0001 1010
+AD2106X_m_rndrb_s,   // "Rn = RND MRB" 0001 1011
+AD2106X_m_rfrndrf_u, // "MRF = RND MRF" 0001 1100
+AD2106X_m_rfrndrf_s, // "MRF = RND MRF" 0001 1101
+AD2106X_m_rbrndrb_u, // "MRB = RND MRB" 0001 1110
+AD2106X_m_rbrndrb_s, // "MRB = RND MRB" 0001 1111
+AD2106X_m_rfzero, // "MRF = 0" 0001 0100
+AD2106X_m_rbzero, // "MRB = 0" 0001 0110
+AD2106X_m_fmul, // "Fn = Fx * Fy" 0011 0000
+AD2106X_indjump,
+AD2106X_compute_rim,
+AD2106X_compute_rim2,
+AD2106X_call_compute,
+AD2106X_jmp_compute,
+AD2106X_compute_modify,
+AD2106X_call,
+AD2106X_jmp,
+AD2106X_imov,
+AD2106X_bitrev,
+AD2106X_modify,
+AD2106X_do_until_cnt,
+AD2106X_do_until,       // do ... until TERM;
+AD2106X_pushpopflush, // (PUSH|POP) LOOP|PC|STACK FLUSH // 35
+AD2106X_sys_bit, // BIT <BOP> data32
+AD2106X_rts,
+AD2106X_rti,
+AD2106X_compute, // 322
+AD2106X_last,
+};
+/*
+ *      Interactive disassembler (IDA).
+ *      Copyright (c) 1990-2026 Hex-Rays
+ *      ALL RIGHTS RESERVED.
+ *
+ *      WebAssembly instruction ids, shared by the wasm loader and
+ *      the processor module.
+ *
+ */
+enum wasm_itype_t
+{
+  WASM_unreachable,
+  WASM_nop,
+  WASM_block,
+  WASM_loop,
+  WASM_if,
+  WASM_else,
+  WASM_try,
+  WASM_catch,
+  WASM_throw,
+  WASM_rethrow,
+  WASM_end,
+  WASM_br,
+  WASM_br_if,
+  WASM_br_table,
+  WASM_return,
+  WASM_call,
+  WASM_call_indirect,
+  WASM_return_call,
+  WASM_return_call_indirect,
+  WASM_call_ref,
+  WASM_delegate,
+  WASM_catch_all,
+  WASM_drop,
+  WASM_select,
+  WASM_select_t,
+  WASM_local_get,
+  WASM_local_set,
+  WASM_local_tee,
+  WASM_global_get,
+  WASM_global_set,
+  WASM_i32_load,
+  WASM_i64_load,
+  WASM_f32_load,
+  WASM_f64_load,
+  WASM_i32_load8_s,
+  WASM_i32_load8_u,
+  WASM_i32_load16_s,
+  WASM_i32_load16_u,
+  WASM_i64_load8_s,
+  WASM_i64_load8_u,
+  WASM_i64_load16_s,
+  WASM_i64_load16_u,
+  WASM_i64_load32_s,
+  WASM_i64_load32_u,
+  WASM_i32_store,
+  WASM_i64_store,
+  WASM_f32_store,
+  WASM_f64_store,
+  WASM_i32_store8,
+  WASM_i32_store16,
+  WASM_i64_store8,
+  WASM_i64_store16,
+  WASM_i64_store32,
+  WASM_memory_size,
+  WASM_memory_grow,
+  WASM_i32_const,
+  WASM_i64_const,
+  WASM_f32_const,
+  WASM_f64_const,
+  WASM_i32_eqz,
+  WASM_i32_eq,
+  WASM_i32_ne,
+  WASM_i32_lt_s,
+  WASM_i32_lt_u,
+  WASM_i32_gt_s,
+  WASM_i32_gt_u,
+  WASM_i32_le_s,
+  WASM_i32_le_u,
+  WASM_i32_ge_s,
+  WASM_i32_ge_u,
+  WASM_i64_eqz,
+  WASM_i64_eq,
+  WASM_i64_ne,
+  WASM_i64_lt_s,
+  WASM_i64_lt_u,
+  WASM_i64_gt_s,
+  WASM_i64_gt_u,
+  WASM_i64_le_s,
+  WASM_i64_le_u,
+  WASM_i64_ge_s,
+  WASM_i64_ge_u,
+  WASM_f32_eq,
+  WASM_f32_ne,
+  WASM_f32_lt,
+  WASM_f32_gt,
+  WASM_f32_le,
+  WASM_f32_ge,
+  WASM_f64_eq,
+  WASM_f64_ne,
+  WASM_f64_lt,
+  WASM_f64_gt,
+  WASM_f64_le,
+  WASM_f64_ge,
+  WASM_i32_clz,
+  WASM_i32_ctz,
+  WASM_i32_popcnt,
+  WASM_i32_add,
+  WASM_i32_sub,
+  WASM_i32_mul,
+  WASM_i32_div_s,
+  WASM_i32_div_u,
+  WASM_i32_rem_s,
+  WASM_i32_rem_u,
+  WASM_i32_and,
+  WASM_i32_or,
+  WASM_i32_xor,
+  WASM_i32_shl,
+  WASM_i32_shr_s,
+  WASM_i32_shr_u,
+  WASM_i32_rotl,
+  WASM_i32_rotr,
+  WASM_i64_clz,
+  WASM_i64_ctz,
+  WASM_i64_popcnt,
+  WASM_i64_add,
+  WASM_i64_sub,
+  WASM_i64_mul,
+  WASM_i64_div_s,
+  WASM_i64_div_u,
+  WASM_i64_rem_s,
+  WASM_i64_rem_u,
+  WASM_i64_and,
+  WASM_i64_or,
+  WASM_i64_xor,
+  WASM_i64_shl,
+  WASM_i64_shr_s,
+  WASM_i64_shr_u,
+  WASM_i64_rotl,
+  WASM_i64_rotr,
+  WASM_f32_abs,
+  WASM_f32_neg,
+  WASM_f32_ceil,
+  WASM_f32_floor,
+  WASM_f32_trunc,
+  WASM_f32_nearest,
+  WASM_f32_sqrt,
+  WASM_f32_add,
+  WASM_f32_sub,
+  WASM_f32_mul,
+  WASM_f32_div,
+  WASM_f32_min,
+  WASM_f32_max,
+  WASM_f32_copysign,
+  WASM_f64_abs,
+  WASM_f64_neg,
+  WASM_f64_ceil,
+  WASM_f64_floor,
+  WASM_f64_trunc,
+  WASM_f64_nearest,
+  WASM_f64_sqrt,
+  WASM_f64_add,
+  WASM_f64_sub,
+  WASM_f64_mul,
+  WASM_f64_div,
+  WASM_f64_min,
+  WASM_f64_max,
+  WASM_f64_copysign,
+  WASM_i32_wrap_i64,
+  WASM_i32_trunc_f32_s,
+  WASM_i32_trunc_f32_u,
+  WASM_i32_trunc_f64_s,
+  WASM_i32_trunc_f64_u,
+  WASM_i64_extend_i32_s,
+  WASM_i64_extend_i32_u,
+  WASM_i64_trunc_f32_s,
+  WASM_i64_trunc_f32_u,
+  WASM_i64_trunc_f64_s,
+  WASM_i64_trunc_f64_u,
+  WASM_f32_convert_i32_s,
+  WASM_f32_convert_i32_u,
+  WASM_f32_convert_i64_s,
+  WASM_f32_convert_i64_u,
+  WASM_f32_demote_f64,
+  WASM_f64_convert_i32_s,
+  WASM_f64_convert_i32_u,
+  WASM_f64_convert_i64_s,
+  WASM_f64_convert_i64_u,
+  WASM_f64_promote_f32,
+  WASM_i32_reinterpret_f32,
+  WASM_i64_reinterpret_f64,
+  WASM_f32_reinterpret_i32,
+  WASM_f64_reinterpret_i64,
+  WASM_i32_extend8_s,
+  WASM_i32_extend16_s,
+  WASM_i64_extend8_s,
+  WASM_i64_extend16_s,
+  WASM_i64_extend32_s,
+  WASM_alloca,
+  WASM_br_unless,
+  WASM_call_import,
+  WASM_data,
+  WASM_drop_keep,
+  WASM_catch_drop,
+  WASM_adjust_frame_for_return_call,
+  WASM_i32_trunc_sat_f32_s,
+  WASM_i32_trunc_sat_f32_u,
+  WASM_i32_trunc_sat_f64_s,
+  WASM_i32_trunc_sat_f64_u,
+  WASM_i64_trunc_sat_f32_s,
+  WASM_i64_trunc_sat_f32_u,
+  WASM_i64_trunc_sat_f64_s,
+  WASM_i64_trunc_sat_f64_u,
+  WASM_memory_init,
+  WASM_data_drop,
+  WASM_memory_copy,
+  WASM_memory_fill,
+  WASM_table_init,
+  WASM_elem_drop,
+  WASM_table_copy,
+  WASM_table_get,
+  WASM_table_set,
+  WASM_table_grow,
+  WASM_table_size,
+  WASM_table_fill,
+  WASM_ref_null,
+  WASM_ref_is_null,
+  WASM_ref_func,
+  WASM_v128_load,
+  WASM_v128_load8x8_s,
+  WASM_v128_load8x8_u,
+  WASM_v128_load16x4_s,
+  WASM_v128_load16x4_u,
+  WASM_v128_load32x2_s,
+  WASM_v128_load32x2_u,
+  WASM_v128_load8_splat,
+  WASM_v128_load16_splat,
+  WASM_v128_load32_splat,
+  WASM_v128_load64_splat,
+  WASM_v128_store,
+  WASM_v128_const,
+  WASM_i8x16_shuffle,
+  WASM_i8x16_swizzle,
+  WASM_i8x16_splat,
+  WASM_i16x8_splat,
+  WASM_i32x4_splat,
+  WASM_i64x2_splat,
+  WASM_f32x4_splat,
+  WASM_f64x2_splat,
+  WASM_i8x16_extract_lane_s,
+  WASM_i8x16_extract_lane_u,
+  WASM_i8x16_replace_lane,
+  WASM_i16x8_extract_lane_s,
+  WASM_i16x8_extract_lane_u,
+  WASM_i16x8_replace_lane,
+  WASM_i32x4_extract_lane,
+  WASM_i32x4_replace_lane,
+  WASM_i64x2_extract_lane,
+  WASM_i64x2_replace_lane,
+  WASM_f32x4_extract_lane,
+  WASM_f32x4_replace_lane,
+  WASM_f64x2_extract_lane,
+  WASM_f64x2_replace_lane,
+  WASM_i8x16_eq,
+  WASM_i8x16_ne,
+  WASM_i8x16_lt_s,
+  WASM_i8x16_lt_u,
+  WASM_i8x16_gt_s,
+  WASM_i8x16_gt_u,
+  WASM_i8x16_le_s,
+  WASM_i8x16_le_u,
+  WASM_i8x16_ge_s,
+  WASM_i8x16_ge_u,
+  WASM_i16x8_eq,
+  WASM_i16x8_ne,
+  WASM_i16x8_lt_s,
+  WASM_i16x8_lt_u,
+  WASM_i16x8_gt_s,
+  WASM_i16x8_gt_u,
+  WASM_i16x8_le_s,
+  WASM_i16x8_le_u,
+  WASM_i16x8_ge_s,
+  WASM_i16x8_ge_u,
+  WASM_i32x4_eq,
+  WASM_i32x4_ne,
+  WASM_i32x4_lt_s,
+  WASM_i32x4_lt_u,
+  WASM_i32x4_gt_s,
+  WASM_i32x4_gt_u,
+  WASM_i32x4_le_s,
+  WASM_i32x4_le_u,
+  WASM_i32x4_ge_s,
+  WASM_i32x4_ge_u,
+  WASM_f32x4_eq,
+  WASM_f32x4_ne,
+  WASM_f32x4_lt,
+  WASM_f32x4_gt,
+  WASM_f32x4_le,
+  WASM_f32x4_ge,
+  WASM_f64x2_eq,
+  WASM_f64x2_ne,
+  WASM_f64x2_lt,
+  WASM_f64x2_gt,
+  WASM_f64x2_le,
+  WASM_f64x2_ge,
+  WASM_v128_not,
+  WASM_v128_and,
+  WASM_v128_andnot,
+  WASM_v128_or,
+  WASM_v128_xor,
+  WASM_v128_bitselect,
+  WASM_v128_any_true,
+  WASM_v128_load8_lane,
+  WASM_v128_load16_lane,
+  WASM_v128_load32_lane,
+  WASM_v128_load64_lane,
+  WASM_v128_store8_lane,
+  WASM_v128_store16_lane,
+  WASM_v128_store32_lane,
+  WASM_v128_store64_lane,
+  WASM_v128_load32_zero,
+  WASM_v128_load64_zero,
+  WASM_f32x4_demote_f64x2_zero,
+  WASM_f64x2_promote_low_f32x4,
+  WASM_i8x16_abs,
+  WASM_i8x16_neg,
+  WASM_i8x16_popcnt,
+  WASM_i8x16_all_true,
+  WASM_i8x16_bitmask,
+  WASM_i8x16_narrow_i16x8_s,
+  WASM_i8x16_narrow_i16x8_u,
+  WASM_i8x16_shl,
+  WASM_i8x16_shr_s,
+  WASM_i8x16_shr_u,
+  WASM_i8x16_add,
+  WASM_i8x16_add_sat_s,
+  WASM_i8x16_add_sat_u,
+  WASM_i8x16_sub,
+  WASM_i8x16_sub_sat_s,
+  WASM_i8x16_sub_sat_u,
+  WASM_i8x16_min_s,
+  WASM_i8x16_min_u,
+  WASM_i8x16_max_s,
+  WASM_i8x16_max_u,
+  WASM_i8x16_avgr_u,
+  WASM_i16x8_extadd_pairwise_i8x16_s,
+  WASM_i16x8_extadd_pairwise_i8x16_u,
+  WASM_i32x4_extadd_pairwise_i16x8_s,
+  WASM_i32x4_extadd_pairwise_i16x8_u,
+  WASM_i16x8_abs,
+  WASM_i16x8_neg,
+  WASM_i16x8_q15mulr_sat_s,
+  WASM_i16x8_all_true,
+  WASM_i16x8_bitmask,
+  WASM_i16x8_narrow_i32x4_s,
+  WASM_i16x8_narrow_i32x4_u,
+  WASM_i16x8_extend_low_i8x16_s,
+  WASM_i16x8_extend_high_i8x16_s,
+  WASM_i16x8_extend_low_i8x16_u,
+  WASM_i16x8_extend_high_i8x16_u,
+  WASM_i16x8_shl,
+  WASM_i16x8_shr_s,
+  WASM_i16x8_shr_u,
+  WASM_i16x8_add,
+  WASM_i16x8_add_sat_s,
+  WASM_i16x8_add_sat_u,
+  WASM_i16x8_sub,
+  WASM_i16x8_sub_sat_s,
+  WASM_i16x8_sub_sat_u,
+  WASM_i16x8_mul,
+  WASM_i16x8_min_s,
+  WASM_i16x8_min_u,
+  WASM_i16x8_max_s,
+  WASM_i16x8_max_u,
+  WASM_i16x8_avgr_u,
+  WASM_i16x8_extmul_low_i8x16_s,
+  WASM_i16x8_extmul_high_i8x16_s,
+  WASM_i16x8_extmul_low_i8x16_u,
+  WASM_i16x8_extmul_high_i8x16_u,
+  WASM_i32x4_abs,
+  WASM_i32x4_neg,
+  WASM_i32x4_all_true,
+  WASM_i32x4_bitmask,
+  WASM_i32x4_extend_low_i16x8_s,
+  WASM_i32x4_extend_high_i16x8_s,
+  WASM_i32x4_extend_low_i16x8_u,
+  WASM_i32x4_extend_high_i16x8_u,
+  WASM_i32x4_shl,
+  WASM_i32x4_shr_s,
+  WASM_i32x4_shr_u,
+  WASM_i32x4_add,
+  WASM_i32x4_sub,
+  WASM_i32x4_mul,
+  WASM_i32x4_min_s,
+  WASM_i32x4_min_u,
+  WASM_i32x4_max_s,
+  WASM_i32x4_max_u,
+  WASM_i32x4_dot_i16x8_s,
+  WASM_i32x4_extmul_low_i16x8_s,
+  WASM_i32x4_extmul_high_i16x8_s,
+  WASM_i32x4_extmul_low_i16x8_u,
+  WASM_i32x4_extmul_high_i16x8_u,
+  WASM_i64x2_abs,
+  WASM_i64x2_neg,
+  WASM_i64x2_all_true,
+  WASM_i64x2_bitmask,
+  WASM_i64x2_extend_low_i32x4_s,
+  WASM_i64x2_extend_high_i32x4_s,
+  WASM_i64x2_extend_low_i32x4_u,
+  WASM_i64x2_extend_high_i32x4_u,
+  WASM_i64x2_shl,
+  WASM_i64x2_shr_s,
+  WASM_i64x2_shr_u,
+  WASM_i64x2_add,
+  WASM_i64x2_sub,
+  WASM_i64x2_mul,
+  WASM_i64x2_eq,
+  WASM_i64x2_ne,
+  WASM_i64x2_lt_s,
+  WASM_i64x2_gt_s,
+  WASM_i64x2_le_s,
+  WASM_i64x2_ge_s,
+  WASM_i64x2_extmul_low_i32x4_s,
+  WASM_i64x2_extmul_high_i32x4_s,
+  WASM_i64x2_extmul_low_i32x4_u,
+  WASM_i64x2_extmul_high_i32x4_u,
+  WASM_f32x4_ceil,
+  WASM_f32x4_floor,
+  WASM_f32x4_trunc,
+  WASM_f32x4_nearest,
+  WASM_f64x2_ceil,
+  WASM_f64x2_floor,
+  WASM_f64x2_trunc,
+  WASM_f64x2_nearest,
+  WASM_f32x4_abs,
+  WASM_f32x4_neg,
+  WASM_f32x4_sqrt,
+  WASM_f32x4_add,
+  WASM_f32x4_sub,
+  WASM_f32x4_mul,
+  WASM_f32x4_div,
+  WASM_f32x4_min,
+  WASM_f32x4_max,
+  WASM_f32x4_pmin,
+  WASM_f32x4_pmax,
+  WASM_f64x2_abs,
+  WASM_f64x2_neg,
+  WASM_f64x2_sqrt,
+  WASM_f64x2_add,
+  WASM_f64x2_sub,
+  WASM_f64x2_mul,
+  WASM_f64x2_div,
+  WASM_f64x2_min,
+  WASM_f64x2_max,
+  WASM_f64x2_pmin,
+  WASM_f64x2_pmax,
+  WASM_i32x4_trunc_sat_f32x4_s,
+  WASM_i32x4_trunc_sat_f32x4_u,
+  WASM_f32x4_convert_i32x4_s,
+  WASM_f32x4_convert_i32x4_u,
+  WASM_i32x4_trunc_sat_f64x2_s_zero,
+  WASM_i32x4_trunc_sat_f64x2_u_zero,
+  WASM_f64x2_convert_low_i32x4_s,
+  WASM_f64x2_convert_low_i32x4_u,
+  WASM_i8x16_relaxed_swizzle,
+  WASM_i32x4_relaxed_trunc_f32x4_s,
+  WASM_i32x4_relaxed_trunc_f32x4_u,
+  WASM_i32x4_relaxed_trunc_f64x2_s_zero,
+  WASM_i32x4_relaxed_trunc_f64x2_u_zero,
+  WASM_f32x4_relaxed_madd,
+  WASM_f32x4_relaxed_nmadd,
+  WASM_f64x2_relaxed_madd,
+  WASM_f64x2_relaxed_nmadd,
+  WASM_i8x16_relaxed_laneselect,
+  WASM_i16x8_relaxed_laneselect,
+  WASM_i32x4_relaxed_laneselect,
+  WASM_i64x2_relaxed_laneselect,
+  WASM_f32x4_relaxed_min,
+  WASM_f32x4_relaxed_max,
+  WASM_f64x2_relaxed_min,
+  WASM_f64x2_relaxed_max,
+  WASM_i16x8_relaxed_q15mulr_s,
+  WASM_i16x8_dot_i8x16_i7x16_s,
+  WASM_i32x4_dot_i8x16_i7x16_add_s,
+  WASM_memory_atomic_notify,
+  WASM_memory_atomic_wait32,
+  WASM_memory_atomic_wait64,
+  WASM_atomic_fence,
+  WASM_i32_atomic_load,
+  WASM_i64_atomic_load,
+  WASM_i32_atomic_load8_u,
+  WASM_i32_atomic_load16_u,
+  WASM_i64_atomic_load8_u,
+  WASM_i64_atomic_load16_u,
+  WASM_i64_atomic_load32_u,
+  WASM_i32_atomic_store,
+  WASM_i64_atomic_store,
+  WASM_i32_atomic_store8,
+  WASM_i32_atomic_store16,
+  WASM_i64_atomic_store8,
+  WASM_i64_atomic_store16,
+  WASM_i64_atomic_store32,
+  WASM_i32_atomic_rmw_add,
+  WASM_i64_atomic_rmw_add,
+  WASM_i32_atomic_rmw8_add_u,
+  WASM_i32_atomic_rmw16_add_u,
+  WASM_i64_atomic_rmw8_add_u,
+  WASM_i64_atomic_rmw16_add_u,
+  WASM_i64_atomic_rmw32_add_u,
+  WASM_i32_atomic_rmw_sub,
+  WASM_i64_atomic_rmw_sub,
+  WASM_i32_atomic_rmw8_sub_u,
+  WASM_i32_atomic_rmw16_sub_u,
+  WASM_i64_atomic_rmw8_sub_u,
+  WASM_i64_atomic_rmw16_sub_u,
+  WASM_i64_atomic_rmw32_sub_u,
+  WASM_i32_atomic_rmw_and,
+  WASM_i64_atomic_rmw_and,
+  WASM_i32_atomic_rmw8_and_u,
+  WASM_i32_atomic_rmw16_and_u,
+  WASM_i64_atomic_rmw8_and_u,
+  WASM_i64_atomic_rmw16_and_u,
+  WASM_i64_atomic_rmw32_and_u,
+  WASM_i32_atomic_rmw_or,
+  WASM_i64_atomic_rmw_or,
+  WASM_i32_atomic_rmw8_or_u,
+  WASM_i32_atomic_rmw16_or_u,
+  WASM_i64_atomic_rmw8_or_u,
+  WASM_i64_atomic_rmw16_or_u,
+  WASM_i64_atomic_rmw32_or_u,
+  WASM_i32_atomic_rmw_xor,
+  WASM_i64_atomic_rmw_xor,
+  WASM_i32_atomic_rmw8_xor_u,
+  WASM_i32_atomic_rmw16_xor_u,
+  WASM_i64_atomic_rmw8_xor_u,
+  WASM_i64_atomic_rmw16_xor_u,
+  WASM_i64_atomic_rmw32_xor_u,
+  WASM_i32_atomic_rmw_xchg,
+  WASM_i64_atomic_rmw_xchg,
+  WASM_i32_atomic_rmw8_xchg_u,
+  WASM_i32_atomic_rmw16_xchg_u,
+  WASM_i64_atomic_rmw8_xchg_u,
+  WASM_i64_atomic_rmw16_xchg_u,
+  WASM_i64_atomic_rmw32_xchg_u,
+  WASM_i32_atomic_rmw_cmpxchg,
+  WASM_i64_atomic_rmw_cmpxchg,
+  WASM_i32_atomic_rmw8_cmpxchg_u,
+  WASM_i32_atomic_rmw16_cmpxchg_u,
+  WASM_i64_atomic_rmw8_cmpxchg_u,
+  WASM_i64_atomic_rmw16_cmpxchg_u,
+  WASM_i64_atomic_rmw32_cmpxchg_u,
+  // ida macros
+  WASM_mov,
+  //
+  WASM_invalid,
+  WASM_INS_COUNT = WASM_invalid,
 };

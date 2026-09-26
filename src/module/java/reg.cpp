@@ -142,7 +142,7 @@ static bool idaapi java_specseg(outctx_t &ctx, uchar)    { java_data(ctx, false)
 //  floating point conversion
 fpvalue_error_t j_realcvt(void *m, fpvalue_t *e, ushort swt)
 {
-  return ieee_realcvt(m, e, swt | 0x80);
+  return ieee_realcvt(m, e, swt | FPVAL_FORCE_LE);
 }
 
 //----------------------------------------------------------------------

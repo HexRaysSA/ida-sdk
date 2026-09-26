@@ -187,7 +187,7 @@ class merge_handler_t;
 class merge_data_t;
 using merge_handlers_t = qvector<merge_handler_t *>;
 //--------------------------------------------------------------------------
-/// Return TRUE if IDA is running in diff mode (MERGE_POLICY_MDIFF/MERGE_POLICY_VDIFF)
+/// Return TRUE if IDA is running in diff mode (MDIFF/VDIFF/LISTING_DIFF)
 idaman bool ida_export is_diff_merge_mode();
 
 //--------------------------------------------------------------------------

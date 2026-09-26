@@ -65,6 +65,7 @@ struct fptr_info_t
 #define aux_vpt_then  0x180000  // (MVE) the insn is in the THEN section of a VPT predication block
 #define aux_vpt_else  0x080000  // (MVE) the insn is in the ELSE section of a VPT predication block
 #define aux_sve       0x800000  // (SVE) this is an SVE or SME instruction
+#define aux_hbc      0x1000000  // (FEAT_HBC) branch with the consistent hint (BC.cond)
 
 // assembler flags
 #define UAS_GNU         0x0001  // GNU assembler
@@ -76,6 +77,11 @@ struct fptr_info_t
 #define amxop           insnpref        // AMX operation number
 #define neon_suffix     insnpref        // the first neon suffix
 #define pac_flags       insnpref        // PAC instruction suffix flags
+#define mops_opts       insnpref        // FEAT_MOPS: the memory copy/set options
+constexpr uint8 mops_wt = 0x01;         // write unprivileged
+constexpr uint8 mops_rt = 0x02;         // read unprivileged
+constexpr uint8 mops_wn = 0x04;         // write non-temporal
+constexpr uint8 mops_rn = 0x08;         // read non-temporal
 
 // dtype used for SVE/SME registers which have implementation-defined size
 constexpr op_dtype_t dt_sve_p = dt_byte32;  // predicate registers (actually multiple of 16 bits, up to 256)
@@ -206,6 +212,7 @@ constexpr uint8 simd_D      = 4;
 constexpr uint8 simd_Q      = 5;
                                            // number of lanes is derived from the vector size (dtype)
 #define simd_idx      specflag3            // o_reg: SIMD scalar index plus 1 (Vn.H[i])
+#define wback_suff    specflag4            // o_reg: the register is updated, print '!' (FEAT_MOPS)
 
 #define sve_pmode     specflag2            // o_reg: predication mode
 constexpr uint8 sve_pcount    = 0x80;      // the predicate-as-counter encoding bit
@@ -428,12 +435,17 @@ inline sval_t SIGNEXT(sval_t x, int b)
 #define PAC_ADR_GPR   (0<<3) // in general-purpose register that is specified by <Xd>
 #define PAC_ADR_X17   (1<<3) // in X17
 #define PAC_ADR_X30   (2<<3) // in X30(XLR)
-// bits 5..7: modifier used
+// bits 5..6: modifier used
 #define PAC_MODMASK   (3<<5) // modifier is :
 #define PAC_MOD_GPR   (0<<5) // in general-purpose register or stack pointer that is specified by <Xn|SP>
 #define PAC_MOD_ZR    (1<<5) // zero
 #define PAC_MOD_X16   (2<<5) // in X16
 #define PAC_MOD_SP    (3<<5) // in SP
+// bit 7: FEAT_PAuth_LR, a second modifier is used:
+//   PC for the X30/SP forms (PACIASPPC, RETAASPPC, ...)
+//   X15 for the X17/X16 forms (PACIA171615, ...)
+//   the label or the register in Op2 (AUTIASPPC <label>, RETAASPPCR <Xm>, ...)
+#define PAC_MOD2      (1<<7)
 
 //----------------------------------------------------------------------
 // build a suffix for a PAC instruction
@@ -453,11 +465,13 @@ static inline bool get_pac_suffix(qstring *suf, const insn_t &insn)
   }
   int adr = insn.pac_flags & PAC_ADRMASK;
   int mod = insn.pac_flags & PAC_MODMASK;
+  bool mod2 = (insn.pac_flags & PAC_MOD2) != 0;
   bool pre_ab = adr == PAC_ADR_X30 || adr == PAC_ADR_X17;
   switch ( insn.itype )
   {
     case ARM_pac:
     case ARM_aut:
+    case ARM_pacnb:
       suf->append(id);
       if ( pre_ab )
         suf->append(ab);
@@ -477,6 +491,16 @@ static inline bool get_pac_suffix(qstring *suf, const insn_t &insn)
         return false;
       if ( !pre_ab )
         suf->append(ab);
+      if ( mod2 )
+      {
+        // PACIA171615, PACIASPPC, AUTIASPPC <label>, AUTIASPPCR <Xn>
+        if ( adr == PAC_ADR_X17 )
+          suf->append("15");
+        else
+          suf->append("PC");
+        if ( insn.Op2.type == o_reg )
+          suf->append("R");
+      }
       break;
     case ARM_xpac:
       if ( adr == PAC_ADR_X30 )
@@ -489,18 +513,28 @@ static inline bool get_pac_suffix(qstring *suf, const insn_t &insn)
       // AA, AB, AAZ, ABZ
       suf->append("A");
       suf->append(ab);
-      if ( mod == PAC_MOD_ZR )
+      if ( mod2 )
+      {
+        // RETAASPPC <label>, RETAASPPCR <Xm>
+        suf->append("SPPC");
+        if ( insn.Op2.type == o_reg )
+          suf->append("R");
+      }
+      else if ( mod == PAC_MOD_ZR )
+      {
         suf->append("Z");
+      }
       break;
   }
   return true;
 }
 
 //------------------------------------------------------------------
-// is insn PACIASP or PACIBSP ?
+// is insn PACIASP or PACIBSP (or their FEAT_PAuth_LR forms PACIASPPC,
+// PACIBSPPC, PACNBIASPPC, PACNBIBSPPC)?
 static inline bool is_paci_sp(const insn_t &insn)
 {
-  if ( insn.itype != ARM_pac )
+  if ( insn.itype != ARM_pac && insn.itype != ARM_pacnb )
     return false;
   int adr = insn.pac_flags & PAC_ADRMASK;
   int mod = insn.pac_flags & PAC_MODMASK;
@@ -633,6 +667,20 @@ inline bool is_stmfd_wback(const insn_t &insn)
 
 inline bool issp(int reg) { return reg == SP || reg == XSP; }
 inline bool issp(const op_t &x) { return x.type == o_reg && issp(x.reg); }
+
+// memory copy and memory set (FEAT_MOPS)
+inline bool is_mops_insn(uint16 itype)
+{
+  return itype >= ARM_cpyfp && itype <= ARM_setge;
+}
+
+// compare and branch: CBZ/CBNZ and the FEAT_CMPBR CB<cc>/CBB<cc>/CBH<cc>
+inline bool is_cmpbr_insn(uint16 itype)
+{
+  return itype == ARM_cbz
+      || itype == ARM_cbnz
+      || itype >= ARM_cbgt && itype <= ARM_cbhne;
+}
 
 inline bool is_a64_gpreg(int reg)
 {
@@ -859,6 +907,15 @@ enum cond_t
   cAL,          // 1110 Always
   cNV,          // 1111 Never
   cLAST
+};
+
+// used by the smstart/smstop instructions: the <option> operand,
+// CRm[2:1] of the underlying "MSR SVCRxx, #imm"
+enum sme_option_type
+{
+  SME_OPT_SM   = 1,     // Streaming SVE mode
+  SME_OPT_ZA   = 2,     // SME ZA storage
+  SME_OPT_SMZA = 3,     // both; the default, omitted in the disassembly
 };
 
 // used by dmb and smb isnstructions
@@ -1128,6 +1185,38 @@ struct arm_arch_t
   {
     return base_arch == arch_ARMv8M || base_arch == arch_ARMv81M;
   }
+};
+
+//---------------------------------------------------------------------
+// the families of the switch helper routines. a helper is called with the
+// index in REG, the jump table follows the call instruction, and the helper
+// jumps to the case (it never returns to the caller).
+// the families differ in the layout of the table: an element is ELSIZE
+// bytes wide, SIGNEDNESS tells if it is signed, and it holds
+// (case_target - table_start) >> SHIFT
+enum switch_helpers_kind_t : int
+{
+  SWHK_GNU,   // the table starts right after the call (aligned to ELSIZE);
+              // the number of the elements is not stored, it is determined
+              // by the preceding CMP
+              // e.g. BL __gnu_thumb1_case_uqi
+  SWHK_APPLE, // the table starts with the number of the elements minus 1
+              // (ELSIZE bytes), then come the elements, then one more
+              // element for the default case
+              // e.g. BL ___switchu8, BL __rt_switch8
+};
+
+//---------------------------------------------------------------------
+// the switch performed by a helper routine
+struct switch_desc_t
+{
+  const char *name;           // helper name, without the leading underscores
+                              // (to be compared with a cleaned up name)
+  switch_helpers_kind_t kind; // the jump table layout
+  int elsize;                 // element size (in bytes)
+  int signedness;             // are the elements signed?
+  int shift;                  // shift amount
+  int reg;                    // the input register
 };
 
 //---------------------------------------------------------------------
@@ -1867,6 +1956,12 @@ struct arm_t : public procmod_t
   //----------------------------------------------------------------------
   virtual ssize_t idaapi on_event(ssize_t msgid, va_list va) override;
 
+  // FLIRT: a relocated branch the linker rewrote in a size-preserving way
+  // (BL<->BLX interworking, dead/weak call -> NOP). Returns the realized
+  // instruction length (always 4) if the bytes at `ea` are such a form of the
+  // signature's captured branch, else 0. See processor_t::ev_flirt_match_relocated_insn.
+  int flirt_match_relocated_insn(ea_t ea, const flirt_reloc_site_t *site, int *out_span) const;
+
   arm_t();
   ~arm_t();
 
@@ -1918,6 +2013,7 @@ struct arm_t : public procmod_t
   void move_it_blocks(ea_t from, ea_t to, asize_t size);
   bool build_movl_macro(insn_t *s, const insn_t &insn);
   bool build_adrl_macro(insn_t *s, const insn_t &insn);
+  bool build_adrl_far_macro(insn_t *s, const insn_t &insn);
   bool build_mov64_macro(insn_t *s, const insn_t &insn);
   bool simplify_to_mov(insn_t *s);
   bool build_macro(insn_t &insn, bool may_go_forward);
@@ -1946,7 +2042,16 @@ struct arm_t : public procmod_t
         dref_t dref_type,
         bool target_dxref = true);
   bool emulate_ldr_str_reg_based(const insn_t &insn, const op_t &op);
+  void handle_numloop_phrase(
+        const insn_t &insn,
+        const op_t &op,
+        dref_t dref_type);
   bool emulate_ldr_str_with_displ(const insn_t &insn, const op_t &op);
+  void handle_numloop_data_array(
+        const insn_t &insn,
+        const op_t &op,
+        const ::reg_value_info_t &base,
+        dref_t dref_type);
   bool check_for_sjlj_setup(
         const insn_t &insn,
         ea_t pcval,
@@ -2041,6 +2146,11 @@ struct arm_t : public procmod_t
         bool can_use_regfinder = true);
   bool arm_calc_spdelta(sval_t *spdelta, const insn_t &insn);
   bool isfp(ea_t func_ea, int reg) const;
+  // is REG the stack pointer or the frame pointer of the function at EA?
+  bool is_frame_reg(ea_t ea, int reg) const
+  {
+    return issp(reg) || isfp(ea, reg);
+  }
   bool is_sp_based(const insn_t &insn, const op_t &x);
   sval_t special_func_spd(const insn_t &insn) const;
   static bool is_start_func_hint(const insn_t &_insn);
@@ -2086,7 +2196,10 @@ struct arm_t : public procmod_t
         bool is_thumb,
         int asn_flags = ASN_STRICT_CHECK);
   int arm_is_align_insn(ea_t ea) const;
-  bool is_rt_switch8(switch_info_t *_si, const insn_t &insn);
+  // Is EA a switch helper routine (or a simple jump to it)?
+  // The search is done by the name, so the helper must have been
+  // recognized (and named) by the module before.
+  const switch_desc_t *find_switch_helper(ea_t ea) const;
   void convert_dcd(ea_t ea, ea_t callee_ip) const;
   void convert_dcd(const reg_value_info_t &rvi) const;
   void convert_dcd(const reg_value_def_t &rvd) const;
@@ -2285,6 +2398,9 @@ struct arm_saver_t
   void handle_operand(const op_t &x, bool isload);
   void emulate();
   void handle_indirect_jump(const op_t &x, bool is_call);
+  bool handle_numloop_call_array(
+        const ::reg_value_info_t &target,
+        bool is_call);
   void handle_code_ref(
         ea_t ea,
         bool iscall,

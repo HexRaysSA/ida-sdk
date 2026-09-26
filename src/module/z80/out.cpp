@@ -78,31 +78,37 @@ bool out_z80_t::out_operand(const op_t &x)
       break;
 
     case o_displ:         // Z80 only!!! + GB, one instruction
-      if ( ash.uflag & UAS_MKOFF )
-        out_value(x, OOF_ADDR|OOFW_16);
-      if ( !pm().isGB() )
-        out_symbol('(');
-      OutReg(x.phrase);
-      if ( !(ash.uflag & UAS_MKOFF) )
       {
-        qstring buf;
-        if ( is_off(F, x.n)
-          && get_offset_expression(&buf, insn.ea,x.n,insn.ea+x.offb,x.addr) )
+        // eZ80 LEA/PEA operands are addresses, not memory references
+        bool parens = !pm().isGB()
+                   && insn.itype != Z80_lea
+                   && insn.itype != Z80_pea;
+        if ( ash.uflag & UAS_MKOFF )
+          out_value(x, OOF_ADDR|OOFW_16);
+        if ( parens )
+          out_symbol('(');
+        OutReg(x.phrase);
+        if ( !(ash.uflag & UAS_MKOFF) )
         {
-          out_symbol('+');
-          out_line(buf.c_str());
+          qstring buf;
+          if ( is_off(F, x.n)
+            && get_offset_expression(&buf, insn.ea,x.n,insn.ea+x.offb,x.addr) )
+          {
+            out_symbol('+');
+            out_line(buf.c_str());
+          }
+          else
+          {
+            int offbit = (insn.auxpref & aux_off16) ? OOFW_16 : OOFW_8;
+            int outf = OOF_ADDR|offbit|OOFS_NEEDSIGN;
+            if ( ash.uflag & UAS_TOFF )
+              outf |= OOF_SIGNED;
+            out_value(x, outf);
+          }
         }
-        else
-        {
-          int offbit = (insn.auxpref & aux_off16) ? OOFW_16 : OOFW_8;
-          int outf = OOF_ADDR|offbit|OOFS_NEEDSIGN;
-          if ( ash.uflag & UAS_TOFF )
-            outf |= OOF_SIGNED;
-          out_value(x, outf);
-        }
+        if ( parens )
+          out_symbol(')');
       }
-      if ( !pm().isGB() )
-        out_symbol(')');
       break;
 
     case o_phrase:
@@ -223,7 +229,15 @@ inline bool isIxyOperand(const op_t &x)
 //----------------------------------------------------------------------
 void out_z80_t::out_insn(void)
 {
-  out_mnemonic();
+  static const char *const sfxnames[] =
+  {
+    nullptr, ".sis", ".lis", ".sil", ".lil",
+  };
+  ez80_sfx_t sfx = get_sfx(insn);
+  if ( sfx != SFX_NONE )
+    out_mnem(8, sfxnames[sfx]);
+  else
+    out_mnemonic();
 
   bool comma = out_one_operand(0);
 

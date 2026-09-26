@@ -33,6 +33,7 @@ static const char *subidx_label(subindex_typeid_t subidx)
     case SUBIDX_SEGMENTS:                     return "segment";
     case SUBIDX_FUNCTION_COMMENTS:            return "func comment";
     case SUBIDX_REPEATABLE_FUNCTION_COMMENTS: return "func rep-comment";
+    case SUBIDX_ENUM_MEMBERS:                 return "enum member";
     default:                                  return "unknown";
   }
 }

@@ -148,18 +148,51 @@ public:
                                        ///< insn is analyzed.
 #define FUNC_UNWIND     0x00080000     ///< function is an exception unwind handler
 #define FUNC_CATCH      0x00100000     ///< function is an exception catch handler
+#define FUNC_OVERSIZED  0x00200000     ///< function exceeds OVERSIZED_FUNC_SIZE (ida.cfg)
 
 #define FUNC_RESERVED   0x8000000000000000LL ///< Reserved (for internal usage)
 ///@}
 
   /// Is a far function?
-  bool is_far(void) const { return (flags & FUNC_FAR) != 0; }
+  bool is_far() const { return (flags & FUNC_FAR) != 0; }
   /// Does function return?
-  bool does_return(void) const { return (flags & FUNC_NORET) == 0; }
+  bool does_return() const { return (flags & FUNC_NORET) == 0; }
   /// Has SP-analysis been performed?
-  bool analyzed_sp(void) const { return (flags & FUNC_SP_READY) != 0; }
+  bool analyzed_sp() const { return (flags & FUNC_SP_READY) != 0; }
   /// Needs prolog analysis?
-  bool need_prolog_analysis(void) const { return (flags & FUNC_PROLOG_OK) == 0; }
+  bool need_prolog_analysis() const { return (flags & FUNC_PROLOG_OK) == 0; }
+  /// Is a library function?
+  bool is_lib() const { return (flags & FUNC_LIB) != 0; }
+  /// Is a static function?
+  bool is_static() const { return (flags & FUNC_STATICDEF) != 0; }
+  /// Does the function use a frame pointer (BP)?
+  bool uses_frame() const { return (flags & FUNC_FRAME) != 0; }
+  /// Has the user specified the far-ness of the function?
+  bool is_userfar() const { return (flags & FUNC_USERFAR) != 0; }
+  /// Is a hidden function chunk?
+  bool is_hidden() const { return (flags & FUNC_HIDDEN) != 0; }
+  /// Is a thunk (jump) function?
+  bool is_thunk() const { return (flags & FUNC_THUNK) != 0; }
+  /// Does BP point to the bottom of the stack frame?
+  bool is_bottom_bp() const { return (flags & FUNC_BOTTOMBP) != 0; }
+  /// Needs 'non-return' analysis?
+  bool need_noret_analysis() const { return (flags & FUNC_NORET_PENDING) != 0; }
+  /// Does the function change SP in an untraceable way?
+  bool has_fuzzy_sp() const { return (flags & FUNC_FUZZY_SP) != 0; }
+  /// Has the 'argsize' field been validated?
+  bool is_purged_ok() const { return (flags & FUNC_PURGED_OK) != 0; }
+  /// Is the function info provided by Lumina?
+  bool is_from_lumina() const { return (flags & FUNC_LUMINA) != 0; }
+  /// Is this outlined code (not a real function)?
+  bool is_outlined() const { return (flags & FUNC_OUTLINE) != 0; }
+  /// Is a reanalysis of the function requested?
+  bool needs_reanalysis() const { return (flags & FUNC_REANALYZE) != 0; }
+  /// Is the function an exception unwind handler?
+  bool is_unwind() const { return (flags & FUNC_UNWIND) != 0; }
+  /// Is the function an exception catch handler?
+  bool is_catch() const { return (flags & FUNC_CATCH) != 0; }
+  /// Does the function exceed OVERSIZED_FUNC_SIZE (ida.cfg)?
+  bool is_oversized() const { return (flags & FUNC_OVERSIZED) != 0; }
 #ifndef SWIG
   union
   {
@@ -1559,6 +1592,38 @@ public:
   bool analyzed_sp() const { return (flags_ & FUNC_SP_READY) != 0; }
   /// Needs prolog analysis?
   bool need_prolog_analysis() const { return (flags_ & FUNC_PROLOG_OK) == 0; }
+  /// Is a library function?
+  bool is_lib() const { return (flags_ & FUNC_LIB) != 0; }
+  /// Is a static function?
+  bool is_static() const { return (flags_ & FUNC_STATICDEF) != 0; }
+  /// Does the function use a frame pointer?
+  bool uses_frame() const { return (flags_ & FUNC_FRAME) != 0; }
+  /// Has the user specified the far-ness of the function?
+  bool is_userfar() const { return (flags_ & FUNC_USERFAR) != 0; }
+  /// Is a hidden function chunk?
+  bool is_hidden() const { return (flags_ & FUNC_HIDDEN) != 0; }
+  /// Is a thunk function?
+  bool is_thunk() const { return (flags_ & FUNC_THUNK) != 0; }
+  /// Does BP point to the bottom of the stack frame?
+  bool is_bottom_bp() const { return (flags_ & FUNC_BOTTOMBP) != 0; }
+  /// Needs 'non-return' analysis?
+  bool need_noret_analysis() const { return (flags_ & FUNC_NORET_PENDING) != 0; }
+  /// Does the function change SP in an untraceable way?
+  bool has_fuzzy_sp() const { return (flags_ & FUNC_FUZZY_SP) != 0; }
+  /// Has the 'argsize' field been validated?
+  bool is_purged_ok() const { return (flags_ & FUNC_PURGED_OK) != 0; }
+  /// Is the function info provided by Lumina?
+  bool is_from_lumina() const { return (flags_ & FUNC_LUMINA) != 0; }
+  /// Is this outlined code (not a real function)?
+  bool is_outlined() const { return (flags_ & FUNC_OUTLINE) != 0; }
+  /// Is a reanalysis of the function requested?
+  bool needs_reanalysis() const { return (flags_ & FUNC_REANALYZE) != 0; }
+  /// Is the function an exception unwind handler?
+  bool is_unwind() const { return (flags_ & FUNC_UNWIND) != 0; }
+  /// Is the function an exception catch handler?
+  bool is_catch() const { return (flags_ & FUNC_CATCH) != 0; }
+  /// Does the function exceed OVERSIZED_FUNC_SIZE (ida.cfg)?
+  bool is_oversized() const { return (flags_ & FUNC_OVERSIZED) != 0; }
 
 protected:
   uint64 flags_ = 0;

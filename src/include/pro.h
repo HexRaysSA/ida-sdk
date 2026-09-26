@@ -32,8 +32,8 @@
    __ARM__     - ARM
 */
 
-/// IDA SDK v9.4
-#define IDA_SDK_VERSION      940
+/// IDA SDK v9.5
+#define IDA_SDK_VERSION      950
 
 //---------------------------------------------------------------------------
 #if !defined(__NT__) && !defined(__LINUX__) && !defined(__MAC__)
@@ -763,6 +763,15 @@ struct interr_exc_t : public std::exception
   int code;
   interr_exc_t(int _code) : code(_code) {}
 };
+
+/// Exception thrown by qexit() when qexit-throwing has been enabled with
+/// set_qexit_throws().
+struct qexit_exc_t : public std::exception
+{
+  int code;
+  qexit_exc_t(int _code) : code(_code) {}
+  virtual const char *what() const noexcept override { return "IDA requested to terminate"; }
+};
 #endif // __cplusplus
 idaman THREAD_SAFE NORETURN void ida_export interr(int code);                         ///< Show internal error message and terminate execution
 
@@ -771,6 +780,12 @@ idaman THREAD_SAFE NORETURN void ida_export interr(int code);                   
 ///                otherwise it terminates IDA after showing an error message
 /// \return previous setting
 idaman THREAD_SAFE bool ida_export set_interr_throws(bool enable);
+
+// set the behavior of 'qexit()'
+/// \param enable  if true, qexit() throws qexit_exc_t
+///                otherwise it terminates the process as usual
+/// \return previous setting
+idaman THREAD_SAFE bool ida_export set_qexit_throws(bool enable);
 
 //---------------------------------------------------------------------------
 idaman THREAD_SAFE void *ida_export qalloc(size_t size);                              ///< System independent malloc
@@ -800,6 +815,9 @@ T *qrealloc_array(T *ptr, size_t n)
   return (T *)qrealloc(ptr, nbytes);
 }
 
+#ifndef MEMSET_THISOBJ_WITH_DD
+#define MEMSET_THISOBJ_WITH_DD
+#endif
 /// \def{qnumber, determine capacity of an array}
 #ifdef __GNUC__
 #  define qnumber(arr) ( \
@@ -1334,6 +1352,11 @@ idaman THREAD_SAFE int ida_export qfstat(int fd, struct qstatbuf *buf);
 /// touch: set access and modification times of the file to the current time
 
 idaman THREAD_SAFE int ida_export qtouchfile(const char *file_name);
+
+//---------------------------------------------------------------------------
+/// Get the id of the current process
+
+idaman THREAD_SAFE uint32 ida_export qgetpid(void);
 
 //---------------------------------------------------------------------------
 /// Add a function to be called at exit time
@@ -2194,6 +2217,15 @@ idaman THREAD_SAFE void *ida_export qvector_reserve(void *vec, void *old, size_t
 /// \cond
 #define DECLARE_TYPE_AS_MOVABLE(T) template <> struct ida_movable_type<T> { static constexpr bool value = true; }
 
+#ifndef IDA_ASAN_POISON
+#define IDA_ASAN_POISON(...)                  ((void)0)
+#define IDA_ASAN_UNPOISON(...)                ((void)0)
+#define IDA_ASAN_QVECTOR_ANNOTATE(...)        ((void)0)
+#define IDA_ASAN_QVECTOR_ANNOTATE_DELETE(...) ((void)0)
+#endif
+#ifndef IDA_ASAN_MAYBE_FORCE_REALLOC
+#define IDA_ASAN_MAYBE_FORCE_REALLOC(...)
+#endif
 
 template <class T> inline constexpr THREAD_SAFE bool may_move_bytes(void)
 {
@@ -2291,6 +2323,7 @@ template <class T> class qvector
   }
   void free_memory()
   {
+    IDA_ASAN_QVECTOR_ANNOTATE_DELETE(array, alloc, n, sizeof(T));
     qfree(array);
     array = nullptr;
     alloc = 0;
@@ -2300,6 +2333,7 @@ template <class T> class qvector
   {
     if ( array == nullptr || new_alloc == 0 )
       return;
+    IDA_ASAN_QVECTOR_ANNOTATE_DELETE(array, alloc, n, sizeof(T));
     if ( may_move_bytes<T>() )
     {
       T *new_array = (T*)qrealloc(array, new_alloc * sizeof(T));
@@ -2320,6 +2354,7 @@ template <class T> class qvector
         alloc = new_alloc;
       }
     }
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, alloc, n, sizeof(T));
   }
   /// Resizes to a smaller size, destroying elements if needed.
   void resize_less(size_t _newsize)
@@ -2330,6 +2365,7 @@ template <class T> class qvector
       for ( size_t i = _newsize; i < _size; i++ )
         array[i].~T();
     }
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, _newsize, sizeof(T));
     n = _newsize;
 #ifdef TESTABLE_BUILD_DEBUG_CONTAINERS
     /// This helps to find use-after-frees in empty containers:
@@ -2342,6 +2378,7 @@ template <class T> class qvector
   void resize_more_trivial(size_t _newsize)
   {
     reserve(_newsize);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, _newsize, sizeof(T));
     if constexpr ( std::is_trivially_copyable<T>::value )
     {
       memset((void *) (array + n), 0, (_newsize - n) * sizeof(T));
@@ -2357,6 +2394,7 @@ template <class T> class qvector
   void resize_more(size_t _newsize, const T &x)
   {
     reserve(_newsize);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, _newsize, sizeof(T));
     for ( size_t i = n; i < _newsize; i++ )
       new(array+i) T(x);
     n = _newsize;
@@ -2416,6 +2454,7 @@ public:
       resize_less(0);
       free_memory();
     }
+    MEMSET_THISOBJ_WITH_DD
   }
   DEFINE_MEMORY_ALLOCATION_FUNCS()
   /// Append a new element to the end the qvector.
@@ -2424,6 +2463,7 @@ public:
     TB_QASSERT(1907, !ref_within_range(x));
     T val(x);
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     new (array+n) T(std::move(val));
     ++n;
   }
@@ -2443,11 +2483,13 @@ public:
       // to a valid object.
       T val(std::move(x));
       reserve(n+1);
+      IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
       new (array+n) T(std::move(val));
     }
     else
     {
       reserve(n+1);
+      IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
       new (array+n) T(std::move(x));
     }
     ++n;
@@ -2463,6 +2505,7 @@ public:
     // If any args... are references to elements inside this same container,
     // and reserve reallocates, those references dangle before we use them.
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     new (array+n) T(std::forward<Args>(args)...);
     ++n;
   }
@@ -2473,6 +2516,7 @@ public:
   T &push_back(void)
   {
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     T *ptr = array + n;
     new (ptr) T;
     ++n;
@@ -2484,6 +2528,7 @@ public:
     if ( n > 0 )
     {
       array[--n].~T();
+      IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n + 1, n, sizeof(T));
 #ifdef TESTABLE_BUILD
     /// This helps to find use-after-frees in empty containers:
     if ( n == 0 )
@@ -2583,6 +2628,7 @@ public:
     CASSERT(std::is_trivially_constructible<T>::value);
     CASSERT(std::is_trivially_destructible<T>::value);
     reserve(_newsize);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, _newsize, sizeof(T));
     n = _newsize;
   }
 #endif
@@ -2594,6 +2640,7 @@ public:
 #endif
     T val(x);
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     new(array+n) T(std::move(val));
     ++n;
   }
@@ -2606,6 +2653,7 @@ public:
   {
     if ( cnt > alloc )
     {
+      IDA_ASAN_QVECTOR_ANNOTATE_DELETE(array, alloc, n, sizeof(T));
       if ( may_move_bytes<T>() )
       {
         array = (T *)qvector_reserve(this, array, cnt, sizeof(T));
@@ -2621,7 +2669,9 @@ public:
         array = new_array;
         alloc = new_alloc;
       }
+      IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, alloc, n, sizeof(T));
     }
+    IDA_ASAN_MAYBE_FORCE_REALLOC(cnt, n)
   }
   /// Shrink the capacity down to the current number of elements
   void truncate(void)
@@ -2696,6 +2746,7 @@ public:
     T val(x);
     size_t idx = it - array;
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     T *p = array + idx;
     size_t rest = end() - p;
     shift_up(p+1, p, rest);
@@ -2713,6 +2764,7 @@ public:
     T val(std::forward<T>(x));
     size_t idx = it - array;
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     T *p = array + idx;
     size_t rest = end() - p;
     shift_up(p+1, p, rest);
@@ -2734,6 +2786,7 @@ public:
 
     size_t idx = it - array;
     reserve(n+cnt);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + cnt, sizeof(T));
     T *p = array + idx;
     size_t rest = end() - p;
     shift_up(p+cnt, p, rest);
@@ -2746,6 +2799,31 @@ public:
     n += cnt;
     return iterator(array+idx);
   }
+  /// Append a range of elements to the end of the qvector.
+  /// \param first  pointer to first element to be appended
+  /// \param last   pointer to end of elements to be appended (the element pointed to by 'last' will not be included)
+  template <class it2> void append(it2 first, it2 last)
+  {
+    // For trivially-copyable T with a contiguous same-type (pointer) source,
+    // copy the whole range with a single memcpy; otherwise reuse insert() at
+    // the end (where its shift_up is a no-op).
+    if constexpr ( std::is_trivially_copyable<T>::value
+                && std::is_pointer<it2>::value
+                && std::is_same_v<std::remove_cv_t<std::remove_pointer_t<it2>>, T> )
+    {
+      size_t cnt = last - first;
+      if ( cnt == 0 )
+        return;
+      reserve(n+cnt);
+      IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + cnt, sizeof(T));
+      memcpy((void *) (array + n), (const void *) first, cnt * sizeof(T));
+      n += cnt;
+    }
+    else
+    {
+      insert(end(), first, last);
+    }
+  }
   /// Remove an element from the qvector.
   /// \param it  pointer to element to be removed
   /// \return pointer to the element that took its place
@@ -2754,6 +2832,7 @@ public:
     it->~T();
     size_t rest = end() - it - 1;
     shift_down(it, it+1, rest);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n - 1, sizeof(T));
     n--;
     return it;
   }
@@ -2767,6 +2846,7 @@ public:
       p->~T();
     size_t rest = end() - last;
     shift_down(first, last, rest);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n - (last - first), sizeof(T));
     n -= last - first;
     return first;
   }
@@ -2893,6 +2973,7 @@ class pool_allocator_t
   {
     for ( T *p : pools )
     {
+      IDA_ASAN_UNPOISON(p, pool_nelems * sizeof(T));
       qfree(p);
     }
     pools.clear();
@@ -2929,6 +3010,7 @@ public:
     {
       T *ptr = free_list;
       free_list = *(T**)ptr;
+      IDA_ASAN_UNPOISON(ptr, sizeof(T));
       return ptr;
     }
 
@@ -2952,6 +3034,7 @@ public:
     {
       *(T**)ptr = free_list;
       free_list = ptr;
+      IDA_ASAN_POISON((char*)ptr + sizeof(void*), sizeof(T) - sizeof(void*));
       if ( --live_objects == 0 )
         free_entire_pool();
     }
@@ -3018,6 +3101,7 @@ public:
   ~qrefcnt_t(void)
   {
     delref();
+    MEMSET_THISOBJ_WITH_DD
   }
   void reset(void)
   {
@@ -3751,7 +3835,6 @@ public:
     append(c);
   }
 
-
   /// Split a string on SEP, appending the parts to OUT
   /// \param out storage
   /// \param sep the separator to split on
@@ -4232,6 +4315,7 @@ public:
   ~qlist(void)
   {
     clear();
+    MEMSET_THISOBJ_WITH_DD
   }
   DEFINE_MEMORY_ALLOCATION_FUNCS()
 
@@ -5009,6 +5093,10 @@ idaman THREAD_SAFE bool ida_export qustrncpy(char *dst, const char *utf8, size_t
 #define UTF8_ELLIPSIS "\xE2\x80\xA6"
 #define UTF8_ELLIPSIS_SZ (sizeof(UTF8_ELLIPSIS) - 1)
 
+#define CP_RIGHTARROW 0x2192
+#define UTF8_RIGHTARROW "\xE2\x86\x92"
+#define UTF8_RIGHTARROW_SZ (sizeof(UTF8_RIGHTARROW) - 1)
+
 #define CP_REPLCHAR 0xFFFD
 #define UTF8_REPLCHAR "\xEF\xBF\xBD"
 #define UTF8_REPLCHAR_SZ (sizeof(UTF8_REPLCHAR) - 1)
@@ -5638,9 +5726,11 @@ idaman void *ida_export pipe_process(
 
 
 /// Wait for file/socket/pipe handles.
-/// \note On Windows this function just calls WaitForMultipleObjects().
-///       So it cannot wait for file/socket/pipe handles.
-///       It simply returns 0 and sets idx to 0 for such handles.
+/// \note On Windows, pipe handles are polled with PeekNamedPipe() (they are
+///       not waitable kernel objects); a broken pipe is reported as ready so
+///       that the caller can read the EOF. Other handles are waited for with
+///       WaitForMultipleObjects(), so file/socket handles are not supported
+///       and are reported as immediately ready.
 /// \param[out] idx       handle index
 /// \param handles        handles to wait for
 /// \param n              number of handles

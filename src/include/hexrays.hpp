@@ -1,8 +1,11 @@
-/*!
+/*
  *      Hex-Rays Decompiler project
  *      Copyright (c) 1990-2026 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
+ */
+
+/*!
  *  \file hexrays.hpp
  *  \brief There are 2 representations of the binary code in the decompiler:
  *
@@ -545,8 +548,9 @@ enum merror_t
   MERR_STOP      = -33, ///< no error, stop the analysis
   MERR_CLOUD     = -34, ///< cloud: %s
   MERR_EMULATOR  = -35, ///< emulator: %s
-  MERR_MAX_ERR   = 35,
-  MERR_LOOP      = -36, ///< internal code: redo last loop (never reported)
+  MERR_TIMEOUT   = -36, ///< decompilation timed out, see \ref set_decompiler_timeout
+  MERR_MAX_ERR   = 36,
+  MERR_LOOP      = -37, ///< internal code: redo last loop (never reported)
 };
 ///@}
 
@@ -557,6 +561,19 @@ enum merror_t
 /// \return the error address
 
 ea_t hexapi get_merror_desc(qstring *out, merror_t code, mba_t *mba);
+
+/// Set the default decompilation timeout.
+/// New microcode objects (mba_t) created by decompile()/gen_microcode() inherit
+/// this value as their decompilation budget. While decompiling a function, the
+/// decompiler periodically checks the elapsed time and, once the budget is
+/// exceeded, aborts the function with \ref MERR_TIMEOUT.
+/// \param msecs  timeout in milliseconds; 0 (the default) means no timeout
+/// \return the previous timeout (in milliseconds)
+int hexapi set_decompiler_timeout(int msecs);
+
+/// Get the default decompilation timeout (in milliseconds, 0 means none).
+/// \sa set_decompiler_timeout
+int hexapi get_decompiler_timeout();
 
 //-------------------------------------------------------------------------
 /// Exception object: decompiler failure information
@@ -910,6 +927,30 @@ struct number_format_t
 // Number formats are attached to (ea,opnum) pairs
 typedef qmap<operand_locator_t, number_format_t> user_numforms_t;
 
+// Each instruction operand can have mflags attached to it. Currently they
+// carry the "combine hint" set by the "split/unsplit expression" commands
+// (see vdui_t::split_item): the maximal operand size the decompiler is
+// allowed to reach while combining microinstructions at the operand address.
+typedef qmap<operand_locator_t, int32> user_mflags_t;
+#define MFL_MAXCOMB  0x00000007 // combine: mask for maximal operand size
+#define MFL_NMAXCMB  0x00000000 //   no limit on operand size
+#define MFL_MAXCMB1  0x00000001 //   max operand size 1 byte
+#define MFL_MAXCMB2  0x00000002 //   max operand size 2 bytes
+#define MFL_MAXCMB4  0x00000003 //   max operand size 4 bytes
+#define MFL_MAXCMB8  0x00000004 //   max operand size 8 bytes
+
+/// Save user-defined operand mflags into the database.
+/// These flags are attached to (ea,opnum) operands; they currently store the
+/// combine hint managed by the "split/unsplit expression" commands (\ref MFL_).
+/// \param func_ea the entry address of the function
+/// \param mflags collection of user-defined operand mflags
+void hexapi save_user_mflags(ea_t func_ea, const user_mflags_t *mflags);
+
+/// Restore user-defined operand mflags from the database.
+/// \param func_ea the entry address of the function
+/// \return collection of user-defined operand mflags (\ref MFL_).
+///         The returned object must be deleted by the caller.
+user_mflags_t *hexapi restore_user_mflags(ea_t func_ea);
 //-------------------------------------------------------------------------
 /// Base helper class to convert binary data structures into text.
 /// Other classes are derived from this class.
@@ -1006,6 +1047,9 @@ bool hexapi is_nonbool_type(const tinfo_t &type);
 /// \return true if the type is a boolean type
 
 bool hexapi is_bool_type(const tinfo_t &type);
+
+
+
 
 
 /// Is a pointer or array type?
@@ -1530,6 +1574,11 @@ struct lvar_saved_info_t
 #define LVINF_NOMAP  0x0008     ///< forbid automatic mapping of the variable
 #define LVINF_UNUSED 0x0010     ///< unused argument, corresponds to CVAR_UNUSED
 #define LVINF_NOPROP 0x0020     ///< don't propagate assignments to this lvar (CVAR_NOPROP)
+#define LVINF_SCAT   0x0040     ///< create a variable at the scattered
+                                ///< location kept in ll.location
+#define LVINF_NOSCAT 0x0080     ///< forbid the automatic creation of
+                                ///< a variable at the scattered location
+                                ///< kept in ll.location
 ///@}
   bool has_info() const
   {
@@ -1539,7 +1588,9 @@ struct lvar_saved_info_t
         || is_split_lvar()
         || is_noptr_lvar()
         || is_nomap_lvar()
-        || is_noprop_lvar();
+        || is_noprop_lvar()
+        || is_scat_lvar()
+        || is_noscat_lvar();
   }
   bool operator==(const lvar_saved_info_t &r) const
   {
@@ -1567,6 +1618,12 @@ struct lvar_saved_info_t
   bool is_noprop_lvar() const { return (flags & LVINF_NOPROP) != 0; }
   void set_noprop_lvar() { flags |= LVINF_NOPROP; }
   void clr_noprop_lvar() { flags &= ~LVINF_NOPROP; }
+  bool is_scat_lvar() const { return (flags & LVINF_SCAT) != 0; }
+  void set_scat_lvar() { flags |= LVINF_SCAT; }
+  void clr_scat_lvar() { flags &= ~LVINF_SCAT; }
+  bool is_noscat_lvar() const { return (flags & LVINF_NOSCAT) != 0; }
+  void set_noscat_lvar() { flags |= LVINF_NOSCAT; }
+  void clr_noscat_lvar() { flags &= ~LVINF_NOSCAT; }
 };
 DECLARE_TYPE_AS_MOVABLE(lvar_saved_info_t);
 typedef qvector<lvar_saved_info_t> lvar_saved_infos_t;
@@ -2058,6 +2115,10 @@ public:
   bool hexapi has_common(const ivl_t &ivl, bool strict=false) const;
   bool hexapi contains(uint64 off) const;
   bool hexapi includes(const ivlset_t &ivs) const;
+  bool includes(const ivl_t &ivl) const
+  {
+    return !ivl.valid() || all_values() || has_common(ivl, true);
+  }
   bool hexapi intersect(const ivlset_t &ivs);
   bool is_subset_of(const ivlset_t &ivs) const { return ivs.includes(*this); }
   DECLARE_COMPARISONS(ivlset_t);
@@ -2109,7 +2170,7 @@ struct mlist_t
 
   void swap(mlist_t &r) { reg.swap(r.reg); mem.swap(r.mem); }
   bool hexapi addmem(ea_t ea, asize_t size);
-  bool add(mreg_t r, int size) { return add(mlist_t(r, size)); } // also see append_def_list()
+  bool add(mreg_t r, int size) { return reg.add(r, size); } // also see append_def_list()
   bool add(const rlist_t &r)   { return reg.add(r); }
   bool add(const ivl_t &ivl)   { return add(mlist_t(ivl)); }
   bool add(const mlist_t &lst)
@@ -2133,13 +2194,18 @@ struct mlist_t
   const char *hexapi dstr() const;
   bool empty() const { return reg.empty() && mem.empty(); }
   void clear() { reg.clear(); mem.clear(); }
+  void qclear() { reg.clear(); mem.qclear(); }
   bool has(mreg_t r) const { return reg.has(r); }
   bool has_all(mreg_t r, int size) const { return reg.has_all(r, size); }
   bool has_any(mreg_t r, int size) const { return reg.has_any(r, size); }
   bool has_memory() const { return !mem.empty(); }
   bool has_allmem() const { return mem == ALLMEM; }
   bool has_common(const mlist_t &lst) const { return reg.has_common(lst.reg) || mem.has_common(lst.mem); }
+  /// Same for a single memory interval. Equivalent to has_common(mlist_t(ivl))
+  /// but does not build a temporary list, which would allocate memory.
+  bool has_common(const ivl_t &ivl) const { return mem.has_common(ivl); }
   bool includes(const mlist_t &lst) const { return reg.includes(lst.reg) && mem.includes(lst.mem); }
+  bool includes(const ivl_t &ivl) const { return mem.includes(ivl); }
   bool intersect(const mlist_t &lst)
   {
     bool changed = reg.intersect(lst.reg);
@@ -3330,12 +3396,14 @@ enum funcrole_t
   ROLE_CONST_CLASS,          ///< get class reference (Dalvik CONST_CLASS)
   ROLE_FILL_ARRAY_DATA,      ///< fill existing array with constant data
                              ///< (Dalvik FILL_ARRAY_DATA, no allocation)
+  ROLE_EH_HANDLER_CONT,      ///< marks a dalvik eh handler continuation block
+                             ///< (mblock_t::is_eh_handler_continuation_call()).
 };
 
 /// Is this an EH exception handling role?
 inline bool is_eh_role(funcrole_t r)
 {
-  return r >= ROLE_EH_TRY && r <= ROLE_EH_CATCH_ABSENT;
+  return (r >= ROLE_EH_TRY && r <= ROLE_EH_CATCH_ABSENT) || (r == ROLE_EH_HANDLER_CONT);
 }
 
 /// \defgroup FUNC_NAME_ Well known function names
@@ -3639,6 +3707,13 @@ public:
     { return get_chain(chain_t(k, width)); }
   chain_t *get_chain(const voff_t &k, int width=1)
     { return (chain_t*)((const block_chains_t *)this)->get_chain(k, width); }
+
+  /// Get chain for the specified register or stack operand.
+  /// \param mop   register or stack microoperand; its size is used as width
+  const chain_t *get_chain(const mop_t &mop) const
+    { return get_chain(chain_t(voff_t(mop), mop.size)); }
+  chain_t *get_chain(const mop_t &mop)
+    { return get_chain(chain_t(voff_t(mop), mop.size)); }
 
   /// Get chain similar to the specified chain
   /// \param ch    chain to search for. only its 'k' and 'width' are used.
@@ -4320,6 +4395,8 @@ enum mblock_type_t
 #define MAXRANGE bitrange_t(0, USHRT_MAX)
 
 //-------------------------------------------------------------------------
+
+
 /// Microcode of one basic block.
 /// All blocks are part of a doubly linked list. They can also be addressed
 /// by indexing the mba->natural array. A block contains a doubly linked list
@@ -4357,6 +4434,7 @@ public:
 #define MBL_KEEP       0x10000  ///< do not remove even if unreachable
 #define MBL_INLINED    0x20000  ///< block was inlined, not originally part of mbr
 #define MBL_EXTFRAME   0x40000  ///< an inlined block with an external frame
+
   //@}
   ea_t start;                   ///< start address
   ea_t end;                     ///< end address
@@ -4389,6 +4467,7 @@ public:
 
   // the exact size of this class is not documented, there may be more fields
   char reserved[];
+
 
   void mark_lists_dirty() { flags &= ~MBL_LIST; request_propagation(); }
   void request_propagation() { flags |= MBL_PROP; }
@@ -4801,7 +4880,7 @@ enum warnid_t
   WARN_NO_SAVE_REST,  ///< 14 could not find valid save-restore pair for %s
   WARN_ODD_INPUT_REG, ///< 15 odd input register %s
   WARN_ODD_ADDR_USE,  ///< 16 odd use of a variable address
-  WARN_MUST_RET_FP,   ///< 17 function return type is incorrect (must be floating point)
+  WARN_MUST_RET_FP,   ///< 17 function leaves %d value(s) on the fpu stack but its return type accounts for %d
   WARN_ILL_FPU_STACK, ///< 18 inconsistent fpu stack
   WARN_SELFREF_PROP,  ///< 19 self-referencing variable has been detected
   WARN_WOULD_OVERLAP, ///< 20 variables would overlap: %s
@@ -5251,7 +5330,7 @@ public:
 
 #define MBA2_INITIAL_FLAGS  (MBA2_LVARNAMES_OK|MBA2_LVARS_RENAMED)
 
-#define MBA2_ALL_FLAGS    0x0001FFFF
+#define MBA2_ALL_FLAGS    0x0003FFFF
 
   bool precise_defeas() const { return (flags & MBA_PRCDEFS) != 0; }
   bool optimized()      const { return (flags & MBA_GLBOPT) != 0; }
@@ -5461,6 +5540,8 @@ public:
 
   // the exact size of this class is not documented, there may be more fields
   char reserved[];
+  /// find_defining_insn() memo (finddef.cpp). Holds minsn_t pointers, hence
+  /// living here: it dies with the microcode. Released by finddef_free().
   mba_t(); // use gen_microcode() or create_empty_mba() to create microcode objects
   ~mba_t() { term(); }
   HEXRAYS_MEMORY_ALLOCATION_FUNCS()
@@ -5578,6 +5659,9 @@ public:
   /// \param bblk the new block will be inserted before BBLK
   /// \return ptr to the new block
   mblock_t *hexapi insert_block(int bblk);
+
+  // Insert COUNT new blocks before block NB and return the first one.
+  mblock_t *hexapi insert_blocks(int bblk, int count);
 
   /// Split a block: insert a new one after the block, move some instructions
   /// to new block
@@ -5826,6 +5910,14 @@ public:
         user_minsn_action_t action,
         mba_maturity_t mmat);
 
+  /// Mark a microoperand as a UDT (struct/union) and remember its type.
+  /// The operand will be treated as this struct/union type when the
+  /// decompiler builds the ctree.
+  /// \param m   instruction the type is associated with
+  /// \param mop operand to mark as UDT (usually &m->d or &m->l)
+  /// \param tif type of the operand
+  void hexapi set_mop_udt(minsn_t *m, mop_t *mop, const tinfo_t &tif);
+
   bool hexapi set_lvar_name(lvar_t &v, const char *name, int flagbits);
   bool set_nice_lvar_name(lvar_t &v, const char *name) { return set_lvar_name(v, name, CVAR_NAME); }
   bool set_user_lvar_name(lvar_t &v, const char *name) { return set_lvar_name(v, name, CVAR_NAME|CVAR_UNAME); }
@@ -5938,6 +6030,11 @@ public:
   bool is_used_globally(const mlist_t &list, int b1, int b2, const minsn_t *m1, const minsn_t *m2, maymust_t maymust=MAY_ACCESS) const
     { return is_accessed_globally(list, b1, b2, m1, m2, READ_ACCESS, maymust); }
 
+  /// Collect the sublist of LIST that is read in the graph.
+  /// Unlike is_used_globally(), which stops at the first read, this performs
+  /// a single global pass and accumulates all read locations into USED.
+  void get_global_uses(mlist_t *used, const mlist_t &list, int b1, int b2, const minsn_t *m1, const minsn_t *m2, maymust_t maymust=MAY_ACCESS) const;
+
   mblock_t *get_mblock(int n) const { return mba->get_mblock(n); }
 };
 
@@ -5981,7 +6078,7 @@ public:
   insn_t insn;            // instruction to generate microcode for
   char ignore_micro = IM_NONE; // value of get_ignore_micro() for the insn
   cdg_insn_iterator_t ii; // instruction iterator
-  size_t reserved[4];
+  size_t reserved[5];
 
   codegen_t() = delete;
   virtual ~codegen_t()
@@ -6045,12 +6142,7 @@ public:
 
   /// \retval true   the switch will be handled in the standard way
   /// \retval false  the switch will be handled by the processor submodule
-  virtual bool idaapi should_handle_switch(
-        [[maybe_unused]] ea_t ea,
-        [[maybe_unused]] const switch_info_t &si) const
-  {
-    return true;
-  }
+  virtual bool hexapi should_handle_switch(ea_t ea, const switch_info_t &si) const;
 
   /// Emit one microinstruction.
   /// The L, R, D arguments usually mean the register number. However, they depend
@@ -6191,6 +6283,13 @@ inline ivl_t mba_t::get_stack_region() const
 
 const char *hexapi get_hexrays_version();
 
+/// Check if the decompiler is available for the current database:
+/// a decompiler plugin is loaded and the active license includes a
+/// usable decompiler add-on for it (the same check that gates new
+/// decompilations).
+
+bool hexapi is_decompiler_usable();
+
 /// \defgroup OPF_ open_pseudocode flags
 /// Used in open_pseudocode
 ///@{
@@ -6238,8 +6337,10 @@ vdui_t *hexapi get_widget_vdui(TWidget *f);
 #define VDRUN_CMDLINE 0x00000020  ///< Called from ida's command line
 #define VDRUN_STATS   0x00000040  ///< Print statistics into vd_stats.txt
 #define VDRUN_LUMINA  0x00000080  ///< Use lumina server
+#define VDRUN_TMPFILE 0x00000100  ///< Use a temp file for decompiled text to save memory
 #define VDRUN_PERF    0x00200000  ///< Print performance stats to ida.log
 ///@}
+
 
 /// Batch decompilation.
 /// Decompile all or the specified functions
@@ -6308,6 +6409,31 @@ struct gco_info_t
 /// \param out[out] output buffer
 bool hexapi get_current_operand(gco_info_t *out);
 
+
+/// Save into the database the arguments manually added by the user to a call
+/// of a variadic function (see the "Add vararg"/"Delete vararg" commands).
+/// The arguments are attached to the address of the call instruction.
+/// \param mba the microcode of the function that contains the call
+/// \param ea  the address of the call instruction
+/// \param mfa the arguments to store; if nullptr, nothing is stored
+void hexapi save_funcargs(const mba_t *mba, ea_t ea, const mcallargs_t *mfa);
+
+/// Restore user-defined variadic call arguments from the database.
+/// \param mba the microcode of the function that contains the call
+/// \param ea  the address of the call instruction
+/// \return the stored arguments, or nullptr if there are none.
+///         The returned object must be deleted by the caller.
+funcargvec_t *hexapi restore_funcargs(const mba_t *mba, ea_t ea);
+
+/// Does the call at the specified address have user-defined variadic arguments?
+/// \param mba the microcode of the function that contains the call
+/// \param ea  the address of the call instruction
+bool hexapi have_funcargs(const mba_t *mba, ea_t ea);
+
+/// Delete user-defined variadic call arguments for the call at EA from the database.
+/// \param mba the microcode of the function that contains the call
+/// \param ea  the address of the call instruction
+void hexapi remove_funcargs(const mba_t *mba, ea_t ea);
 void hexapi remitem(const citem_t *e);
 //-------------------------------------------------------------------------
 /// Ctree item code. At the beginning of this list there are expression
@@ -6768,7 +6894,8 @@ struct cexpr_t : public citem_t
       {
         cexpr_t *y;   ///< the second operand of the expression
         carglist_t *a;///< argument list (used for \ref cot_call)
-        uint32 m;     ///< member offset (used for \ref cot_memptr, \ref cot_memref)
+        uint64 m;     ///< member offset (used for \ref cot_memptr, \ref cot_memref)
+                      ///< in bytes; in bits for bitfield accesses (\ref EXFL_BITFIELD)
                       ///< for unions, the member number
       };
       union
@@ -6797,7 +6924,11 @@ struct cexpr_t : public citem_t
 #define EXFL_JUMPOUT 0x0080 ///< jump out-of-function
 #define EXFL_VFTABLE 0x0100 ///< is ptr to vftable (used for \ref cot_memptr, \ref cot_memref)
 #define EXFL_UCAST   0x0200 ///< user-defined cast, not to be removed by CPA
-#define EXFL_ALL     0x03FF ///< all currently defined bits
+#define EXFL_BITFIELD 0x0400 ///< bitfield member access; \ref cexpr_t::m
+                            ///< holds the member bit offset, or the member
+                            ///< index if the parent udt is a union
+                            ///< (used for \ref cot_memptr, \ref cot_memref)
+#define EXFL_ALL     0x07FF ///< all currently defined bits
 ///@}
   /// Pointer arithmetic correction done for this expression?
   bool cpadone() const         { return (exflags & EXFL_CPADONE) != 0; }
@@ -6809,11 +6940,24 @@ struct cexpr_t : public citem_t
   bool is_jumpout() const      { return (exflags & EXFL_JUMPOUT) != 0; }
   bool is_vftable() const      { return (exflags & EXFL_VFTABLE) != 0; }
   bool is_user_cast() const    { return (exflags & EXFL_UCAST) != 0; }
+  bool is_bitfield_access() const { return (exflags & EXFL_BITFIELD) != 0; }
+  /// Bit offset of the member accessed by \ref cot_memptr or \ref cot_memref.
+  /// Use this instead of reading 'm' directly: for bitfield accesses
+  /// 'm' keeps the bit offset, otherwise the byte offset.
+  /// For union members 'm' is the member index in both cases; check the
+  /// parent type before using the result as an offset.
+  uint64 memref_bitoff() const { return is_bitfield_access() ? m : m * 8; }
+  /// Byte offset of the member accessed by \ref cot_memptr or \ref cot_memref.
+  /// For bitfield accesses: the byte containing the first bit of the member.
+  /// For union members 'm' is the member index in both cases; check the
+  /// parent type before using the result as an offset.
+  uint64 memref_byteoff() const { return is_bitfield_access() ? m / 8 : m; }
 
 
   void set_cpadone()      { exflags |= EXFL_CPADONE; }
   void set_vftable()      { exflags |= EXFL_VFTABLE; }
   void set_user_cast()    { exflags |= EXFL_UCAST; }
+  void set_bitfield_access() { exflags |= EXFL_BITFIELD; }
   void set_type_partial(bool val = true)
   {
     if ( val )
@@ -7043,8 +7187,9 @@ enum use_curly_t
 /// If statement
 struct cif_t : public ceinsn_t
 {
-  cinsn_t *ithen = nullptr; ///< Then-branch of the if-statement
-  cinsn_t *ielse = nullptr; ///< Else-branch of the if-statement. May be nullptr.
+  cinsn_t *ithen = nullptr; ///< Then-branch of the if-statement (must be cit_block)
+  cinsn_t *ielse = nullptr; ///< Else-branch of the if-statement (must be cit_block).
+                            ///< May be nullptr.
   cif_t() {}
   cif_t(const cif_t &r) : ceinsn_t(), ithen(nullptr), ielse(nullptr) { *this = r; }
   cif_t &operator=(const cif_t &r) { return assign(r); }
@@ -7745,6 +7890,9 @@ AS_PRINTF(3, 4) inline cexpr_t *call_helper(
 /// specified number representation in the pseudocode view.
 
 cexpr_t *hexapi make_num(uint64 n, cfunc_t *func=nullptr, ea_t ea=BADADDR, int opnum=0, type_sign_t sign=no_sign, int size=0);
+
+
+/// Build the always-true condition of an endless loop, as a number or as a
 
 
 /// Create a reference.
@@ -9082,6 +9230,156 @@ int hexapi select_udt_by_offset(
 
 
 
+//-------------------------------------------------------------------------
+/// \defgroup classes Class API
+/// The classes of the program as a language-level structure: what the
+/// Classes view shows, available to plugins and scripts. Names and types
+/// are the database's: renaming a method's function, retyping a static
+/// field's global or a class struct member is reflected here.
+///@{
+
+/// Kind of a class
+enum class_kind_t
+{
+  CK_CLASS,        ///< Java/Kotlin/Swift class
+  CK_STRUCT,       ///< Go/Rust/Swift struct
+  CK_INTERFACE,    ///< Java interface, Go interface, Rust trait, Swift protocol
+  CK_ENUM,         ///< Java/Kotlin/Rust/Swift enum
+  CK_UNION,        ///< C-style union exposed as a class (e.g. cgo)
+  CK_ANNOTATION,   ///< Java @interface
+};
+
+/// \defgroup CLF_ Class and member flags
+/// Used by class_t::flags and class_member_t::flags
+///@{
+#define CLF_PUBLIC      0x00000001   ///< public access
+#define CLF_PROTECTED   0x00000002   ///< protected access
+#define CLF_PRIVATE     0x00000004   ///< private access
+#define CLF_INTERNAL    0x00000008   ///< module-internal (Swift/Kotlin); none of the four = language default
+#define CLF_STATIC      0x00000010   ///< static (class-level, not per instance)
+#define CLF_FINAL       0x00000020   ///< cannot be subclassed / overridden (Java final, Rust sealed-like)
+#define CLF_ABSTRACT    0x00000040   ///< no implementation; must be overridden (Java/C++ abstract)
+#define CLF_SYNTHETIC   0x00000080   ///< compiler-generated
+#define CLF_EXTERNAL    0x00000100   ///< defined outside the program (foreign class, native method)
+#define CLF_HIDDEN      0x00000200   ///< the class view does not show it
+// members only
+#define CLF_METHOD      0x00010000   ///< a method (else a field)
+#define CLF_CTOR        0x00020000   ///< constructor / initializer
+#define CLF_CLASS_INIT  0x00040000   ///< static initializer
+#define CLF_ENUM_CONST  0x00080000   ///< enumeration constant
+///@}
+
+/// One class of the program
+struct class_t
+{
+  qstring name;                 ///< fully qualified, in the language's own spelling:
+                                ///< "com.foo.Bar$Baz", "main.Server", "core::fmt::Formatter"
+  qstring outer;                ///< FQN of the directly enclosing type; empty if top-level
+  tinfo_t tif;                  ///< the IDB type of the class; empty if none
+  ea_t ea = BADADDR;            ///< address of the type's metadata in the program; BADADDR if none
+  class_kind_t kind = CK_CLASS; ///< what kind of type this is
+  uint32 flags = 0;             ///< \ref CLF_
+};
+DECLARE_TYPE_AS_MOVABLE(class_t);
+typedef qvector<class_t> classes_t;
+
+/// Which classes get_classes() returns. A default-constructed filter selects
+/// every class the class view shows.
+struct class_filter_t
+{
+  qstring name;                 ///< wildcard pattern (* ?) on the FQN; empty = any
+  ea_t ea = BADADDR;            ///< only the class whose member is at EA (see class_member_t::ea)
+  int flags = 0;                ///< \ref GCL_
+};
+
+/// \defgroup GCL_ get_classes() filter flags
+///@{
+#define GCL_TOPLEVEL_ONLY  0x01   ///< omit nested classes
+#define GCL_INCLUDE_HIDDEN 0x02   ///< also return CLF_HIDDEN classes
+///@}
+
+/// Classes of the program matching FILTER (nullptr = all), in the class view's
+/// order: top-level types by name, each followed depth-first by its nested types.
+/// \return false if the current decompiler/language has no class model
+bool hexapi get_classes(classes_t *out, const class_filter_t *filter=nullptr);
+
+/// A field or a method of a class
+struct class_member_t
+{
+  qstring name;                 ///< the member's name as the class view shows it
+  qstring typestr;              ///< the type as the language spells it, when it says more than
+                                ///< 'type': "List<String>", "map[string]int", "Option<Box<T>>"
+  qstring value;                ///< field: constant initializer text ("42", "\"abc\""); else empty
+  qstring decl;                 ///< declaration without body, as the class view renders it
+  qstrvec_t attrs;              ///< attribute lines as the language writes them:
+                                ///< "@Inject", "#[derive(Debug)]", "@objc", Go struct tags
+  tinfo_t type;                 ///< field type / method prototype (parameter names included when known)
+  ea_t ea = BADADDR;            ///< the IDB entity of the member: a method's function or import
+                                ///< entry, a static field's global; BADADDR for a member that
+                                ///< exists only as a struct member of the class (instance fields)
+  uint32 flags = 0;             ///< \ref CLF_
+};
+DECLARE_TYPE_AS_MOVABLE(class_member_t);
+typedef qvector<class_member_t> class_members_t;
+
+/// Everything the class view knows about one class
+struct class_info_t
+{
+  class_t cls;                  ///< identity, as returned by get_classes()
+  qstring source_file;          ///< when the program records it
+  qstring type_params;          ///< "<K, V extends Comparable<V>>", "[T any]", "<T: Clone>"; else empty
+  qstring enclosing_method;     ///< local/anonymous types: the function declaring them; else empty
+  qstrvec_t supertypes;         ///< nominal supertypes: Java/Swift superclass, Go embedded types
+  qstrvec_t interfaces;         ///< Java interfaces, Swift protocols, Rust implemented traits
+  qstrvec_t attrs;              ///< type-level attributes (annotations, #[derive], @objc, ...)
+  qstrvec_t nested;             ///< FQNs of directly nested types, in view order
+  qstrvec_t decl;               ///< header lines as the class view shows them, minus the
+                                ///< attribute lines (those are in attrs): source-file
+                                ///< comment, package line, declaration line
+  class_members_t fields;       ///< static first, then instance
+  class_members_t methods;      ///< in declaration-table order
+};
+DECLARE_TYPE_AS_MOVABLE(class_info_t);
+
+/// \defgroup GCI_ get_class_info() flags
+///@{
+#define GCI_NO_TEXT 0x01        ///< leave decl/attrs/value empty (skips all rendering)
+///@}
+
+/// Everything the class view knows about CLS. Only CLS.name is required;
+/// CLS.ea disambiguates duplicate names (e.g. the same class in two DEX files).
+/// \return false if not found, or no class model
+bool hexapi get_class_info(class_info_t *out, const class_t &cls, int flags=0);
+
+/// \defgroup RCF_ render_class() / render_member() flags
+///@{
+#define RCF_NO_BODIES  0x01   ///< methods as bodyless declarations (an outline / stub of the class)
+#define RCF_NO_NESTED  0x02   ///< render_class: leave nested classes out
+#define RCF_NO_ATTRS   0x04   ///< omit annotation / attribute lines
+///@}
+
+/// Render one class exactly as the class view shows it: header lines, fields,
+/// methods with decompiled bodies, nested classes (recursively, indented as in
+/// the view), closing brace. Only CLS.name is required; CLS.ea disambiguates.
+/// A CLF_HIDDEN class (one the view does not show) is refused with false.
+/// \return false if the class is unknown or there is no class model
+bool hexapi render_class(qstrvec_t *lines, const class_t &cls, int flags=0);
+
+/// Render one member as the class view shows it: attribute lines, then for a
+/// field its declaration (with initializer), for a method its declaration and
+/// decompiled body followed by the decompiler warnings. A method that fails to
+/// decompile renders the same "#error"-style line the class view shows. A
+/// body-opening enum constant (e.g. Java's "GREEN { ... }") renders as its
+/// name and the opening brace; its body's members are separate class members.
+/// \param lines  rendered text, one line per entry, no indentation
+/// \param ea     the member's IDB entity, as reported in class_member_t::ea:
+///               a function or import entry, or a static field's global
+/// \param flags  \ref RCF_
+/// \return false if EA is not a class member or there is no class model
+bool hexapi render_member(qstrvec_t *lines, ea_t ea, int flags=0);
+
+///@}
+
 
 //--------------------------------------------------------------------------
 // PUBLIC HEX-RAYS API
@@ -9759,6 +10057,35 @@ enum hexcall_t
   hx_mba_t_clr_numform,
   hx_get_cached_cfunc_eas,
   hx_cfunc_t_find_addressable_item,
+  hx_set_decompiler_timeout,
+  hx_get_decompiler_timeout,
+  hx_user_mflags_begin,
+  hx_user_mflags_end,
+  hx_user_mflags_next,
+  hx_user_mflags_prev,
+  hx_user_mflags_first,
+  hx_user_mflags_second,
+  hx_user_mflags_find,
+  hx_user_mflags_insert,
+  hx_user_mflags_erase,
+  hx_user_mflags_clear,
+  hx_user_mflags_size,
+  hx_user_mflags_free,
+  hx_user_mflags_new,
+  hx_save_funcargs,
+  hx_restore_funcargs,
+  hx_have_funcargs,
+  hx_remove_funcargs,
+  hx_save_user_mflags,
+  hx_restore_user_mflags,
+  hx_codegen_t_should_handle_switch,
+  hx_mba_t_insert_blocks,
+  hx_mba_t_set_mop_udt,
+  hx_is_decompiler_usable,
+  hx_get_classes,
+  hx_get_class_info,
+  hx_render_class,
+  hx_render_member,
 };
 
 typedef size_t iterator_word;
@@ -9888,6 +10215,115 @@ inline void user_numforms_free(user_numforms_t *map)
 inline user_numforms_t *user_numforms_new()
 {
   return (user_numforms_t *)HEXDSP(hx_user_numforms_new);
+}
+
+//-------------------------------------------------------------------------
+struct user_mflags_iterator_t
+{
+  iterator_word x;
+  bool operator==(const user_mflags_iterator_t &p) const { return x == p.x; }
+  bool operator!=(const user_mflags_iterator_t &p) const { return x != p.x; }
+};
+
+//-------------------------------------------------------------------------
+/// Get reference to the current map key
+inline operand_locator_t const &user_mflags_first(user_mflags_iterator_t p)
+{
+  return *(operand_locator_t *)HEXDSP(hx_user_mflags_first, &p);
+}
+
+//-------------------------------------------------------------------------
+/// Get reference to the current map value
+inline int32 &user_mflags_second(user_mflags_iterator_t p)
+{
+  return *(int32 *)HEXDSP(hx_user_mflags_second, &p);
+}
+
+//-------------------------------------------------------------------------
+/// Find the specified key in user_mflags_t
+inline user_mflags_iterator_t user_mflags_find(const user_mflags_t *map, const operand_locator_t &key)
+{
+  user_mflags_iterator_t p;
+  HEXDSP(hx_user_mflags_find, &p, map, &key);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Insert new (operand_locator_t, int32) pair into user_mflags_t
+inline user_mflags_iterator_t user_mflags_insert(user_mflags_t *map, const operand_locator_t &key, const int32 &val)
+{
+  user_mflags_iterator_t p;
+  HEXDSP(hx_user_mflags_insert, &p, map, &key, &val);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Get iterator pointing to the beginning of user_mflags_t
+inline user_mflags_iterator_t user_mflags_begin(const user_mflags_t *map)
+{
+  user_mflags_iterator_t p;
+  HEXDSP(hx_user_mflags_begin, &p, map);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Get iterator pointing to the end of user_mflags_t
+inline user_mflags_iterator_t user_mflags_end(const user_mflags_t *map)
+{
+  user_mflags_iterator_t p;
+  HEXDSP(hx_user_mflags_end, &p, map);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Move to the next element
+inline user_mflags_iterator_t user_mflags_next(user_mflags_iterator_t p)
+{
+  HEXDSP(hx_user_mflags_next, &p);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Move to the previous element
+inline user_mflags_iterator_t user_mflags_prev(user_mflags_iterator_t p)
+{
+  HEXDSP(hx_user_mflags_prev, &p);
+  return p;
+}
+
+//-------------------------------------------------------------------------
+/// Erase current element from user_mflags_t
+inline void user_mflags_erase(user_mflags_t *map, user_mflags_iterator_t p)
+{
+  HEXDSP(hx_user_mflags_erase, map, &p);
+}
+
+//-------------------------------------------------------------------------
+/// Clear user_mflags_t
+inline void user_mflags_clear(user_mflags_t *map)
+{
+  HEXDSP(hx_user_mflags_clear, map);
+}
+
+//-------------------------------------------------------------------------
+/// Get size of user_mflags_t
+inline size_t user_mflags_size(user_mflags_t *map)
+{
+  return (size_t)HEXDSP(hx_user_mflags_size, map);
+}
+
+//-------------------------------------------------------------------------
+/// Delete user_mflags_t instance
+inline void user_mflags_free(user_mflags_t *map)
+{
+  HEXDSP(hx_user_mflags_free, map);
+}
+
+//-------------------------------------------------------------------------
+/// Create a new user_mflags_t instance
+inline user_mflags_t *user_mflags_new()
+{
+  return (user_mflags_t *)HEXDSP(hx_user_mflags_new);
 }
 
 //-------------------------------------------------------------------------
@@ -11084,6 +11520,18 @@ inline ea_t get_merror_desc(qstring *out, merror_t code, mba_t *mba)
 }
 
 //--------------------------------------------------------------------------
+inline int set_decompiler_timeout(int msecs)
+{
+  return (int)(size_t)HEXDSP(hx_set_decompiler_timeout, msecs);
+}
+
+//--------------------------------------------------------------------------
+inline int get_decompiler_timeout()
+{
+  return (int)(size_t)HEXDSP(hx_get_decompiler_timeout);
+}
+
+//--------------------------------------------------------------------------
 inline qstring hexrays_failure_t::desc() const
 {
   qstring retval;
@@ -11137,6 +11585,18 @@ inline THREAD_SAFE bool mcode_modifies_d(mcode_t mcode)
 inline int operand_locator_t::compare(const operand_locator_t &r) const
 {
   return (int)(size_t)HEXDSP(hx_operand_locator_t_compare, this, &r);
+}
+
+//--------------------------------------------------------------------------
+inline void save_user_mflags(ea_t func_ea, const user_mflags_t *mflags)
+{
+  HEXDSP(hx_save_user_mflags, func_ea, mflags);
+}
+
+//--------------------------------------------------------------------------
+inline user_mflags_t *restore_user_mflags(ea_t func_ea)
+{
+  return (user_mflags_t *)HEXDSP(hx_restore_user_mflags, func_ea);
 }
 
 //--------------------------------------------------------------------------
@@ -12719,6 +13179,12 @@ inline mblock_t *mba_t::insert_block(int bblk)
 }
 
 //--------------------------------------------------------------------------
+inline mblock_t *mba_t::insert_blocks(int bblk, int count)
+{
+  return (mblock_t *)HEXDSP(hx_mba_t_insert_blocks, this, bblk, count);
+}
+
+//--------------------------------------------------------------------------
 inline mblock_t *mba_t::split_block(mblock_t *blk, minsn_t *start_insn)
 {
   return (mblock_t *)HEXDSP(hx_mba_t_split_block, this, blk, start_insn);
@@ -12891,6 +13357,12 @@ inline bool mba_t::del_user_minsn(const minsn_locator_t &loc, user_minsn_action_
 }
 
 //--------------------------------------------------------------------------
+inline void mba_t::set_mop_udt(minsn_t *m, mop_t *mop, const tinfo_t &tif)
+{
+  HEXDSP(hx_mba_t_set_mop_udt, this, m, mop, &tif);
+}
+
+//--------------------------------------------------------------------------
 inline bool mba_t::set_lvar_name(lvar_t &v, const char *name, int flagbits)
 {
   return (uchar)(size_t)HEXDSP(hx_mba_t_set_lvar_name, this, &v, name, flagbits) != 0;
@@ -12927,6 +13399,12 @@ inline void codegen_t::clear()
 }
 
 //--------------------------------------------------------------------------
+inline bool codegen_t::should_handle_switch(ea_t ea, const switch_info_t &si) const
+{
+  return (uchar)(size_t)HEXDSP(hx_codegen_t_should_handle_switch, this, ea, &si) != 0;
+}
+
+//--------------------------------------------------------------------------
 inline minsn_t *codegen_t::emit(mcode_t code, int width, uval_t l, uval_t r, uval_t d, int offsize)
 {
   return (minsn_t *)HEXDSP(hx_codegen_t_emit, this, code, width, l, r, d, offsize);
@@ -12948,6 +13426,13 @@ inline bool change_hexrays_config(const char *directive)
 inline const char *get_hexrays_version()
 {
   return (const char *)HEXDSP(hx_get_hexrays_version);
+}
+
+//--------------------------------------------------------------------------
+inline bool is_decompiler_usable()
+{
+  auto hrdsp = HEXDSP;
+  return hrdsp != nullptr && (uchar)(size_t)hrdsp(hx_is_decompiler_usable);
 }
 
 //--------------------------------------------------------------------------
@@ -12990,6 +13475,30 @@ inline bool gco_info_t::append_to_list(mlist_t *list, const mba_t *mba) const
 inline bool get_current_operand(gco_info_t *out)
 {
   return (uchar)(size_t)HEXDSP(hx_get_current_operand, out) != 0;
+}
+
+//--------------------------------------------------------------------------
+inline void save_funcargs(const mba_t *mba, ea_t ea, const mcallargs_t *mfa)
+{
+  HEXDSP(hx_save_funcargs, mba, ea, mfa);
+}
+
+//--------------------------------------------------------------------------
+inline funcargvec_t *restore_funcargs(const mba_t *mba, ea_t ea)
+{
+  return (funcargvec_t *)HEXDSP(hx_restore_funcargs, mba, ea);
+}
+
+//--------------------------------------------------------------------------
+inline bool have_funcargs(const mba_t *mba, ea_t ea)
+{
+  return (uchar)(size_t)HEXDSP(hx_have_funcargs, mba, ea) != 0;
+}
+
+//--------------------------------------------------------------------------
+inline void remove_funcargs(const mba_t *mba, ea_t ea)
+{
+  HEXDSP(hx_remove_funcargs, mba, ea);
 }
 
 //--------------------------------------------------------------------------
@@ -14131,6 +14640,30 @@ inline bool vdui_t::split_item(bool split)
 inline int select_udt_by_offset(const qvector<tinfo_t> *udts, const ui_stroff_ops_t &ops, ui_stroff_applicator_t &applicator)
 {
   return (int)(size_t)HEXDSP(hx_select_udt_by_offset, udts, &ops, &applicator);
+}
+
+//--------------------------------------------------------------------------
+inline bool get_classes(classes_t *out, const class_filter_t *filter)
+{
+  return (uchar)(size_t)HEXDSP(hx_get_classes, out, filter) != 0;
+}
+
+//--------------------------------------------------------------------------
+inline bool get_class_info(class_info_t *out, const class_t &cls, int flags)
+{
+  return (uchar)(size_t)HEXDSP(hx_get_class_info, out, &cls, flags) != 0;
+}
+
+//--------------------------------------------------------------------------
+inline bool render_class(qstrvec_t *lines, const class_t &cls, int flags)
+{
+  return (uchar)(size_t)HEXDSP(hx_render_class, lines, &cls, flags) != 0;
+}
+
+//--------------------------------------------------------------------------
+inline bool render_member(qstrvec_t *lines, ea_t ea, int flags)
+{
+  return (uchar)(size_t)HEXDSP(hx_render_member, lines, ea, flags) != 0;
 }
 
 #ifdef __NT__
