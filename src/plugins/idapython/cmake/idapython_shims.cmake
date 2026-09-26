@@ -32,11 +32,10 @@ endif()
 find_package(idasdk REQUIRED PATHS "${IDASDK_CMAKE}"
     NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
 
-# --- 2. Python / SWIG (find only if the includer hasn't set them) ------
-if(NOT Python3_INCLUDE_DIRS)
-    include("${CMAKE_CURRENT_LIST_DIR}/idapython_python.cmake")
-    ida_find_python()
-endif()
+# --- 2. Python / SWIG -----------------------------------------------------
+# Unconditional: ida_find_python() no-ops if the includer already resolved it.
+include("${CMAKE_CURRENT_LIST_DIR}/idapython_python.cmake")
+ida_find_python()
 
 # SWIG (build-from-source / find + ccache-swig) lives in its own module.
 include("${CMAKE_CURRENT_LIST_DIR}/idapython_swig.cmake")

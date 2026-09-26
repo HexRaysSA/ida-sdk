@@ -46,7 +46,8 @@ endif()
 set(MODULE_NAMES
     hexrays
     allins auto bitrange bytes dbg diskio dirtree dscu entry expr fixup fpro frame
-    funcs gdl graph ida idaapi idc idd idp ieee kernwin libfuncs lines loader
+    funcs gdl graph ida idaapi idc idd idp ieee kcu kernwin libfuncs license
+    lines loader
     lumina indexer
 )
 if(IDA_TESTABLE_BUILD AND INTERNAL_ONLY_MODULES)
@@ -639,13 +640,8 @@ ida_module_warnings(idapython3 idapython)
 # Platform-specific linking
 target_link_libraries(idapython3 PRIVATE "${IDA_STUB_LIB}")
 if(IDA_MAC)
-    target_link_options(idapython3 PRIVATE
-        "-Wl,-weak-l${IDA_PYTHON_VERNAME}"
-        -flat_namespace
-    )
-    if(Python3_LIBRARY_DIRS)
-        target_link_directories(idapython3 PRIVATE "${Python3_LIBRARY_DIRS}")
-    endif()
+    # No libpython link: Python is reached via dlopen/dlsym
+    # (INDIRECT_PYTHON_API), so the plugin has no Python dependency.
     set_target_properties(idapython3 PROPERTIES
         INSTALL_NAME_DIR "@rpath/plugins"
         BUILD_WITH_INSTALL_NAME_DIR ON
@@ -759,9 +755,12 @@ endforeach()
 
 # 9d. Deploy examples
 if(EXISTS "${IDAPYTHON_SRC}/examples")
-    # Deploy .py files + index.md + README.md (Make deploys all three)
+    # Deploy the .py files plus every index.md / README.md in the tree.
+    # templates/ rides along: the Export-to-HTML dialog discovers the
+    # Produce-HTML templates at <idadir>/python/examples/templates.
     file(GLOB_RECURSE _example_files RELATIVE "${IDAPYTHON_SRC}/examples" "${IDAPYTHON_SRC}/examples/*.py")
-    list(APPEND _example_files index.md README.md)
+    file(GLOB_RECURSE _example_docs RELATIVE "${IDAPYTHON_SRC}/examples" "${IDAPYTHON_SRC}/examples/*.md")
+    list(APPEND _example_files ${_example_docs})
     foreach(_example ${_example_files})
         set(_src "${IDAPYTHON_SRC}/examples/${_example}")
         set(_dst "${DEPLOY_PYDIR}/examples/${_example}")

@@ -6,6 +6,8 @@
 # stay self-contained: no IDAPython variables, and nothing beyond the platform
 # flags (IDA_NT, IDA_ARCH) that both sides define.
 #
+# Sole owner of the policy; a second call in one configure is a no-op.
+#
 #   ida_find_python()
 #     Honours cache vars IDA_PYTHON / IDA_PYTHON_VERSION_MINOR, otherwise
 #     auto-detects the lowest-minor Python in the supported range. Populates
@@ -26,7 +28,7 @@
 # CMAKE_CURRENT_LIST_DIR inside a function refers to the defining file.
 set(_IDAPYTHON_PY_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
-set(_IDA_PYTHON_SUPPORTED_MINORS 9 10 11 12 13 14)
+set(_IDA_PYTHON_SUPPORTED_MINORS 9 10 11 12 13 14 15)
 
 # -----------------------------------------------------------------------------
 # Clear the cache variables FindPython3 reuses internally. `unset(... CACHE)`
@@ -62,10 +64,34 @@ function(_ida_reset_python_cache)
     endforeach()
 endfunction()
 
+# Macro, not a function: PARENT_SCOPE must land in ida_find_python()'s caller.
+macro(_ida_export_python)
+    foreach(_v
+            Python3_EXECUTABLE Python3_VERSION
+            Python3_VERSION_MAJOR Python3_VERSION_MINOR Python3_VERSION_PATCH
+            Python3_INCLUDE_DIRS Python3_LIBRARIES Python3_LIBRARY_DIRS
+            Python3_Development_FOUND Python3_Interpreter_FOUND
+            Python3_FOUND)
+        set(${_v} "${${_v}}" PARENT_SCOPE)
+    endforeach()
+
+    # Aliases consumed downstream.
+    set(IDA_PYTHON "${Python3_EXECUTABLE}" PARENT_SCOPE)
+    set(IDA_PYTHON_VERNAME
+        "python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}${IDA_PYTHON_VERSION_SUFFIX}"
+        PARENT_SCOPE)
+endmacro()
+
 # -----------------------------------------------------------------------------
 # Full detection - post-project() use.
 # -----------------------------------------------------------------------------
 function(ida_find_python)
+    # Only this function sets Python3_INCLUDE_DIRS: already resolved, re-export.
+    if(Python3_INCLUDE_DIRS)
+        _ida_export_python()
+        return()
+    endif()
+
     set(IDA_PYTHON_VERSION_SUFFIX "${IDA_PYTHON_VERSION_SUFFIX}"
         CACHE STRING "Python version suffix (e.g. 'd' for debug)")
 
@@ -94,10 +120,10 @@ function(ida_find_python)
     # - Linux cross-compile / Android: skip Development to avoid arch mismatch.
     # - IDA_CODE_CHECKER: headers only - the .Embed probe wants a real linker,
     #   which that build replaces with a stub.
-    # Everywhere else the full Development component is needed: macOS weak-links
-    # libpython into idapython3, and only its .Embed half locates the library
-    # (Development.Module leaves Python3_LIBRARY_DIRS empty, so -weak-l gets no
-    # -L and the link fails). Override with IDA_PYTHON_COMPONENTS.
+    # Everywhere else the full Development component is needed for the internal
+    # test_pywraps executable, which links libpython (only .Embed locates it;
+    # Development.Module leaves Python3_LIBRARY_DIRS empty). The shipped
+    # idapython3 plugin links no libpython. Override with IDA_PYTHON_COMPONENTS.
     if(IDA_NT
             OR (IDA_LINUX AND IDA_CROSS_COMPILING)
             OR IDA_ANDROID)
@@ -126,7 +152,7 @@ function(ida_find_python)
                      COMPONENTS ${_components})
     else()
         # Auto-detect: find lowest supported version.
-        # Do NOT use version range (3.9...<3.15): it doesn't guarantee
+        # Do NOT use version range (3.9...<3.16): it doesn't guarantee
         # lowest-first order and hits CMake arch-check bugs with find_msvc
         # on Windows.
         set(_found FALSE)
@@ -144,14 +170,14 @@ function(ida_find_python)
         endforeach()
         if(NOT _found)
             message(FATAL_ERROR
-                "No Python 3.9-3.14 found. Install Python or set "
+                "No Python 3.9-3.15 found. Install Python or set "
                 "-DIDA_PYTHON_VERSION_MINOR=<minor> or -DIDA_PYTHON=<path>")
         endif()
     endif()
 
-    # Get Development separately when it wasn't requested above.
+    # Get Development separately when it wasn't requested above; a miss is
+    # harmless, the explicit cross include below wins either way.
     if(NOT Python3_Development_FOUND
-            AND IDA_BUILD_IDA
             AND NOT IDA_NT)
         find_package(Python3 ${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}
                      EXACT COMPONENTS Development QUIET)
@@ -160,7 +186,8 @@ function(ida_find_python)
     # Windows: generate python3.lib from the stable ABI .def file so that no
     # Python "Development" component (headers + libs) needs to be installed.
     # Non-Windows cross-compile: override include/lib dirs with target-arch.
-    if(IDA_NT OR (IDA_CROSS_COMPILING AND (NOT Python3_INCLUDE_DIRS)))
+    # The override wins over anything found above: that probe ran on the host.
+    if(IDA_NT OR (IDA_CROSS_COMPILING AND DEFINED IDA_ARM64_CROSS_PYTHON_INCLUDE))
         if(DEFINED IDA_ARM64_CROSS_PYTHON_INCLUDE)
             set(Python3_INCLUDE_DIRS "${IDA_ARM64_CROSS_PYTHON_INCLUDE}")
         elseif(IDA_NT)
@@ -199,20 +226,6 @@ function(ida_find_python)
         endif()
     endif()
 
-    # Propagate to parent scope (function-local by default).
-    foreach(_v
-            Python3_EXECUTABLE Python3_VERSION
-            Python3_VERSION_MAJOR Python3_VERSION_MINOR Python3_VERSION_PATCH
-            Python3_INCLUDE_DIRS Python3_LIBRARIES Python3_LIBRARY_DIRS
-            Python3_Development_FOUND Python3_Interpreter_FOUND
-            Python3_FOUND)
-        set(${_v} "${${_v}}" PARENT_SCOPE)
-    endforeach()
-
-    # Aliases consumed downstream.
-    set(IDA_PYTHON "${Python3_EXECUTABLE}" PARENT_SCOPE)
-    set(IDA_PYTHON_VERNAME
-        "python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}${IDA_PYTHON_VERSION_SUFFIX}"
-        PARENT_SCOPE)
+    _ida_export_python()
     message(STATUS "Python: ${Python3_EXECUTABLE} (${Python3_VERSION})")
 endfunction()

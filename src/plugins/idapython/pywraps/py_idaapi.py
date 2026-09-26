@@ -22,12 +22,18 @@ ea_t = int
 
 __EA64__ = BADADDR == 0xFFFFFFFFFFFFFFFF
 
-import inspect
-import struct
-import traceback
-import os
-import sys
 import bisect
+import contextlib
+import gc
+import inspect
+import io
+import os
+import struct
+import sys
+import tokenize
+import traceback
+import weakref
+
 try:
     import __builtin__ as builtins
     # This basically mimics six's features (it's not ok to ask the IDAPython runtime to rely on six)
@@ -661,61 +667,240 @@ def IDAPython_FormatExc(etype, value=None, tb=None, limit=None):
 
 
 # ------------------------------------------------------------
-def IDAPython_ExecScript(path, g, print_error=True, script_args=None):
-    """
-    Run the specified script.
+# Import-machinery names a script's namespace carries; run_script() reports only
+# what the script itself defined, and teardown leaves them in place so a __del__
+# running during reclaim can still reach builtins.
+_META_NAMES = frozenset((
+    '__name__', '__file__', '__loader__', '__spec__',
+    '__builtins__', '__package__', '__cached__', '__doc__',
+))
 
-    This function is used by the low-level plugin code.
+
+class ScriptNamespace(dict):
+    """The names a script defined, returned by run_script().
+
+    Read-only, and both a mapping and a namespace: `ns["foo"]` and `ns.foo` are
+    the same value. For an isolated run it owns the run namespace - dropping it
+    reclaims what the script created, hooks included.
+    """
+    def __getattr__(self, name):
+        # ns.foo -> ns["foo"]; runs only when normal lookup fails, so dict
+        # methods and real attributes (the teardown handle) still win.
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name) from None
+
+    def _readonly(self, *args, **kwargs):
+        raise TypeError("the run_script() result is read-only")
+
+    # dict.__init__ fills it in through the C path, so building one still works
+    __setitem__ = __delitem__ = __ior__ = _readonly
+    clear = pop = popitem = setdefault = update = _readonly
+
+
+# ------------------------------------------------------------
+def _is_live_module_globals(g):
+    # True if g is a live module's __dict__ (i.e. someone passed globals()).
+    name = g.get("__name__") if isinstance(g, dict) else None
+    mod = sys.modules.get(name) if name is not None else None
+    return getattr(mod, "__dict__", None) is g
+
+
+# ------------------------------------------------------------
+def _teardown_namespace(ns):
+    """Unbind everything but the import-machinery names.
+
+    Breaks the namespace<->definitions cycle so refcounting reclaims it, while a
+    __del__ running here still finds __builtins__.
+    """
+    for name in [n for n in ns if n not in _META_NAMES]:
+        del ns[name]
+
+
+# ------------------------------------------------------------
+_CODING_PAT = re.compile(rb'(?m)^\s*#.*coding[:=]\s*([-\w.]+)')
+
+
+# ------------------------------------------------------------
+def _compile_file(path):
+    """Compile `path`, accepting a coding cookie past line 2 as IDA always has."""
+    with open(path, "rb") as fin:
+        raw = fin.read()
+    try:
+        # PEP 263 proper: a cookie on the first two lines, BOM handled
+        encoding, _ = tokenize.detect_encoding(io.BytesIO(raw).readline)
+        src = raw.decode(encoding)
+    except (SyntaxError, UnicodeDecodeError):
+        # cookie further down - plain Python refuses; see the misc5 UI test
+        match = _CODING_PAT.search(raw)
+        src = raw.decode(match.group(1).decode('ascii') if match else 'UTF-8')
+    return compile(src, path, 'exec')
+
+
+# ------------------------------------------------------------
+def _run_in_place(path, g) -> ScriptNamespace:
+    """Run in `g` itself, as `exec(code, g)` always did.
+
+    Only for a rooted namespace: it never becomes garbage, so the cycle it forms
+    is live by design and unbinding a name frees the object.
+    """
+    before = set(g)
+    had_file = '__file__' in g
+    old_file = g.get('__file__')
+    g['__file__'] = path
+    try:
+        exec(_compile_file(path), g)
+    finally:
+        if had_file:
+            g['__file__'] = old_file
+        else:
+            g.pop('__file__', None)
+    defined = {name: value for name, value in g.items()
+               if name not in before and name not in _META_NAMES}
+    return ScriptNamespace(defined)
+
+
+# ------------------------------------------------------------
+@contextlib.contextmanager
+def _script_context(path, script_args=None):
+    """The environment every script gets, whichever entry point runs it.
+
+    Its own directory on sys.path (for good, as always), and sys.argv ==
+    [path] + args for the run, restored wholesale afterwards.
     """
     path_dir = os.path.dirname(path)
-    if len(path_dir) and path_dir not in sys.path:
+    if path_dir and path_dir not in sys.path:
         sys.path.append(path_dir)
-
-    argv = sys.argv
-    if script_args:
-        sys.argv = [path] + list(script_args)
-    else:
-        sys.argv = [path]
-
-    # Adjust the __file__ path in the globals we pass to the script
-    FILE_ATTR = "__file__"
-    has__file__ = FILE_ATTR in g
-    if has__file__:
-        old__file__ = g[FILE_ATTR]
-    g[FILE_ATTR] = path
-
+    saved = sys.argv
+    sys.argv = [path] + list(script_args or ())
     try:
-        if sys.version_info.major >= 3:
-            with open(path, "rb") as fin:
-                raw = fin.read()
-            encoding = "UTF-8" # UTF-8 by default: https://www.python.org/dev/peps/pep-3120/
-
-            # Look for a 'coding' comment
-            encoding_pat = re.compile(r'\s*#.*coding[:=]\s*([-\w.]+).*')
-            for line in raw.decode("ASCII", errors='replace').split("\n"):
-                match = encoding_pat.match(line)
-                if match:
-                    encoding = match.group(1)
-                    break
-
-            code = compile(raw.decode(encoding), path, 'exec')
-            exec(code, g)
-        else:
-            execfile(path, g)
-        PY_COMPILE_ERR = None
-    except Exception as e:
-        PY_COMPILE_ERR = "%s\n%s" % (str(e), traceback.format_exc())
-        if print_error:
-            print(PY_COMPILE_ERR)
+        yield
     finally:
-        # Restore state
-        if has__file__:
-            g[FILE_ATTR] = old__file__
-        else:
-            del g[FILE_ATTR]
-        sys.argv = argv
+        sys.argv = saved
 
-    return PY_COMPILE_ERR
+
+# ------------------------------------------------------------
+def _run_isolated(path, init_globals) -> ScriptNamespace:
+    """Run in a namespace of our own and return a handle that reclaims it.
+
+    The handle is a *copy* of what the script defined: `ns` and those definitions
+    reference each other, so a handle inside that cycle would need a cyclic gc
+    pass - the bug. Outside it, dropping the handle reclaims by refcount.
+    """
+    if init_globals is not None:
+        seed = init_globals
+    else:
+        # No namespace given: seed from __main__ so the script still sees the
+        # console's imports (idaapi/idc/...) and top-level names, rather than
+        # running against an empty namespace and failing on a missing name.
+        main = sys.modules.get('__main__')
+        seed = main.__dict__ if main is not None else {}
+    before = set(seed)
+    ns = dict(seed)                  # a copy: the seed itself is never written to
+    # Run under the caller's own module name when it set one, so a script loaded
+    # as a plugin does not see __name__ == "__main__".
+    ns['__name__'] = seed.get('__name__') or '__main__'
+    ns['__file__'] = path
+    for name in ('__loader__', '__spec__', '__package__'):
+        ns.setdefault(name, None)    # a plain dict seed carries none of these
+    exec(_compile_file(path), ns)
+
+    # Expose only the script's own contributions - names it defined, plus any
+    # seeded name it rebound. Otherwise the whole seed would land in the handle.
+    defined = {name: value for name, value in ns.items()
+               if name not in _META_NAMES and (name not in before
+                                               or value is not seed.get(name))}
+    out = ScriptNamespace(defined)
+    out._fin = weakref.finalize(out, _teardown_namespace, ns)
+    return out
+
+
+# ------------------------------------------------------------
+def _dispatch(path, g) -> ScriptNamespace:
+    """Run in place if `g` is a module namespace, in isolation otherwise."""
+    if g is not None and _is_live_module_globals(g):
+        return _run_in_place(path, g)
+    return _run_isolated(path, g)
+
+
+# ------------------------------------------------------------
+def run_script(path, init_globals=None) -> ScriptNamespace:
+    """
+    Run a Python script and return the names it defined.
+
+    `init_globals` decides how it runs:
+
+    - a **module namespace** (`globals()`, or the one the kernel hands a
+      plugin/procmod/loader): the script runs directly in it, so its definitions
+      resolve their siblings and imports through it and live as long as it does.
+    - **anything else** (`None`, or a plain dict of seed values): the script runs
+      in a namespace of its own that the result owns - dropping the result frees
+      what the script created, hooks included, with no `gc.collect()`. Hold it as
+      long as you need its functions. `init_globals` is never written to.
+
+    The result is read-only and excludes import-machinery names. The script gets
+    its own directory on `sys.path` and `sys.argv == [path]` for the run.
+    """
+    with _script_context(path):
+        return _dispatch(path, init_globals)
+
+
+# ------------------------------------------------------------
+def _ida_exec_script(path, g, print_error=True, script_args=None):
+    """
+    Run a script into module namespace `g`, reporting errors as a string.
+
+    Kernel executor (S_IDAAPI_EXECSCRIPT): File > Script, and loaders/procmods/
+    plugins via the extlang's compile_file. `script_args` reach the script
+    through sys.argv, a legacy channel.
+    """
+    try:
+        # not run_script(): its context would drop the args
+        with _script_context(path, script_args):
+            ns = _dispatch(path, g)
+        if not _is_live_module_globals(g):
+            # not a module namespace: the script ran in isolation, so mirror its
+            # definitions the way the caller expects to find them
+            g.update(ns)
+            # The run namespace should live exactly as long as the caller's
+            # dict, not as long as a local.
+            g["__ida_script_ns__"] = ns
+        return None
+    except Exception as e:
+        err = "%s\n%s" % (str(e), traceback.format_exc())
+        if print_error:
+            print(err)
+        return err
+
+
+# ------------------------------------------------------------
+@_ida_deprecated("run_script")
+def IDAPython_ExecScript(path, g, print_error=True, script_args=None):
+    """
+    Run the specified script (deprecated - use `ida_idaapi.run_script`).
+
+    The definitions land in `g`, which then owns the run namespace: they keep
+    working as long as `g` lives, and dropping it reclaims what the script
+    created. `run_script()` hands that handle to the caller instead.
+    """
+    if _is_live_module_globals(g):
+        warnings.warn(
+            "IDAPython_ExecScript() into a live module namespace (e.g. globals()) "
+            "runs the script into that namespace and can leave its objects "
+            "(hooks, ...) alive; prefer idaapi.run_script() with an explicit init_globals",
+            RuntimeWarning, stacklevel=2)
+    if script_args:
+        # script_args reach the script via the process-wide sys.argv (see
+        # _ida_exec_script) - global, transient state and a poor way to pass data.
+        warnings.warn(
+            "IDAPython_ExecScript() script_args are exposed via the process-wide "
+            "sys.argv for the duration of the run; pass arguments to the script "
+            "explicitly instead, or use another mechanism (e.g. environment "
+            "variables)",
+            RuntimeWarning, stacklevel=2)
+    return _ida_exec_script(path, g, print_error, script_args)
+
 
 # ------------------------------------------------------------
 def IDAPython_LoadProcMod(path, g, print_error=True):

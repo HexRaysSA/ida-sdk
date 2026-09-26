@@ -30,7 +30,9 @@ if os.name == "nt":
                       strip_script.replace("/", "\\")))
     input_filter = wrapper.replace("\\", "/")
 else:
-    input_filter = '"%s" -S "%s"' % (sys.executable, strip_script)
+    # the whole command goes inside one pair of quotes: doxygen's config
+    # parser rejects a quoted program followed by arguments
+    input_filter = '"%s -S %s"' % (sys.executable, strip_script)
 
 with open(args.input) as fin:
     with open(args.output, "w") as fout:

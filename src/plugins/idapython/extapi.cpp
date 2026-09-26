@@ -342,6 +342,7 @@ bool ext_api_t::load(qstring *errbuf)
   BIND_SYMBOL_WEAK("PyDict_SetItem", PyDict_SetItem_t, PyDict_SetItem_ptr);
   BIND_SYMBOL_WEAK("PyDict_SetItemString", PyDict_SetItemString_t, PyDict_SetItemString_ptr);
   BIND_SYMBOL_WEAK("PyErr_Clear", PyErr_Clear_t, PyErr_Clear_ptr);
+  BIND_SYMBOL_WEAK("PyErr_ExceptionMatches", PyErr_ExceptionMatches_t, PyErr_ExceptionMatches_ptr);
   BIND_SYMBOL_WEAK("PyErr_Fetch", PyErr_Fetch_t, PyErr_Fetch_ptr);
   BIND_SYMBOL_WEAK("PyErr_Format", PyErr_Format_t, PyErr_Format_ptr);
   BIND_SYMBOL_WEAK("PyErr_Occurred", PyErr_Occurred_t, PyErr_Occurred_ptr);
@@ -425,6 +426,7 @@ bool ext_api_t::load(qstring *errbuf)
   BIND_SYMBOL_WEAK("PyBool_Type", PyBool_Type_t, PyBool_Type_ptr);
   BIND_SYMBOL_WEAK("PyExc_KeyboardInterrupt", PyExc_KeyboardInterrupt_t, PyExc_KeyboardInterrupt_ptr);
   BIND_SYMBOL_WEAK("PyExc_NotImplementedError", PyExc_NotImplementedError_t, PyExc_NotImplementedError_ptr);
+  BIND_SYMBOL_WEAK("PyExc_SystemExit", PyExc_SystemExit_t, PyExc_SystemExit_ptr);
   BIND_SYMBOL_WEAK("PyExc_TypeError", PyExc_TypeError_t, PyExc_TypeError_ptr);
   BIND_SYMBOL_WEAK("PyExc_ValueError", PyExc_ValueError_t, PyExc_ValueError_ptr);
   BIND_SYMBOL_WEAK("PyFloat_Type", PyFloat_Type_t, PyFloat_Type_ptr);

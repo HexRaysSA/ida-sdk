@@ -6,7 +6,6 @@
 
 // Kernel-only
 %ignore vset_segm_name;
-%ignore get_segm_expr;
 %ignore is_debugger_segm;
 %ignore is_ephemeral_segm;
 %ignore correct_address;

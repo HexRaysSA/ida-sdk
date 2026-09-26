@@ -414,6 +414,8 @@ SWIG_DECLARE_PY_CLINKED_OBJECT(textctrl_info_t)
 %ignore qvector<sync_source_t>::resize;
 %ignore qvector<sync_source_t>::push_back();
 %template(sync_source_vec_t) qvector<sync_source_t>;
+// A listing's place ranges; exposed for the listing-export API.
+%uncomparable_elements_qvector(lines_gen_range_t, lines_gen_range_vec_t);
 %ignore add_test_feature;
 
 //<typemaps(kernwin)>
