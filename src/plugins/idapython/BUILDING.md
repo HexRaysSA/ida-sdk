@@ -41,21 +41,29 @@ with the SDK, so no Python development files are required there at all.
 
 Simplified Wrapper Interface Generator (SWIG).
 
-By default the build first looks for an existing SWIG (>= 4.2.0) via
-`find_package(SWIG)`; only if none is found does it install SWIG 4.4.1 from PyPI
-(the `swig` wheel) into a venv in the build folder - the first release with arm
-wheels, so this covers every platform we target (incl. Windows and macOS on arm)
-and needs only a Python with `venv` + `pip` and network access the first time -
-no compiler or autotools.
+By default the build uses SWIG 4.4.1: an installed SWIG is used only if it is
+exactly that version, otherwise 4.4.1 is installed from PyPI (the `swig` wheel)
+into a venv in the build folder - the first release with arm wheels, so this
+covers every platform we target (incl. Windows and macOS on arm) and needs only a
+Python with `venv` + `pip` and network access the first time - no compiler or
+autotools.
 
 Overrides:
 - `-DIDA_SWIG=/path/to/swig` (or `build.py --swig <path>`) - use this exact binary.
 - `-DIDA_SWIG_FROM_PYPI=ON` - skip the search and install from PyPI.
-- `-DIDA_SWIG_VERSION=<x.y.z>` - use exactly this version: an installed one is
-  accepted only if it matches, otherwise that version is installed from PyPI.
+- `-DIDA_SWIG_VERSION=<x.y.z>` - use exactly this version instead of 4.4.1: an
+  installed one is accepted only if it matches, otherwise that version is
+  installed from PyPI.
+- `-DIDA_SWIG_VERSION=` (empty) - accept any installed SWIG >= 4.2.0, and install
+  4.4.1 from PyPI only if there is none.
 
-SWIG runs are cached with `ccache-swig` when one is available (next to `swig` or on
-the `PATH`); the PyPI wheel ships none, so a pip-provisioned swig runs uncached.
+A build directory keeps the SWIG (and its library path) it resolved first; to
+change the pin, use a fresh build directory.
+
+SWIG runs are cached with `ccache-swig` when one is available: passed as
+`-DIDA_SWIG_CCACHE=<path>`, found next to `swig`, or found on the `PATH`. The PyPI
+wheel ships none, so a pip-provisioned swig is cached only when a `ccache-swig` is
+passed or on the `PATH`.
 The cache lives in `~/.ccache` - `$HOME/.ccache`, or `%USERPROFILE%\.ccache` on
 Windows - and is created if missing, which ccache-swig itself will not do (it fails
 outright on a missing directory). To put it elsewhere, either pass
@@ -81,9 +89,7 @@ Turn caching off with `-DIDA_SWIG_CACHE=OFF`.
 - **SWIG 4.4.0 with Python 3.13 or 3.14** does not build: 4.4.0 emits
   `PyImport_AddModuleRef()` guarded on the Python version alone, but 3.13+ declares
   it only when `Py_LIMITED_API` is unset or `>= 0x030d0000`, and IDAPython builds
-  against the 3.9 limited API. Use 4.4.1 or newer, or stay on 4.3.x. A 4.4.0
-  already on the `PATH` satisfies the 4.2.0 minimum and will be picked up, so pass
-  `-DIDA_SWIG` or `-DIDA_SWIG_VERSION` if you have one installed.
+  against the 3.9 limited API. Use 4.4.1 or newer, or stay on 4.3.x.
 - **On arm hosts the auto-install needs 4.4.1+**, the first release with arm
   wheels. An older SWIG there has to come from a package manager or a local build,
   and be passed with `-DIDA_SWIG`.
@@ -99,7 +105,8 @@ python3 -m venv /tmp/swig421 && /tmp/swig421/bin/pip install swig==4.2.1
 ```
 
 Then point the build at it with `-DIDA_SWIG=/tmp/swig421/bin/swig` (on Windows,
-`...\Scripts\swig.exe`) - or `build.py --swig <path>` - or just add it to the `PATH`.
+`...\Scripts\swig.exe`) - or `build.py --swig <path>`. A SWIG on the `PATH` is
+picked up only with `-DIDA_SWIG_VERSION=` (empty) or a matching version.
 
 Or use a package manager:
 
@@ -203,9 +210,9 @@ Notes:
 
 - The build uses the Python 3 that `find_package(Python3)` discovers (normally
   the first `python3` on the `PATH`); override with `-DPython3_EXECUTABLE=...`.
-- SWIG is found via `find_package(SWIG)` and only installed from PyPI as a fallback;
-  override with `-DIDA_SWIG=/path/to/swig` (or `build.py --swig ...`), or force the
-  PyPI install with `-DIDA_SWIG_FROM_PYPI=ON`.
+- SWIG is pinned to 4.4.1: an installed SWIG of exactly that version is used,
+  otherwise it is installed from PyPI; override with `-DIDA_SWIG=/path/to/swig` (or
+  `build.py --swig ...`) or `-DIDA_SWIG_VERSION=...` (see SWIG above).
 - Output is written to `build/bin/` and, by default, also merged into the SDK's
   `bin/` (disable with `-DIDAPYTHON_DEPLOY_TO_SDK=OFF`).
 
