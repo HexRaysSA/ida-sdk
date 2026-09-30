@@ -34,6 +34,15 @@ if ( __argcnt == 2 )
 """)),
         ],
 
+    "SwigDirector_IDP_Hooks::ev_sanitize_name" : [
+        ("director_method_call_arity_cap", (
+            False, # add GIL lock
+            "ev_sanitize_name",
+            "(method ,(PyObject *)obj0,(PyObject *)obj1,(__argcnt < 4 ? nullptr : (PyObject *)obj2),(__argcnt < 5 ? nullptr : (PyObject *)obj3), nullptr)",
+            "(swig_get_self(), (PyObject *) swig_method_name ,(PyObject *)obj0,(PyObject *)obj1,(__argcnt < 4 ? nullptr : (PyObject *)obj2),(__argcnt < 5 ? nullptr : (PyObject *)obj3), nullptr)")
+        ),
+    ],
+
     "SwigDirector_IDP_Hooks::ev_set_idp_options" : [
         (
             "repl_text",

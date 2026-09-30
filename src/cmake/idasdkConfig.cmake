@@ -46,7 +46,7 @@ set(IDA_UNIX FALSE)
 set(_ida_hosts
     "Windows~NT~win~__NT__~.dll~.lib~.obj~ida.lib~idalib.lib"
     "Linux~LINUX~linux~__LINUX__~.so~.a~.o~libida.so~libidalib.so"
-    "Darwin~MAC~mac~__MAC__~.dylib~.a~.o~libida.dylib~libidalib.dylib"
+    "Darwin~MAC~mac~__MAC__~.dylib~.a~.o~libida.tbd~libidalib.tbd"
 )
 set(_ida_host_resolved FALSE)
 foreach(_row IN LISTS _ida_hosts)
@@ -193,41 +193,25 @@ cmake_path(APPEND IDASDK "lib" "${IDA_LIB_SUFFIX}" OUTPUT_VARIABLE IDA_LIB_DIR)
 cmake_path(APPEND IDA_LIB_DIR "${IDA_LIB_NAME}"    OUTPUT_VARIABLE IDA_LIB_PATH)
 cmake_path(APPEND IDA_LIB_DIR "${IDALIB_NAME}"     OUTPUT_VARIABLE IDALIB_PATH)
 
-# Universal mac builds: merge per-arch dylibs with lipo into a single file.
+# Universal mac builds: the .tbd stubs declare both archs, so any per-arch
+# copy links as is -- no lipo merge needed.
 if(IDA_UNIVERSAL)
-    set(_merged_root "${CMAKE_BINARY_DIR}/_ida_universal")
-    file(MAKE_DIRECTORY "${_merged_root}")
-    foreach(_kind ida idalib)
-        set(_parts "")
-        foreach(_a IN LISTS CMAKE_OSX_ARCHITECTURES)
-            if(_a STREQUAL "arm64")
-                set(_iarch "arm64")
-            elseif(_a MATCHES "^(x86_64|x64|amd64)$")
-                set(_iarch "x64")
-            else()
-                message(FATAL_ERROR "Universal build: unsupported '${_a}'")
-            endif()
-            set(_p "${IDASDK}/lib/${_iarch}_${IDA_PLATFORM_NAME}_${IDA_ADRSIZE}/lib${_kind}.dylib")
-            if(EXISTS "${_p}")
-                list(APPEND _parts "${_p}")
-            endif()
-        endforeach()
-        if(_parts)
-            set(_out "${_merged_root}/lib${_kind}.dylib")
-            execute_process(
-                COMMAND lipo -create ${_parts} -output "${_out}"
-                RESULT_VARIABLE _rc)
-            if(NOT _rc EQUAL 0)
-                message(FATAL_ERROR "lipo failed for lib${_kind} (rc=${_rc})")
-            endif()
-            if(_kind STREQUAL "ida")
-                set(IDA_LIB_PATH "${_out}")
-            else()
-                set(IDALIB_PATH "${_out}")
-            endif()
+    foreach(_a IN LISTS CMAKE_OSX_ARCHITECTURES)
+        if(_a STREQUAL "arm64")
+            set(_iarch "arm64")
+        elseif(_a MATCHES "^(x86_64|x64|amd64)$")
+            set(_iarch "x64")
+        else()
+            message(FATAL_ERROR "Universal build: unsupported '${_a}'")
+        endif()
+        set(_d "${IDASDK}/lib/${_iarch}_${IDA_PLATFORM_NAME}_${IDA_ADRSIZE}")
+        if(EXISTS "${_d}/${IDA_LIB_NAME}")
+            set(IDA_LIB_PATH "${_d}/${IDA_LIB_NAME}")
+        endif()
+        if(EXISTS "${_d}/${IDALIB_NAME}")
+            set(IDALIB_PATH "${_d}/${IDALIB_NAME}")
         endif()
     endforeach()
-    unset(_merged_root)
 endif()
 
 # Default output dirs (consumer may override before calling ida_add_*).
@@ -401,7 +385,10 @@ function(_idasdk_define_addon kind target_name out_dir)
             OUTPUT_NAME "${P_OUTPUT_NAME}")
     endif()
     if(IDA_NT AND NOT P_TYPE STREQUAL "EXECUTABLE")
-        target_link_options(${target_name} PRIVATE /SUBSYSTEM:WINDOWS)
+        # Addon DLLs need no manifest; /MANIFEST:NO skips the rc.exe run.
+        target_link_options(${target_name} PRIVATE
+            /SUBSYSTEM:WINDOWS
+            /MANIFEST:NO)
     endif()
 
     if(P_TYPE STREQUAL "QT")

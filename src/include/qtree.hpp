@@ -2676,7 +2676,7 @@ public:
     return *this;
   }
 
-  void swap(qmap &other) noexcept(noexcept(tree_.swap(other.tree_)))
+  void swap(qmap &other) noexcept(std::is_nothrow_swappable_v<Tree>)
   {
     tree_.swap(other.tree_);
   }

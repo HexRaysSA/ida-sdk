@@ -98,7 +98,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 
 <tr>
   <td>Beginner</td>
-  <td><ul><li><a href='#dump_flowchart'>Dump function flowchart</a></li><li><a href='#dump_flowchart_ea'>Dump function flowchart, new API</a></li><li><a href='#install_user_defined_prefix'>Insert information into listing prefixes</a></li><li><a href='#indexer_substring_search'>Search the IDA indexer (substring match)</a></li><li><a href='#list_imports'>Enumerate file imports</a></li><li><a href='#list_patched_bytes'>Enumerate patched bytes</a></li><li><a href='#list_problems'>Enumerate known problems</a></li><li><a href='#list_segment_functions'>List segment functions (and cross-references to them)</a></li><li><a href='#list_segment_functions_using_idautils'>List all functions (and cross-references) in segment</a></li><li><a href='#list_strings'>Dump the strings that are present in the file</a></li><li><a href='#produce_lst_file'>Produce disassembly listing for the entire file</a></li></ul></td>
+  <td><ul><li><a href='#dscu_query'>Query a Dyld Shared Cache (DSC) from IDAPython</a></li><li><a href='#dump_flowchart'>Dump function flowchart</a></li><li><a href='#dump_flowchart_ea'>Dump function flowchart, new API</a></li><li><a href='#indexer_substring_search'>Search the IDA indexer for a name (substring match)</a></li><li><a href='#install_user_defined_prefix'>Insert information into listing prefixes</a></li><li><a href='#list_imports'>Enumerate file imports</a></li><li><a href='#list_patched_bytes'>Enumerate patched bytes</a></li><li><a href='#list_problems'>Enumerate known problems</a></li><li><a href='#list_segment_functions'>List segment functions (and cross-references to them)</a></li><li><a href='#list_segment_functions_using_idautils'>List all functions (and cross-references) in segment</a></li><li><a href='#list_strings'>Dump the strings that are present in the file</a></li><li><a href='#produce_lst_file'>Produce disassembly listing for the entire file</a></li></ul></td>
 </tr>
 <tr>
   <td>Intermediate</td>
@@ -186,7 +186,7 @@ This collection of examples organizes all IDAPython sample code into [categories
 </tr>
 <tr>
   <td>Intermediate</td>
-  <td><ul><li><a href='#apply_callee_tinfo'>Apply function prototype to call sites</a></li><li><a href='#create_array'>Create an array type</a></li><li><a href='#create_bfstruct'>Create a structure with bitfield members</a></li><li><a href='#create_bmenum'>Create a bitmask enumeration</a></li><li><a href='#create_libssh2_til'>Create a type library file</a></li><li><a href='#create_struct_by_member'>Create a structure programmatically</a></li><li><a href='#create_structure_programmatically'>Create & populate a structure</a></li><li><a href='#create_union_by_member'>Create a union</a></li><li><a href='#create_user_shared_data'>Create a segment, and define (complex) data in it</a></li><li><a href='#custom_calling_convention'>Implement a custom calling convention</a></li><li><a href='#gap_size_align_snippet'>Utilities to detect structure gaps & alignment</a></li><li><a href='#get_best_fit_member'>Get member by offset, taking into account variable sized structures</a></li><li><a href='#get_innermost_member'>Get information about the "innermost" member of a structure</a></li><li><a href='#import_type_from_til'>Load a type library from a file, and then a type from it</a></li><li><a href='#insert_struct_member'>Inject a member in the middle of a structure</a></li><li><a href='#list_stkvar_xrefs'>List all xrefs to a function stack variable</a></li><li><a href='#modify_struct_member'>Modify structure members attributes programmatically</a></li><li><a href='#print_stkvar_xrefs'>List cross-references to function stack frame variables</a></li><li><a href='#setpehdr'>Assign DOS/PE headers structures to a PE binary</a></li><li><a href='#visit_tinfo'>Recursively visit a type and its members</a></li></ul></td>
+  <td><ul><li><a href='#apply_callee_tinfo'>Apply function prototype to call sites</a></li><li><a href='#create_array'>Create an array type</a></li><li><a href='#create_bfstruct'>Create a structure with bitfield members</a></li><li><a href='#create_bmenum'>Create a bitmask enumeration</a></li><li><a href='#create_libssh2_til'>Create a type library file</a></li><li><a href='#create_struct_by_member'>Create a structure programmatically</a></li><li><a href='#create_structure_programmatically'>Create & populate a structure</a></li><li><a href='#create_union_by_member'>Create a union</a></li><li><a href='#create_user_shared_data'>Create a segment, and define (complex) data in it</a></li><li><a href='#custom_calling_convention'>Implement a custom calling convention</a></li><li><a href='#gap_size_align_snippet'>Utilities to detect structure gaps & alignment</a></li><li><a href='#get_best_fit_member'>Get member by offset, taking into account variable sized structures</a></li><li><a href='#get_innermost_member'>Get information about the "innermost" member of a structure</a></li><li><a href='#import_type_from_til'>Load a type library from a file, and then a type from it</a></li><li><a href='#insert_struct_member'>Inject a member in the middle of a structure</a></li><li><a href='#list_stkvar_xrefs'>List all xrefs to a function stack variable</a></li><li><a href='#modify_struct_member'>Modify structure members attributes programmatically</a></li><li><a href='#operand_to_field_path'>Turn an instruction operand into a structure-field reference by name</a></li><li><a href='#print_stkvar_xrefs'>List cross-references to function stack frame variables</a></li><li><a href='#setpehdr'>Assign DOS/PE headers structures to a PE binary</a></li><li><a href='#visit_tinfo'>Recursively visit a type and its members</a></li></ul></td>
 </tr>
 <tr>
   <td>Advanced</td>
@@ -210,11 +210,11 @@ This collection of examples organizes all IDAPython sample code into [categories
 
 <tr>
   <td>Beginner</td>
-  <td><ul><li><a href='#idapythonrc'>Code to be run right after IDAPython initialization</a></li></ul></td>
+  <td><ul><li><a href='#idapythonrc'>Code to be run right after IDAPython initialization</a></li><li><a href='#print_license_info'>Print the active license and what it covers</a></li></ul></td>
 </tr>
 <tr>
   <td>Intermediate</td>
-  <td><ul><li><a href='#extend_idc'>Add functions to the IDC runtime, from IDAPython</a></li></ul></td>
+  <td><ul><li><a href='#extend_idc'>Add functions to the IDC runtime, from IDAPython</a></li><li><a href='#extract_addr_from_tagged_line'>Extract embedded addresses from a tagged line</a></li></ul></td>
 </tr>
 <tr>
   <td>Advanced</td>
@@ -1100,6 +1100,29 @@ view (and thus possibly its graph), in Python.
 ***
 
 
+### Query a Dyld Shared Cache (DSC) from IDAPython {#dscu_query}
+This script touches a few highlights of dscu_svc_t -- the public
+service driving IDA's DSC workflow: cache layout, image lookup,
+symbol search, string search.
+
+The full surface is much wider than what's shown here -- it can
+also load modules on demand, walk dependencies, query regions, etc.
+Run `help(svc)` after `svc = ida_dscu.get_dscu_svc()` to see every
+method available.
+
+Run this script in a database opened from a DSC file.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [dscu_query.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/dscu_query.py) |  | Beginner |
+
+**APIs Used:**
+* `ida_dscu.get_dscu_svc`
+* `ida_dscu.rt_cache_data`
+
+***
+
+
 ### Dump function flowchart {#dump_flowchart}
 Dumps the current function's flowchart, using 2 methods:
 
@@ -1137,6 +1160,44 @@ Dumps the current function's flowchart, using 2 methods:
 ***
 
 
+### Search the IDA indexer for a name (substring match) {#indexer_substring_search}
+Demonstrates how to use the IDA indexer API to search for functions,
+named locations, local types, segments, and function comments that
+contain a given query string.
+
+The indexer performs fast substring matching across all indexed data
+simultaneously. Each result exposes the matched name, the sub-index
+that produced it (e.g. SUBIDX_FUNCTIONS or SUBIDX_SEGMENTS), its
+score, and the effective address when applicable.
+
+The example also shows how to narrow a search to a single sub-index
+when only one category of results is needed.
+
+Note: the indexer must be enabled for the current database. Open the
+database with -dENABLE_INDEXER=YES to enable it, or check
+indexer_is_enabled() at runtime.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [indexer_substring_search.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/indexer_substring_search.py) | comments functions indexer names search segments types | Beginner |
+
+**APIs Used:**
+* `ida_indexer.STR_MATCH`
+* `ida_indexer.SUBIDX_FUNCTIONS`
+* `ida_indexer.SUBIDX_FUNCTION_COMMENTS`
+* `ida_indexer.SUBIDX_LTYPES`
+* `ida_indexer.SUBIDX_NAMES`
+* `ida_indexer.SUBIDX_REPEATABLE_FUNCTION_COMMENTS`
+* `ida_indexer.SUBIDX_SEGMENTS`
+* `ida_indexer.indexer_is_enabled`
+* `ida_indexer.indexer_match`
+* `ida_indexer.indexer_match_all`
+* `ida_indexer.match_config_t`
+* `ida_kernwin.ask_str`
+
+***
+
+
 ### Insert information into listing prefixes {#install_user_defined_prefix}
 By default, disassembly line prefixes contain segment + address
 information (e.g., '.text:08047718'), but it is possible to
@@ -1152,35 +1213,6 @@ information (e.g., '.text:08047718'), but it is possible to
 * `ida_idaapi.plugin_t`
 * `ida_lines.SCOLOR_INV`
 * `ida_lines.user_defined_prefix_t`
-
-***
-
-
-### Search the IDA indexer (substring match) {#indexer_substring_search}
-Search for functions, named locations, local types, segments, and
-function comments using the IDA indexer. The indexer performs fast
-substring matching across all indexed data simultaneously, or can be
-narrowed to a single sub-index (e.g. `SUBIDX_FUNCTIONS`).
-
-The indexer must be enabled when the database is opened:
-`idat -dENABLE_INDEXER=YES <binary>`.
-
-| Source code                   | Keywords   | Level                              |
-|-------------------------------|------------|------------------------------------|
-| [indexer_substring_search.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/indexer_substring_search.py) | indexer, search, functions, names, segments, types, comments | Beginner |
-
-**APIs Used:**
-* `ida_indexer.indexer_is_enabled`
-* `ida_indexer.indexer_match_all`
-* `ida_indexer.indexer_match`
-* `ida_indexer.match_config_t`
-* `ida_indexer.STR_MATCH`
-* `ida_indexer.SUBIDX_FUNCTIONS`
-* `ida_indexer.SUBIDX_LTYPES`
-* `ida_indexer.SUBIDX_NAMES`
-* `ida_indexer.SUBIDX_SEGMENTS`
-* `ida_indexer.SUBIDX_FUNCTION_COMMENTS`
-* `ida_indexer.SUBIDX_REPEATABLE_FUNCTION_COMMENTS`
 
 ***
 
@@ -1879,17 +1911,26 @@ instruction, serializes it to a byte string, and then deserializes
 those bytes back into a fresh minsn_t. equal_insns() is used to
 confirm the round trip preserves the structure.
 
+Note: minsn_t::deserialize is an instance method (returns bool), not
+a static factory like mba_t::deserialize / cfunc_t::deserialize. We
+construct an empty minsn_t with minsn_t(ea) and deserialize into it.
+
+This is the minsn_t-level counterpart to serialize.py, which
+round-trips a whole mba_t / cfunc_t pair.
+
 | Source code                   | Keywords   | Level                              |
 |-------------------------------|------------|------------------------------------|
 | [serialize_minsn.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/decompiler/serialize_minsn.py) |  | Beginner |
 
 **APIs Used:**
 * `ida_funcs.get_func_start`
+* `ida_hexrays.DECOMP_NO_WAIT`
 * `ida_hexrays.decomp_ranges_t`
 * `ida_hexrays.gen_microcode`
 * `ida_hexrays.hexrays_failure_t`
 * `ida_hexrays.init_hexrays_plugin`
 * `ida_hexrays.minsn_t`
+* `ida_idaapi.BADADDR`
 * `ida_kernwin.get_screen_ea`
 
 ***
@@ -3434,6 +3475,40 @@ show how to programmatically modify them.
 ***
 
 
+### Turn an instruction operand into a structure-field reference by name {#operand_to_field_path}
+Demonstrates how to use ida_typeinf.resolve_field_path() to convert a
+user-friendly dotted field path (e.g.
+"_IO_STACK_LOCATION.Parameters.DeviceIoControl.IoControlCode") into
+the path[] inputs that ida_bytes.op_stroff() expects.
+
+resolve_field_path() is needed when the chain crosses anonymous types --
+unnamed types are stored with synthetic "::$HASH" names, so the
+friendly dotted form the user writes does not match the canonical
+names directly. resolve_field_path() walks the chain segment by
+segment and produces a ready-to-use op_stroff() path.
+
+Companion to operand_to_struct_member.py, which does the same thing
+interactively (the user picks the top struct and any union members
+through a chooser dialog). This one is for scripts that already know
+exactly where in the type tree the operand should point.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [operand_to_field_path.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/types/operand_to_field_path.py) |  | Intermediate |
+
+**APIs Used:**
+* `ida_bytes.op_stroff`
+* `ida_idaapi.BADADDR`
+* `ida_kernwin.get_screen_ea`
+* `ida_typeinf.field_path_t`
+* `ida_typeinf.resolve_field_path`
+* `ida_ua.decode_insn`
+* `ida_ua.insn_t`
+* `idc.import_type`
+
+***
+
+
 ### List cross-references to function stack frame variables {#print_stkvar_xrefs}
 The goal of this script is to demonstrate some usage of the type API.
 In this script, we demonstrate how to list each stack variables
@@ -3644,6 +3719,25 @@ IDAPython is done successfully initializing.
 ***
 
 
+### Print the active license and what it covers {#print_license_info}
+The License class from the ida_license module reports the license
+IDA is running with: its id, product and edition, whether it is
+usable, when its activation period ends, and the add-ons and
+features it covers.
+
+The example also checks whether the HEXX64 add-on (the x64
+decompiler) is usable.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [print_license_info.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/misc/print_license_info.py) |  | Beginner |
+
+**APIs Used:**
+* `ida_license.License`
+
+***
+
+
 ### Add functions to the IDC runtime, from IDAPython {#extend_idc}
 You can add IDC functions to IDA, whose "body" consists of
 IDAPython statements!
@@ -3663,6 +3757,28 @@ After running this script, try switching to the IDC interpreter
 **APIs Used:**
 * `ida_expr.VT_LONG`
 * `ida_expr.add_idc_func`
+
+***
+
+
+### Extract embedded addresses from a tagged line {#extract_addr_from_tagged_line}
+Clickable addresses are encoded inline as a `COLOR_ADDR` mark
+(`COLOR_ON` + `COLOR_ADDR` + 16 hex digits). Tagged lines come
+from `ida_lines.generate_disasm_line`, custom-viewer text, hint
+providers, or any string built with `ida_lines.tag_addr`.
+
+This example builds such a line and recovers the embedded ea_t
+via `tagged_line_section_t.get_addr`.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [extract_addr_from_tagged_line.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/misc/extract_addr_from_tagged_line.py) |  | Intermediate |
+
+**APIs Used:**
+* `ida_kernwin.parse_tagged_line_sections`
+* `ida_kernwin.tagged_line_sections_t`
+* `ida_lines.COLOR_ADDR`
+* `ida_lines.tag_addr`
 
 ***
 

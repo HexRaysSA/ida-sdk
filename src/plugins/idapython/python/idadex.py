@@ -122,51 +122,164 @@ def unpack_eavec(buf, base_ea):
     return ba
 
 #---------------------------------------------------------------------------
+# The raw dex_method_t dump DEXVAR_METHOD held before the record was packed.
+# Databases written back then are still readable, so both forms are parsed.
+#
+class dex_method_v11(ctypes.LittleEndianStructure):
+    _fields_ = [
+        ("flags",          uint32),
+        ("defaddr",          ea_t),
+        ("cname",          uint32),
+        ("id",             uint32),
+        ("proto_ret",      uint32),
+        ("proto_shorty",   uint32),
+        ("nparams",        ushort),
+        ("proto_params",uint32*32),
+        ("access_flags",   uint32),
+        ("startAddr",       ea_t),
+        ("endAddr",         ea_t),
+        ("reg_total",      ushort),
+        ("reg_params",     ushort),
+        ("reg_out",        ushort),
+        ("catch_handler_data",       ea_t),
+        ("impaddr",          ea_t),
+        ("proto_idx",      ushort),
+    ]
+
+#---------------------------------------------------------------------------
 # This structure is used both for imported methods and locally defined ones
 #
-class dex_method(ctypes.LittleEndianStructure):
+class dex_method_t(object):
     # flags
     IS_LOCAL = 1
     HAS_CODE = 2
-    _fields_ = [
-        ("flags",          uint32), # Class type where this method is defined
-        ("defaddr",          ea_t), # Address in file where the "definiton" (DexMethodId) is stored
-        ("cname",          uint32), # Class type where this method is defined
-        ("id",             uint32), # Id of method; key to look up name
-        ("proto_ret",      uint32), # Name of return type
-        ("proto_shorty",   uint32), # 'shorty' parameter descirptor name
-        ("nparams",        ushort), # No of parameters to method. May be >32
-        ("proto_params",uint32*32), # Name of types for the first 32 parameters
-        ("access_flags",   uint32), # Access flags
-        ("startAddr",       ea_t),  # Function start and end address
-        ("endAddr",         ea_t),  #
-        ("reg_total",      ushort), # Registers total, parameters and out
-        ("reg_params",     ushort), #
-        ("reg_out",        ushort), #
-        ("catchHData",       ea_t), # offset to methods catch handler data
-    ]
+    IS_LINKED = 4
+    NO_PROTO = 8
+    # first byte of a packed record; a raw dump starts with the low byte of
+    # 'flags', which the four flag bits keep below this
+    PACK_V1 = 0x80
+    # how many of a prototype's parameter types proto_params keeps
+    MAX_PROTO_PARAMS = 32
+
+    def __init__(self):
+        self.defaddr = 0        # address of the DexMethodId record, in this
+                                # method's own file
+        self.impaddr = 0        # bodyless methods: the IMPORTS entry
+        self.startAddr = 0      # function start and end address
+        self.endAddr = 0        #
+        self.catch_handler_data = 0     # offset to the method's catch handler data
+        self.flags = 0
+        self.cname = 0          # class type where this method is defined
+        self.id = 0             # id of method; key to look up name
+        self.proto_ret = 0      # name of return type
+        self.proto_shorty = 0   # 'shorty' parameter descriptor name
+        self.access_flags = 0   # access flags; only for local methods
+        self.proto_params = [0] * dex_method_t.MAX_PROTO_PARAMS
+        self.nparams = 0        # no of parameters to method. May be >32
+        self.reg_total = 0      # registers total, parameters and out
+        self.reg_params = 0     #
+        self.reg_out = 0        #
+        self.proto_idx = 0      # index into the file's proto_ids
+
+    @staticmethod
+    def unpack(buf):
+        """parse a DEXVAR_METHOD record, in either of the two forms.
+           returns None if buf is neither"""
+        if not buf:
+            return None
+        m = dex_method_t()
+        if _byte(buf[0]) != dex_method_t.PACK_V1:
+            if len(buf) < ctypes.sizeof(dex_method_v11):
+                return None
+            v11 = get_struct(buf, 0, dex_method_v11)
+            for name, _ in dex_method_v11._fields_:
+                if name != "proto_params":
+                    setattr(m, name, getattr(v11, name))
+            m.proto_params = list(v11.proto_params)
+            return m
+        off = 1
+        (m.defaddr, off) = unpack_ea(buf, off)
+        (m.impaddr, off) = unpack_ea(buf, off)
+        (m.startAddr, off) = unpack_ea(buf, off)
+        (m.endAddr, off) = unpack_ea(buf, off)
+        (m.catch_handler_data, off) = unpack_ea(buf, off)
+        (m.flags, off) = unpack_dd(buf, off)
+        (m.cname, off) = unpack_dd(buf, off)
+        (m.id, off) = unpack_dd(buf, off)
+        (m.proto_ret, off) = unpack_dd(buf, off)
+        (m.proto_shorty, off) = unpack_dd(buf, off)
+        (m.access_flags, off) = unpack_dd(buf, off)
+        (m.nparams, off) = unpack_dw(buf, off)
+        (m.reg_total, off) = unpack_dw(buf, off)
+        (m.reg_params, off) = unpack_dw(buf, off)
+        (m.reg_out, off) = unpack_dw(buf, off)
+        (m.proto_idx, off) = unpack_dw(buf, off)
+        for i in range(0, min(m.nparams, dex_method_t.MAX_PROTO_PARAMS)):
+            (m.proto_params[i], off) = unpack_dd(buf, off)
+        return m
+
     def is_local(self):
-        return (self.flags & dex_method.IS_LOCAL) != 0
+        return (self.flags & dex_method_t.IS_LOCAL) != 0
+
+    def has_code(self):
+        return (self.flags & dex_method_t.HAS_CODE) != 0
+
+    def is_linked(self):
+        """the body is declared elsewhere -- by a superclass, by another file
+           of the multidex set, or both -- and startAddr names it there"""
+        return (self.flags & dex_method_t.IS_LINKED) != 0
+
+    def owns_body(self):
+        """does this record own the body it names, rather than point at one
+           declared elsewhere? enumerating the bodies of a file means keeping
+           only these: a linked reference carries its definition's address,
+           so counting it too would list the same function once per file
+           that refers to it"""
+        return self.has_code() and not self.is_linked()
+
+    def has_proto(self):
+        """do nparams and proto_params describe the prototype? when they do
+           not, the shorty still gives the parameter count and the rough
+           kinds; only the type ids are out of reach"""
+        return (self.flags & dex_method_t.NO_PROTO) == 0
+
+    def callable_ea(self):
+        """the address that stands for this method: its code when we know
+           it, else its IMPORTS entry"""
+        return self.startAddr if self.has_code() else self.impaddr
 
 
 """
-struct dex_field
+struct dex_field_t
 {
   uint32 ctype, name, type;
   ea_t maddr;            // Address used for xrefs.
   uint32 access_flags;   // populated by the loader from class_data_item;
-                         // 0 for fields defined in another classes.dex.
+                         // for fields of external classes only ACC_STATIC
+                         // is derived (from sget/sput uses).
+  // appended for interface version 10; zero-padded in older records:
+  ea_t saddr;            // static fields: typed data slot in SFIELDS
+                         // (BADADDR/0 if none)
+  uint32 flags;          // IS_LOCAL: declared by a class of this dex
+  uint32 reserved;
 };
 
 """
-class dex_field(ctypes.LittleEndianStructure):
+class dex_field_t(ctypes.LittleEndianStructure):
+    # flags
+    IS_LOCAL = 1
     _fields_ = [
         ("ctype",        uint32), #
         ("name",         uint32), #
         ("type",         uint32), #
         ("maddr",        ea_t),   # Address used for xrefs.
         ("access_flags", uint32), # see dex_access_flags
+        ("saddr",        ea_t),   # static-field slot in SFIELDS, 0 if none
+        ("flags",        uint32), # IS_LOCAL
+        ("reserved",     uint32), #
     ]
+    def is_local(self):
+        return (self.flags & dex_field_t.IS_LOCAL) != 0
 
 """
 struct longname_director_t
@@ -191,10 +304,11 @@ class Dex(object):
     HASHVAL_OPTIMIZED  = "optimized"    # 1 for optimized dex files, 0 - for others
     HASHVAL_DEXVERSION = "dex_version"  # DEX File version
     META_BASEADDRS     = 1              # eavec_t blob at index 0
+    META_XTRNADDRS     = 2              # eavec_t blob at index 0
 
     # ea-based indexes
     DEXCMN_STRING_ID  = ord('S')    # string ea => string_id
-    DEXCMN_METHOD_ID  = ord('M')    # dex_method::func.start_ea => method_id
+    DEXCMN_METHOD_ID  = ord('M')    # dex_method_t::func.start_ea => method_id
     DEXCMN_TRY_TYPES  = ord('E')    # ea (handler start) => list of type_id, handled types
     DEXCMN_TRY_IDS    = ord('Y')    # ea (handler start) => list of try_item_id
     DEXCMN_DEBINFO    = ord('D')    # line start ea => dex_lineinfo_t
@@ -207,10 +321,11 @@ class Dex(object):
     DEXVAR_OLD_TYPSTR  = ord('U')    # type_id => type string (obsolete per-index)
     DEXVAR_OLD_TYPSTRO = ord('V')    # type_id => type string original (obsolete per-index)
     DEXVAR_TYPE_RENS   = ord('v')    # user-renamed type strings (blob)
-    DEXVAR_METHOD     = ord('M')    # method_id => struct dex_method, supval
+    DEXVAR_METHOD     = ord('M')    # method_id => packed dex_method_t, supval
     DEXVAR_METH_STR   = ord('N')    # method_id => method name, char data
     DEXVAR_METH_STRO  = ord('O')    # method_id => method name fromdex file, char data
-    DEXVAR_FIELD      = ord('F')    # field_id => struct dex_field
+    DEXVAR_FIELD      = ord('F')    # field_id => struct dex_field_t
+    DEXVAR_FIELD_NAME = ord('G')    # field_id => user-chosen field name
     DEXVAR_TRYLIST    = ord('Y')    # method_id => try_item
 
     # debug info representation
@@ -266,6 +381,10 @@ class Dex(object):
         self.nn_cmn = idaapi.netnode("$ dex_cmn")
         packed = self.nn_meta.getblob(0, Dex.META_BASEADDRS)
         self.baseaddrs = unpack_eavec(packed, 0)
+        # start of each file's extern block; empty in a database whose
+        # extern segments still sit inside the file images
+        packed = self.nn_meta.getblob(0, Dex.META_XTRNADDRS)
+        self.xtrnaddrs = unpack_eavec(packed, 0) if packed else []
         self.nn_vars = []
         self.string_eas = []
         self.type_renames = []
@@ -279,8 +398,12 @@ class Dex(object):
 
     #---------------------------------------------------------------------------
     def get_dexnum(self, from_ea):
+        # the extern blocks come after every file image, in file order
+        addrs = self.baseaddrs
+        if self.xtrnaddrs and from_ea >= self.xtrnaddrs[0]:
+            addrs = self.xtrnaddrs
         dexnum = 0
-        for ba in self.baseaddrs:
+        for ba in addrs:
             if from_ea < ba:
                 break
             dexnum += 1
@@ -356,10 +479,9 @@ class Dex(object):
     def get_method(self, from_ea, method_idx):
         nn_var = self.get_nn_var(from_ea)
         val = nn_var.supval(method_idx, Dex.DEXVAR_METHOD)
-        if len(val) != ctypes.sizeof(dex_method):
+        method = dex_method_t.unpack(val)
+        if method is None:
             print("bad data in DEXVAR_METHOD for index 0x%X" % method_idx)
-            return None
-        method = get_struct(val,0, dex_method)
         return method
 
     #---------------------------------------------------------------------------
@@ -529,20 +651,25 @@ class Dex(object):
     def get_field(self, from_ea, field_idx):
         nn_var = self.get_nn_var(from_ea)
         val = nn_var.supval(field_idx, Dex.DEXVAR_FIELD)
-        # Legacy IDBs (saved before access_flags was appended to dex_field)
+        # Legacy IDBs (saved before access_flags was appended to dex_field_t)
         # store a shorter blob; pad with zeros so access_flags reads as 0.
-        full_size = ctypes.sizeof(dex_field)
-        legacy_size = dex_field.access_flags.offset
+        full_size = ctypes.sizeof(dex_field_t)
+        legacy_size = dex_field_t.access_flags.offset
         if val is None or len(val) < legacy_size:
             print("bad data in DEXVAR_FIELD for index 0x%X" % field_idx)
             return None
         if len(val) < full_size:
             val = val + b'\x00' * (full_size - len(val))
-        field = get_struct(val, 0, dex_field)
+        field = get_struct(val, 0, dex_field_t)
         return field
 
 
     def get_field_name(self, from_ea, field_idx):
+        nn_var = self.get_nn_var(from_ea)
+        name = Dex.get_string_by_index(
+            nn_var, field_idx, Dex.DEXVAR_FIELD_NAME)
+        if name:
+            return name
         field = self.get_field(from_ea, field_idx)
         return self.get_string(from_ea, field.name)
 
@@ -561,6 +688,10 @@ class Dex(object):
         res += '_'
         res += field_name if field_name else self.get_field_name(field.maddr, field_idx)
 
+
+# compatibility
+dex_method = dex_method_t
+dex_field = dex_field_t
 
 #---------------------------------------------------------------------------
 if __name__ == '__main__':

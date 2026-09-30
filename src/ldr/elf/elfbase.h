@@ -361,6 +361,7 @@ enum elf_SHT
   SHT_PREINIT_ARRAY = 16, // Array of ptrs to pre-init funcs
   SHT_GROUP         = 17, // Section contains a section group
   SHT_SYMTAB_SHNDX  = 18, // Indicies for SHN_XINDEX entries
+  SHT_RELR          = 19, // RELR relative relocations
   //  SHT_NUM       = 12,
   SHT_LOOS      = 0x60000000,
   SHT_HIOS      = 0x6FFFFFFF,
@@ -404,8 +405,9 @@ enum elf_SHT
   SHT_SUNW_versym    = 0x6FFFFFFF,
 
   // http://llvm.org/doxygen/namespacellvm_1_1ELF.html
-  SHT_ANDROID_REL = 0x60000001,
+  SHT_ANDROID_REL  = 0x60000001,
   SHT_ANDROID_RELA = 0x60000002,
+  SHT_ANDROID_RELR = 0x6FFFFF00,
 };
 
 // section by index 0 ==
@@ -667,6 +669,9 @@ enum elf_DTAG
   DT_ENCODING         = 31,
   DT_PREINIT_ARRAY    = 32,
   DT_PREINIT_ARRAYSZ  = 33,
+  DT_RELRSZ           = 35,
+  DT_RELR             = 36,
+  DT_RELRENT          = 37,
   DT_LOOS       = 0x60000000,  // OS-specific
   DT_HIOS       = 0x6FFFFFFF,  //
 
@@ -700,6 +705,10 @@ enum elf_DTAG
   DT_ANDROID_RELSZ  = 0x60000010,
   DT_ANDROID_RELA   = 0x60000011,
   DT_ANDROID_RELASZ = 0x60000012,
+
+  DT_ANDROID_RELR     = 0x6FFFE000,
+  DT_ANDROID_RELRSZ   = 0x6FFFE001,
+  DT_ANDROID_RELRENT  = 0x6FFFE003,
 
   // From binutils-2.27/elfcpp/elfcpp.h
   // Some of the values below are also present the Oracle documentation.

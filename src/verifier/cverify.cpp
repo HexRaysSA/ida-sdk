@@ -9,6 +9,7 @@
 
 #include "allmicro.h"
 #include "lvar.hpp"
+#include "langctx.hpp"
 
 static int got_interr = 0;
 
@@ -115,6 +116,13 @@ void cfunc_t::verify_insn(const cinsn_t *i) const
     case cit_asm:
       if ( i->casm->empty() )
         CFAIL_QASSERT(50680, i); // ctree: empty assembler instruction list
+      break;
+    case cit_if:
+      // the transformations access the arms as blocks without checking
+      if ( i->cif->ithen->op != cit_block )
+        CFAIL_QASSERT(53126, i); // ctree: then-branch of 'if' is not a block
+      if ( i->cif->ielse != nullptr && i->cif->ielse->op != cit_block )
+        CFAIL_QASSERT(53127, i); // ctree: else-branch of 'if' is not a block
       break;
     case cit_try:
       if ( i->ctry->is_synchronized_block() )
@@ -405,8 +413,14 @@ void cfunc_t::verify_expr(const citem_t *parent, const cexpr_t *e) const
     if ( parent->is_expr() )
     {
       cexpr_t *pe = (cexpr_t *)parent;
-      if ( pe->requires_int_operands() && type.is_floating() )
+      // a string concatenation takes an operand of any type, primitives
+      // included: Java's "n=" + 1.5 is a String, not an addition
+      if ( pe->requires_int_operands()
+        && type.is_floating()
+        && !hv.langctx->is_string_concat(pe) )
+      {
         CFAIL_QASSERT(50692, e); // ctree: integer operator may not have floating arguments
+      }
       if ( requires_fp_operands(pe->op) && !pe->is_fpop() )
         CFAIL_QASSERT(50693, e); // ctree: floating operator is not marked as such
       if ( (pe->is_fpop() || requires_fp_operands(pe->op)) && !type.is_floating() )
@@ -418,6 +432,19 @@ void cfunc_t::verify_expr(const citem_t *parent, const cexpr_t *e) const
       tinfo_t copy = calculate_type(hv, e, e->x->type, e->y->type, e->z->type);
       if ( type != copy )
         CFAIL_QASSERT(50695, e); // ctree: wrong expression type. maybe recalc_parent_types() would help?
+    }
+  }
+
+  // Java: booleans and numbers are not interchangeable
+  if ( maturity >= CMAT_CASTED && !hv.langctx->can_mix_bool_and_int() )
+  {
+    tinfo_t want;
+    if ( calc_rvalue_type(&want, mba, parent, e) )
+    {
+      if ( is_bool_type(type) && is_number_type(want) )
+        CFAIL_QASSERT(53159, e); // ctree: a boolean cannot be used as a number
+      if ( is_number_type(type) && is_bool_type(want) )
+        CFAIL_QASSERT(53160, e); // ctree: a number cannot be used as a condition
     }
   }
 
@@ -458,7 +485,7 @@ void cfunc_t::verify_expr(const citem_t *parent, const cexpr_t *e) const
           break;
         case cot_obj:      // obj_ea
           if ( e->obj_ea == BADADDR || !hv.fits_ea_space(e->obj_ea) )
-            CFAIL_QASSERT(53091, e);
+            CFAIL_QASSERT(53096, e);
           break;
         case cot_asg:      // x = y
           if ( !py && !y->is_zero_const() && !y->type.is_func() )
@@ -467,7 +494,8 @@ void cfunc_t::verify_expr(const citem_t *parent, const cexpr_t *e) const
         case cot_asgadd:   // x += y
         case cot_add:      // x + y
         case cot_asgsub:   // x -= y
-          if ( px && py )
+          // adding two references is legal where '+' concatenates strings
+          if ( px && py && !hv.langctx->is_string_concat(e) )
             CFAIL_QASSERT(50699, e); // ctree: two pointers cannot added to each other
           break;
         case cot_eq:       // x == y
@@ -624,12 +652,30 @@ MEM:
       {
         udm_t udm;
         int sflags = (e->is_vftable() ? STRMEM_VFTABLE : 0) | STRMEM_AUTO;
+        if ( e->is_bitfield_access() )
+          sflags = PSM_BITOFF;
         if ( find_udm(&udm, remove_pointer(x->type), e->m, sflags) == -1 )
           CFAIL_QASSERT(50922, e); // ctree: dereferencing of unexisting struct/union member
 
+        tinfo_t mtype = udm.type;
+        if ( e->is_bitfield_access() )
+        {
+          // 'm' is a bit offset and must point at a bitfield member;
+          // the expression type must be its integral equivalent
+          mtype = bitfield_expr_type(hv.mvm, udm.type);
+          if ( mtype.empty() )
+            CFAIL_QASSERT(53092, e); // ctree: bad bitfield member access
+        }
+
 #if defined(TESTABLE_BUILD)
-        if ( !e->type.equals_to(udm.type)
-          && !e->type.get_ptrarr_object().equals_to(udm.type.get_array_element())
+        // a member access type need not be identical to the declared member
+        // type as long as the size matches: an ordinary integral expression
+        // may be matched against a bitfield member of the same width, and
+        // vice versa. only relax when both sizes are known.
+        size_t esz = e->type.get_size();
+        if ( !e->type.equals_to(mtype)
+          && !e->type.get_ptrarr_object().equals_to(mtype.get_array_element())
+          && (esz == BADSIZE || esz != mtype.get_size())
           // in Dalvik, field types are defined in the dex file and type
           // propagation may override them; allow all mismatches
           && hv.mvm.platform != PLFM_DALVIK )

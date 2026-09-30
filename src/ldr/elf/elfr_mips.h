@@ -352,6 +352,13 @@ enum elf_SHT_MIPS
   SHT_DVP_OVERLAY        = 0x7FFFF421,
 };
 
+enum mips_insn_op_t
+{
+  MIPS_OP_J   = 0x02,
+  MIPS_OP_JAL = 0x03,
+  MIPS_OP_LUI = 0x0F,
+};
+
 // Special values for the st_other field in the symbol table.
 enum elf_STO_MIPS
 {

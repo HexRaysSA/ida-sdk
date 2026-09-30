@@ -13,6 +13,7 @@
 #include <nalt.hpp>
 #include <segment.hpp>
 #include <funcs.hpp>
+#include <name.hpp>    // must be after funcs.hpp
 #include <ua.hpp>
 #include <bitrange.hpp>
 #include <config.hpp>
@@ -533,6 +534,7 @@ struct event_listener_t
 #define PLFM_WASM       75        ///< WASM
 #define PLFM_NDS32      76        ///< Andes Technology NDS32
 #define PLFM_MCORE      77        ///< Motorola M*Core
+#define PLFM_QDSP6      78        ///< Qualcomm Hexagon DSP
 ///@}
 
 //-------------------------------------------------------------------------
@@ -624,6 +626,40 @@ struct event_listener_t
 /// processor_t::use_regarg_type uses this bit in the return value
 /// to indicate that the register value has been spoiled
 #define REG_SPOIL 0x80000000
+
+//=====================================================================
+/// One relocated/relaxable site that a FLIRT signature captured from the
+/// (pre-link) object, passed to processor_t::ev_flirt_match_relocated_insn.
+/// A linker can change the instruction at a relocation site after the
+/// signature was cut: a size-preserving rewrite (ARM BL->NOP/BLX) or a
+/// size-changing relaxation (RISC-V auipc+jalr->jal/c.j). The processor module
+/// decides whether the bytes in the analyzed program are a valid linker form
+/// of what the signature recorded, and reports how many bytes they occupy.
+/// Default un-relaxed span of a relaxable site: the carrier+partner instruction
+/// pair represented by the signature site (e.g. RISC-V auipc+jalr). Callers of
+/// processor_t::flirt_match_relocated_insn seed *out_span with it; the handler
+/// overwrites it with the site's true un-relaxed span.
+#define FLIRT_RELAX_SPAN 8
+
+enum flirt_reloc_kind_t
+{
+  FLIRT_RELOC_UNKNOWN = 0, ///< relocation kind is not known yet
+  FLIRT_RELOC_CALL,        ///< call/tail pair (e.g. R_RISCV_CALL[_PLT])
+  FLIRT_RELOC_ADDRESS,     ///< address materialization/load/store pair
+};
+
+struct flirt_reloc_site_t
+{
+  const uchar *expected;     ///< un-relaxed bytes retained by the signature:
+                             ///< one instruction for a size-preserving rewrite
+                             ///< (ARM), or the carrier instruction of a
+                             ///< relaxable pair (e.g. auipc for RISC-V)
+  size_t expected_len;       ///< number of bytes in \ref expected
+  bool relaxable;            ///< the linker may DELETE bytes here (RISC-V
+                             ///< R_RISCV_RELAX). false => only a size-preserving
+                             ///< rewrite is possible (ARM)
+  flirt_reloc_kind_t kind;   ///< semantic kind of the relocation site
+};
 
 //=====================================================================
 /// Describes a processor module (IDP).
@@ -1584,6 +1620,13 @@ struct processor_t
                                 ///<                           (pass CM_CC_UNKNOWN if not known;
                                 ///<                           plugins can resolve via
                                 ///<                           get_effective_cc())
+                                ///< \param nt    (::nametype_t) kind of name being sanitized
+                                ///<                           (VNT_IDENT, VNT_TYPE, ...); a
+                                ///<                           sanitizer may keep symbol names
+                                ///<                           verbatim while still rewriting
+                                ///<                           type names
+                                ///< \param ea    (::ea_t) address being named, or BADADDR
+                                ///<                           if unavailable
                                 ///< \retval 1 handled (name may have been modified)
                                 ///< \retval 0 not implemented
 
@@ -1887,7 +1930,9 @@ struct processor_t
                                 ///< \retval 1 if success
                                 ///< \retval 0 not implemented
 
-    ev_query_unmapped_address,  ///< Get information about an unmapped address
+    ev_query_unmapped_address,  ///< Get information about an unmapped address.
+                                ///< The caller must check is_mapped() first and
+                                ///< not send the event for a mapped address.
                                 ///< \param[out] out (::unmapped_info_t *) output information (can be nullptr)
                                 ///< \param ea (::ea_t) the (currently unmapped) address
                                 ///< \retval 1 the address can be loaded
@@ -1911,6 +1956,29 @@ struct processor_t
                                 ///< \retval 0    not implemented for this insn
 
     ev_get_swift_abi_regs,      ///< Reserved
+
+    ev_flirt_match_relocated_insn,
+                                ///< FLIRT matched a function but the bytes at a
+                                ///< relocation site differ from the signature
+                                ///< because the linker rewrote or relaxed the
+                                ///< instruction there (e.g. BL->NOP/BLX on ARM,
+                                ///< auipc+jalr->jal on RISC-V). Ask the processor
+                                ///< whether the bytes in the analyzed program are
+                                ///< a valid linker-produced form of what the
+                                ///< signature recorded.
+                                ///< \param ea    (::ea_t) site in the analyzed program
+                                ///< \param site  (const ::flirt_reloc_site_t *) what the signature captured
+                                ///< \param out_span (int *) if non-null, receives the un-relaxed
+                                ///<                 span length in signature bytes (the number of
+                                ///<                 pattern bytes this site occupied before the
+                                ///<                 linker relaxed it: 4 for a size-preserving ARM
+                                ///<                 rewrite or a standalone RISC-V address carrier,
+                                ///<                 8 for a RISC-V auipc/lui+partner span).
+                                ///<                 Lets a variable-length matcher advance the pattern
+                                ///<                 cursor by the span while advancing the program
+                                ///<                 cursor by the (possibly shorter) return value.
+                                ///< \retval >0  byte length of the realized form in the program
+                                ///< \retval 0   not a valid linker form (also the default) -> reject
 
     ev_last_cb_before_loader,
 
@@ -1962,7 +2030,11 @@ struct processor_t
   inline static ssize_t gen_regvar_def(outctx_t &ctx, regvar_t *v);
   inline static ssize_t gen_src_file_lnnum(outctx_t &ctx, const char *file, size_t lnnum);
   inline static ssize_t rename(ea_t ea, const char *new_name, int flags);
-  inline static ssize_t sanitize_name(qstring *name, callcnv_t cc);
+  inline static ssize_t sanitize_name(
+        qstring *name,
+        callcnv_t cc,
+        nametype_t nt=VNT_IDENT,
+        ea_t ea=BADADDR);
   inline static ssize_t is_outlined_function(ea_t func_ea);
   inline static ssize_t may_show_sreg(ea_t current_ea);
   inline static ssize_t coagulate(ea_t start_ea);
@@ -2025,6 +2097,7 @@ struct processor_t
   inline static ssize_t calc_switch_cases(/*casevec_t * */void *casevec, eavec_t *targets, ea_t insn_ea, const switch_info_t &si);
   inline static ssize_t get_bg_color(bgcolor_t *color, ea_t ea);
   inline static ssize_t validate_flirt_func(ea_t start_ea, const char *funcname);
+  inline static ssize_t flirt_match_relocated_insn(ea_t ea, const flirt_reloc_site_t *site, int *out_span=nullptr);
   inline static ssize_t get_operand_string(qstring *buf, const insn_t &insn, int opnum);
   inline static ssize_t add_cref(ea_t from, ea_t to, cref_t type);
   inline static ssize_t add_dref(ea_t from, ea_t to, dref_t type);
@@ -2459,9 +2532,13 @@ inline ssize_t processor_t::rename(ea_t ea, const char *new_name, int flags)
 {
   return notify(ev_rename, ea, new_name, flags);
 }
-inline ssize_t processor_t::sanitize_name(qstring *name, callcnv_t cc)
+inline ssize_t processor_t::sanitize_name(
+        qstring *name,
+        callcnv_t cc,
+        nametype_t nt,
+        ea_t ea)
 {
-  return notify(ev_sanitize_name, name, cc);
+  return notify(ev_sanitize_name, name, cc, nt, ea);
 }
 inline ssize_t processor_t::is_outlined_function(ea_t func_ea)
 {
@@ -2700,6 +2777,11 @@ inline ssize_t processor_t::get_bg_color(bgcolor_t *color, ea_t ea)
 {
   return notify(ev_get_bg_color, color, ea);
 }
+inline ssize_t processor_t::flirt_match_relocated_insn(ea_t ea, const flirt_reloc_site_t *site, int *out_span)
+{
+  return notify(ev_flirt_match_relocated_insn, ea, site, out_span);
+}
+
 inline ssize_t processor_t::validate_flirt_func(ea_t start_ea, const char *funcname)
 {
   return notify(ev_validate_flirt_func, start_ea, funcname);
@@ -3649,6 +3731,17 @@ namespace idb_event
                             ///< \param oldea       (ea_t)
                             ///< \param newea       (ea_t)
                             ///< \param repeatable  (bool)
+
+    flirt_applied,          ///< The deferred FLIRT forward-reference pass
+                            ///< has applied or reverted at least one name.
+                            ///< Fired after every such pass, including the
+                            ///< passes that follow a signature applied AFTER
+                            ///< the initial autoanalysis (Signatures view,
+                            ///< apply_idasgn_to) -- auto_empty and
+                            ///< auto_empty_finally fire only once, so a
+                            ///< consumer of FLIRT names (exception-record
+                            ///< naming, toolchain entry correctors) must
+                            ///< listen to this event to see late matches.
   };
 }
 

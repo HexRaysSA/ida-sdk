@@ -15,6 +15,7 @@
 #include "ins.hpp"
 #include <typeinf.hpp>
 #include <diskio.hpp>
+#include <fixup.hpp>
 #include "../iohandler.hpp"
 
 #define PROCMOD_NAME            arc
@@ -313,10 +314,75 @@ void idaapi arc_header(outctx_t &ctx);
 void idaapi arc_footer(outctx_t &ctx);
 
 int idaapi is_sp_based(const insn_t &insn, const op_t & x);
-bool idaapi create_func_frame(ea_t func_ea);
 int idaapi arc_get_frame_retsize(ea_t func_ea);
 bool is_arc_return_insn(const insn_t &insn);
 bool arc_is_switch(switch_info_t *si, const insn_t &insn);
+
+#define AUX_STATUS 0    // the obsolete ARCtangent-A4 status register
+
+//------------------------------------------------------------------------
+// is this "add blink, blink, #n", the instruction that turns the value taken
+// from STATUS into the address the callee has to come back to?
+inline bool is_arc_blink_adjust(const insn_t &insn)
+{
+  return insn.itype == ARC_add
+      && insn.Op1.is_reg(BLINK)
+      && insn.Op2.is_reg(BLINK)
+      && insn.Op3.type == o_imm;
+}
+
+//------------------------------------------------------------------------
+// ARCtangent-A4 has no indirect call instruction, so the compiler builds one:
+// the return address is taken from STATUS into blink and the jump goes to the
+// callee. The adjustment that completes the address sits in the delay slot of
+// a delayed jump and in front of a plain one, so the two forms are
+//      lr      blink, [STATUS]            lr      blink, [STATUS]
+//      j.d     r0                         add     blink, blink, #n
+//      add     blink, blink, #n           j       r0
+inline bool is_arc_linked_jump(const insn_t &insn)
+{
+  if ( insn.itype != ARC_j
+    || has_cond(insn)
+    || insn.Op1.reg == BLINK )  // a return
+  {
+    return false;
+  }
+  insn_t prev;
+  if ( decode_prev_insn(&prev, insn.ea) == BADADDR )
+    return false;
+  if ( is_arc_blink_adjust(prev) && decode_prev_insn(&prev, prev.ea) == BADADDR )
+    return false;
+  return prev.itype == ARC_lr
+      && prev.Op1.is_reg(BLINK)
+      && prev.Op2.is_imm(AUX_STATUS);
+}
+
+//------------------------------------------------------------------------
+// the instructions that build the return address of such a call carry no
+// meaning of their own
+inline bool is_arc_linked_jump_setup(const insn_t &insn)
+{
+  insn_t other;
+  if ( insn.itype == ARC_lr
+    && insn.Op1.is_reg(BLINK)
+    && insn.Op2.is_imm(AUX_STATUS) )
+  {
+    // the jump follows, with the adjustment possibly between the two
+    ea_t ea = insn.ea + insn.size;
+    if ( decode_insn(&other, ea) <= 0 )
+      return false;
+    if ( is_arc_blink_adjust(other) && decode_insn(&other, ea + other.size) <= 0 )
+      return false;
+    return is_arc_linked_jump(other);
+  }
+  if ( is_arc_blink_adjust(insn) )
+  {
+    // the delay slot of the jump, or the instruction before a plain one
+    return decode_prev_insn(&other, insn.ea) != BADADDR && is_arc_linked_jump(other)
+        || decode_insn(&other, insn.ea + insn.size) > 0 && is_arc_linked_jump(other);
+  }
+  return false;
+}
 inline bool is_arc_simple_branch(uint16 itype)
 {
   return itype == ARC_bl
@@ -396,6 +462,9 @@ struct arc_t : public procmod_t
 
   int ref_arcsoh_id = 0;
   int ref_arcsol_id = 0;
+  int ref_arch30_id = 0;
+  fixup_handler_t cfh_arch30 = {};
+  fixup_type_t cfh_arch30_id = 0;
 
 #define ARC_SIMPLIFY    (1u<<0)
 #define ARC_INLINECONST (1u<<1)
@@ -406,7 +475,6 @@ struct arc_t : public procmod_t
   int g_limm = 0;
   bool got_limm = false;
 
-  std::set<ea_t> renamed;
   int islast = 0;
 
   // is 'ea' in a delay slot of a branch/jump?
@@ -472,10 +540,24 @@ struct arc_t : public procmod_t
   int get_limm(insn_t &insn);
   inline void opreg(insn_t &insn, op_t &x, int rgnum, int limm=LIMM);
   inline void opdisp(insn_t &insn, op_t &x, int rgnum, ea_t disp);
-  void rename_if_not_set(ea_t ea, const char *name);
-  bool check_ac_pop_chain(int *regno, ea_t ea);
-  bool detect_millicode(qstring *mname, ea_t ea);
-  bool is_millicode(ea_t ea, sval_t *spdelta=nullptr);
+  bool is_h30_ptr(ea_t ea) const;
+  void mark_h30_table(ea_t ea);
+  void mark_h30_jtable(const insn_t &insn);
+  bool set_h30_offset(ea_t ea, int n, ea_t base);
+  void apply_millicode_sig();
+  bool find_millicode_reg(uval_t *value, const insn_t &insn, int reg);
+  sval_t get_millicode_arg(const insn_t *caller, int reg);
+  bool check_millicode_name(
+        const qstring &name,
+        ea_t ea,
+        sval_t *spdelta,
+        const insn_t *caller,
+        bool *sets_fp=nullptr);
+  bool is_millicode(
+        ea_t ea,
+        sval_t *spdelta=nullptr,
+        const insn_t *caller=nullptr,
+        bool *sets_fp=nullptr);
   sval_t calc_sp_delta(const insn_t &insn);
   void trace_sp(const insn_t &insn);
   bool arc_calc_spdelta(sval_t *spdelta, const insn_t &insn);
@@ -489,6 +571,12 @@ struct arc_t : public procmod_t
   bool spoils(const insn_t &insn, int reg) const;
   int spoils(const insn_t &insn, const uint32 *regs, int n) const;
   bool is_arc_call_insn(const insn_t &insn);
+  bool create_func_frame(ea_t func_ea);
+  bool millicode_frame(
+        asize_t *frsize,
+        ushort *frregs,
+        ea_t func_ea,
+        ea_t end_ea);
   bool find_op_value_ex(
         const insn_t &insn,
         const op_t &x,

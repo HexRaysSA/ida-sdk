@@ -60,7 +60,7 @@ struct jvalue_t;
 #define S_IDA_KERNWIN_MODNAME                    "ida_kernwin"
 #define S_IDA_MOVES_MODNAME                      "ida_moves"
 #define S_IDC_MODNAME                            "idc"
-#define S_IDAAPI_EXECSCRIPT                      "IDAPython_ExecScript"
+#define S_IDAAPI_EXECSCRIPT                      "_ida_exec_script"
 #define S_IDAAPI_FINDCOMPLETIONS                 "IDAPython_Completion"
 #define S_IDAAPI_FORMATEXC                       "IDAPython_FormatExc"
 #define S_IDAAPI_LOADPROCMOD                     "IDAPython_LoadProcMod"

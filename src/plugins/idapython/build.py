@@ -31,13 +31,13 @@ DEFAULT_IDASDK = SCRIPT_DIR.parent.parent
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter,
     epilog=r"""
-A recent version of SWIG (4.2.0+) is required to produce reliable bindings. If
-your platform's package manager ships an older SWIG, build 4.2.0+ from source and
-pass its path with '--swig'.
+The build pins a SWIG version (see BUILDING.md): a matching installed SWIG is
+used, otherwise that version is installed from PyPI. To use your own SWIG
+(4.2.0+) instead, pass its path with '--swig'.
 
 Example build commands:
 
-  # run from inside an SDK tree (SDK auto-detected), SWIG on PATH
+  # run from inside an SDK tree (SDK auto-detected), pinned SWIG
   python3 build.py
 
   # explicit SDK + SWIG
@@ -49,7 +49,9 @@ parser.add_argument(
          "or set the IDASDK env var).")
 parser.add_argument(
     "--swig", type=Path, default=None,
-    help="Path to the SWIG 4.2.0+ executable (default: SWIG env var or PATH)")
+    help="Path to a SWIG 4.2.0+ executable to use instead of the pinned one "
+         "(default: SWIG env var, else the pinned version, found or installed "
+         "from PyPI)")
 parser.add_argument(
     "--build-dir", type=Path, default=SCRIPT_DIR / "build",
     help="CMake build directory (default: ./build)")
@@ -70,14 +72,10 @@ def run(argv):
     subprocess.check_call([str(a) for a in argv])
 
 
-def get_swig_or_raise():
-    """Resolve the SWIG executable."""
-    swig = parser_args.swig or os.environ.get("SWIG") or shutil.which("swig")
-    if not swig:
-        raise EnvironmentError(
-            "SWIG executable not found. Install SWIG 4.2.0+ or pass --swig "
-            "(or set the SWIG environment variable).")
-    return str(Path(swig))
+def get_swig():
+    """An explicitly requested SWIG, or None to let CMake provision the pinned one."""
+    swig = parser_args.swig or os.environ.get("SWIG")
+    return str(Path(swig)) if swig else None
 
 
 def main():
@@ -95,8 +93,10 @@ def main():
         "cmake", "-S", SCRIPT_DIR, "-B", build_dir,
         f"-DIDASDK={idasdk}",
         f"-DCMAKE_BUILD_TYPE={build_type}",
-        f"-DIDA_SWIG={get_swig_or_raise()}",
     ]
+    swig = get_swig()
+    if swig:
+        configure.append(f"-DIDA_SWIG={swig}")
     if shutil.which("ninja"):
         configure += ["-G", "Ninja"]
     run(configure)

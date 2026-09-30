@@ -685,20 +685,27 @@ bool py_attach_dynamic_action_to_popup(
 // twinline_t has a dummy destructor, that performs no cleanup.
 struct disasm_line_t
 {
-  disasm_line_t() : at(nullptr) {}
+  disasm_line_t() {}
   ~disasm_line_t() { qfree(at); }
   disasm_line_t(const disasm_line_t &other) { *this = other; }
   disasm_line_t &operator=(const disasm_line_t &other)
   {
-    qfree(at);
-    at = other.at == nullptr ? nullptr : other.at->clone();
+    if ( this != &other )
+    {
+      qfree(at);
+      at = other.at == nullptr ? nullptr : other.at->clone();
+      line = other.line;
+      prefix_color = other.prefix_color;
+      bg_color = other.bg_color;
+      is_default = other.is_default;
+    }
     return *this;
   }
-  place_t *at;
+  place_t *at = nullptr;
   qstring line;
-  color_t prefix_color;
-  bgcolor_t bg_color;
-  bool is_default;
+  color_t prefix_color = 1;
+  bgcolor_t bg_color = DEFCOLOR;
+  bool is_default = false;
 };
 DECLARE_TYPE_AS_MOVABLE(disasm_line_t);
 typedef qvector<disasm_line_t> disasm_text_t;

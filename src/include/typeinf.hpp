@@ -558,6 +558,8 @@ inline THREAD_SAFE bool is_type_bool(type_t t)    { return get_base_type(t) == B
 #define TAUDT_TUPLE     0x0800  ///< tuple:  tuples are like structs but are
                                 ///<         returned differently from functions
 #define TAUDT_IFACE     0x1000  ///< interface: objc @interface
+#define TAUDT_INVBF     0x2000  ///< struct: bitfields are allocated in the order
+                                ///<         opposite to ::inf_get_bf_order()
 ///@}
 
 /// \defgroup tattr_field Type attributes for udt fields
@@ -598,6 +600,16 @@ inline THREAD_SAFE bool is_type_bool(type_t t)    { return get_base_type(t) == B
 #define TAH_ALL         0x7FF0  ///< all defined bits
 
 ///@} tattr
+
+/// Resolve the bitfield allocation order of a udt with the given type attributes.
+/// Never returns ::BFO_DEFAULT.
+inline bf_order_t resolve_udt_bf_order(uint32 taudt_bits)
+{
+  bf_order_t order = inf_get_bf_order();
+  if ( (taudt_bits & TAUDT_INVBF) == 0 )
+    return order;
+  return order == BFO_MSB_TO_LSB ? BFO_LSB_TO_MSB : BFO_MSB_TO_LSB;
+}
 
 
 /// The TAH byte (type attribute header byte) denotes the start of type attributes.
@@ -654,6 +666,9 @@ struct type_attr_t
                         ///< the ones starting with an underscore are reserved too
 #define TA_ORG_TYPEDEF "__org_typedef" ///< the original typedef name (simple string)
 #define TA_ORG_ARRDIM  "__org_arrdim"  ///< the original array dimension (pack_dd)
+#define TA_ORG_FLOATING "__org_floating" ///< the declared size of a floating
+                                       ///< argument promoted while lowering
+                                       ///< (pack_dd)
 #define TA_FORMAT      "format"        ///< info about the 'format' argument.
                                        ///< 3 times pack_dd:
                                        ///<    \ref format_functype_t,
@@ -2003,6 +2018,12 @@ idaman ssize_t ida_export get_abi_name(qstring *out);
 idaman bool ida_export append_abi_opts(const char *abi_opts, bool user_level = false);
 idaman bool ida_export remove_abi_opts(const char *abi_opts, bool user_level = false);
 
+/// Check if OPT is present as a whole '-'-separated component of ABINAME
+/// (as returned by get_abi_name())
+/// \param abiname  full ABI name, e.g. "eabi-hard_float-8align4"
+/// \param opt      option name, e.g. "hard_float"
+idaman bool ida_export has_abi_opt(const qstring &abiname, const char *opt);
+
 /// \param compstr - compiler description in form <abbr>:<abiname>
 /// \param user_level - initiated by user if TRUE
 /// \return success
@@ -2107,6 +2128,7 @@ enum sclass_t    ///< storage class
                                        ///< IDA Pro specific
 #define HTI_VOID_OK     0x00800000     ///< accept void as a standalone type
 #define HTI_NO_MANGLE   0x01000000     ///< don't mangle name (see \ref HTI_NDC)
+#define HTI_QUOTED_NAMES 0x02000000    ///< the input may contain type/member names wrapped in `...` or "..." (as produced with #PRTYPE_QUOTE_NAMES); unwrap them. Only set this when re-parsing such printed output (e.g. the type editor), not for ordinary input.
 ///@}
 
 
@@ -2205,6 +2227,7 @@ idaman bool ida_export parse_decl(
                                    ///< e.g. "LoadLibrary" will return its prototype
 #define PT_VOID_OK     0x00010000  ///< accept void as a standalone type
 #define PT_NO_MANGLE   0x00020000  ///< don't mangle name (see \ref PT_NDC)
+#define PT_QUOTED_NAMES 0x00040000 ///< unwrap `...`/"..." names (see \ref HTI_QUOTED_NAMES)
 ///@}
 
 
@@ -2244,7 +2267,9 @@ idaman bool ida_export print_type(qstring *out, ea_t ea, int prtype_flags);
 #define PRTYPE_CPP     0x00010 ///< use c++ name (only for print_type())
 #define PRTYPE_DEF     0x00020 ///< tinfo_t: print definition, if available
 #define PRTYPE_NOARGS  0x00040 ///< tinfo_t: do not print function argument names
-#define PRTYPE_NOARRS  0x00080 ///< tinfo_t: print arguments with #FAI_ARRAY as pointers
+#define PRTYPE_SKIP_ORG 0x00080 ///< tinfo_t: print arguments in their lowered form:
+                               ///< #FAI_ARRAY as pointers, promoted floats as double
+#define PRTYPE_NOARRS  PRTYPE_SKIP_ORG ///< compatibility name of #PRTYPE_SKIP_ORG
 #define PRTYPE_NORES   0x00100 ///< tinfo_t: never resolve types (meaningful with PRTYPE_DEF)
 #define PRTYPE_RESTORE 0x00200 ///< tinfo_t: print restored types for #FAI_ARRAY and #FAI_STRUCT
 #define PRTYPE_NOREGEX 0x00400 ///< do not apply regular expressions to beautify name
@@ -2256,6 +2281,9 @@ idaman bool ida_export print_type(qstring *out, ea_t ea, int prtype_flags);
 #define PRTYPE_MAXSTR  0x10000 ///< limit the output length to 1024 bytes (the output may be slightly longer)
 #define PRTYPE_TAIL    0x20000 ///< print only the definition tail (only for definitions, exclusive with PRTYPE_HEADER)
 #define PRTYPE_ARGLOCS 0x40000 ///< print function arglocs (not only for usercall)
+#define PRTYPE_SEMSPAN 0x80000 ///< wrap each type/declarator name in a ::COLOR_SEMSPAN
+                               ///< span so a view can select the whole name at once
+#define PRTYPE_QUOTE_NAMES 0x100000 ///< quote type/member names that are not valid C identifiers (in `...` or "...", with \\-escaping) so the printout can be parsed back. Use it when the output is meant to be re-parsed (e.g. the type editor), not for plain display.
 ///@}
 
 ///@} parse_tinfo
@@ -3209,11 +3237,12 @@ public:
   tinfo_t() : typid(BT_UNK) {}
   /// Constructor - can only be used to initialize simple types!
   explicit tinfo_t(type_t decl_type) : typid(decl_type) {}
-  /// Constructor - will attempt to parse the provided C declaration
+  /// Constructor - will attempt to parse the provided C declaration.
+  /// An empty declaration silently yields an empty tinfo_t (PT_EMPTY).
   explicit tinfo_t(const char *decl, til_t *til=nullptr, int pt_flags=0)
      : typid(0)
   {
-    parse(decl, til, pt_flags);
+    parse(decl, til, pt_flags | PT_EMPTY);
   }
 
   /// Constructor
@@ -3772,6 +3801,10 @@ public:
 
   /// Is an interface?
   bool is_iface() const  { return (get_udt_taudt_bits() & TAUDT_IFACE) != 0; }
+
+  /// Order in which the bitfield members of this udt were allocated.
+  /// Never returns ::BFO_DEFAULT.
+  bf_order_t get_bf_order() const { return resolve_udt_bf_order(get_udt_taudt_bits()); }
 
   /// Requires full qualifier? (name is not unique)
   /// \param[out] out qualifier. may be nullptr
@@ -4808,7 +4841,7 @@ struct funcarg_t
   funcarg_t(const char *_name, const char *_type, const argloc_t &_argloc=argloc_t())
     : argloc(_argloc), name(_name)
   {
-    type.parse(_type, nullptr, PT_SEMICOLON);
+    type.parse(_type, nullptr, PT_SEMICOLON|PT_EMPTY);
   }
 
   bool operator == (const funcarg_t &r) const
@@ -5450,7 +5483,7 @@ struct udm_t // #udm
   udm_t(const char *_name, const char *_type, uint64 _offset = 0)
     : offset(_offset), name(_name)
   {
-    if ( type.parse(_type, nullptr, PT_SEMICOLON) )
+    if ( type.parse(_type, nullptr, PT_SEMICOLON|PT_EMPTY) )
       size = type.get_size() * 8;
   }
 
@@ -5514,7 +5547,7 @@ struct udm_t // #udm
   }
 
   void set_value_repr(const value_repr_t &r) { repr = r; }
-  bool can_be_dtor() const { return name[0] == '~'; }
+  bool can_be_dtor() const { return name[0] == '~' && (type.is_func() || type.is_funcptr()); }
   bool can_rename() const
   {
     return !is_gap() && !is_baseclass() && !can_be_dtor();
@@ -5545,6 +5578,16 @@ struct udt_type_data_t : public udtmembervec_t // #udt
   bool is_fixed() const { return (taudt_bits & TAUDT_FIXED) != 0; }
   bool is_tuple() const { return (taudt_bits & TAUDT_TUPLE) != 0; }
   bool is_iface() const { return (taudt_bits & TAUDT_IFACE) != 0; }
+  bool is_invbf() const { return (taudt_bits & TAUDT_INVBF) != 0; }
+  /// Order in which the bitfield members of this udt were allocated
+  bf_order_t get_bf_order() const { return resolve_udt_bf_order(taudt_bits); }
+  /// Remember the bitfield allocation order. Stores nothing if ORDER is the
+  /// database default, so the udt follows ::inf_get_bf_order()
+  void set_bf_order(bf_order_t order)
+  {
+    setflag(taudt_bits, TAUDT_INVBF,
+            order != BFO_DEFAULT && order != inf_get_bf_order());
+  }
 
   void set_vftable(bool on=true)   { setflag(taudt_bits, TAUDT_VFTABLE, on); }
   void set_fixed(bool on=true)     { setflag(taudt_bits, TAUDT_FIXED, on); }

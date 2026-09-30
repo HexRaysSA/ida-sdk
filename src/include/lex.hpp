@@ -267,6 +267,7 @@ idaman int ida_export lex_set_options(lexer_t *lx, int options);
                                               ///< modifier suffixes. Otherwise the constant is always considered as signed and the size
                                               ///< depends only on the number of bytes in the value
 #define LXOPT_STR_INCLUDE_BACKSLASHES  0x0010 ///< do not escape backslash characters in string constants
+#define LXOPT_VERBATIM_NAMES           0x0020 ///< lex a backtick-wrapped (or, outside parentheses, double-quote-wrapped) span as a single verbatim identifier token, for non-C names; inverse of append_verbatim_name
 ///@}
 
 
