@@ -418,7 +418,7 @@ static int idaapi arcso_gen_scaled_expr(
 }
 
 //--------------------------------------------------------------------------
-static bool idaapi arcso_calc_reference_data(
+static bool idaapi calc_scaled_ref_data(
         ea_t *target,
         ea_t *base,
         ea_t from,
@@ -449,7 +449,7 @@ static const custom_refinfo_handler_t ref_arcsoh =
   "ARC 16-bit scaled offset",
   RHF_TGTOPT,                // properties: target be calculated using operand value
   arcso_gen_scaled_expr,     // gen_expr
-  arcso_calc_reference_data, // calc_reference_data
+  calc_scaled_ref_data,      // calc_reference_data
   nullptr,                      // get_format
 };
 
@@ -461,8 +461,45 @@ static const custom_refinfo_handler_t ref_arcsol =
   "ARC 32-bit scaled offset",
   RHF_TGTOPT,                // properties: target be calculated using operand value
   arcso_gen_scaled_expr,     // gen_expr
-  arcso_calc_reference_data, // calc_reference_data
+  calc_scaled_ref_data,      // calc_reference_data
   nullptr,                      // get_format
+};
+
+//--------------------------------------------------------------------------
+// ARC4 keeps a code address in 30 bits, as the address of the instruction
+// word: the stored value is the address divided by 4. The MetaWare assembler
+// builds such a value with the @h30 operator.
+static void idaapi h30_get_format(qstring *format)
+{
+  *format = "%s" COLSTR("@h30", SCOLOR_KEYWORD);
+}
+
+//--------------------------------------------------------------------------
+static const custom_refinfo_handler_t ref_arch30 =
+{
+  sizeof(custom_refinfo_handler_t),
+  "ARCH30",
+  "ARC4 code address (@h30)",
+  RHF_TGTOPT,                // properties: target be calculated using operand value
+  nullptr,                   // gen_expr
+  calc_scaled_ref_data,      // calc_reference_data: the scale is 4
+  h30_get_format,            // get_format
+};
+
+//--------------------------------------------------------------------------
+// The ELF loader looks this up by name to apply the R_ARC_H30 relocation.
+// The standard handlers do everything needed: 'shift' is what makes the
+// stored value the target divided by 4.
+static const fixup_handler_t cfh_arch30_tmpl =
+{
+  sizeof(fixup_handler_t),
+  "H30",                     // name
+  0,                         // properties
+  4, 32, 2, 0,               // size, width, shift
+  REFINFO_CUSTOM,            // reftype, completed in ev_init
+  nullptr,                   // apply
+  nullptr,                   // get_value
+  nullptr,                   // patch_value
 };
 
 
@@ -475,6 +512,9 @@ static ssize_t idaapi notify(void *, int msgid, va_list)
   return 0;
 }
 
+// the signature with the compiler prolog/epilog helpers
+#define MILLICODE_SIG "millicode"
+
 //----------------------------------------------------------------------
 void arc_t::load_from_idb()
 {
@@ -482,6 +522,41 @@ void arc_t::load_from_idb()
   ptype_changed();
   idpflags = (ushort)helper.altval(-1);
   ioh.restore_device();
+}
+
+//----------------------------------------------------------------------
+// is_millicode() needs the names of the helpers to know how a call to one of
+// them changes sp, but the regular FLIRT pass runs only after the instructions
+// have been emulated. Apply the signature as soon as the file is loaded, while
+// nothing is analyzed yet and every address is still a candidate module start.
+void arc_t::apply_millicode_sig()
+{
+  const ea_t step = is_a4() ? 4 : 2;    // the smallest instruction alignment
+  const ea_t mask = ~(step - 1);
+  for ( int n = 0, qty = get_segm_qty(); n < qty; ++n )
+  {
+    segment_info_t si;
+    if ( !get_segment_info_by_num(&si, n)
+      || si.get_type() != SEG_CODE && si.get_type() != SEG_NORM
+      || si.is_ephemeral_segm() )
+    {
+      continue;
+    }
+    ea_t ea = (si.start_ea + step - 1) & mask;
+    while ( ea < si.end_ea )
+    {
+      if ( !is_loaded(ea) )
+      {
+        ea_t next = next_inited(ea, si.end_ea);
+        if ( next == BADADDR )
+          break;
+        ea = (next + step - 1) & mask;
+        continue;
+      }
+      apply_idasgn_to(MILLICODE_SIG, ea, false);
+      ea += step;
+    }
+  }
 }
 
 //----------------------------------------------------------------------
@@ -497,9 +572,18 @@ ssize_t idaapi arc_t::on_event(ssize_t msgid, va_list va)
       hook_event_listener(HT_IDB, &idb_listener, &LPH);
       ref_arcsol_id = register_custom_refinfo(&ref_arcsol);
       ref_arcsoh_id = register_custom_refinfo(&ref_arcsoh);
+      ref_arch30_id = register_custom_refinfo(&ref_arch30);
+      if ( ref_arch30_id > 0 )
+      {
+        cfh_arch30 = cfh_arch30_tmpl;
+        cfh_arch30.reftype = REFINFO_CUSTOM | ref_arch30_id;
+        cfh_arch30_id = register_custom_fixup(&cfh_arch30);
+      }
       break;
 
     case processor_t::ev_term:
+      unregister_custom_fixup(cfh_arch30_id);
+      unregister_custom_refinfo(ref_arch30_id);
       unregister_custom_refinfo(ref_arcsoh_id);
       unregister_custom_refinfo(ref_arcsol_id);
       unhook_event_listener(HT_IDB, &idb_listener);
@@ -511,6 +595,11 @@ ssize_t idaapi arc_t::on_event(ssize_t msgid, va_list va)
       set_codeseqs();
       if ( inf_like_binary() )
       {
+        // the compilers for ARC share the prolog and epilog code between
+        // functions; the signature names those helpers, which is what
+        // is_millicode() needs to tell how they change sp. A file format with
+        // symbols names them by itself.
+        plan_to_apply_idasgn(MILLICODE_SIG);
         // assume trap 0 stops flow (assert-like)
         setflag(idpflags, ARC_TRAP0STOPS, 1);
         // ask the user
@@ -526,6 +615,11 @@ ssize_t idaapi arc_t::on_event(ssize_t msgid, va_list va)
           device = "ARCv2";
         ioh.set_device_name(device, IORESP_NONE);
       }
+      break;
+
+    case processor_t::ev_endbinary:
+      if ( va_argi(va, bool) )
+        apply_millicode_sig();
       break;
 
     case processor_t::ev_ending_undo:
@@ -750,7 +844,7 @@ ssize_t idaapi arc_t::on_event(ssize_t msgid, va_list va)
         {
           const int *regs;
           get_arc_fastcall_regs(&regs);
-          callregs->set(ARGREGS_INDEPENDENT, regs, nullptr);
+          callregs->set(ARGREGS_GP_ONLY, regs, nullptr);
           return 1;
         }
         else if ( cc == CM_CC_THISCALL || cc == CM_CC_SWIFT )

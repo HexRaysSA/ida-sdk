@@ -56,6 +56,13 @@ enum fpvalue_error_t
   REAL_ERROR_INTOVER = 5,  ///< eetol*: integer overflow
 };
 
+/// Lay M out little endian whatever the database's byte order is.
+/// Needed when M is a value to compute with rather than a buffer of bytes
+/// destined for the target, since IDA itself runs little endian: without it
+/// a float taken from a big endian database comes back byte-swapped, and is
+/// not the number it names.
+#define FPVAL_FORCE_LE 0x80
+
 /// Standard IEEE 754 floating point conversion function
 /// \param m    pointer to data
 /// \param out  internal IEEE format data
@@ -70,7 +77,8 @@ enum fpvalue_error_t
 ///               - 013: store double                  8 bytes (e->m)
 ///               - 014: store long double            10 bytes (e->m)
 ///               - 015: store long double            12 bytes (e->m)
-///              bit 0x80 forces little endian even for big endian processors
+///              \ref FPVAL_FORCE_LE forces little endian even for big
+///              endian processors
 /// \return fpvalue_error_t
 
 idaman THREAD_SAFE fpvalue_error_t ida_export ieee_realcvt(void *m, fpvalue_t *out, uint16 swt);
@@ -101,21 +109,27 @@ struct fpvalue_t
   void clear(void) { memset(this, 0, sizeof(*this)); }
   DECLARE_COMPARISONS(fpvalue_t) { return ecmp(*this, r); }
 
-  /// Convert to the processor-independent representation.
-  fpvalue_error_t from_half(uint16 fpval) { return ieee_realcvt(&fpval, this, sizeof(fpval)/2-1); }
-  fpvalue_error_t from_float(float fpval) { return ieee_realcvt(&fpval, this, sizeof(fpval)/2-1); }
-  fpvalue_error_t from_double(double fpval) { return ieee_realcvt(&fpval, this, sizeof(fpval)/2-1); }
+  /// Convert a host value to the processor-independent representation.
+  /// These take a number, not a buffer of target bytes, so they go through
+  /// \ref FPVAL_FORCE_LE and ignore the database's byte order.
+  fpvalue_error_t from_half(uint16 fpval) { return ieee_realcvt(&fpval, this, FPVAL_FORCE_LE|(sizeof(fpval)/2-1)); }
+  fpvalue_error_t from_float(float fpval) { return ieee_realcvt(&fpval, this, FPVAL_FORCE_LE|(sizeof(fpval)/2-1)); }
+  fpvalue_error_t from_double(double fpval) { return ieee_realcvt(&fpval, this, FPVAL_FORCE_LE|(sizeof(fpval)/2-1)); }
 
-  /// Convert from the processor-independent representation.
-  fpvalue_error_t to_half(uint16 *fpval) const { return ieee_realcvt(fpval, (fpvalue_t*)this, 8|(sizeof(*fpval)/2-1)); }
-  fpvalue_error_t to_float(float *fpval) const { return ieee_realcvt(fpval, (fpvalue_t*)this, 8|(sizeof(*fpval)/2-1)); }
-  fpvalue_error_t to_double(double *fpval) const { return ieee_realcvt(fpval, (fpvalue_t*)this, 8|(sizeof(*fpval)/2-1)); }
+  /// Convert from the processor-independent representation to a host value.
+  /// The result is directly usable as a number. To lay the bytes out for the
+  /// target instead, call ieee_realcvt() without \ref FPVAL_FORCE_LE.
+  fpvalue_error_t to_half(uint16 *fpval) const { return ieee_realcvt(fpval, (fpvalue_t*)this, FPVAL_FORCE_LE|8|(sizeof(*fpval)/2-1)); }
+  fpvalue_error_t to_float(float *fpval) const { return ieee_realcvt(fpval, (fpvalue_t*)this, FPVAL_FORCE_LE|8|(sizeof(*fpval)/2-1)); }
+  fpvalue_error_t to_double(double *fpval) const { return ieee_realcvt(fpval, (fpvalue_t*)this, FPVAL_FORCE_LE|8|(sizeof(*fpval)/2-1)); }
 
   /// Conversions for 10-byte floating point values.
+  /// These take a buffer of target bytes, so they follow the database's
+  /// byte order, unlike the value conversions above.
   fpvalue_error_t from_10bytes(const void *fpval) { return ieee_realcvt((void *)fpval, this, 4); }
   fpvalue_error_t to_10bytes(void *fpval) const { return ieee_realcvt(fpval, (fpvalue_t*)this, 8|4); }
 
-  /// Conversions for 12-byte floating point values.
+  /// Conversions for 12-byte floating point values. \sa from_10bytes
   fpvalue_error_t from_12bytes(const void *fpval) { return ieee_realcvt((void*)fpval, this, 5); }
   fpvalue_error_t to_12bytes(void *fpval) const { return ieee_realcvt(fpval, (fpvalue_t*)this, 8|5); }
 
@@ -186,7 +200,7 @@ typedef uint16 eNI[IEEE_NI];
 #ifdef IEEE_SOURCE
 #  define IEEE_DEPRECATED
 #else
-#  define IEEE_DEPRECATED DEPRECATED
+#  define IEEE_DEPRECATED IDA_DEPRECATED
 #endif
 inline IEEE_DEPRECATED void ecleaz(eNI x)
 {

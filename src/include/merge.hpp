@@ -168,6 +168,7 @@ enum merge_kind_t ENUM_SIZE(uint32)
   MERGE_KIND_DEBUGGER,          ///< debugger data
   MERGE_KIND_DBG_MEMREGS,       ///< manual memory regions (debugger)
   MERGE_KIND_LUMINA,            ///< lumina function metadata
+  MERGE_KIND_SYNTHSTR,          ///< strings recovered by the decompiler or a plugin
   MERGE_KIND_LAST,              ///< last predefined merge handler type.
                                 ///< please note that there can be more merge handler types,
                                 ///< registered by plugins and processor modules.
@@ -187,7 +188,7 @@ class merge_handler_t;
 class merge_data_t;
 using merge_handlers_t = qvector<merge_handler_t *>;
 //--------------------------------------------------------------------------
-/// Return TRUE if IDA is running in diff mode (MERGE_POLICY_MDIFF/MERGE_POLICY_VDIFF)
+/// Return TRUE if IDA is running in diff mode (MDIFF/VDIFF/LISTING_DIFF)
 idaman bool ida_export is_diff_merge_mode();
 
 //--------------------------------------------------------------------------

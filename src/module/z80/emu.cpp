@@ -10,6 +10,7 @@
 
 #include "i5.hpp"
 #include <idd.hpp>
+#include <segregs.hpp>
 
 //------------------------------------------------------------------------
 static void set_immd_bit(const insn_t &insn, int n)
@@ -36,6 +37,26 @@ static void set_immd_bit(const insn_t &insn, int n)
 }
 
 //----------------------------------------------------------------------
+// map a memory operand to a linear address.
+// eZ80 short (16-bit) addresses are extended with MBASE.
+ea_t z80_t::ez80_map_data_ea(const insn_t &insn, const op_t &x) const
+{
+  bool il;
+  ez80_sfx_t sfx = get_sfx(insn);
+  if ( sfx != SFX_NONE )
+    il = sfx == SFX_SIL || sfx == SFX_LIL;
+  else
+    il = get_sreg(insn.ea, R_adl) != 0;
+  if ( !il )
+  {
+    sel_t mb = get_sreg(insn.ea, R_mb);
+    if ( mb != BADSEL && mb != 0 )
+      return (ea_t(mb) << 16) | (x.addr & 0xFFFF);
+  }
+  return map_data_ea(insn, x);
+}
+
+//----------------------------------------------------------------------
 void z80_t::load_operand(const insn_t &insn, const op_t &x)
 {
   dref_t xreftype;
@@ -59,9 +80,12 @@ MakeImm:
 
     case o_mem:
       {
-        ea_t ea = map_data_ea(insn, x);
+        ea_t ea = isEZ80() ? ez80_map_data_ea(insn, x) : map_data_ea(insn, x);
         insn.add_dref(ea, x.offb, dr_R);
-        insn.create_op_data(ea, x);
+        // eZ80 24-bit loads have no matching data type, do not create
+        // a 4-byte item for them
+        if ( !isEZ80() || x.dtype != dt_dword )
+          insn.create_op_data(ea, x);
       }
       break;
 
@@ -84,7 +108,7 @@ MakeImm:
 }
 
 //----------------------------------------------------------------------
-static void save_operand(const insn_t &insn, const op_t &x)
+void z80_t::save_operand(const insn_t &insn, const op_t &x) const
 {
   switch ( x.type )
   {
@@ -92,8 +116,9 @@ static void save_operand(const insn_t &insn, const op_t &x)
       break;
     case o_mem:
       {
-        ea_t ea = map_data_ea(insn, x);
-        insn.create_op_data(ea, x);
+        ea_t ea = isEZ80() ? ez80_map_data_ea(insn, x) : map_data_ea(insn, x);
+        if ( !isEZ80() || x.dtype != dt_dword )
+          insn.create_op_data(ea, x);
         insn.add_dref(ea, x.offb, dr_W);
       }
       break;
@@ -187,6 +212,14 @@ int z80_t::i5_emu(const insn_t &insn)
     save_operand(insn, insn.Op1);
   if ( Feature & CF_CHG2 )
     save_operand(insn, insn.Op2);
+
+  // NB: a suffixed control transfer (CALL.SIS, JP.LIL, ...) performs a
+  // persistent eZ80 memory-mode switch at the target. We intentionally do
+  // NOT track that through the 'adl' sreg: the mode reverts to the caller's
+  // when the callee returns, which a linear sreg range cannot express, so
+  // propagating it leaks the switched mode across all following addresses.
+  // The suffix already decodes its own instruction correctly via aux_sfx;
+  // genuine Z80-mode regions can be marked by editing the 'adl' sreg.
 
   if ( flow )
     add_cref(insn.ea, insn.ea+insn.size, fl_F);

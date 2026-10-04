@@ -2725,25 +2725,25 @@ struct hidden_range_t : public range_t
 };
 
 /// \deprecated Use update_hidden_range_info() instead.
-idaman DEPRECATED bool ida_export update_hidden_range(const hidden_range_t *ha);
+idaman IDA_DEPRECATED bool ida_export update_hidden_range(const hidden_range_t *ha);
 
 /// \deprecated Use get_hidden_range_info() instead.
-idaman DEPRECATED hidden_range_t *ida_export get_hidden_range(ea_t ea);
+idaman IDA_DEPRECATED hidden_range_t *ida_export get_hidden_range(ea_t ea);
 
 /// \deprecated Use get_hidden_range_info_by_num() instead.
-idaman DEPRECATED hidden_range_t *ida_export getn_hidden_range(int n);
+idaman IDA_DEPRECATED hidden_range_t *ida_export getn_hidden_range(int n);
 
 /// \deprecated Use get_prev_hidden_range_ea() instead.
-idaman DEPRECATED hidden_range_t *ida_export get_prev_hidden_range(ea_t ea);
+idaman IDA_DEPRECATED hidden_range_t *ida_export get_prev_hidden_range(ea_t ea);
 
 /// \deprecated Use get_next_hidden_range_ea() instead.
-idaman DEPRECATED hidden_range_t *ida_export get_next_hidden_range(ea_t ea);
+idaman IDA_DEPRECATED hidden_range_t *ida_export get_next_hidden_range(ea_t ea);
 
 /// \deprecated Use get_first_hidden_range_ea() instead.
-idaman DEPRECATED hidden_range_t *ida_export get_first_hidden_range(void);
+idaman IDA_DEPRECATED hidden_range_t *ida_export get_first_hidden_range(void);
 
 /// \deprecated Use get_last_hidden_range_ea() instead.
-idaman DEPRECATED hidden_range_t *ida_export get_last_hidden_range(void);
+idaman IDA_DEPRECATED hidden_range_t *ida_export get_last_hidden_range(void);
 
 
 ///@} hidden_range

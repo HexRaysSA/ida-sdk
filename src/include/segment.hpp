@@ -538,7 +538,7 @@ inline bool is_finally_visible_segm(segment_t *s)
 }
 /// See #SFL_HIDDEN
 /// \deprecated Use segment_info_t::set_visible_segm() or set_visible_segment() for safer access.
-idaman DEPRECATED void ida_export set_visible_segm(segment_t *s, bool visible);
+idaman IDA_DEPRECATED void ida_export set_visible_segm(segment_t *s, bool visible);
 
 /// Set segment visibility by address.
 /// \param ea       any address within the segment
@@ -565,7 +565,7 @@ idaman bool ida_export is_spec_ea(ea_t ea);
 /// Locked pointers are guaranteed to remain valid until they are unlocked.
 /// Ranges with locked pointers cannot be deleted or moved.
 
-idaman DEPRECATED void ida_export lock_segm(const segment_t *segm, bool lock);
+idaman IDA_DEPRECATED void ida_export lock_segm(const segment_t *segm, bool lock);
 
 /// Lock segment by address.
 /// Locked segments cannot be deleted or moved.
@@ -576,7 +576,7 @@ idaman void ida_export lock_segment_by_ea(ea_t ea, bool lock);
 
 /// Helper class to lock a segment pointer so it stays valid
 /// \deprecated Use lock_segment_ea instead.
-class DEPRECATED lock_segment
+class IDA_DEPRECATED lock_segment
 {
   ea_t ea = BADADDR;
 public:
@@ -612,7 +612,7 @@ public:
 
 /// Is a segment pointer locked?
 /// \deprecated Use is_segment_locked() for safer access.
-idaman DEPRECATED bool ida_export is_segm_locked(const segment_t *segm);
+idaman IDA_DEPRECATED bool ida_export is_segm_locked(const segment_t *segm);
 
 /// Is segment locked by address?
 /// \param ea  any address within the segment
@@ -759,7 +759,7 @@ idaman int ida_export enumerate_selectors(int (idaapi *func)(sel_t sel,ea_t para
 ///                  to the callback function
 /// \return #BADADDR or the value returned by the callback function 'func'
 
-idaman DEPRECATED ea_t ida_export enumerate_segments_with_selector(
+idaman IDA_DEPRECATED ea_t ida_export enumerate_segments_with_selector(
         sel_t selector,
         ea_t (idaapi *func)(segment_t *s, void *ud),
         void *ud=nullptr);
@@ -795,7 +795,7 @@ idaman ea_t ida_export enumerate_segments_with_selector_ea(
 /// \param selector  a segment with the specified selector will be returned
 /// \return pointer to segment or nullptr
 
-idaman DEPRECATED segment_t *ida_export get_segm_by_sel(sel_t selector);
+idaman IDA_DEPRECATED segment_t *ida_export get_segm_by_sel(sel_t selector);
 
 /// Get segment start address by its selector.
 /// This function finds a segment by its selector. If there are several
@@ -843,7 +843,7 @@ idaman ea_t ida_export get_segment_ea_by_sel(sel_t selector);
 /// This ensures that the data segment is always correctly set, which is a good
 /// default for most processors.
 
-idaman DEPRECATED bool ida_export add_segm_ex(
+idaman IDA_DEPRECATED bool ida_export add_segm_ex(
         segment_t *NONNULL s,
         const char *name,
         const char *sclass,
@@ -986,7 +986,7 @@ idaman int ida_export get_segm_qty();
 /// \param ea  linear address belonging to the segment
 /// \return nullptr or pointer to segment structure
 
-idaman DEPRECATED segment_t *ida_export getseg(ea_t ea);
+idaman IDA_DEPRECATED segment_t *ida_export getseg(ea_t ea);
 
 /// \defgroup GSI_ Get segment info flags
 /// Flags for get_segment_info() to request additional string fields.
@@ -1035,7 +1035,7 @@ idaman ea_t ida_export get_segment_ea(ea_t ea);
 /// \param n  segment number in the range (0..get_segm_qty()-1)
 /// \return nullptr or pointer to segment structure
 
-idaman DEPRECATED segment_t *ida_export getnseg(int n);
+idaman IDA_DEPRECATED segment_t *ida_export getnseg(int n);
 
 /// Fill segment_info_t structure for segment by its number.
 /// By default, only fields present in segment_t are filled.
@@ -1065,7 +1065,7 @@ idaman int ida_export get_segm_num(ea_t ea);
 
 /// Get pointer to the next segment.
 /// \deprecated Use get_next_segment_ea() for safer access.
-idaman DEPRECATED segment_t *ida_export get_next_seg(ea_t ea);
+idaman IDA_DEPRECATED segment_t *ida_export get_next_seg(ea_t ea);
 
 /// Get start address of the next segment.
 /// \param seg_ea  linear address belonging to the segment
@@ -1076,7 +1076,7 @@ idaman ea_t ida_export get_next_segment_ea(ea_t seg_ea);
 
 /// Get pointer to the previous segment.
 /// \deprecated Use get_prev_segment_ea() for safer access.
-idaman DEPRECATED segment_t *ida_export get_prev_seg(ea_t ea);
+idaman IDA_DEPRECATED segment_t *ida_export get_prev_seg(ea_t ea);
 
 /// Get start address of the previous segment.
 /// \param seg_ea  linear address belonging to the segment
@@ -1087,7 +1087,7 @@ idaman ea_t ida_export get_prev_segment_ea(ea_t seg_ea);
 
 /// Get pointer to the first segment.
 /// \deprecated Use get_first_segment_ea() for safer access.
-idaman DEPRECATED segment_t *ida_export get_first_seg();
+idaman IDA_DEPRECATED segment_t *ida_export get_first_seg();
 
 /// Get start address of the first segment.
 /// The returned address can be used as a handle for other segment_* functions.
@@ -1098,7 +1098,7 @@ idaman ea_t ida_export get_first_segment_ea();
 
 /// Get pointer to the last segment.
 /// \deprecated Use get_last_segment_ea() for safer access.
-idaman DEPRECATED segment_t *ida_export get_last_seg();
+idaman IDA_DEPRECATED segment_t *ida_export get_last_seg();
 
 /// Get start address of the last segment.
 /// \return segment start_ea, or BADADDR if no segments exist
@@ -1112,7 +1112,7 @@ idaman ea_t ida_export get_last_segment_ea();
 /// \param name  segment name. may be nullptr.
 /// \return nullptr or pointer to segment structure
 
-idaman DEPRECATED segment_t *ida_export get_segm_by_name(const char *name);
+idaman IDA_DEPRECATED segment_t *ida_export get_segm_by_name(const char *name);
 
 /// Get segment start address by its name.
 /// If there are several segments with the same name, returns the first of them.
@@ -1222,7 +1222,7 @@ idaman const char *ida_export move_segm_strerror(move_segm_code_t code);
 /// \param flags  \ref MSF_
 /// \return       \ref MOVE_SEGM_
 
-idaman DEPRECATED move_segm_code_t ida_export move_segm(segment_t *s, ea_t to, int flags=0);
+idaman IDA_DEPRECATED move_segm_code_t ida_export move_segm(segment_t *s, ea_t to, int flags=0);
 
 /// Move segment to a new address.
 /// It fixes up address sensitive information in the kernel.
@@ -1268,7 +1268,7 @@ idaman move_segm_code_t ida_export rebase_program(adiff_t delta, int flags);
 /// \param is_deb_segm  new status of the segment
 /// \return \ref CSS_
 
-idaman DEPRECATED int ida_export change_segment_status(segment_t *s, bool is_deb_segm);
+idaman IDA_DEPRECATED int ida_export change_segment_status(segment_t *s, bool is_deb_segm);
 
 /// Convert a debugger segment to a regular segment and vice versa by address.
 /// When converting debug->regular, the memory contents will be copied
@@ -1316,7 +1316,7 @@ idaman bool ida_export is_miniidb();
 /// Internal function
 /// \deprecated Use set_segment_base() for safer access.
 
-idaman DEPRECATED bool ida_export set_segm_base(segment_t *s, ea_t newbase);
+idaman IDA_DEPRECATED bool ida_export set_segm_base(segment_t *s, ea_t newbase);
 
 /// Set segment base.
 /// Internal function.
@@ -1471,7 +1471,7 @@ idaman ssize_t ida_export get_segment_translations(eavec_t *transmap, ea_t segst
 ///                    1: get repeatable comment.
 /// \return size of comment or -1
 
-idaman DEPRECATED ssize_t ida_export get_segment_cmt(qstring *buf, const segment_t *s, bool repeatable);
+idaman IDA_DEPRECATED ssize_t ida_export get_segment_cmt(qstring *buf, const segment_t *s, bool repeatable);
 
 /// Get segment comment by address.
 /// \param buf         buffer for the comment
@@ -1493,7 +1493,7 @@ idaman ssize_t ida_export get_segment_cmt_by_ea(qstring *buf, ea_t ea, bool repe
 ///                    1: set repeatable comment.
 ///
 
-idaman DEPRECATED void ida_export set_segment_cmt(const segment_t *s, const char *cmt, bool repeatable);
+idaman IDA_DEPRECATED void ida_export set_segment_cmt(const segment_t *s, const char *cmt, bool repeatable);
 
 /// Set segment comment by address.
 /// \param ea          any address within the segment
@@ -1511,7 +1511,7 @@ idaman void ida_export set_segment_cmt_by_ea(ea_t ea, const char *cmt, bool repe
 /// This function may be used in IDP modules to generate segment footer
 /// if the target assembler doesn't have 'ends' directive.
 
-idaman DEPRECATED void ida_export std_out_segm_footer(struct outctx_t &ctx, segment_t *seg);
+idaman IDA_DEPRECATED void ida_export std_out_segm_footer(struct outctx_t &ctx, segment_t *seg);
 
 /// Generate segment footer line as a comment line by address.
 /// This function may be used in IDP modules to generate segment footer
@@ -1542,7 +1542,7 @@ idaman void ida_export std_out_segment_footer(struct outctx_t &ctx, ea_t seg_ea)
 /// \retval 1  ok, name is good and segment is renamed
 /// \retval 0  failure, name is bad or segment is nullptr
 
-idaman DEPRECATED int ida_export set_segm_name(
+idaman IDA_DEPRECATED int ida_export set_segm_name(
         segment_t *s,
         const char *name,
         int flags=0);
@@ -1568,7 +1568,7 @@ idaman int ida_export set_segment_name(ea_t ea, const char *name, int flags=0);
 ///                 1 corresponds to GN_VISIBLE
 /// \return size of segment name (-1 if s==nullptr)
 
-idaman DEPRECATED ssize_t ida_export get_segm_name(qstring *buf, const segment_t *s, int flags=0);
+idaman IDA_DEPRECATED ssize_t ida_export get_segm_name(qstring *buf, const segment_t *s, int flags=0);
 
 /// Get segment name by address.
 /// \param buf      output buffer. cannot be nullptr
@@ -1586,22 +1586,10 @@ idaman ssize_t ida_export get_segment_name(qstring *buf, ea_t ea, int flags=0);
 /// \param s        pointer to segment
 /// \return size of segment name (-1 if s==nullptr)
 
-DEPRECATED inline ssize_t idaapi get_visible_segm_name(qstring *buf, const segment_t *s)
+IDA_DEPRECATED inline ssize_t idaapi get_visible_segm_name(qstring *buf, const segment_t *s)
 {
   return s != nullptr ? get_segment_name(buf, s->start_ea, 1) : -1;
 }
-
-
-/// Get colored segment name expression in the form (segname + displacement).
-/// \param buf      output buffer to hold segment expression
-/// \param from     linear address of instruction operand or data referring to
-///                 the name. This address will be used to get fixup information,
-///                 so it should point to exact position of operand in the
-///                 instruction.
-/// \param sel      value to convert to segment expression
-/// \return size of segment expression or -1
-
-ssize_t get_segm_expr(qstring *buf, ea_t from, sel_t sel);
 
 ///@} seg_name
 
@@ -1620,7 +1608,7 @@ ssize_t get_segm_expr(qstring *buf, ea_t from, sel_t sel);
 /// \param s        pointer to segment
 /// \return size of segment class (-1 if s==nullptr or bufsize<=0)
 
-idaman DEPRECATED ssize_t ida_export get_segm_class(qstring *buf, const segment_t *s);
+idaman IDA_DEPRECATED ssize_t ida_export get_segm_class(qstring *buf, const segment_t *s);
 
 /// Get segment class by address.
 /// Segment class is arbitrary text (max 8 characters).
@@ -1646,7 +1634,7 @@ idaman ssize_t ida_export get_segment_class(qstring *buf, ea_t ea);
 /// \retval 1  ok, name is good and segment is renamed
 /// \retval 0  failure, name is nullptr or bad or segment is nullptr
 
-idaman DEPRECATED int ida_export set_segm_class(segment_t *s, const char *sclass, int flags=0);
+idaman IDA_DEPRECATED int ida_export set_segm_class(segment_t *s, const char *sclass, int flags=0);
 
 /// Set segment class by address.
 /// \param ea      any address within the segment
@@ -1709,7 +1697,7 @@ idaman const char *ida_export get_segment_combination(uchar comb);
 /// \return 0 if s == nullptr,
 ///          the segment base paragraph
 
-idaman DEPRECATED ea_t ida_export get_segm_para(const segment_t *s);
+idaman IDA_DEPRECATED ea_t ida_export get_segm_para(const segment_t *s);
 
 /// Get segment base paragraph by address.
 /// Segment base paragraph may be converted to segment base linear address
@@ -1729,7 +1717,7 @@ idaman ea_t ida_export get_segment_para(ea_t ea);
 /// \return 0 if s == nullptr,
 ///          otherwise segment base linear address
 
-idaman DEPRECATED ea_t ida_export get_segm_base(const segment_t *s);
+idaman IDA_DEPRECATED ea_t ida_export get_segm_base(const segment_t *s);
 
 /// Get segment base linear address by address.
 /// Segment base linear address is used to calculate virtual addresses.
@@ -1753,7 +1741,7 @@ idaman ea_t ida_export get_segment_base(ea_t ea);
 ///                   - 0: 16-bit segment
 /// \return success
 
-idaman DEPRECATED bool ida_export set_segm_addressing(segment_t *s, size_t bitness);
+idaman IDA_DEPRECATED bool ida_export set_segm_addressing(segment_t *s, size_t bitness);
 
 /// Change segment addressing mode (16, 32, 64 bits) by address.
 /// You must use this function to change segment addressing, never change
@@ -1812,7 +1800,7 @@ inline bool segment_t::update()
 
 /// Truncate and sign extend a delta depending on the segment
 /// \deprecated Use adjust_segment_diff() for safer access.
-idaman DEPRECATED adiff_t ida_export segm_adjust_diff(const segment_t *s, adiff_t delta);
+idaman IDA_DEPRECATED adiff_t ida_export segm_adjust_diff(const segment_t *s, adiff_t delta);
 
 /// Truncate and sign extend a delta depending on the segment by address.
 /// \param seg_ea any address within the segment
@@ -1822,7 +1810,7 @@ idaman adiff_t ida_export adjust_segment_diff(ea_t seg_ea, adiff_t delta);
 
 /// Truncate an address depending on the segment
 /// \deprecated Use adjust_segment_ea() for safer access.
-idaman DEPRECATED ea_t ida_export segm_adjust_ea(const segment_t *s, ea_t ea);
+idaman IDA_DEPRECATED ea_t ida_export segm_adjust_ea(const segment_t *s, ea_t ea);
 
 /// Truncate an address depending on the segment by address.
 /// \param seg_ea any address within the segment (used to determine bitness)

@@ -10,6 +10,7 @@
 
 struct pushinfo_t;
 struct arm_arch_t;
+struct switch_desc_t;
 //----------------------------------------------------------------------
 // The following events are supported by the ARM module in the ph.notify() function
 namespace arm_module_t
@@ -71,6 +72,14 @@ namespace arm_module_t
                            // in : const insn_t *ins
                            //      int n       the number of the system register in INS
                            // Returns: 1-ok, otherwise-failed
+    ev_find_switch_helper,
+                           // Is EA a switch helper routine (or a simple
+                           // jump to it)? the search is done by the name,
+                           // so the helper must have been recognized (and
+                           // named) by the module before
+                           // out: switch_desc_t *desc (may be nullptr)
+                           // in : ea_t ea
+                           // Returns: 1-yes, otherwise-no
   };
 
   inline processor_t::event_t idp_ev(event_codes_t ev)
@@ -147,6 +156,11 @@ namespace arm_module_t
   inline bool get_sysreg(qstring *name, const insn_t &ins, int n)
   {
     return processor_t::notify(idp_ev(ev_get_sysreg), name, &ins, n) == 1;
+  }
+
+  inline bool find_switch_helper(switch_desc_t *desc, ea_t ea)
+  {
+    return processor_t::notify(idp_ev(ev_find_switch_helper), desc, ea) == 1;
   }
 }
 

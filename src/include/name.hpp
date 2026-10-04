@@ -144,7 +144,7 @@ enum ucdr_kind_t
   UCDR_TYPE    = 0x08,   ///< type names
 };
 
-enum nametype_t
+enum nametype_t : int
 {
   VNT_IDENT = UCDR_NAME|UCDR_MANGLED, ///< identifier (e.g., function name)
   VNT_TYPE = UCDR_TYPE,               ///< type name (can contain '<', '>', ...)
@@ -571,8 +571,23 @@ idaman ssize_t ida_export get_nice_colored_name(
 #define GNCN_REQNAME  0x0080 ///< return 0 if the address can only be represented as a hex number
 #define GNCN_NODBGNM  0x0100 ///< don't use debug names
 #define GNCN_PREFDBG  0x0200 ///< if using debug names, prefer debug names over function names
+#define GNCN_SEMSPAN  0x0400 ///< wrap the name (but not any trailing +offset) in a
+                             ///< ::COLOR_SEMSPAN span, so a viewer highlights the whole
+                             ///< qualified name as one unit; typically combined with
+                             ///< #GNCN_NOCOLOR to group without painting the name
 ///@}
 
+
+/// \defgroup ASF_ Flags for append_struct_fields()
+/// Passed as the \c asf_flags argument (a bitmask). Kept in the low byte so the
+/// historical `bool appzero` (exactly 0 or 1) maps cleanly onto #ASF_APPEND_ZERO.
+///@{
+#define ASF_APPEND_ZERO 0x00000001  ///< append the field name even if the
+                                    ///< displacement is zero
+#define ASF_TAG_MEMBERS 0x00000002  ///< wrap each printed member in a navigable
+                                    ///< ::COLOR_SEMSPAN span (interactive
+                                    ///< disassembly operands)
+///@}
 
 /// Append names of struct fields to a name if the name is a struct name.
 /// \param out      pointer to the output buffer
@@ -586,7 +601,9 @@ idaman ssize_t ida_export get_nice_colored_name(
 /// \param flags    the input flags. they will be returned if the struct
 ///                 cannot be found.
 /// \param delta    delta to add to displacement
-/// \param appzero  should append a struct field name if the displacement is zero?
+/// \param asf_flags a combination of \ref ASF_ (e.g. #ASF_APPEND_ZERO). For source
+///                 compatibility, the historical `bool appzero` maps to
+///                 #ASF_APPEND_ZERO (bit 0), so passing true/false still works.
 /// \return flags of the innermost struct member or the input flags
 
 idaman flags64_t ida_export append_struct_fields(
@@ -597,7 +614,7 @@ idaman flags64_t ida_export append_struct_fields(
         int plen,
         flags64_t flags,
         adiff_t delta,
-        bool appzero);
+        uint32 asf_flags);
 
 
 /// Get offset within a structure if the operand refers to structure.
@@ -786,7 +803,7 @@ idaman bool ida_export is_name_defined_locally_ea(
 /// \param ea1    the starting address of the range inside the function (optional)
 /// \param ea2    the ending address of the range inside the function (optional)
 /// \return true if the name has been defined
-idaman DEPRECATED bool ida_export is_name_defined_locally(
+idaman IDA_DEPRECATED bool ida_export is_name_defined_locally(
         func_t *pfn,
         const char *name,
         ignore_name_def_t ignore_name_def,

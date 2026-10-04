@@ -365,7 +365,7 @@ idaman bool ida_export has_external_refs_ea(ea_t func_ea, ea_t ea);
 
 /// Does 'ea' have references from outside of the function at 'func_ea'?
 /// \deprecated Use has_external_refs_ea() for safer access.
-idaman DEPRECATED bool ida_export has_external_refs(func_t *pfn, ea_t ea);
+idaman IDA_DEPRECATED bool ida_export has_external_refs(func_t *pfn, ea_t ea);
 
 
 /// Are there jump or flow references to EA?

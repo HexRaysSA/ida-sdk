@@ -179,7 +179,7 @@
                                     ///<   NOTE: also inhibit archetype/witness (Swift)
                                     ///<   NOTE: also ingibit [abi:xxxx] (gcc3)
 #define MNG_NOMODULE     0x00040000 ///< Inhibit module names (Swift)
-//                       0x00080000
+#define MNG_NORUSTHASH   0x00080000 ///< Inhibit the Rust hashes
 //
 #define MNG_SHORT_S      0x00100000 ///< signed (int) is displayed as s(int)
 #define MNG_SHORT_U      0x00200000 ///< unsigned (int) is displayed as u(int)

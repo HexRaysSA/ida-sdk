@@ -434,6 +434,13 @@ struct idainfo
                                         ///< (the default is to use double word max).
                                         ///< e.g. if this bit is set, __int128 has 16-byte alignment.
                                         ///< this bit is not used by IDA yet
+#define ABI_SINGLE_FLOAT  0x00000400    ///< the FPU is single-precision only
+#define ABI_SYSV_PRE12    0x00000800    ///< System V AMD64 psABI before the empty-record fix
+                                        ///< ("v12"; e.g. GCC before 8 / -fabi-version<12; clang and
+                                        ///< other Itanium-C++-ABI compilers vary by version and
+                                        ///< target). Currently the only handled difference is that
+                                        ///< empty structures/classes consume an argument slot
+                                        ///< instead of being ignored.
 ///@}
 
   uint32 appcall_options;               ///< appcall options, see idd.hpp
@@ -549,7 +556,8 @@ enum inftag_t
   // more inf fields
   INF_COMPILER_INFO         = 98,
   INF_CALLCNV               = 99,
-  INF_LAST = 100,
+  INF_NAME_POLICY           = 100, ///< name-garbling policy (GarbleNames) fixed at db creation
+  INF_LAST = 101,
 };
 
 /// Get program specific information (a scalar value)
@@ -987,6 +995,10 @@ inline bool inf_stack_varargs(void) { return getinf_flag(INF_ABIBITS, ABI_STACK_
 inline bool inf_set_stack_varargs(bool _v=true) { return setinf_flag(INF_ABIBITS, ABI_STACK_VARARGS, _v); }
 inline bool inf_is_hard_float(void) { return getinf_flag(INF_ABIBITS, ABI_HARD_FLOAT); }
 inline bool inf_set_hard_float(bool _v=true) { return setinf_flag(INF_ABIBITS, ABI_HARD_FLOAT, _v); }
+inline bool inf_is_single_float(void) { return getinf_flag(INF_ABIBITS, ABI_SINGLE_FLOAT); }
+inline bool inf_set_single_float(bool _v=true) { return setinf_flag(INF_ABIBITS, ABI_SINGLE_FLOAT, _v); }
+inline bool inf_sysv_pre12(void) { return getinf_flag(INF_ABIBITS, ABI_SYSV_PRE12); }
+inline bool inf_set_sysv_pre12(bool _v=true) { return setinf_flag(INF_ABIBITS, ABI_SYSV_PRE12, _v); }
 inline bool inf_abi_set_by_user(void) { return getinf_flag(INF_ABIBITS, ABI_SET_BY_USER); }
 inline bool inf_set_abi_set_by_user(bool _v=true) { return setinf_flag(INF_ABIBITS, ABI_SET_BY_USER, _v); }
 inline bool inf_use_gcc_layout(void) { return getinf_flag(INF_ABIBITS, ABI_GCC_LAYOUT); }
@@ -995,6 +1007,25 @@ inline bool inf_map_stkargs(void) { return getinf_flag(INF_ABIBITS, ABI_MAP_STKA
 inline bool inf_set_map_stkargs(bool _v=true) { return setinf_flag(INF_ABIBITS, ABI_MAP_STKARGS, _v); }
 inline bool inf_huge_arg_align(void) { return getinf_flag(INF_ABIBITS, ABI_HUGEARG_ALIGN); }
 inline bool inf_set_huge_arg_align(bool _v=true) { return setinf_flag(INF_ABIBITS, ABI_HUGEARG_ALIGN, _v); }
+
+/// Order in which the compiler allocates bitfield members inside the
+/// storage unit that holds them. It is independent of the byte order:
+/// the Microsoft PowerPC compilers, for example, allocate from the most
+/// significant bit but let #pragma bitfield_order() switch to the other
+/// order per structure.
+enum bf_order_t
+{
+  BFO_DEFAULT,      ///< follow the byte order of the database
+  BFO_LSB_TO_MSB,   ///< start at the least significant bit of the storage unit
+  BFO_MSB_TO_LSB,   ///< start at the most significant bit of the storage unit
+};
+
+/// The bitfield allocation order a structure follows unless it says otherwise:
+/// the byte order of the database. Never returns ::BFO_DEFAULT.
+inline bf_order_t inf_get_bf_order(void)
+{
+  return inf_is_be() ? BFO_MSB_TO_LSB : BFO_LSB_TO_MSB;
+}
 
 inline uint32 inf_get_appcall_options() { return uint32(getinf(INF_APPCALL_OPTIONS)); }
 inline bool inf_set_appcall_options(uint32 _v) { return setinf(INF_APPCALL_OPTIONS, ssize_t(_v)); }
@@ -1351,7 +1382,7 @@ typedef ssize_t idaapi hook_cb_t(void *user_data, int notification_code, va_list
 
 /// Register a callback for a class of events in IDA
 
-idaman DEPRECATED bool ida_export hook_to_notification_point(
+idaman IDA_DEPRECATED bool ida_export hook_to_notification_point(
         hook_type_t hook_type,
         hook_cb_t *cb,
         void *user_data = nullptr);
@@ -1365,7 +1396,7 @@ idaman DEPRECATED bool ida_export hook_to_notification_point(
 /// user defined data matches will be removed.
 /// \return number of unhooked functions.
 
-idaman DEPRECATED int ida_export unhook_from_notification_point(
+idaman IDA_DEPRECATED int ida_export unhook_from_notification_point(
         hook_type_t hook_type,
         hook_cb_t *cb,
         void *user_data = nullptr);

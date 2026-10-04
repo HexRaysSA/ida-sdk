@@ -36,6 +36,8 @@ enum builtin_idxes_t ENUM_SIZE(subindex_typeid_t)
   SUBIDX_SEGMENTS,                             ///< Segment names.
   SUBIDX_FUNCTION_COMMENTS,                    ///< Non-repeatable function comments.
   SUBIDX_REPEATABLE_FUNCTION_COMMENTS,         ///< Repeatable function comments.
+  SUBIDX_LTYPE_MEMBERS,                        ///< Members of local types (enums, structs, unions).
+  SUBIDX_DEBUG_NAMES,                          ///< Names of debugger-loaded modules (debugging session only).
 #ifdef __KERNEL__
   SUBIDX_MAX,
 #endif
@@ -105,6 +107,10 @@ struct search_result_data_t
   /// For function-comment results, the range within get_name_str() that holds the
   /// matched comment line. Returns {0, 0} for all other result types.
   virtual match_range_t get_match_line_range([[maybe_unused]] size_t index) const { return {0, 0}; }
+  /// For type-member results (SUBIDX_LTYPE_MEMBERS), the index of the member
+  /// within its parent type (get_ltype_ordinal() returns the parent type
+  /// ordinal). Returns -1 for all other result types.
+  virtual int get_ltype_member_idx([[maybe_unused]] size_t index) const { return -1; }
 
   bool empty() const { return size() == 0; }
 };
