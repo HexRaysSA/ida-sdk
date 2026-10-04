@@ -92,10 +92,15 @@ def remove_spaces(sl):
             delim = c # string/char literal started
         elif c.isspace():
             end = l.lstrip()
-            nptr = my_tag_skipcodes(end, out)
+            # Peek past any color tags to the next visible char, but do NOT emit
+            # them here: if we drop the space we set l = end, which is rescanned
+            # at the top of the loop and emits those tags exactly once. Emitting
+            # them here as well would duplicate them -- and duplicating an opening
+            # tag without its close unbalances nested tags such as COLOR_SEMSPAN.
+            nptr = end[ida_lines.tag_skipcodes(end):]
             dbg("end: '%s', nptr: '%s'" % (end, nptr))
             # do not concatenate idents
-            if not is_cident_char(last) or not is_cident_char(nptr[0]):
+            if not is_cident_char(last) or not (nptr and is_cident_char(nptr[0])):
                 l = end
                 c = l[0] if l else ''
                 dbg("new l: '%s'" % l)

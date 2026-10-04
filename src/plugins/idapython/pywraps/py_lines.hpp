@@ -24,6 +24,24 @@ qstring py_tag_addr(ea_t ea)
 }
 
 //-------------------------------------------------------------------------
+qstring py_tag_semspan(color_t kind=COLOR_DEFAULT)
+{
+  PYW_GIL_CHECK_LOCKED_SCOPE();
+  qstring tag;
+  tag_semspan(&tag, kind);
+  return tag;
+}
+
+//-------------------------------------------------------------------------
+qstring py_tag_semspan_off()
+{
+  PYW_GIL_CHECK_LOCKED_SCOPE();
+  qstring tag;
+  tag_semspan_off(&tag);
+  return tag;
+}
+
+//-------------------------------------------------------------------------
 int py_tag_skipcode(const char *line)
 {
   return tag_skipcode(line)-line;
@@ -65,6 +83,24 @@ PyObject *py_generate_disassembly(
   for ( int i=0; i < nlines; i++ )
     PyList_SetItem(py_list.o, i, PyUnicode_FromString(lines[i].c_str()));
   return Py_BuildValue("(iO)", lnnum, py_list.o);
+}
+
+//-------------------------------------------------------------------------
+// Wrap a borrowed listing_lines_t* (built by the UI, e.g. handed to an HTML-
+// export template's run()) as a NON-owning proxy: returning a raw pointer makes
+// SWIG build it with own=0, so Python never deletes the C++-owned generator.
+static listing_lines_t *listing_lines_t__from_ptrval__(size_t ptrval)
+{
+  return (listing_lines_t *) ptrval;
+}
+
+//-------------------------------------------------------------------------
+// Wrap a borrowed export_listing_t* (built by the exporter, handed to an
+// HTML-export template's run() next to the generator) as a NON-owning proxy
+// (own=0).
+static export_listing_t *export_listing_t__from_ptrval__(size_t ptrval)
+{
+  return (export_listing_t *) ptrval;
 }
 //</inline(py_lines)>
 #endif

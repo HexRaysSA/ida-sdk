@@ -6,7 +6,7 @@
   inside the SDK and consumes it via `find_package(idasdk)`, so the SDK is
   auto-detected when you build in place.
 - [CMake](https://cmake.org/) 3.25+ and a generator (Ninja recommended)
-- [Python 3.9-3.14](http://www.python.org/) with development headers - plus its
+- [Python 3.9-3.15](http://www.python.org/) with development headers - plus its
   `venv` + `pip` if SWIG is auto-installed (see below; e.g. Debian's `python3-venv`)
 - [SWIG](https://www.swig.org/) - installed from PyPI by default (see below); no
   compiler or autotools needed, just a Python with `venv` + `pip`
@@ -24,7 +24,7 @@
 
 ### Python
 
-Python 3.9 to 3.14 is supported. The build takes the **lowest** version installed
+Python 3.9 to 3.15 is supported. The build takes the **lowest** version installed
 in that range: the wrappers target the 3.9 limited API, so a module built against
 the oldest supported Python also loads in every newer one. To choose another, pass
 any of:

@@ -261,6 +261,8 @@ int idc_parse_types(const char *input, int flags)
     hti |= HTI_SEMICOLON;
   if ( (flags & PT_STANDALONE) != 0 )  // idc PT_STANDALONE == HTI_STANDALONE
     hti |= HTI_STANDALONE;
+  if ( (flags & PT_QUOTED_NAMES) != 0 )
+    hti |= HTI_QUOTED_NAMES;
 
   return parse_decls(nullptr, input, (flags & PT_SIL) == 0 ? msg : nullptr, hti);
 }

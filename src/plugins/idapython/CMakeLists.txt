@@ -66,12 +66,12 @@ include("${CMAKE_CURRENT_LIST_DIR}/cmake/idapython_shims.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/idapython_body.cmake")
 
 # Master target: plugin + wrapper modules + python; by default also merges the
-# build output into the SDK's bin/ (keeps existing files there).
-option(IDAPYTHON_DEPLOY_TO_SDK "Copy the build output into <sdk>/bin/" ON)
+# build output into IDABIN (like every other example; defaults to <sdk>/bin).
+option(IDAPYTHON_DEPLOY_TO_SDK "Copy the build output into IDABIN" ON)
 set(_deploy "")
 if(IDAPYTHON_DEPLOY_TO_SDK)
     set(_deploy COMMAND "${CMAKE_COMMAND}" -E copy_directory
-                "${_runtime_dir}" "${IDASDK}/bin")
+                "${_runtime_dir}" "${IDABIN}")
 endif()
 add_custom_target(idapython ALL
     ${_deploy}

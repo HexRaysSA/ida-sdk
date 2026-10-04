@@ -46,7 +46,8 @@ endif()
 set(MODULE_NAMES
     hexrays
     allins auto bitrange bytes dbg diskio dirtree dscu entry expr fixup fpro frame
-    funcs gdl graph ida idaapi idc idd idp ieee kernwin libfuncs lines loader
+    funcs gdl graph ida idaapi idc idd idp ieee kcu kernwin libfuncs license
+    lines loader
     lumina indexer
 )
 if(IDA_TESTABLE_BUILD AND INTERNAL_ONLY_MODULES)
@@ -175,9 +176,9 @@ idapython_add_hook(py_kernwin_viewhooks.hpp View_Hooks    hookgenVIEW     "view_
 idapython_add_hook(py_hexrays_hooks.hpp    Hexrays_Hooks  hookgenHEXRAYS  "hexrays_event_t::")
 
 # 3d. Simple pywraps copy (all other files from pywraps/)
-file(GLOB _pywraps_hpp "${IDAPYTHON_SRC}/pywraps/*.hpp")
-file(GLOB _pywraps_py "${IDAPYTHON_SRC}/pywraps/*.py")
-set(_all_pywraps ${_pywraps_hpp} ${_pywraps_py})
+include("${CMAKE_CURRENT_LIST_DIR}/idapython_files.cmake")
+set(_all_pywraps ${IDAPYTHON_PYWRAPS})
+list(TRANSFORM _all_pywraps PREPEND "${IDAPYTHON_SRC}/pywraps/")
 
 # Files that need hook injection (already handled above)
 set(HOOK_FILES
@@ -639,13 +640,8 @@ ida_module_warnings(idapython3 idapython)
 # Platform-specific linking
 target_link_libraries(idapython3 PRIVATE "${IDA_STUB_LIB}")
 if(IDA_MAC)
-    target_link_options(idapython3 PRIVATE
-        "-Wl,-weak-l${IDA_PYTHON_VERNAME}"
-        -flat_namespace
-    )
-    if(Python3_LIBRARY_DIRS)
-        target_link_directories(idapython3 PRIVATE "${Python3_LIBRARY_DIRS}")
-    endif()
+    # No libpython link: Python is reached via dlopen/dlsym
+    # (INDIRECT_PYTHON_API), so the plugin has no Python dependency.
     set_target_properties(idapython3 PROPERTIES
         INSTALL_NAME_DIR "@rpath/plugins"
         BUILD_WITH_INSTALL_NAME_DIR ON
@@ -759,10 +755,10 @@ endforeach()
 
 # 9d. Deploy examples
 if(EXISTS "${IDAPYTHON_SRC}/examples")
-    # Deploy .py files + index.md + README.md (Make deploys all three)
-    file(GLOB_RECURSE _example_files RELATIVE "${IDAPYTHON_SRC}/examples" "${IDAPYTHON_SRC}/examples/*.py")
-    list(APPEND _example_files index.md README.md)
-    foreach(_example ${_example_files})
+    # Deploy the .py files plus every index.md / README.md in the tree.
+    # templates/ rides along: the Export-to-HTML dialog discovers the
+    # Produce-HTML templates at <idadir>/python/examples/templates.
+    foreach(_example ${IDAPYTHON_EXAMPLES})
         set(_src "${IDAPYTHON_SRC}/examples/${_example}")
         set(_dst "${DEPLOY_PYDIR}/examples/${_example}")
         get_filename_component(_dst_dir "${_dst}" DIRECTORY)

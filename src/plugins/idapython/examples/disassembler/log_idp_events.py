@@ -40,5 +40,9 @@ class idp_logger_hooks_t(ida_idp.IDP_Hooks):
         self._log()
         return None, None
 
+    def ev_sanitize_name(self, name, cc, nt):
+        self._log()
+        return None  # returning a str would rewrite the name
+
 idp_hooks = idp_logger_hooks_t()
 idp_hooks.hook()

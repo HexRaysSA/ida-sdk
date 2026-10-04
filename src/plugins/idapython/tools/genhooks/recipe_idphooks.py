@@ -63,7 +63,7 @@ recipe = {
         "params" : {
             "cc" : {
                 "type" : "int",
-                "convertor" : "IDP_Hooks::cm_t_to_ssize_t",
+                "cast_needed" : "int",
             },
             "outbuf" : { "suppress_for_call" : True, },
             "type" : {
@@ -188,6 +188,28 @@ recipe = {
     "ev_set_idp_options" : {
         "params" : {
             "errbuf" : { "suppress_for_call" : True, "qnotused" : True },
+        },
+    },
+    "ev_sanitize_name" : {
+        "params" : {
+            "name" : {
+                "type" : "const char *",
+                "convertor" : "IDP_Hooks::sanitize_name_input",
+            },
+            "cc" : {
+                "type" : "int",
+                "cast_needed" : "int",
+            },
+            "nt" : {
+                "type" : "int",
+                "cast_needed" : "int",
+            },
+        },
+        "return" : {
+            "type" : "PyObject *",
+            "retexpr" : "Py_RETURN_NONE",
+            "convertor" : "IDP_Hooks::handle_sanitize_name_output",
+            "convertor_pass_args" : True,
         },
     },
 }

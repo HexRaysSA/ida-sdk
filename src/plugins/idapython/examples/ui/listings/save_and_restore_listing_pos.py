@@ -28,6 +28,7 @@ class listing_action_handler_t(ida_kernwin.action_handler_t):
             ida_kernwin.BWN_TILVIEW,
             ida_kernwin.BWN_DISASM,
             ida_kernwin.BWN_CUSTVIEW,
+            ida_kernwin.BWN_CLASS_VIEW,
             ida_kernwin.BWN_PSEUDOCODE,
         ]
         return ida_kernwin.AST_ENABLE_FOR_WIDGET if is_listing else ida_kernwin.AST_DISABLE_FOR_WIDGET

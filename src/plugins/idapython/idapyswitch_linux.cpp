@@ -96,7 +96,7 @@ static bool read_py_version_from_elf(
     }
 
     // read string table; ensure it is NUL-terminated
-    char *strings = (char *)malloc(strtab.sh_size);
+    strings = (char *)malloc(strtab.sh_size);
     if ( strings == nullptr )
       break;
     qfseek(fp, strtab.sh_offset, SEEK_SET);
