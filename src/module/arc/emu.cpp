@@ -8,6 +8,7 @@
  */
 
 #include "arc.hpp"
+#include "millicode.hpp"
 #include <frame.hpp>
 #include <xref.hpp>
 #include <jumptable.hpp>
@@ -62,7 +63,9 @@ void arc_t::handle_operand(const insn_t &insn, const op_t & x, bool loading)
       F = get_flags(insn.ea);
       if ( op_adds_xrefs(F, x.n) )
       {
-        insn.add_off_drefs(x, dr_O, OOFS_IFSIGN);
+        ea_t target = insn.add_off_drefs(x, dr_O, OOFS_IFSIGN);
+        if ( target != BADADDR )
+          mark_h30_table(target);
       }
       else if ( x.n == 2 && may_create_stkvars() && !is_defarg(F, x.n)
              && insn.itype == ARC_add && !insn.Op1.is_reg(SP) && !insn.Op1.is_reg(FP)
@@ -297,6 +300,9 @@ bool reg_tracker_t::is_call_insn(const insn_t &insn) const
     case ARC_bl:
     case ARC_jli:
       return true;
+
+    case ARC_j:
+      return is_arc_linked_jump(insn);
 
     case ARC_jl:
       if ( insn.Op1.reg != BLINK && insn.Op1.reg != ILINK1 && insn.Op1.reg != ILINK2 )
@@ -557,7 +563,8 @@ bool reg_tracker_t::do_find_ldr_value(
     insn_t curr_insn;
     while ( !ok )
     {
-      flags64_t F32 = get_flags32(pinsn->ea);
+      ea_t cur_ea = pinsn->ea;    // pinsn may alias curr_insn, which we overwrite
+      flags64_t F32 = get_flags32(cur_ea);
       if ( has_xref(F32) || !is_flow(F32) )
       {
         // count xrefs to the current instruction
@@ -583,7 +590,17 @@ bool reg_tracker_t::do_find_ldr_value(
         // if we have a single xref, use it
         if ( numxrefs != 1 || xref_from == BADADDR || decode_insn(&curr_insn, xref_from) == 0 )
           break;
-
+        // the delay slot of the branch runs before control gets here, so it is
+        // the last instruction on the path and has to be looked at first.
+        // it must stay above the current instruction: standing on a delay slot
+        // ourselves, the xref leads back to its own branch and we would spin
+        if ( has_dslot(curr_insn) )
+        {
+          insn_t dslot;
+          ea_t dslot_ea = curr_insn.ea + curr_insn.size;
+          if ( dslot_ea < cur_ea && decode_insn(&dslot, dslot_ea) > 0 )
+            curr_insn = dslot;
+        }
       }
       else
       {
@@ -818,11 +835,13 @@ bool arc_t::find_ldr_value(
 }
 
 //-------------------------------------------------------------------------
-// 4 sub  rA, rA', #minv        (optional)
-// 3 cmp  rA, #size           | brhs rA, #size, default
+// 6 sub  rA, rA', #minv        (optional)
+// 5 cmp  rA, #size           | brhs rA, #size, default
 //   bhi  default or          |
 //   bls body with optional 'b default'
 // body:
+// 4 asl     rA', rA''          (a shift by one may be done twice)
+// 3 asl     rA', rA'', #n      (only when the load does not scale)
 // 2 ldb.x   rA, [rJumps,rA'] | ld.as rA, [#jumps,rA'] (if not using bi/bih)
 // 1 add1    rA, rElbase, rA'   (optional)
 // 0 j       [rA]             | bi [rA] | bih [rA]
@@ -832,8 +851,10 @@ static const char arc_depends[][4] =
   { 1 | JPT_OPT },  // 0
   { 2 },            // 1 optional
   { 3 },            // 2 if and only if not using bi/bih
-  { 4 | JPT_OPT | JPT_NEAR }, // 3
-  { 0 },            // 4 optional
+  { 4 | JPT_OPT },  // 3 skipped unless the index needs scaling
+  { 5 },            // 4 optional
+  { 6 | JPT_OPT | JPT_NEAR }, // 5
+  { 0 },            // 6 optional
 };
 
 struct arc_jump_pattern_t : public jump_pattern_t
@@ -844,12 +865,15 @@ protected:
   {
     BODY_NJPI     = 2,  // ldb.x rA, [rJumps,rA']
     ELBASE_NJPI   = 1,  // add1    rA, rElbase, rA'
+    SHL_NJPI      = 3,  // asl     rA', rA'', #n
+    SHL2_NJPI     = 4,  // asl     rA', rA''
   };
   arc_t &pm;
   ea_t jumps_offset_ea = BADADDR;
   ea_t elbase_offset_ea = BADADDR;
   int jumps_offset_n = -1;
   int elbase_offset_n = -1;
+  int want_shift = 0;   // how much the index must be scaled by
 
 public:
   arc_jump_pattern_t(procmod_t *_pm, switch_info_t *_si)
@@ -866,8 +890,10 @@ public:
   virtual bool handle_mov(tracked_regs_t &_regs) override;
   virtual void check_spoiled(tracked_regs_t *_regs) const override;
 
-  bool jpi4() override;  // sub rA, rA', #minv
-  bool jpi3() override;  // cmp followed by the conditional jump or 'brhi/lo'
+  bool jpi6() override;  // sub rA, rA', #minv
+  bool jpi5() override;  // cmp followed by the conditional jump or 'brhi/lo'
+  bool jpi4() override;  // asl rA', rA''
+  bool jpi3() override;  // asl rA', rA'', #n
   bool jpi2() override;  // ldb.x rA, [rJumps,rA']
   bool jpi1() override;  // add1 rA, rElbase, rA'
   bool jpi0() override;  // j [rA] | bi [rA] | bih [rA]
@@ -877,6 +903,11 @@ public:
 
 protected:
   static inline bool optype_supported(const op_t &x);
+
+  // how much the shift matched at 'ea' scales by, 0 if there is none
+  static int shift_at(ea_t ea);
+  // asl rA', rA'', #n
+  bool jpi_shl();
 
   // helpers
   // brhs rA, #size, default | brlo rA, #size, body
@@ -963,7 +994,7 @@ bool arc_jump_pattern_t::handle_mov(tracked_regs_t &_regs)
     default:
       return false;
   }
-  if ( !optype_supported(*src) || optype_supported(*dst) )
+  if ( !optype_supported(*src) || !optype_supported(*dst) )
     return false;
   return set_moved(*dst, *src, _regs);
 }
@@ -996,18 +1027,40 @@ bool arc_jump_pattern_t::jpi0()
 
     skip[1] = true; // no jpi2
     skip[2] = true; // no jpi2
+    skip[SHL_NJPI] = true;  // the table is indexed by the instruction itself
+    skip[SHL2_NJPI] = true;
     track(insn.Op1.secreg, rA, dt_dword);
     return true;
   }
 
-  if ( insn.itype != ARC_j
-    || insn.Op1.type != o_displ
-    || insn.Op1.addr != 0
-    || has_cond(insn) )
+  if ( insn.itype != ARC_j || has_cond(insn) )
+    return false;
+
+  int jreg;
+  if ( insn.Op1.type == o_displ && insn.Op1.addr == 0 )
+  {
+    jreg = insn.Op1.phrase;
+  }
+  else if ( insn.Op1.type == o_reg && pm.is_a4()
+         && insn.Op1.reg != BLINK       // 'j blink' is a return
+         && insn.Op1.reg != ILINK1
+         && insn.Op1.reg != ILINK2 )
+  {
+    jreg = insn.Op1.reg;    // ARC4 has no brackets: 'j r12'
+  }
+  else
   {
     return false;
   }
-  track(insn.Op1.phrase, rA, dt_dword);
+
+  if ( pm.is_a4() )
+  {
+    // ARC4 jumps to the instruction word the register denotes, so a jump table
+    // holds the target address divided by 4 (@h30 for the MetaWare assembler)
+    si->set_elbase(0);
+    si->set_shift(2);
+  }
+  track(jreg, rA, dt_dword);
   return true;
 }
 
@@ -1067,13 +1120,89 @@ bool arc_jump_pattern_t::jpi1()
     elbase_offset_n = lvi.n;
   }
 
-  si->set_elbase(elbase);
+  int shift = 0;
   if ( insn.itype == ARC_add1 )
-    si->set_shift(1);
+    shift = 1;
   else if ( insn.itype == ARC_add2 )
-    si->set_shift(2);
+    shift = 2;
+
+  if ( pm.is_a4() )
+  {
+    // the sum is a word address (jpi0 accounted for the multiplication by 4),
+    // so the base has to be scaled as well:
+    //   (element<<shift) + elbase, all times 4
+    shift += 2;
+    // the field is two bits, so an add2-scaled ARC4 table does not fit
+    if ( shift > 3 )
+      return false;
+    elbase <<= 2;
+  }
+  si->set_elbase(elbase);
+  si->set_shift(shift);
   trackop(*op_var, rA);
   return true;
+}
+
+//----------------------------------------------------------------------
+int arc_jump_pattern_t::shift_at(ea_t ea)
+{
+  insn_t insn;
+  if ( ea == BADADDR || decode_insn(&insn, ea) <= 0 )
+    return 0;
+  if ( insn.Op3.type == o_void )
+    return 1;
+  return insn.Op3.type == o_imm ? int(insn.Op3.value) : 0;
+}
+
+//----------------------------------------------------------------------
+// asl     rA', rA''        scales by 2
+// asl     rA', rA'', 2     scales by 4
+// lsl     rA', rA''        the compiler uses either mnemonic
+// two shifts by one scale by 4 as well, hence the second step
+bool arc_jump_pattern_t::jpi_shl()
+{
+  int left = want_shift - shift_at(eas[SHL_NJPI]);
+  if ( left <= 0
+    || insn.itype != ARC_asl && insn.itype != ARC_lsl
+    || has_cond(insn)
+    || !is_equal(insn.Op1, rA)
+    || insn.Op2.type != o_reg )
+  {
+    return false;
+  }
+
+  int shift;
+  if ( insn.Op3.type == o_void )
+    shift = 1;
+  else if ( insn.Op3.type == o_imm && insn.Op3.value <= 2 )
+    shift = int(insn.Op3.value);
+  else
+    return false;
+  if ( shift > left )
+    return false;
+  if ( shift == left )
+    skip[SHL2_NJPI] = true;
+
+  track(insn.Op2.reg, rA, dt_dword);
+  return true;
+}
+
+//----------------------------------------------------------------------
+bool arc_jump_pattern_t::jpi3()
+{
+  if ( jpi_shl() )
+    return true;
+  // the conditional jump of the range check sits between the shift and the
+  // load, so remember it here: jpi5() starts looking above the shift and
+  // would never see it
+  jpi_condjump();
+  return false;
+}
+
+//----------------------------------------------------------------------
+bool arc_jump_pattern_t::jpi4()
+{
+  return jpi_shl();
 }
 
 //----------------------------------------------------------------------
@@ -1111,29 +1240,12 @@ bool arc_jump_pattern_t::jpi2()
   int reg_var = -1;
 
   // do we have scaled load?
+  want_shift = 0;
   switch ( insn.auxpref & aux_amask )
   {
     case aux_anone:
-      if ( elsize != 1 )
-      {
-        // check for preceding scale instruction
-        // 2: asl     r12, r1 (shift by one)
-        // 4: asl     r12, r1, 2
-        insn_t prev;
-        if ( decode_prev_insn(&prev, insn.ea) != BADADDR
-          && prev.itype == ARC_asl
-          && is_equal(prev.Op1, rA) )
-        {
-          if ( elsize == 2 && prev.Op3.type == o_void
-            || elsize == 2 && prev.Op3.type == o_imm && prev.Op3.value == 2 )
-          {
-            reg_var = prev.Op2.reg;
-            break;
-          }
-        }
-        return false;
-
-      }
+      // the index is scaled by the code before the load
+      want_shift = elsize == 4 ? 2 : elsize == 2 ? 1 : 0;
       break;
     case aux_as:
       // nothing to do, index is scaled during load
@@ -1142,27 +1254,28 @@ bool arc_jump_pattern_t::jpi2()
       // writeback or pre-increment: not valid here
       return false;
   }
+  if ( want_shift == 0 )
+  {
+    skip[SHL_NJPI] = true;
+    skip[SHL2_NJPI] = true;
+  }
 
   const op_t &x = insn.Op2;
   ea_t jumps;
   if ( x.type == o_phrase )
   {
     ldr_value_info_t lvi;
-    if ( reg_var == -1 )
+    if ( pm.find_ldr_value_ex(insn, insn.ea, x.phrase, &lvi, true) )
     {
-      if ( pm.find_ldr_value_ex(insn, insn.ea, x.phrase, &lvi, true) )
-      {
-        reg_var = x.secreg;
-      }
-      else if ( elsize == 1
-             && pm.find_ldr_value_ex(insn, insn.ea, x.secreg, &lvi, true) )
-      {
-        reg_var = x.phrase;
-      }
-      else
-      {
-        return false;
-      }
+      reg_var = x.secreg;
+    }
+    else if ( pm.find_ldr_value_ex(insn, insn.ea, x.secreg, &lvi, true) )
+    {
+      reg_var = x.phrase;
+    }
+    else
+    {
+      return false;
     }
     jumps = lvi.value;
     jumps_offset_ea = lvi.val_ea;
@@ -1171,12 +1284,9 @@ bool arc_jump_pattern_t::jpi2()
   // x.type == o_displ
   else if ( x.type == o_displ )
   {
-    if ( reg_var == -1 )
-    {
-      if ( x.membase != 1 && elsize != 1 )
-        return false;
-      reg_var = x.phrase;
-    }
+    if ( x.membase != 1 && elsize != 1 && want_shift == 0 )
+      return false;
+    reg_var = x.phrase;
     jumps = x.addr;
     jumps_offset_ea = insn.ea;
     jumps_offset_n = 1;
@@ -1196,7 +1306,7 @@ bool arc_jump_pattern_t::jpi2()
 
 //----------------------------------------------------------------------
 // cmp followed by the conditional jump or 'brhi/lo'
-bool arc_jump_pattern_t::jpi3()
+bool arc_jump_pattern_t::jpi5()
 {
   // var should not be spoiled
   QASSERT(10312, !is_spoiled(rA));
@@ -1220,7 +1330,7 @@ bool arc_jump_pattern_t::jpi3()
 
 //----------------------------------------------------------------------
 // sub rA, rA', #minv
-bool arc_jump_pattern_t::jpi4()
+bool arc_jump_pattern_t::jpi6()
 {
   if ( insn.itype != ARC_sub
     || has_cond(insn)
@@ -1236,10 +1346,17 @@ bool arc_jump_pattern_t::jpi4()
 //-------------------------------------------------------------------------
 bool arc_jump_pattern_t::finish()
 {
+  // the index must end up scaled by exactly what the element size needs
+  if ( shift_at(eas[SHL_NJPI]) + shift_at(eas[SHL2_NJPI]) != want_shift )
+    return false;
   if ( !skip[2] )
   {
     if ( eas[ELBASE_NJPI] != BADADDR && elbase_offset_ea != BADADDR )
-      op_offset(elbase_offset_ea, elbase_offset_n, REF_OFF32);
+    {
+      // on ARC4 the operand holds the base divided by 4
+      if ( !pm.set_h30_offset(elbase_offset_ea, elbase_offset_n, 0) )
+        op_offset(elbase_offset_ea, elbase_offset_n, REF_OFF32);
+    }
     if ( jumps_offset_ea != BADADDR )
       op_offset(jumps_offset_ea, jumps_offset_n, REF_OFF32);
   }
@@ -1397,12 +1514,101 @@ bool arc_is_switch(switch_info_t *si, const insn_t &insn)
     && insn.itype != ARC_bi
     && insn.itype != ARC_bih )
     return false;
+  if ( is_arc_linked_jump(insn) )
+    return false;       // an indirect call, not a switch
 
   static is_pattern_t *const patterns[] =
   {
     is_jump_pattern,
   };
   return check_for_table_jump(si, insn, patterns, qnumber(patterns));
+}
+
+static bool is_object_file(void);
+
+//----------------------------------------------------------------------
+// Does the dword at 'ea' hold a code address divided by 4?
+bool arc_t::is_h30_ptr(ea_t ea) const
+{
+  // do not touch an item that the analysis has already established
+  flags64_t F = get_full_flags(ea);
+  if ( !has_value(F) || !is_unknown(F) && !is_dword(F) )
+    return false;
+  uint32 value = get_dword(ea);
+  if ( value == 0 )
+    return false;   // a null pointer, and zero fill is not a table
+  if ( (value >> 30) != 0 )
+    return false;   // the value occupies the low 30 bits
+  ea_t target = ea_t(value) << 2;
+  return fits_ea_space(target)
+      && is_loaded(target)
+      && segtype(target) == SEG_CODE;
+}
+
+//----------------------------------------------------------------------
+// ARC4 keeps a code address divided by 4 (@h30 for the MetaWare assembler).
+// A run of such values at an address the code refers to is a table of code
+// pointers; name its entries after the code they point to.
+void arc_t::mark_h30_table(ea_t ea)
+{
+  if ( !is_a4()
+    || ref_arch30_id <= 0
+    || (ea & 3) != 0
+    || is_off0(get_flags(ea)) )
+  {
+    return;
+  }
+
+  const int MIN_H30_PTRS = 4;   // how many pointers in a row make a table
+  int cnt = 0;
+  for ( ea_t p = ea; is_h30_ptr(p); p += 4 )
+    ++cnt;
+  if ( cnt < MIN_H30_PTRS )
+    return;
+
+  // in a relocatable file the tables are not linked yet, and a small constant
+  // is indistinguishable from a code address there
+  if ( is_object_file() )
+    return;
+
+  for ( int i = 0; i < cnt; ++i )
+  {
+    ea_t p = ea + i * 4;
+    create_dword(p, 4);
+    set_h30_offset(p, 0, 0);
+  }
+}
+
+//----------------------------------------------------------------------
+// mark the operand as an ARC4 code address (@h30)
+bool arc_t::set_h30_offset(ea_t ea, int n, ea_t base)
+{
+  if ( !is_a4() || ref_arch30_id <= 0 )
+    return false;
+  refinfo_t ri;
+  ri.init(ref_arch30_id | REFINFO_CUSTOM | REFINFO_NOBASE, base);
+  op_offset_ex(ea, n, &ri);
+  return true;
+}
+
+//----------------------------------------------------------------------
+// The elements of an ARC4 jump table are code addresses divided by 4. The
+// kernel leaves them unnamed because a plain offset cannot express the
+// division, so mark them with the @h30 reference type.
+void arc_t::mark_h30_jtable(const insn_t &insn)
+{
+  switch_info_t si;
+  if ( !is_a4()
+    || (get_flags32(insn.ea) & FF_JUMP) == 0
+    || get_switch_info(&si, insn.ea) <= 0
+    || si.get_shift() != 2
+    || si.jumps == BADADDR
+    || si.get_jtable_size() <= 0
+    || is_off0(get_flags(si.jumps)) )
+  {
+    return;
+  }
+  set_h30_offset(si.jumps, 0, si.elbase);
 }
 
 //----------------------------------------------------------------------
@@ -1445,7 +1651,7 @@ sval_t arc_t::calc_sp_delta(const insn_t &insn)
       {
         ea_t call_ea = to_ea(insn.cs, insn.Op1.addr);
         sval_t delta;
-        if ( is_millicode(call_ea, &delta) )
+        if ( is_millicode(call_ea, &delta, &insn) )
         {
           if ( delta == BADADDR )
             break;
@@ -1603,6 +1809,10 @@ int arc_t::emu(const insn_t &insn)
   switch ( insn.itype )
   {
     case ARC_j:
+      mark_h30_jtable(insn);
+      if ( is_arc_linked_jump(insn) )
+        break;             // an indirect call: the flow continues after it
+      [[fallthrough]];
     case ARC_b:
       if ( !has_cond(insn) ) // branch always
         islast = 1;
@@ -1712,7 +1922,7 @@ int arc_t::emu(const insn_t &insn)
   {
     // mark the following address as a delay slot
     int slotkind;
-    if ( insn.itype == ARC_bl || insn.itype == ARC_jl )
+    if ( insn.itype == ARC_bl || insn.itype == ARC_jl || is_arc_linked_jump(insn) )
       slotkind = 3;
     else
       slotkind = islast ? 1 : 2;
@@ -1726,11 +1936,74 @@ int arc_t::emu(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
-bool idaapi create_func_frame(ea_t func_ea)
+//----------------------------------------------------------------------
+// A MetaWare prolog is a call to __prolog_saveN, which allocates the frame and
+// ends in __prolog_store0 doing "add fp, sp, r12" - fp is left at the sp of the
+// call. So whatever sp was already decremented by before the call sits above
+// fp, and what the helper takes, plus any reserve after it, sits below. The
+// registers the helper saves live inside its own allocation rather than above
+// fp, which is why they are part of the local variable range.
+bool arc_t::millicode_frame(
+        asize_t *frsize,
+        ushort *frregs,
+        ea_t func_ea,
+        ea_t end_ea)
+{
+  sval_t above = 0;             // taken before the call: above fp
+  sval_t below = 0;             // taken by the helper and after it
+  bool found = false;
+  insn_t insn;
+  for ( int i = 0; i < 10 && func_ea < end_ea; i++ )
+  {
+    if ( !decode_insn(&insn, func_ea) )
+      break;
+    if ( insn.itype == ARC_sub
+      && insn.Op1.is_reg(SP)
+      && insn.Op2.is_reg(SP)
+      && insn.Op3.type == o_imm )
+    {
+      if ( found )
+        below += insn.Op3.value;
+      else
+        above += insn.Op3.value;
+    }
+    else if ( !found && is_arc_call_insn(insn) && insn.Op1.type == o_near )
+    {
+      sval_t delta;
+      bool sets_fp = false;
+      if ( is_millicode(to_ea(insn.cs, insn.Op1.addr), &delta, &insn, &sets_fp)
+        && sets_fp
+        && delta != BADADDR
+        && delta < 0 )
+      {
+        below = -delta;
+        found = true;
+      }
+    }
+    func_ea += insn.size;
+  }
+  if ( !found )
+    return false;
+  *frsize = below;
+  *frregs = ushort(above);
+  return true;
+}
+
+//----------------------------------------------------------------------
+bool arc_t::create_func_frame(ea_t func_ea)
 {
   func_entry_info_t fi;
   if ( !get_func_entry_info(&fi, func_ea) )
     return false;
+
+  asize_t frsize;
+  ushort frregs;
+  if ( millicode_frame(&frsize, &frregs, func_ea, fi.end_ea) )
+  {
+    set_func_flag(func_ea, FUNC_FRAME);
+    return add_frame_ea(func_ea, frsize, frregs, 0);
+  }
+
   ea_t ea = func_ea;
 
   insn_t insn;
@@ -2429,499 +2702,242 @@ int arc_t::arc_may_be_func(const insn_t &insn, int state)
 //======================================================================
 
 //----------------------------------------------------------------------
-void arc_t::rename_if_not_set(ea_t ea, const char *name)
+// Frame size that the __prolog_saveN/__epilog_restoreN entries put into r12:
+// the back-trace data structure plus a slot for each saved register.
+static sval_t mc_frame_size(uint64 reg)
 {
-  if ( renamed.find(ea) != renamed.end() )
-    return;
-
-  qstring curname;
-  if ( get_name(&curname, ea, GN_NOT_DUMMY) > 0
-    && (is_uname(curname.c_str()) || curname.find(name) != qstring::npos) )
-    return;
-  force_name(ea, name);
+  return ARC_MC_BTSIZE + (reg == 0 ? 0 : 4 * sval_t(reg - 12));
 }
 
 //----------------------------------------------------------------------
-static int match_ac_pop_ld(const insn_t &insn)
+// Adjust an sp delta, keeping an unknown one unknown.
+static sval_t mc_add_delta(sval_t delta, sval_t add)
 {
-  // ld rNN, [sp, #mm]
-  // mm = (NN-13)*4
-  if ( ( insn.auxpref & aux_amask ) == aux_anone
-    && insn.Op1.type == o_reg
-    && insn.Op2.type == o_displ
-    && insn.Op2.reg == SP
-    && insn.Op2.membase == 0
-    && ( insn.Op2.addr % 4 ) == 0 )
-  {
-    int reg = insn.Op1.reg;
-    if ( reg == 13 + insn.Op2.addr / 4 )
-    {
-      return reg;
-    }
-  }
-  // ld.ab   r13, [sp, r13]
-  if ( ( insn.auxpref & aux_amask ) == aux_ab
-    && insn.Op1.is_reg(R13)
-    && insn.Op2.type == o_phrase
-    && insn.Op2.reg == SP
-    && insn.Op2.secreg == R13 )
-  {
-    return 13;
-  }
-  //  ld.ab   blink, [sp, r12]
-  if ( ( insn.auxpref & aux_amask ) == aux_ab
-    && insn.Op1.is_reg(BLINK)
-    && insn.Op2.type == o_phrase
-    && insn.Op2.reg == SP
-    && insn.Op2.secreg == R12 )
-  {
-    return BLINK;
-  }
-  return -1;
-
+  return delta == BADADDR ? BADADDR : delta + add;
 }
 
 //----------------------------------------------------------------------
-bool arc_t::check_ac_pop_chain(int *regno, ea_t ea)
+// Value of a register at the entry to a millicode helper. The instruction
+// setting it up may be in the delay slot of the branch, which the register
+// tracker does not look at, so check the delay slot first.
+bool arc_t::find_millicode_reg(uval_t *value, const insn_t &insn, int reg)
 {
-  // __ac_pop_26:
-  //   ld      gp, [sp, 0x34]
-  // __ac_pop_25:
-  //  ld      r25, [sp, 0x30]
-  //     [..]
-  // __ac_pop_14:
-  //     ld      r14, [sp, 4]
-  //   __ac_pop_13:
-  //   ld.ab   r13, [sp, r13]
-  //  __ac_pop_blink:
-  //   ld.ab   blink, [sp, r12]
-  //   j [blink]
-  insn_t insn;
-  bool ok = false;
-  if ( decode_insn(&insn, ea) > 0 )
+  if ( has_dslot(insn) )
   {
-    int reg = match_ac_pop_ld(insn);
-    if ( reg == BLINK )
+    insn_t dslot;
+    if ( decode_insn(&dslot, insn.ea + insn.size) > 0 && spoils(dslot, reg) )
     {
-      // j [blink] should follow
-      if ( decode_insn(&insn, insn.ea + insn.size) > 0
-        && insn.itype == ARC_j
-        && insn.Op1.type == o_displ
-        && insn.Op1.reg == BLINK
-        && insn.Op1.addr == 0 )
-      {
-        ok = true;
-      }
-    }
-    else if ( reg == R13 )
-    {
-      int r2;
-      ok = check_ac_pop_chain(&r2, insn.ea + insn.size) && r2 == BLINK;
-    }
-    else if ( reg > R13 && reg <= R26 )
-    {
-      // recurse to the lower addresses
-      int r2;
-      ok = check_ac_pop_chain(&r2, insn.ea + insn.size) && r2 == reg - 1;
-    }
-    if ( ok )
-    {
-      qstring tmp;
-      if ( reg == BLINK )
-        tmp = "__ac_pop_blink";
-      else
-        tmp.sprnt("__ac_pop_%d", reg);
-      rename_if_not_set(ea, tmp.c_str());
-      *regno = reg;
+      // the value from before the branch is not the one the helper sees
+      return dslot.itype == ARC_mov
+          && find_op_value(dslot, dslot.Op2, value, nullptr, false);
     }
   }
-  return ok;
+  return find_ldr_value(insn, insn.ea, reg, value);
 }
 
 //----------------------------------------------------------------------
-static int match_ac_push(const insn_t &insn)
+// Amount that the caller passed to a millicode helper in 'reg' for it to
+// adjust sp by, BADADDR if it cannot be determined.
+sval_t arc_t::get_millicode_arg(const insn_t *caller, int reg)
 {
-  if ( insn.itype == ARC_push
-    && insn.Op1.type == o_reg )
+  // the register holds a frame size or a stack adjustment, so only a small
+  // positive multiple of 4 is plausible. The tracker resolves chains through
+  // arithmetic and memory and can hand back an address-sized constant; report
+  // that as unknown rather than as a definite adjustment.
+  const uval_t MAX_MILLICODE_ARG = 0x10000;
+  uval_t value;
+  if ( caller != nullptr
+    && find_millicode_reg(&value, *caller, reg)
+    && (value & 3) == 0
+    && value != 0
+    && value <= MAX_MILLICODE_ARG )
   {
-    return insn.Op1.reg;
+    return value;
   }
-  // st.aw   rN, [sp,-4]
-  if ( insn.itype == ARC_st
-    && insn.auxpref == aux_a
-    && insn.Op2.type == o_displ
-    && insn.Op2.reg == SP
-    && insn.Op2.membase == 0
-    && insn.Op2.addr == ea_t(-4) )
-  {
-    return insn.Op1.reg;
-  }
-  return -1;
+  return BADADDR;
 }
 
 //----------------------------------------------------------------------
-// __ac_mc_va:
-// FC 1C 88 B1 st.a r6, [sp,-4]
-// FC 1C 48 B1 st.a r5, [sp,-4]
-// FC 1C 08 B1 st.a r4, [sp,-4]
-// E1 C3       push r3
-// E1 C2       push r2
-// E1 C1       push r1
-// E1 C0       push r0
-// 07 C0       ld   r0, [sp,0x1C]
-// 1C 1C C0 31 st   r7, [sp,0x1C]
-// E1 C0       push r0
-// 01 C0       ld   r0, [sp,4] | E0 7F j.d [blink]
-// E0 7E       j    [blink]    | 01 C0 ld  r0, [sp,4]
-static bool check_ac_mc_va(ea_t ea)
+// The millicode helpers and what they do to sp. N is 13..26, and also 0 for
+// the ARC4 names. A helper that takes its adjustment from the caller reads it
+// out of r12 (and r13), which the register tracker resolves.
+//
+// MetaWare, ARCompact:
+//   __ac_push_13_to_N     pushes r13..rN
+//   __ac_push_none        returns at once
+//   __ac_pop_13_to_N      pops r13..rN and blink
+//   __ac_pop_13_to_Nv     the same, with the blink offset in r12
+//   __ac_pop_none         pops blink
+//   __ac_pop_nonev        pops blink, adjusting sp by r12
+//   __ac_pop_N            pop chain entry, sp adjusted by r13 and then r12
+//   __ac_pop_blink        pops blink, adjusting sp by r12
+//   __ac_mc_va            pushes r0-r7
+//
+// MetaWare, ARC4:
+//   __prolog_saveN        allocates the frame and sets fp
+//   __prolog_saveNsp      the same, with the frame size in r12
+//   __prolog_storeN       stores the saved registers and sets fp
+//   __epilog_restoreN     releases the frame
+//   __epilog_loadN        the same, with the frame size in r12
+//   __store13toN          stores r13..rN in the caller's frame
+//   __load13toN           loads them back
+//   __store_va            stores r0-r7 in the caller's frame
+//   the __prolog_save and __epilog_ names also come with a "_sub4"/"_add4"
+//   suffix, which reserves or releases one more slot, and the __epilog_ ones
+//   with an "f" suffix, which also restores the flags
+//
+// GCC:
+//   __st_r13_to_rN        stores r13..rN in the caller's frame
+//   __ld_r13_to_rN        loads them back
+//   __ld_r13_to_rN_ret    also pops blink, adjusting sp by r12 plus 4
+//
+// Recognize a millicode helper by its name and calculate how it changes sp.
+// 'caller' is the branch to the helper; it is needed for the helpers that take
+// the amount to adjust sp by in a register. spdelta is set to BADADDR if the
+// change cannot be calculated.
+bool arc_t::check_millicode_name(
+        const qstring &name,
+        ea_t ea,
+        sval_t *spdelta,
+        const insn_t *caller,
+        bool *sets_fp)
 {
-  // version with j.d
-  static const uchar sig_d[] =
-  {
-    0xFC, 0x1C, 0x88, 0xB1, 0xFC, 0x1C, 0x48, 0xB1, 0xFC, 0x1C,
-    0x08, 0xB1, 0xE1, 0xC3, 0xE1, 0xC2, 0xE1, 0xC1, 0xE1, 0xC0,
-    0x07, 0xC0, 0x1C, 0x1C, 0xC0, 0x31, 0xE1, 0xC0, 0xE0, 0x7F,
-    0x01, 0xC0
-  };
-
-  // version with non-delayed j
-  static const uchar sig_nd[] =
-  {
-    0xFC, 0x1C, 0x88, 0xB1, 0xFC, 0x1C, 0x48, 0xB1, 0xFC, 0x1C,
-    0x08, 0xB1, 0xE1, 0xC3, 0xE1, 0xC2, 0xE1, 0xC1, 0xE1, 0xC0,
-    0x07, 0xC0, 0x1C, 0x1C, 0xC0, 0x31, 0xE1, 0xC0, 0x01, 0xC0,
-    0xE0, 0x7E
-  };
-
-  CASSERT(sizeof(sig_d) == sizeof(sig_nd));
-  const int patlen = sizeof(sig_d);
-  uint8 buf[patlen];
-  if ( get_bytes(buf, patlen, ea, GMB_READALL) == patlen )
-  {
-    return memcmp(buf,sig_d, patlen) == 0
-        || memcmp(buf,sig_nd, patlen) == 0;
-  }
-  return false;
-
-}
-//----------------------------------------------------------------------
-static bool check_ac_push_chain(int *regno, ea_t ea)
-{
-  // __ac_push_13_to_26:
-  //   st.a    gp, [sp,-4]
-  // __ac_push_13_to_25:
-  //   st.a    r25, [sp,-4]
-  //     [..]
-  //  __ac_push_13_to_14:
-  //    st.a    r14, [sp,-4]
-  //   __ac_push_13_to_13:
-  //    j.d     [blink]
-  //    st.a    r13, [sp,-4]
-  //  VARIATION:
-  //  __ac_push_13_to_13:
-  //   st.a    r13, [sp,-4]
-  //   j       [blink]
-
-  insn_t insn;
-  bool ok = false;
-  int reg;
-  if ( decode_insn(&insn, ea) > 0 )
-  {
-    if ( insn.itype == ARC_j
-      && (insn.auxpref & aux_nmask) == aux_d
-      && insn.Op1.type == o_displ
-      && insn.Op1.reg == BLINK
-      && insn.Op1.addr == 0 )
-    {
-      // j.d     [blink]
-      // must be followed by st.a    r13, [sp,-4]
-      if ( decode_insn(&insn, insn.ea + insn.size) > 0
-        && match_ac_push(insn) == 13 )
-      {
-        reg = 13;
-        ok = true;
-      }
-    }
-    else
-    {
-      // st.a  rN, [sp,-4] or push rN
-      reg = match_ac_push(insn);
-      if ( reg == R13 )
-      {
-        // j [blink] should follow
-        if ( decode_insn(&insn, insn.ea + insn.size) > 0
-          && insn.itype == ARC_j
-          && insn.auxpref == 0
-          && insn.Op1.type == o_displ
-          && insn.Op1.reg == BLINK
-          && insn.Op1.addr == 0 )
-        {
-          ok = true;
-        }
-      }
-      if ( reg > R13 && reg <= R26 )
-      {
-        // recurse to the lower addresses
-        int r2;
-        ok = check_ac_push_chain(&r2, insn.ea + insn.size) && r2 == reg - 1;
-      }
-    }
-    if ( ok )
-    {
-      *regno = reg;
-    }
-  }
-  return ok;
-}
-
-//----------------------------------------------------------------------
-bool arc_t::detect_millicode(qstring *mname, ea_t ea)
-{
-  // MetaWare  arcompact millicode
-  // __ac_pop_13_to_26:
-  // mov     r12, 4
-  // __ac_pop_13_to_26v:
-  //  mov     r13, 0x38
-  //  b  __ac_pop_26
-  // [...]
-  // __ac_pop_13_to_13:
-  //  mov     r12, 4
-  // __ac_pop_13_to_13v:
-  //  mov     r13, 4
-  //  b  __ac_pop_13
-  // __ac_pop_none:
-  //  mov     r12, 4
-  // __ac_pop_nonev:
-  // b  __ac_pop_blink
-  insn_t insn;
-  bool ok = false;
-  if ( decode_insn(&insn, ea) > 0 )
-  {
-    if ( insn.itype == ARC_mov )
-    {
-      if ( insn.Op1.is_reg(R13) && insn.Op2.type == o_imm && (insn.Op2.value % 4) == 0 )
-      {
-        // mov r13, 0x38
-        int regno = 12 + insn.Op2.value / 4;
-        if ( decode_insn(&insn, insn.ea + insn.size) > 0 && insn.itype == ARC_b && insn.Op1.type == o_near )
-        {
-          // b  __ac_pop_N
-          ea_t dest = insn.Op1.addr;
-          int regno2;
-          if ( check_ac_pop_chain(&regno2, dest) && regno == regno2 )
-          {
-            mname->sprnt("__ac_pop_13_to_%dv", regno);
-            ok = true;
-          }
-        }
-      }
-      else if ( insn.Op1.is_reg(R12) && insn.Op2.type == o_imm && insn.Op2.value == 4 )
-      {
-        // mov     r12, 4
-        // check for fall through into __ac_pop_13_to_NNv
-        if ( detect_millicode(mname, insn.ea + insn.size) && mname->last() == 'v' )
-        {
-          // erase the last 'v'
-          mname->resize(mname->length() - 1);
-          ok = true;
-        }
-      }
-    }
-    else if ( insn.itype == ARC_b && insn.Op1.type == o_near )
-    {
-      // b  __ac_pop_blink ?
-      int regno2;
-      if ( check_ac_pop_chain(&regno2, insn.Op1.addr) && regno2 == BLINK )
-      {
-        *mname = "__ac_pop_nonev";
-        ok = true;
-      }
-    }
-    else if ( insn.itype == ARC_st || insn.itype == ARC_push )
-    {
-      int reg;
-      if ( check_ac_push_chain(&reg, ea) )
-      {
-        mname->sprnt("__ac_push_13_to_%d", reg);
-        ok = true;
-      }
-      else if ( check_ac_mc_va(ea) )
-      {
-        *mname = "__ac_mc_va";
-        ok = true;
-      }
-    }
-  }
-  if ( ok )
-  {
-    rename_if_not_set(ea, mname->c_str());
-  }
-  return ok;
-}
-
-//----------------------------------------------------------------------
-static bool check_millicode_name(const qstring &name, ea_t ea, sval_t *spdelta)
-{
+  if ( sets_fp != nullptr )
+    *sets_fp = false;
   qstring cname;
-  if ( cleanup_name(&cname, ea, name.c_str(), CN_KEEP_TRAILING_DIGITS) )
+  if ( !cleanup_name(&cname, ea, name.c_str(), CN_KEEP_TRAILING_DIGITS) )
+    return false;
+
+  arc_millicode_info_t mc;
+  switch ( arc_millicode_kind(&mc, cname.c_str()) )
   {
-    const char *p = cname.c_str();
-    if ( streq(p, "ac_push_none")
-      || streq(p, "ac_pop_none") )
-    {
+    case ARCMC_NONE:
+      return false;
+
+    // MetaWare, ARCompact
+    case ARCMC_PUSH_NONE:
+      // returns at once
       *spdelta = 0;
-      return true;
-    }
-    else if ( streq(p, "ac_mc_va") )
-    {
+      break;
+
+    case ARCMC_PUSH:
+      // pushes 13..reg
+      *spdelta = -4 * sval_t(mc.reg-12);
+      break;
+
+    case ARCMC_POP_NONE:
+      // sets r12 to 4 and pops blink
+      *spdelta = 4;
+      break;
+
+    case ARCMC_POP:
+      // pops 13..reg by adding r13 to sp, then pops blink by adding r12,
+      // which is set to 4
+      *spdelta = 4 * sval_t(mc.reg-12) + 4;
+      break;
+
+    case ARCMC_POPV:
+      // the variadic version takes r12 from the caller
+      *spdelta = mc_add_delta(get_millicode_arg(caller, R12),
+                              4 * sval_t(mc.reg-12));
+      break;
+
+    case ARCMC_POP_BLINK:
+      // pops blink, adjusting sp by r12
+      *spdelta = get_millicode_arg(caller, R12);
+      break;
+
+    case ARCMC_POP_CHAIN:
+      {
+        // entry into the pop chain: pops 13..reg, then blink, taking both
+        // stack adjustments from the caller
+        sval_t r12 = get_millicode_arg(caller, R12);
+        sval_t r13 = get_millicode_arg(caller, R13);
+        *spdelta = r12 == BADADDR || r13 == BADADDR ? BADADDR : r12 + r13;
+      }
+      break;
+
+    case ARCMC_MC_VA:
       // pushes r0-r7
       *spdelta = -4*8;
-      return true;
-    }
-    else if ( streq(p, "ac_push_nonev") )
-    {
-      // adjusts sp by r12
-      *spdelta = BADADDR;
-      return true;
-    }
+      break;
 
-#define SKIP_PREFIX(x) (strneq(p, x, strlen(x)) && (p+=strlen(x), true))
-    if ( SKIP_PREFIX("ac_push_13_to_") )
-    {
-      int reg = atoi(p);
-      if ( reg >= 13 && reg <= 26 )
+    // MetaWare, ARC4
+    case ARCMC_PROLOG_SAVE:
+    case ARCMC_PROLOG_SAVE_SP:
       {
-        // pushes 13..reg
-        *spdelta = -4 * (reg-13+1);
-        return true;
+        // subtracts the frame size from sp; the "sp" versions take it from the
+        // caller, the "_sub4" ones reserve one more slot
+        sval_t extra = mc.extra4 ? 4 : 0;
+        sval_t frame = mc.kind == ARCMC_PROLOG_SAVE
+                     ? mc_frame_size(mc.reg) + extra
+                     : mc_add_delta(get_millicode_arg(caller, R12), extra);
+        if ( frame == 0 )
+          return false;         // r12 does not hold a frame size
+        if ( sets_fp != nullptr )
+          *sets_fp = true;
+        *spdelta = frame == BADADDR ? BADADDR : -frame;
       }
-    }
-    else if ( SKIP_PREFIX("ac_pop_13_to_") )
-    {
-      char *p2;
-      uint64 reg = strtoull(p, &p2, 10);
-      if ( reg >= 13 && reg <= 26
-        && ( *p2 == '\0' || *p2 == 'v' || *p2 == '_' ) )
-      {
-        // pops 13..reg
-        *spdelta = 4 * (reg - 12);
-        return true;
-      }
-    }
-    else if ( SKIP_PREFIX("prolog_save") )
-    {
-      char *p2;
-      uint64 reg = strtoull(p, &p2, 10);
-      if ( ( reg == 0 || reg >= 13 && reg <= 26 )
-        && ( *p2 == '\0' || strneq(p2, "_sub4", 5) || strneq(p2, "sp", 2) || strneq(p2, "sp_sub4", 7) ) )
-      {
-        // different suffixes affect the fp value but sp remains unchanged
-        *spdelta = 0;
-        return true;
-      }
-    }
-    else if ( SKIP_PREFIX("epilog_load")
-           || SKIP_PREFIX("epilog_restore") )
-    {
-      char *p2;
-      uint64 reg = strtoull(p, &p2, 10);
-      if ( ( reg == 0 || reg >= 13 && reg <= 26 )
-        && ( *p2 == '\0' || strneq(p2, "_add4", 5) ) )
-      {
-        // sp delta depends on r12 value
-        *spdelta = BADADDR;
-        return true;
-      }
-    }
-    else if ( SKIP_PREFIX("st_r13_to_r") )
-    {
-      char *p2;
-      uint64 reg = strtoull(p, &p2, 10);
-      if ( reg >= 13 && reg <= 26 )
-      {
-        *spdelta = 0;
-        return true;
-      }
-    }
-    else if ( SKIP_PREFIX("ld_r13_to_r") )
-    {
-      char *p2;
-      uint64 reg = strtoull(p, &p2, 10);
-      if ( reg >= 13 && reg <= 26 )
-      {
-        if ( *p2 == '\0' )
-        {
-          *spdelta = 0;
-          return true;
-        }
-        else if ( strneq(p2, "_ret", 4) )
-        {
-          // sp delta depends on r12 value
-          *spdelta = BADADDR;
-          return true;
-        }
-      }
-    }
+      break;
+
+    case ARCMC_PROLOG_STORE:
+      // stores the saved registers and sets fp, sp remains unchanged
+      if ( sets_fp != nullptr )
+        *sets_fp = true;
+      *spdelta = 0;
+      break;
+
+    case ARCMC_EPILOG_RESTORE:
+      // sets r12 to the frame size and falls into __epilog_loadN
+      *spdelta = mc_frame_size(mc.reg) + (mc.extra4 ? 4 : 0);
+      break;
+
+    case ARCMC_EPILOG_LOAD:
+      // restores fp from [sp,r12] and adjusts sp by r12
+      *spdelta = mc_add_delta(get_millicode_arg(caller, R12),
+                              mc.extra4 ? 4 : 0);
+      break;
+
+    case ARCMC_STORE_VA:
+      // stores r0-r7 into the caller's frame, sp is not touched
+      *spdelta = 0;
+      break;
+
+    // both, and GCC
+    case ARCMC_SAVE:
+      // loads/stores 13..reg in the caller's frame, sp remains unchanged
+      *spdelta = 0;
+      break;
+
+    case ARCMC_LOAD_RET:
+      // also pops blink, adjusting sp by r12 and by the slot it occupied
+      *spdelta = mc_add_delta(get_millicode_arg(caller, R12), 4);
+      break;
   }
-  return false;
+  return true;
 }
 
 //----------------------------------------------------------------------
-bool arc_t::is_millicode(ea_t ea, sval_t *spdelta)
+bool arc_t::is_millicode(
+        ea_t ea,
+        sval_t *spdelta,
+        const insn_t *caller,
+        bool *sets_fp)
 {
-    // MetaWare  arcompact names (N=13..26):
-    // __ac_push_13_to_N
-    // __ac_push_none
-    // __ac_pop_13_to_N
-    // __ac_pop_13_to_Nv
-    // __ac_pop_none
-    // __ac_pop_nonev
-    // __ac_mc_va
-    // MetaWare ARC4 names (N=0,13..26)
-    // __prolog_saveNsp_sub4
-    // __prolog_saveN_sub4
-    // __prolog_saveN
-    // __prolog_saveNsp
-    // __epilog_loadN
-    // __epilog_restoreN
-    // __epilog_loadN_add4
-    // __epilog_restoreN_add4
-    // __store_va
-    // GCC names (N=15..26)
-    // __st_r13_to_rN
-    // __ld_r13_to_rN
-    // N=14..26
-    // __ld_r13_to_rN_ret
-  bool detected = false;
   qstring name;
-  if ( get_name(&name, ea, GN_NOT_DUMMY) > 0 )
+  sval_t tmp;
+  if ( get_name(&name, ea, GN_NOT_DUMMY) <= 0
+    || !check_millicode_name(name, ea, &tmp, caller, sets_fp) )
   {
-CHECK_NAME:
-    sval_t tmp;
-    if ( check_millicode_name(name, ea, &tmp) )
-    {
-      if ( spdelta != nullptr )
-        *spdelta = tmp;
-      return true;
-    }
-    if ( !detected )
-      return false;
+    return false;
   }
-  qstring mname;
-  if ( detect_millicode(&mname, ea) )
-  {
-    if ( name.empty() )
-    {
-      msg("%a: detected millicode thunk %s\n", ea, mname.c_str());
-      force_name(ea, mname.c_str());
-    }
-    else if ( is_uname(name.c_str()) && name.find(mname) == qstring::npos )
-    {
-      msg("%a: detected millicode thunk %s but current name is %s, rename for better analysis\n", ea, mname.c_str(), name.c_str());
-    }
-    name = mname;
-    detected = true;
-    goto CHECK_NAME;
-  }
-  return false;
+  // the helpers sit back to back and the last instruction of one falls into
+  // the next, so the flow analysis can run over a whole row of them. A helper
+  // is an entry of its own, so cut the function short here.
+  ea_t func_ea = get_func_start(ea);
+  if ( func_ea != BADADDR && func_ea < ea )
+    set_func_end(func_ea, ea);
+  if ( spdelta != nullptr )
+    *spdelta = tmp;
+  return true;
 }

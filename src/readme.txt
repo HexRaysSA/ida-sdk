@@ -2,7 +2,7 @@
         IDA SDK - Interactive Disassembler Module SDK
         =============================================
 
-        This SDK should be used with IDA kernel version 9.4
+        This SDK should be used with IDA kernel version 9.5
 
         This package allows you to write:
                 - processor modules
@@ -214,8 +214,9 @@ LIBRARIES
   For Linux targets, stub libraries are provided in:
     x64_linux_gcc_64/libida.so        LLVM/GCC stub libraries for IDA
 
-  For Mac OS X targets, stub libraries are provided in:
-    x64_mac_gcc_64/libida.dylib       LLVM/GCC stub libraries for IDA
+  For Mac OS X targets, text-based stub libraries are provided in:
+    x64_mac_64/libida.tbd             stub library for IDA (both archs)
+    arm64_mac_64/libida.tbd
 
   To build the debugger servers, the 'dumb' object are needed. These files are
   provided for the following architectures:
@@ -290,7 +291,8 @@ SDK BUILD INSTRUCTIONS
     cmake --build --preset native
 
   Available presets: native (full SDK), dbgserver / dbgserver-ea32
-  (debug server only), and arm / x64 for cross-compilation.
+  (debug server only), arm / x64 for cross-compilation, and
+  arm32-dbgserver / armhf-dbgserver for 32-bit ARM Linux debug servers.
 
 
 ------------------------------------------------------------------------------

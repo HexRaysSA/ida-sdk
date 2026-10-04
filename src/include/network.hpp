@@ -204,6 +204,27 @@ AS_PRINTF(2, 0) ssize_t dvnotif_client(
 #define IRSERR_SKIP_ITER -0x5217   // skip recv() in rpc_engine_t's recv_data loop
 
 //-------------------------------------------------------------------------
+// Coarse classification of a transport/connection failure, derived from the
+// stream's low-level error state. Lets callers phrase actionable diagnostics
+// (and tell a real timeout apart from an immediate error) without having to
+// parse the free-form irs_strerror() text.
+enum irs_fail_kind_t
+{
+  IRSFAIL_NONE = 0,      // no error
+  IRSFAIL_RESOLVE,       // host name resolution failed
+  IRSFAIL_REFUSED,       // connection refused
+  IRSFAIL_UNREACHABLE,   // network/host unreachable
+  IRSFAIL_TIMEOUT,       // operation timed out
+  IRSFAIL_RESET,         // connection reset by peer
+  IRSFAIL_CLOSED,        // peer closed the connection
+  IRSFAIL_TLS_HANDSHAKE, // TLS handshake failed (protocol/alert)
+  IRSFAIL_TLS_CERT,      // TLS certificate verification failed
+  IRSFAIL_TLS_NOTLS,     // peer does not appear to speak TLS
+  IRSFAIL_CANCELLED,     // operation cancelled
+  IRSFAIL_OTHER,         // see irs_strerror() for details
+};
+
+//-------------------------------------------------------------------------
 //                           idarpc_stream_t
 //-------------------------------------------------------------------------
 // the idarpc_stream_t structure is not defined.
@@ -487,6 +508,15 @@ ssize_t irs_send(idarpc_stream_t *irs, const void *buf, size_t n);
 void irs_term(idarpc_stream_t **pirs, int shutdown_flags = -1);
 int irs_get_error(idarpc_stream_t *irs);
 const char *irs_strerror(idarpc_stream_t *irs);
+irs_fail_kind_t irs_fail_kind(idarpc_stream_t *irs);
+// short human-readable label for a failure kind (e.g. "connection refused")
+const char *irs_fail_kind_str(irs_fail_kind_t kind);
+// Format a failed connect on `irs` to `endpoint` (host:port) into `out`, e.g.
+// "host:port: connection refused (connect: ...)". Leads with the classified
+// category unless it would add nothing over the raw transport text. Pass a
+// null/empty `endpoint` to omit it (when the caller reports the server
+// separately). Call before irs_term().
+void irs_format_conn_error(qstring *out, idarpc_stream_t *irs, const char *endpoint);
 bool irs_peername(idarpc_stream_t *irs, qstring *out, bool lookupname = true);
 bool irs_sockname(idarpc_stream_t *irs, qstring *out, bool lookupname = true);
 bool irs_sockport(idarpc_stream_t *irs, int *out);
@@ -636,7 +666,6 @@ private:
   DECLARE_UNCOPYABLE(base_dispatcher_t);
 };
 
-// [-
 //-------------------------------------------------------------------------
 //                   server_dispatcher_t
 //-------------------------------------------------------------------------
@@ -731,7 +760,6 @@ struct server_dispatcher_t : public base_dispatcher_t
 };
 
 NORETURN AS_PRINTF(2, 3) void lerror(int code, const char *format, ...);
-// ]-
 
 //-------------------------------------------------------------------------
 //                   packing/unpacking utils

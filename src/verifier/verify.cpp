@@ -1254,6 +1254,8 @@ void mblock_t::verify(micro_verifier_t &mv) const
     {
       if ( start >= end && (flags & MBL_FAKE) == 0 )
         mv.MBLOCK_INTERR(50869); // wrong block boundaries
+      if ( start == BADADDR )
+        mv.MBLOCK_INTERR(53166); // non-empty block without address
       if ( end != BADADDR
         && getf_reginsn(head) != nullptr
         && (mba->get_mba_flags() & MBA_CMBBLK) != 0

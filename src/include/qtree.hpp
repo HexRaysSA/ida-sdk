@@ -149,14 +149,14 @@
 //
 //    // First, add throw_nomem to pro.h
 //    // Next, change the definition of qalloc_or_throw and qrealloc_or_throw:
-//    INLINE void *qalloc_or_throw(size_t size)
+//    IDA_INLINE void *qalloc_or_throw(size_t size)
 //    {
 //      if ( void *p = qalloc(size) )
 //       return p;
 //     throw_nomem();
 //    }
 //
-//    INLINE void *qrealloc_or_throw(void *alloc, size_t size)
+//    IDA_INLINE void *qrealloc_or_throw(void *alloc, size_t size)
 //    {
 //      if ( void *p = qrealloc(alloc, size) )
 //       return p;
@@ -2676,7 +2676,7 @@ public:
     return *this;
   }
 
-  void swap(qmap &other) noexcept(noexcept(tree_.swap(other.tree_)))
+  void swap(qmap &other) noexcept(std::is_nothrow_swappable_v<Tree>)
   {
     tree_.swap(other.tree_);
   }

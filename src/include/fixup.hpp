@@ -156,7 +156,7 @@ public:
   }
 
   /// \deprecated pass a selector, or use set_target_sel()
-  DEPRECATED void set_sel(const segment_t *seg)
+  IDA_DEPRECATED void set_sel(const segment_t *seg)
   {
     set_sel(seg == nullptr ? BADSEL : seg->sel);
   }

@@ -44,6 +44,11 @@ struct try_handler_t : public rangevec_t
     disp = -1;
     fpreg = -1;
   }
+  bool operator==(const try_handler_t &r) const
+  {
+    return disp == r.disp && fpreg == r.fpreg && rangevec_t::operator==(r);
+  }
+  bool operator!=(const try_handler_t &r) const { return !(*this == r); }
 };
 DECLARE_TYPE_AS_MOVABLE(try_handler_t);
 
@@ -51,17 +56,24 @@ DECLARE_TYPE_AS_MOVABLE(try_handler_t);
 // __except() {} statement
 struct seh_t : public try_handler_t
 {
-  rangevec_t filter; // boundaries of the filter callback. if filter is empty,
-  ea_t seh_code;    // then use seh_code
 #define SEH_CONTINUE BADADDR // EXCEPTION_CONTINUE_EXECUTION (-1)
 #define SEH_SEARCH   ea_t(0) // EXCEPTION_CONTINUE_SEARCH (0) (alias of __finally)
 #define SEH_HANDLE   ea_t(1) // EXCEPTION_EXECUTE_HANDLER (1)
+  rangevec_t filter; // boundaries of the filter callback. if filter is empty,
+  ea_t seh_code = SEH_CONTINUE; // then use seh_code
   void clear(void)
   {
     try_handler_t::clear();
     filter.clear();
     seh_code = SEH_CONTINUE;
   }
+  bool operator==(const seh_t &r) const
+  {
+    return seh_code == r.seh_code
+        && filter == r.filter
+        && try_handler_t::operator==(r);
+  }
+  bool operator!=(const seh_t &r) const { return !(*this == r); }
 };
 DECLARE_TYPE_AS_MOVABLE(seh_t);
 
@@ -75,6 +87,13 @@ struct catch_t : public try_handler_t
 #define CATCH_ID_CLEANUP sval_t(-2) // a cleanup handler invoked if exception occures
 
   catch_t() : obj(-1), type_id(-1) {}
+  bool operator==(const catch_t &r) const
+  {
+    return type_id == r.type_id
+        && obj == r.obj
+        && try_handler_t::operator==(r);
+  }
+  bool operator!=(const catch_t &r) const { return !(*this == r); }
 };
 DECLARE_TYPE_AS_MOVABLE(catch_t);
 typedef qvector<catch_t> catchvec_t;
@@ -109,6 +128,20 @@ public:
   bool empty(void) const { return kind == TB_NONE || size() == 0; }
   bool is_seh(void) const { return kind == TB_SEH; }
   bool is_cpp(void) const { return kind == TB_CPP; }
+
+  /// Compare two try blocks. #level is calculated by get_tryblks() from the
+  /// surrounding blocks, it does not describe this one and is not compared.
+  bool operator==(const tryblk_t &r) const
+  {
+    if ( kind != r.kind || rangevec_t::operator!=(r) )
+      return false;
+    if ( kind == TB_SEH )
+      return seh() == r.seh();
+    if ( kind == TB_CPP )
+      return cpp() == r.cpp();
+    return true;
+  }
+  bool operator!=(const tryblk_t &r) const { return !(*this == r); }
 
   //-------------------------------------------------------------------------
   tryblk_t &operator=(const tryblk_t &r)

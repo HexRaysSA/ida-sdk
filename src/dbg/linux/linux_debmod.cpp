@@ -3984,6 +3984,7 @@ drc_t idaapi linux_debmod_t::dbg_update_call_stack(thid_t tid, call_stack_t * tr
     // TODO : determine how to have frame pointer.
     si.fp = BADADDR;
     si.funcea = BADADDR;
+    si.funcok = false;
     trace->push_back(si);
   }
   while ( p_libaccess->p_unw_step(&cursor) > 0 );

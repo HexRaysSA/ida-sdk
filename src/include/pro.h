@@ -32,8 +32,8 @@
    __ARM__     - ARM
 */
 
-/// IDA SDK v9.4
-#define IDA_SDK_VERSION      940
+/// IDA SDK v9.5
+#define IDA_SDK_VERSION      950
 
 //---------------------------------------------------------------------------
 #if !defined(__NT__) && !defined(__LINUX__) && !defined(__MAC__)
@@ -82,6 +82,7 @@
 #include <memory>
 #include <new>
 #include <string>
+#include <type_traits>
 #include <utility>
 #endif
 #if defined(__NT__)
@@ -119,19 +120,19 @@
 /// \def{EXTERNC,       specify C linkage}
 /// \def{C_INCLUDE,     helper for 'extern "C" {}' statements}
 /// \def{C_INCLUDE_END, \copydoc C_INCLUDE}
-/// \def{INLINE,        inline keyword for c++}
+/// \def{IDA_INLINE,    inline keyword for c++}
 #if defined(__cplusplus) || defined(SWIG)
 #define EXTERNC         extern "C"
 #define C_INCLUDE       EXTERNC \
   {
 
 #define C_INCLUDE_END   }
-#define INLINE          inline
+#define IDA_INLINE      inline
 #else
 #define EXTERNC
 #define C_INCLUDE
 #define C_INCLUDE_END
-#define INLINE          __inline
+#define IDA_INLINE      __inline
 #endif
 
 //---------------------------------------------------------------------------
@@ -148,7 +149,7 @@
 #define NT_CDECL
 #endif
 
-/// \def{DEPRECATED, identifies parts of the IDA API that are considered deprecated}
+/// \def{IDA_DEPRECATED, identifies parts of the IDA API that are considered deprecated}
 /// \def{NORETURN,   function does not return}
 /// \def{PACKED,     type is packed}
 /// \def{PACKED_ALIGNED, type is packed but its start address is aligned}
@@ -157,7 +158,7 @@
 /// \def{WARN_UNUSED_RESULT, warn if a function returns a result that is never used}
 #if defined(SWIG)
 #define constexpr
-#define DEPRECATED
+#define IDA_DEPRECATED
 #define NORETURN
 #define PACKED
 #define PACKED_ALIGNED(al)
@@ -166,7 +167,7 @@
 #define AS_SCANF(format_idx, varg_idx)
 #define WARN_UNUSED_RESULT
 #elif defined(__GNUC__)
-#define DEPRECATED __attribute__((deprecated))
+#define IDA_DEPRECATED __attribute__((deprecated))
 #define NORETURN  __attribute__((noreturn))
 #define PACKED __attribute__((__packed__))
 #define PACKED_ALIGNED(al) __attribute__((__packed__)) __attribute__((__aligned__(al)))
@@ -175,7 +176,7 @@
 #define AS_SCANF(format_idx, varg_idx)  __attribute__((format(scanf, format_idx, varg_idx)))
 #define WARN_UNUSED_RESULT __attribute__((__warn_unused_result__))
 #else
-#define DEPRECATED __declspec(deprecated)
+#define IDA_DEPRECATED __declspec(deprecated)
 #define NORETURN  __declspec(noreturn)
 #define PACKED
 #define PACKED_ALIGNED(al)
@@ -221,8 +222,14 @@
 #endif
 
 #if defined(DONT_DEPRECATE)
-#undef DEPRECATED
-#define DEPRECATED
+#undef IDA_DEPRECATED
+#define IDA_DEPRECATED
+#endif
+
+// Define IDA_NO_LEGACY_MACROS to drop the unprefixed INLINE and DEPRECATED
+#ifndef IDA_NO_LEGACY_MACROS
+#define INLINE          IDA_INLINE
+#define DEPRECATED      IDA_DEPRECATED
 #endif
 
 //---------------------------------------------------------------------------
@@ -343,6 +350,8 @@ typedef unsigned short ushort;  ///< unsigned 16 bit value
 typedef unsigned int   uint;    ///< unsigned 32 bit value
 #endif
 
+// Define IDA_NO_INT_TYPEDEFS to supply [s]int8..uint64 yourself before pro.h
+#ifndef IDA_NO_INT_TYPEDEFS
 typedef          char   int8;   ///< signed 8 bit value
 typedef signed   char   sint8;  ///< signed 8 bit value
 typedef unsigned char   uint8;  ///< unsigned 8 bit value
@@ -350,17 +359,38 @@ typedef          short  int16;  ///< signed 16 bit value
 typedef unsigned short  uint16; ///< unsigned 16 bit value
 typedef          int    int32;  ///< signed 32 bit value
 typedef unsigned int    uint32; ///< unsigned 32 bit value
+#endif
 
 #include <llong.hpp>
+
+#if defined(__cplusplus) && !defined(SWIG)
+static_assert(sizeof(int8) == 1, "bad int8");
+static_assert(sizeof(sint8) == 1, "bad sint8");
+static_assert(sizeof(uint8) == 1, "bad uint8");
+static_assert(sizeof(int16) == 2, "bad int16");
+static_assert(sizeof(uint16) == 2, "bad uint16");
+static_assert(sizeof(int32) == 4, "bad int32");
+static_assert(sizeof(uint32) == 4, "bad uint32");
+static_assert(sizeof(int64) == 8, "bad int64");
+static_assert(sizeof(uint64) == 8, "bad uint64");
+static_assert(std::is_unsigned<uint8>::value, "uint8 must be unsigned");
+static_assert(std::is_unsigned<uint16>::value, "uint16 must be unsigned");
+static_assert(std::is_unsigned<uint32>::value, "uint32 must be unsigned");
+static_assert(std::is_unsigned<uint64>::value, "uint64 must be unsigned");
+static_assert(std::is_signed<sint8>::value, "sint8 must be signed");
+static_assert(std::is_signed<int16>::value, "int16 must be signed");
+static_assert(std::is_signed<int32>::value, "int32 must be signed");
+static_assert(std::is_signed<int64>::value, "int64 must be signed");
+#endif
 
 
 /// \fn{int64 qatoll(const char *nptr), Convert string to 64 bit integer}
 #if defined(__UNIX__)
-INLINE int64 qatoll(const char *nptr) { return nptr != nullptr ? atoll(nptr) :0; }
+IDA_INLINE int64 qatoll(const char *nptr) { return nptr != nullptr ? atoll(nptr) :0; }
 #elif defined(_MSC_VER)
-INLINE int64 qatoll(const char *nptr) { return nptr != nullptr ? _atoi64(nptr) :0; }
+IDA_INLINE int64 qatoll(const char *nptr) { return nptr != nullptr ? _atoi64(nptr) :0; }
 #else
-INLINE int64 qatoll(const char *nptr) { return nptr != nullptr ? atol(nptr) : 0; }
+IDA_INLINE int64 qatoll(const char *nptr) { return nptr != nullptr ? atol(nptr) : 0; }
 #endif
 
 // VS2010 lacks strtoull
@@ -505,7 +535,7 @@ typedef uint64 qtime64_t; ///< 64-bit time value expressed as seconds and
 
 /// Get the 'seconds since the epoch' part of a qtime64_t
 
-INLINE THREAD_SAFE uint32 get_secs(qtime64_t t)
+IDA_INLINE THREAD_SAFE uint32 get_secs(qtime64_t t)
 {
   return (uint32)(t>>32);
 }
@@ -513,7 +543,7 @@ INLINE THREAD_SAFE uint32 get_secs(qtime64_t t)
 
 /// Get the microseconds part of a qtime64_t
 
-INLINE THREAD_SAFE uint32 get_usecs(qtime64_t t)
+IDA_INLINE THREAD_SAFE uint32 get_usecs(qtime64_t t)
 {
   return (uint32)(t);
 }
@@ -523,7 +553,7 @@ INLINE THREAD_SAFE uint32 get_usecs(qtime64_t t)
 /// \param secs   seconds
 /// \param usecs  microseconds
 
-INLINE THREAD_SAFE qtime64_t make_qtime64(uint32 secs, DEFARG(int32 usecs, 0))
+IDA_INLINE THREAD_SAFE qtime64_t make_qtime64(uint32 secs, DEFARG(int32 usecs, 0))
 {
   return ((qtime64_t)(secs) << 32) | usecs;
 }
@@ -561,7 +591,7 @@ idaman THREAD_SAFE bool ida_export qlocaltime(struct tm *_tm, time_t t);
 
 /// Same as qlocaltime(struct tm *, time_t), but accepts a 64-bit time value
 
-INLINE THREAD_SAFE bool qlocaltime64(struct tm *_tm, qtime64_t t)
+IDA_INLINE THREAD_SAFE bool qlocaltime64(struct tm *_tm, qtime64_t t)
 {
   return qlocaltime(_tm, get_secs(t));
 }
@@ -577,7 +607,7 @@ idaman bool ida_export qgmtime(struct tm *_tm, time_t t);
 
 /// Same as qgmtime(struct tm *, time_t), but accepts a 64-bit time value
 
-INLINE THREAD_SAFE bool qgmtime64(struct tm *_tm, qtime64_t t)
+IDA_INLINE THREAD_SAFE bool qgmtime64(struct tm *_tm, qtime64_t t)
 {
   return qgmtime(_tm, get_secs(t));
 }
@@ -763,6 +793,15 @@ struct interr_exc_t : public std::exception
   int code;
   interr_exc_t(int _code) : code(_code) {}
 };
+
+/// Exception thrown by qexit() when qexit-throwing has been enabled with
+/// set_qexit_throws().
+struct qexit_exc_t : public std::exception
+{
+  int code;
+  qexit_exc_t(int _code) : code(_code) {}
+  virtual const char *what() const noexcept override { return "IDA requested to terminate"; }
+};
 #endif // __cplusplus
 idaman THREAD_SAFE NORETURN void ida_export interr(int code);                         ///< Show internal error message and terminate execution
 
@@ -771,6 +810,12 @@ idaman THREAD_SAFE NORETURN void ida_export interr(int code);                   
 ///                otherwise it terminates IDA after showing an error message
 /// \return previous setting
 idaman THREAD_SAFE bool ida_export set_interr_throws(bool enable);
+
+// set the behavior of 'qexit()'
+/// \param enable  if true, qexit() throws qexit_exc_t
+///                otherwise it terminates the process as usual
+/// \return previous setting
+idaman THREAD_SAFE bool ida_export set_qexit_throws(bool enable);
 
 //---------------------------------------------------------------------------
 idaman THREAD_SAFE void *ida_export qalloc(size_t size);                              ///< System independent malloc
@@ -800,6 +845,9 @@ T *qrealloc_array(T *ptr, size_t n)
   return (T *)qrealloc(ptr, nbytes);
 }
 
+#ifndef MEMSET_THISOBJ_WITH_DD
+#define MEMSET_THISOBJ_WITH_DD
+#endif
 /// \def{qnumber, determine capacity of an array}
 #ifdef __GNUC__
 #  define qnumber(arr) ( \
@@ -880,7 +928,7 @@ idaman THREAD_SAFE char *ida_export strrpl(char *str, int char1, int char2);
 
 
 /// Get tail of a string
-INLINE THREAD_SAFE char *tail(char *str) { return strchr(str, '\0'); }
+IDA_INLINE THREAD_SAFE char *tail(char *str) { return strchr(str, '\0'); }
 #ifdef __cplusplus
 /// \copydoc tail(char *)
 inline THREAD_SAFE const char *tail(const char *str) { return strchr(str, '\0'); }
@@ -938,22 +986,22 @@ inline char *idaapi stristr(char *s1, const char *s2) { return CONST_CAST(char *
 /// The is...() functions in ctype.h will misbehave with 'char' argument. We introduce more robust functions.
 /// These functions only operate on ascii chars and are intended to be locale-independent.
 ///@{
-INLINE THREAD_SAFE bool ida_local qisascii(char c)  { return (c & ~0x7f) == 0; }
-INLINE THREAD_SAFE bool ida_local qisspace(char c)  { return qisascii(c) && isspace((uchar)(c)) != 0; }
-INLINE THREAD_SAFE bool ida_local qisalpha(char c)  { return qisascii(c) && isalpha((uchar)(c)) != 0; }
-INLINE THREAD_SAFE bool ida_local qisalnum(char c)  { return qisascii(c) && isalnum((uchar)(c)) != 0; }
-INLINE THREAD_SAFE bool ida_local qispunct(char c)  { return qisascii(c) && ispunct((uchar)(c)) != 0; }
-INLINE THREAD_SAFE bool ida_local qislower(char c)  { return qisascii(c) && islower((uchar)(c)) != 0; }
-INLINE THREAD_SAFE bool ida_local qisupper(char c)  { return qisascii(c) && isupper((uchar)(c)) != 0; }
-INLINE THREAD_SAFE bool ida_local qisprint(char c)  { return qisascii(c) && isprint((uchar)(c)) != 0; }
-INLINE THREAD_SAFE bool ida_local qisdigit(char c)  { return qisascii(c) && isdigit((uchar)(c)) != 0; }
-INLINE THREAD_SAFE bool ida_local qisxdigit(char c) { return qisascii(c) && isxdigit((uchar)(c)) != 0; }
+IDA_INLINE THREAD_SAFE bool ida_local qisascii(char c)  { return (c & ~0x7f) == 0; }
+IDA_INLINE THREAD_SAFE bool ida_local qisspace(char c)  { return qisascii(c) && isspace((uchar)(c)) != 0; }
+IDA_INLINE THREAD_SAFE bool ida_local qisalpha(char c)  { return qisascii(c) && isalpha((uchar)(c)) != 0; }
+IDA_INLINE THREAD_SAFE bool ida_local qisalnum(char c)  { return qisascii(c) && isalnum((uchar)(c)) != 0; }
+IDA_INLINE THREAD_SAFE bool ida_local qispunct(char c)  { return qisascii(c) && ispunct((uchar)(c)) != 0; }
+IDA_INLINE THREAD_SAFE bool ida_local qislower(char c)  { return qisascii(c) && islower((uchar)(c)) != 0; }
+IDA_INLINE THREAD_SAFE bool ida_local qisupper(char c)  { return qisascii(c) && isupper((uchar)(c)) != 0; }
+IDA_INLINE THREAD_SAFE bool ida_local qisprint(char c)  { return qisascii(c) && isprint((uchar)(c)) != 0; }
+IDA_INLINE THREAD_SAFE bool ida_local qisdigit(char c)  { return qisascii(c) && isdigit((uchar)(c)) != 0; }
+IDA_INLINE THREAD_SAFE bool ida_local qisxdigit(char c) { return qisascii(c) && isxdigit((uchar)(c)) != 0; }
 ///@}
 
 /// Get lowercase equivalent of given char
-INLINE THREAD_SAFE int ida_local qtolower(char c) { return tolower((uchar)(c)); }
+IDA_INLINE THREAD_SAFE int ida_local qtolower(char c) { return tolower((uchar)(c)); }
 /// Get uppercase equivalent of given char
-INLINE THREAD_SAFE int ida_local qtoupper(char c) { return toupper((uchar)(c)); }
+IDA_INLINE THREAD_SAFE int ida_local qtoupper(char c) { return toupper((uchar)(c)); }
 
 // We forbid using dangerous functions in IDA
 #if !defined(USE_DANGEROUS_FUNCTIONS) && !defined(__CODE_CHECKER__)
@@ -1010,7 +1058,7 @@ idaman AS_PRINTF(3, 4) THREAD_SAFE int ida_export append_snprintf(char *buf, con
 /// still need to call qsnprintf with a dynamically built format string.
 /// OTOH, there are absolutely no checks of the input arguments, so be careful!
 GCC_DIAG_OFF(format-nonliteral);
-INLINE int nowarn_qsnprintf(char *buf, size_t size, const char *format, ...)
+IDA_INLINE int nowarn_qsnprintf(char *buf, size_t size, const char *format, ...)
 {
   va_list va;
   int code;
@@ -1336,6 +1384,11 @@ idaman THREAD_SAFE int ida_export qfstat(int fd, struct qstatbuf *buf);
 idaman THREAD_SAFE int ida_export qtouchfile(const char *file_name);
 
 //---------------------------------------------------------------------------
+/// Get the id of the current process
+
+idaman THREAD_SAFE uint32 ida_export qgetpid(void);
+
+//---------------------------------------------------------------------------
 /// Add a function to be called at exit time
 
 idaman THREAD_SAFE void ida_export qatexit(void (idaapi *func)(void));
@@ -1364,38 +1417,38 @@ int qabs(int x) { return x < 0 ? -x : x; }
 
 //----------------------------------------------------------------------
 /// Test if 'bit' is set in 'bitmap'
-INLINE THREAD_SAFE bool idaapi test_bit(const uchar *bitmap, size_t bit)
+IDA_INLINE THREAD_SAFE bool idaapi test_bit(const uchar *bitmap, size_t bit)
 {
   return (bitmap[bit/8] & (1<<(bit&7))) != 0;
 }
 /// Set 'bit' in 'bitmap'
-INLINE THREAD_SAFE void idaapi set_bit(uchar *bitmap, size_t bit)
+IDA_INLINE THREAD_SAFE void idaapi set_bit(uchar *bitmap, size_t bit)
 {
   uchar *p = bitmap + bit/8;
   *p = (uchar)(*p | (1<<(bit&7)));
 }
 /// Clear 'bit' in 'bitmap'
-INLINE THREAD_SAFE void idaapi clear_bit(uchar *bitmap, size_t bit)
+IDA_INLINE THREAD_SAFE void idaapi clear_bit(uchar *bitmap, size_t bit)
 {
   uchar *p = bitmap + bit/8;
   *p = (uchar)(*p & ~(1<<(bit&7)));
 }
 /// Set bits between [low, high) in 'bitmap'
-INLINE THREAD_SAFE void idaapi set_bits(uchar *bitmap, size_t low, size_t high)
+IDA_INLINE THREAD_SAFE void idaapi set_bits(uchar *bitmap, size_t low, size_t high)
 {
   size_t bit;
   for ( bit = low; bit < high; ++bit )
     set_bit(bitmap, bit);
 }
 /// Clear bits between [low, high) in 'bitmap'
-INLINE THREAD_SAFE void idaapi clear_bits(uchar *bitmap, size_t low, size_t high)
+IDA_INLINE THREAD_SAFE void idaapi clear_bits(uchar *bitmap, size_t low, size_t high)
 {
   size_t bit;
   for ( bit = low; bit < high; ++bit )
     clear_bit(bitmap, bit);
 }
 /// Set first 'nbits' of 'bitmap'
-INLINE THREAD_SAFE void idaapi set_all_bits(uchar *bitmap, size_t nbits)
+IDA_INLINE THREAD_SAFE void idaapi set_all_bits(uchar *bitmap, size_t nbits)
 {
   memset(bitmap, 0xFF, nbits/8);
   if ( (nbits & 7) != 0 )
@@ -1405,7 +1458,7 @@ INLINE THREAD_SAFE void idaapi set_all_bits(uchar *bitmap, size_t nbits)
   }
 }
 /// Clear first 'nbits' of 'bitmap'
-INLINE THREAD_SAFE void idaapi clear_all_bits(uchar *bitmap, size_t nbits)
+IDA_INLINE THREAD_SAFE void idaapi clear_all_bits(uchar *bitmap, size_t nbits)
 {
   memset(bitmap, 0, nbits/8);
   if ( (nbits & 7) != 0 )
@@ -2194,6 +2247,15 @@ idaman THREAD_SAFE void *ida_export qvector_reserve(void *vec, void *old, size_t
 /// \cond
 #define DECLARE_TYPE_AS_MOVABLE(T) template <> struct ida_movable_type<T> { static constexpr bool value = true; }
 
+#ifndef IDA_ASAN_POISON
+#define IDA_ASAN_POISON(...)                  ((void)0)
+#define IDA_ASAN_UNPOISON(...)                ((void)0)
+#define IDA_ASAN_QVECTOR_ANNOTATE(...)        ((void)0)
+#define IDA_ASAN_QVECTOR_ANNOTATE_DELETE(...) ((void)0)
+#endif
+#ifndef IDA_ASAN_MAYBE_FORCE_REALLOC
+#define IDA_ASAN_MAYBE_FORCE_REALLOC(...)
+#endif
 
 template <class T> inline constexpr THREAD_SAFE bool may_move_bytes(void)
 {
@@ -2291,6 +2353,7 @@ template <class T> class qvector
   }
   void free_memory()
   {
+    IDA_ASAN_QVECTOR_ANNOTATE_DELETE(array, alloc, n, sizeof(T));
     qfree(array);
     array = nullptr;
     alloc = 0;
@@ -2300,6 +2363,7 @@ template <class T> class qvector
   {
     if ( array == nullptr || new_alloc == 0 )
       return;
+    IDA_ASAN_QVECTOR_ANNOTATE_DELETE(array, alloc, n, sizeof(T));
     if ( may_move_bytes<T>() )
     {
       T *new_array = (T*)qrealloc(array, new_alloc * sizeof(T));
@@ -2320,6 +2384,7 @@ template <class T> class qvector
         alloc = new_alloc;
       }
     }
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, alloc, n, sizeof(T));
   }
   /// Resizes to a smaller size, destroying elements if needed.
   void resize_less(size_t _newsize)
@@ -2330,6 +2395,7 @@ template <class T> class qvector
       for ( size_t i = _newsize; i < _size; i++ )
         array[i].~T();
     }
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, _newsize, sizeof(T));
     n = _newsize;
 #ifdef TESTABLE_BUILD_DEBUG_CONTAINERS
     /// This helps to find use-after-frees in empty containers:
@@ -2342,6 +2408,7 @@ template <class T> class qvector
   void resize_more_trivial(size_t _newsize)
   {
     reserve(_newsize);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, _newsize, sizeof(T));
     if constexpr ( std::is_trivially_copyable<T>::value )
     {
       memset((void *) (array + n), 0, (_newsize - n) * sizeof(T));
@@ -2357,6 +2424,7 @@ template <class T> class qvector
   void resize_more(size_t _newsize, const T &x)
   {
     reserve(_newsize);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, _newsize, sizeof(T));
     for ( size_t i = n; i < _newsize; i++ )
       new(array+i) T(x);
     n = _newsize;
@@ -2416,6 +2484,7 @@ public:
       resize_less(0);
       free_memory();
     }
+    MEMSET_THISOBJ_WITH_DD
   }
   DEFINE_MEMORY_ALLOCATION_FUNCS()
   /// Append a new element to the end the qvector.
@@ -2424,6 +2493,7 @@ public:
     TB_QASSERT(1907, !ref_within_range(x));
     T val(x);
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     new (array+n) T(std::move(val));
     ++n;
   }
@@ -2443,11 +2513,13 @@ public:
       // to a valid object.
       T val(std::move(x));
       reserve(n+1);
+      IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
       new (array+n) T(std::move(val));
     }
     else
     {
       reserve(n+1);
+      IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
       new (array+n) T(std::move(x));
     }
     ++n;
@@ -2463,6 +2535,7 @@ public:
     // If any args... are references to elements inside this same container,
     // and reserve reallocates, those references dangle before we use them.
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     new (array+n) T(std::forward<Args>(args)...);
     ++n;
   }
@@ -2473,6 +2546,7 @@ public:
   T &push_back(void)
   {
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     T *ptr = array + n;
     new (ptr) T;
     ++n;
@@ -2484,6 +2558,7 @@ public:
     if ( n > 0 )
     {
       array[--n].~T();
+      IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n + 1, n, sizeof(T));
 #ifdef TESTABLE_BUILD
     /// This helps to find use-after-frees in empty containers:
     if ( n == 0 )
@@ -2583,6 +2658,7 @@ public:
     CASSERT(std::is_trivially_constructible<T>::value);
     CASSERT(std::is_trivially_destructible<T>::value);
     reserve(_newsize);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, _newsize, sizeof(T));
     n = _newsize;
   }
 #endif
@@ -2594,6 +2670,7 @@ public:
 #endif
     T val(x);
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     new(array+n) T(std::move(val));
     ++n;
   }
@@ -2606,6 +2683,7 @@ public:
   {
     if ( cnt > alloc )
     {
+      IDA_ASAN_QVECTOR_ANNOTATE_DELETE(array, alloc, n, sizeof(T));
       if ( may_move_bytes<T>() )
       {
         array = (T *)qvector_reserve(this, array, cnt, sizeof(T));
@@ -2621,7 +2699,9 @@ public:
         array = new_array;
         alloc = new_alloc;
       }
+      IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, alloc, n, sizeof(T));
     }
+    IDA_ASAN_MAYBE_FORCE_REALLOC(cnt, n)
   }
   /// Shrink the capacity down to the current number of elements
   void truncate(void)
@@ -2696,6 +2776,7 @@ public:
     T val(x);
     size_t idx = it - array;
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     T *p = array + idx;
     size_t rest = end() - p;
     shift_up(p+1, p, rest);
@@ -2713,6 +2794,7 @@ public:
     T val(std::forward<T>(x));
     size_t idx = it - array;
     reserve(n+1);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + 1, sizeof(T));
     T *p = array + idx;
     size_t rest = end() - p;
     shift_up(p+1, p, rest);
@@ -2734,6 +2816,7 @@ public:
 
     size_t idx = it - array;
     reserve(n+cnt);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + cnt, sizeof(T));
     T *p = array + idx;
     size_t rest = end() - p;
     shift_up(p+cnt, p, rest);
@@ -2746,6 +2829,31 @@ public:
     n += cnt;
     return iterator(array+idx);
   }
+  /// Append a range of elements to the end of the qvector.
+  /// \param first  pointer to first element to be appended
+  /// \param last   pointer to end of elements to be appended (the element pointed to by 'last' will not be included)
+  template <class it2> void append(it2 first, it2 last)
+  {
+    // For trivially-copyable T with a contiguous same-type (pointer) source,
+    // copy the whole range with a single memcpy; otherwise reuse insert() at
+    // the end (where its shift_up is a no-op).
+    if constexpr ( std::is_trivially_copyable<T>::value
+                && std::is_pointer<it2>::value
+                && std::is_same_v<std::remove_cv_t<std::remove_pointer_t<it2>>, T> )
+    {
+      size_t cnt = last - first;
+      if ( cnt == 0 )
+        return;
+      reserve(n+cnt);
+      IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n + cnt, sizeof(T));
+      memcpy((void *) (array + n), (const void *) first, cnt * sizeof(T));
+      n += cnt;
+    }
+    else
+    {
+      insert(end(), first, last);
+    }
+  }
   /// Remove an element from the qvector.
   /// \param it  pointer to element to be removed
   /// \return pointer to the element that took its place
@@ -2754,6 +2862,7 @@ public:
     it->~T();
     size_t rest = end() - it - 1;
     shift_down(it, it+1, rest);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n - 1, sizeof(T));
     n--;
     return it;
   }
@@ -2767,6 +2876,7 @@ public:
       p->~T();
     size_t rest = end() - last;
     shift_down(first, last, rest);
+    IDA_ASAN_QVECTOR_ANNOTATE(array, alloc, n, n - (last - first), sizeof(T));
     n -= last - first;
     return first;
   }
@@ -2893,6 +3003,7 @@ class pool_allocator_t
   {
     for ( T *p : pools )
     {
+      IDA_ASAN_UNPOISON(p, pool_nelems * sizeof(T));
       qfree(p);
     }
     pools.clear();
@@ -2929,6 +3040,7 @@ public:
     {
       T *ptr = free_list;
       free_list = *(T**)ptr;
+      IDA_ASAN_UNPOISON(ptr, sizeof(T));
       return ptr;
     }
 
@@ -2952,6 +3064,7 @@ public:
     {
       *(T**)ptr = free_list;
       free_list = ptr;
+      IDA_ASAN_POISON((char*)ptr + sizeof(void*), sizeof(T) - sizeof(void*));
       if ( --live_objects == 0 )
         free_entire_pool();
     }
@@ -3018,6 +3131,7 @@ public:
   ~qrefcnt_t(void)
   {
     delref();
+    MEMSET_THISOBJ_WITH_DD
   }
   void reset(void)
   {
@@ -3751,7 +3865,6 @@ public:
     append(c);
   }
 
-
   /// Split a string on SEP, appending the parts to OUT
   /// \param out storage
   /// \param sep the separator to split on
@@ -4232,6 +4345,7 @@ public:
   ~qlist(void)
   {
     clear();
+    MEMSET_THISOBJ_WITH_DD
   }
   DEFINE_MEMORY_ALLOCATION_FUNCS()
 
@@ -4896,12 +5010,12 @@ idaman THREAD_SAFE bool ida_export change_codepage(
 #ifndef CP_UTF8
 #define CP_UTF8  65001
 #endif
-INLINE THREAD_SAFE bool acp_utf8(qstring *out, const char *in)
+IDA_INLINE THREAD_SAFE bool acp_utf8(qstring *out, const char *in)
 {
   return change_codepage(out, in, CP_ACP, CP_UTF8);
 }
 #else  // !__NT__
-INLINE THREAD_SAFE bool idaapi change_codepage(qstring *, const char *, int, int) { return false; }
+IDA_INLINE THREAD_SAFE bool idaapi change_codepage(qstring *, const char *, int, int) { return false; }
 #endif // __NT__
 
 
@@ -5008,6 +5122,10 @@ idaman THREAD_SAFE bool ida_export qustrncpy(char *dst, const char *utf8, size_t
 #define CP_ELLIPSIS 0x2026
 #define UTF8_ELLIPSIS "\xE2\x80\xA6"
 #define UTF8_ELLIPSIS_SZ (sizeof(UTF8_ELLIPSIS) - 1)
+
+#define CP_RIGHTARROW 0x2192
+#define UTF8_RIGHTARROW "\xE2\x86\x92"
+#define UTF8_RIGHTARROW_SZ (sizeof(UTF8_RIGHTARROW) - 1)
 
 #define CP_REPLCHAR 0xFFFD
 #define UTF8_REPLCHAR "\xEF\xBF\xBD"
@@ -5174,7 +5292,7 @@ char **expand_argv(int *p_argc, int argc, const char *const argv[]);
 
 /// Free 'argc' elements of 'argv'
 
-INLINE void free_argv(int argc, char **argv)
+IDA_INLINE void free_argv(int argc, char **argv)
 {
   int i;
   if ( argv != nullptr )
@@ -5638,9 +5756,11 @@ idaman void *ida_export pipe_process(
 
 
 /// Wait for file/socket/pipe handles.
-/// \note On Windows this function just calls WaitForMultipleObjects().
-///       So it cannot wait for file/socket/pipe handles.
-///       It simply returns 0 and sets idx to 0 for such handles.
+/// \note On Windows, pipe handles are polled with PeekNamedPipe() (they are
+///       not waitable kernel objects); a broken pipe is reported as ready so
+///       that the caller can read the EOF. Other handles are waited for with
+///       WaitForMultipleObjects(), so file/socket handles are not supported
+///       and are reported as immediately ready.
 /// \param[out] idx       handle index
 /// \param handles        handles to wait for
 /// \param n              number of handles

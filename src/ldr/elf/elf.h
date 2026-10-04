@@ -4,6 +4,7 @@
 #include <diskio.hpp>
 #include <fixup.hpp>
 #include <idp.hpp>
+#include <qmap.hpp>
 
 #pragma pack(push, 4)
 
@@ -642,7 +643,8 @@ struct proc_def_t
                                  // must hold the possible instruction bits, if they
                                  // are interleaved w/ the address data
                                  // (e.g., R_ARM_THM_MOVW_ABS_NC, ...).
-        adiff_t displ,
+        adiff_t displ,           // The part of the reference that doesn't change
+                                 // during rebasing.
         fixup_type_t type,       // The type of the relocation, see fixup.hpp's FIXUP_*.
                                  // It may be standard or custom.
         uval_t offbase = 0,      // base of the relative fixup
@@ -874,6 +876,30 @@ struct elf_arc_t : public arc_base_t
         const sym_rel *symbol,
         const elf_rela_t *reloc,
         reloc_tools_t *tools) override;
+};
+
+//----------------------------------------------------------------------------
+struct elf_hexagon_t : public proc_def_t
+{
+  elf_hexagon_t(elf_loader_t &l, reader_t &r) : proc_def_t(l, r) {}
+  virtual const char *proc_handle_reloc(
+        const rel_data_t &rel_data,
+        const sym_rel *symbol,
+        const elf_rela_t *reloc,
+        reloc_tools_t *tools) override;
+  virtual const char *proc_describe_flag_bit(uint32 *e_flags) override;
+  virtual const char *proc_handle_dynamic_tag(const Elf64_Dyn *dyn) override;
+  virtual bool proc_handle_symbol(sym_rel &sym, const char *symname) override;
+
+private:
+  bool do_apply(ea_t addr, uint32 value, uint32 mask) const;
+  int32 extract_addend(ea_t addr, uint32 mask, int shift) const;
+  bool dtprel_offset(uint32 *out, uint32 Sadd);
+  ea_t got_origin(reloc_tools_t *tools, bool create);
+
+  uint32 sda_base_ = 0;
+  uint32 got_addr_ = 0;
+  uint32 plt_addr_ = 0;
 };
 
 //----------------------------------------------------------------------------
@@ -1218,6 +1244,7 @@ struct elf_mips_t : public hexrays_procdef_t
   fixup_type_t lo16_reltype  = FIXUP_CUSTOM;
   fixup_type_t off16_reltype = FIXUP_CUSTOM;
   fixup_type_t b26_reltype   = FIXUP_CUSTOM;
+  fixup_type_t word26_reltype = FIXUP_CUSTOM;
   fixup_type_t mips16_b26_reltype   = FIXUP_CUSTOM;
   fixup_type_t mips16_ha16_reltype  = FIXUP_CUSTOM;
   fixup_type_t mips16_lo16_reltype  = FIXUP_CUSTOM;
@@ -1249,10 +1276,26 @@ struct elf_mips_t : public hexrays_procdef_t
   // start of the global data area. this area should be addressable using $gp.
   ea_t global_data_ea = BADADDR;
 
-  ea_t last_hi16_ea = BADADDR;
-  adiff_t last_hi16_addend = 0;
+  // the ABI requires that the LO16 reloc immediately follow the HI16 one,
+  // but as a GNU extension an arbitrary number of HI16 relocs may be
+  // paired with a single following LO16 reloc. the HI16 relocs of the
+  // current series are collected here.
+  struct hi16_rel_t
+  {
+    ea_t ea;
+    adiff_t addend;
+  };
+  qvector<hi16_rel_t> hi16_rels;
   uchar last_hi16_rel_type = 0;
   bool last_hi16_done = false;
+  // a standalone LO16 may only reuse the AHL of a series
+  // computed against the same S
+  struct hi16_ahl_t
+  {
+    adiff_t addend;
+    uchar rel_type;
+  };
+  qmap<ea_t, hi16_ahl_t> hi16_ahls; // S -> AHL
 
   bool got_inited = false;
 
@@ -1290,6 +1333,8 @@ private:
         off_t file_offset,
         size_t sec_size,
         const sym_rel *symbol);
+  void relocate_psp_section2(const elf_phdr_t &rel_phdr);
+  void set_psp_reloc(ea_t P, fixup_type_t ft, ea_t S, adiff_t A, ea_t anchor);
   void set_initial_gp(uint64 offset, bool options=true);
   ea_t get_final_gp(reloc_tools_t *tools);
 
@@ -1299,6 +1344,7 @@ private:
   fixup_type_t get_lo16_reltype();
   fixup_type_t get_off16_reltype();
   fixup_type_t get_b26_reltype();
+  fixup_type_t get_word26_reltype();
   fixup_type_t get_mips16_b26_reltype();
   fixup_type_t get_mips16_ha16_reltype();
   fixup_type_t get_mips16_lo16_reltype();
@@ -1531,34 +1577,54 @@ private:
 struct elf_tricore_t : public hexrays_procdef_t
 {
   fixup_type_t ha16_reltype = FIXUP_CUSTOM;
+  fixup_type_t lo16_reltype = FIXUP_CUSTOM;
+  fixup_type_t bol_lo16_reltype = FIXUP_CUSTOM;
+  fixup_type_t abs_reltype = FIXUP_CUSTOM;
+  fixup_type_t abs14_reltype = FIXUP_CUSTOM;
+  fixup_type_t absb_reltype = FIXUP_CUSTOM;
+  fixup_type_t relb_reltype = FIXUP_CUSTOM;
+  fixup_type_t br_reltype = FIXUP_CUSTOM;
+  fixup_type_t bol_reltype = FIXUP_CUSTOM;
+  fixup_type_t bo_reltype = FIXUP_CUSTOM;
 
-  elf_tricore_t(elf_loader_t &l, reader_t &r) : hexrays_procdef_t(l, r) {}
-  virtual const char *proc_handle_reloc(
+  elf_tricore_t(elf_loader_t &l, reader_t &r);
+
+  const char *proc_handle_reloc(
         const rel_data_t &rel_data,
         const sym_rel *symbol,
         const elf_rela_t *reloc,
         reloc_tools_t *tools) override;
-  virtual const char *proc_describe_flag_bit(uint32 *e_flags) override;
+  const char *proc_describe_flag_bit(uint32 *e_flags) override;
+  bool proc_handle_symbol(sym_rel &sym, const char *symname) override;
+
 private:
-  void make_reloc(
-        const rel_data_t &rel_data,
-        ea_t target_ea,
-        uval_t patch_data,
-        fixup_type_t type,
-        bool nodispl = false);
-  void tricore_handle_reloc(const rel_data_t &rel_data, ea_t target_ea);
-  void tricore_reloc_relB(const rel_data_t &rel_data, ea_t target_ea);
-  void tricore_reloc_absB(const rel_data_t &rel_data, ea_t target_ea);
-  void tricore_reloc_abs(const rel_data_t &rel_data, ea_t target_ea);
-  void tricore_reloc_br(const rel_data_t &rel_data, ea_t target_ea);
-  void tricore_reloc_rlc(
-        const rel_data_t &rel_data,
-        uint32 patch_data,
-        fixup_type_t fixup_type);
-  void tricore_reloc_bol(
-        const rel_data_t &rel_data,
-        uint32 patch_data,
-        fixup_type_t fixup_type);
+  fixup_type_t get_ha16_reltype();
+  fixup_type_t get_lo16_reltype();
+  fixup_type_t get_bol_lo16_reltype();
+  fixup_type_t get_abs_reltype();
+  fixup_type_t get_abs14_reltype();
+  fixup_type_t get_absb_reltype();
+  fixup_type_t get_relb_reltype();
+  fixup_type_t get_br_reltype();
+  fixup_type_t get_bol_reltype();
+  fixup_type_t get_bo_reltype();
+
+  int resolve_sda(const sym_rel *symbol);
+  ea_t get_sda_base(int reg, ea_t target_ea) const;
+
+  struct
+  {
+    ea_t P = BADADDR;
+    bool pending = false;
+    bool active = false;
+  } bitpos_marker;
+  void set_bitpos_marker(ea_t P);
+  void reset_bitpos_marker();
+  bool resolve_tricore_bitpos(uint32 *bitpos, const sym_rel *symbol) const;
+  bool get_bitpos_rv(uint32 *rv, const sym_rel * symbol, const rel_data_t &rel_data) const;
+
+  bool is_pcp_section(elf_shndx_t shndx) const;
+  bool is_precomputed_branch(const elf_rela_t *reloc_info, uval_t S) const;
 };
 
 //----------------------------------------------------------------------------
@@ -1868,6 +1934,8 @@ enum dynamic_info_type_t
   DIT_VERDEF,
   DIT_VERNEED,
   DIT_VERSYM,
+  DIT_RELR,
+  DIT_ANDROID_RELR,
   DIT_TYPE_COUNT,       // number of dyninfo types
 };
 
@@ -1930,6 +1998,8 @@ struct dynamic_info_t
   entry_t &verdef() { return entries[DIT_VERDEF]; }
   entry_t &verneed() { return entries[DIT_VERNEED]; }
   entry_t &versym() { return entries[DIT_VERSYM]; }
+  entry_t &relr() { return entries[DIT_RELR]; }
+  entry_t &android_relr() { return entries[DIT_ANDROID_RELR]; }
 
   const entry_t &rel() const { return entries[DIT_REL]; }
   const entry_t &rela() const { return entries[DIT_RELA]; }
@@ -3017,6 +3087,51 @@ public:
 };
 
 //--------------------------------------------------------------------------
+// RELR decoding helpers
+uint32 get_relative_reloc_type(const reader_t &reader);
+bool decode_relr(
+        elf_rela_vec_t *out,
+        reader_t &reader,
+        uint64 offset,
+        uint64 size,
+        uint32 relative_type);
+
+//--------------------------------------------------------------------------
+// PSP PRX packed relocations (PT_MIPS_PSPREL2)
+enum psp_relb_type_t
+{
+  PSPRELB_NONE,
+  PSPRELB_WORD32,
+  PSPRELB_LO16,
+  PSPRELB_HI16,
+  PSPRELB_MIPS26,
+  PSPRELB_J26,
+  PSPRELB_JAL26,
+};
+
+struct psp_relb_t
+{
+  uint32 offset;        // inside segment 'offbase'
+  int32 addend;         // used by HI16
+  psp_relb_type_t type;
+  uint8 code;           // the raw type code TYPE was mapped from
+  uint8 offbase;
+  uint8 addrbase;
+};
+DECLARE_TYPE_AS_MOVABLE(psp_relb_t);
+typedef qvector<psp_relb_t> psp_relb_vec_t;
+
+void get_psp_load_segments(
+        qvector<const elf_phdr_t *> *segs,
+        const reader_t &reader);
+bool decode_psp_relb(
+        psp_relb_vec_t *out,
+        reader_t &reader,
+        const elf_phdr_t &rel_phdr,
+        const qvector<const elf_phdr_t *> &segs,
+        bool *reboot_mapping = nullptr);
+
+//--------------------------------------------------------------------------
 struct shdr_def_t
 {
   range_t range;
@@ -3252,6 +3367,7 @@ struct elf_loader_t
   bool was_empty_idb = false;
   bool gnuunx_loaded = false;  // loaded gnuunx.til?
   bool rel_present = false;
+  bool is_kernel_module = false;  // has .modinfo section (Linux kernel module)
   char rel_mode = 0;  // 1 - STT_SECTION
                       // 0 - !STT_SECTION
                       //-1 - STT_NOTYPE or undefined
@@ -3460,6 +3576,11 @@ struct elf_loader_t
         slice_type_t slice_type,
         uint32 info_idx,
         const char *segname,
+        reloc_tools_t &tools);
+  void apply_relr_relocations(
+        reader_t &reader,
+        const elf_rela_vec_t &relocs,
+        const char *label,
         reloc_tools_t &tools);
   void relocate_section_mips(
         reader_t &reader,

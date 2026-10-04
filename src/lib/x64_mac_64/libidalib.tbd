@@ -1,0 +1,17 @@
+--- !tapi-tbd
+tbd-version:     4
+targets:         [ x86_64-macos, arm64-macos ]
+flags:           [ not_app_extension_safe ]
+install-name:    '@rpath/libidalib.dylib'
+current-version: 0
+compatibility-version: 0
+exports:
+  - targets:     [ x86_64-macos, arm64-macos ]
+    symbols:     [ _init_library,
+                   _open_database,
+                   _close_database,
+                   _make_signatures,
+                   _enable_console_messages,
+                   _set_screen_ea,
+                   _get_library_version ]
+...

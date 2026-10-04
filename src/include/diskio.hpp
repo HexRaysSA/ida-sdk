@@ -44,11 +44,14 @@ idaman void ida_export get_install_root(qstring *out);
 
 
 /// Search for IDA system file.
-/// This function searches for a file in:
-///   -# each directory specified by %IDAUSR%
-///   -# ida directory [+ subdir]
-///
-/// and returns the first match.
+/// This function searches for a file in the directories returned by
+/// get_ida_subdirs() and returns the first match.
+/// For plugins, loaders and processor modules, the file can also be the
+/// entry point of an extension installed as a directory with a manifest.
+/// Each root is searched in order: first the file in the root, then the
+/// entry points of the extensions in the root. The entry point is found
+/// by its file name, without regard to case. The other files in the
+/// extension directory are not found.
 /// \param[out] buf  buffer for file name
 /// \param bufsize   size of output buffer
 /// \param filename  name of file to search
@@ -91,8 +94,15 @@ idaman THREAD_SAFE const char *ida_export get_user_idadir(void);
 /// (see \ref SUBDIR). The order of the resulting list is as follows:
 /// \code
 /// - [$IDAUSR/subdir (0..N entries)]
+/// - [$IDAUSR/extensions/<pack>/subdir (0..N entries)]
+/// - the directory in $IDASGN, $IDAIDS, $IDAIDC or $IDATIL, for the matching subdir
 /// - $IDADIR/subdir
+/// - [$IDADIR/extensions/<pack>/subdir (0..N entries)]
 /// \endcode
+/// For TIL, SIG, IDS and theme files, each directory with a manifest
+/// (for example til/<name>/ida-til.json) directly below a root is listed
+/// after that root. The extension pack roots give only these directories.
+/// For other resources, the extension pack roots are not listed.
 /// \param[out] dirs  output vector for directory names
 /// \param subdir     name of the resource to list (can be nullptr)
 /// \param flags      \ref IDA_SUBDIR_ bits

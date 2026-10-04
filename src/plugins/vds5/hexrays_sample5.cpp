@@ -161,7 +161,7 @@ public:
         // fallthrough
       case cot_memref  : // x.m
         // Display member offset for structure fields
-        ptr += qsnprintf(ptr, endp-ptr, " (m=%d)", e->m);
+        ptr += qsnprintf(ptr, endp-ptr, " (m=%" FMT_64 "u)", e->m);
         break;
       case cot_obj     : // v
       case cot_var     : // l
