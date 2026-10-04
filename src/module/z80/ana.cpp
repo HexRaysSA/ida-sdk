@@ -8,6 +8,7 @@
  */
 
 #include "i5.hpp"
+#include <segregs.hpp>
 
 //----------------------------------------------------------------------
 inline void GetImm(insn_t &insn, op_t &x)
@@ -24,18 +25,24 @@ inline void op_c(op_t &x)
 }
 
 //------------------------------------------------------------------------
-static void op_ad(insn_t &insn, op_t &x)
+// fetch a multibyte immediate/address: 2 bytes, or 3 in eZ80 ADL/.?il mode
+uval_t z80_t::get_next_mword(insn_t &insn) const
+{
+  uval_t v = insn.get_next_word();
+  if ( ez_il )
+    v |= uval_t(insn.get_next_byte()) << 16;
+  return v;
+}
+
+//------------------------------------------------------------------------
+void z80_t::op_ad(insn_t &insn, op_t &x) const
 {
   x.type = o_near;
-  x.addr = insn.get_next_word();
+  x.addr = get_next_mword(insn);
 }
 
 static void op_a(op_t &x);
-static void op_e(insn_t &insn, op_t &x);
-static void op_nn(insn_t &insn, op_t &x);
-static void op_ad(insn_t &insn, op_t &x);
 static void op_n(insn_t &insn, op_t &x);
-static void op_mm(insn_t &insn, op_t &x);
 
 static const uint16 W    [] = { I5_add,I5_adc,I5_sub,I5_sbb,I5_ana,I5_xra,I5_ora,I5_cmp };
 static const uint16 Wi   [] = { I5_adi,I5_aci,I5_sui,I5_sbi,I5_ani,I5_xri,I5_ori,I5_cpi };
@@ -481,7 +488,38 @@ int z80_t::i5_ana(insn_t *_insn)
   insn.Op2.dtype = dt_byte;
   insn.itype = I5_null;
 
+  ez_adl = false;
+  ez_il = false;
+  ez_l = false;
+
   code = insn.get_next_byte();
+
+  if ( isEZ80() )
+  {
+    // the unset value (BADSEL) means ADL mode: eZ80 application code
+    // is usually compiled for ADL
+    ez_adl = get_sreg(insn.ea, R_adl) != 0;
+    ez_il = ez_adl;
+    ez_l = ez_adl;
+    // memory mode suffix bytes precede the traditional prefix bytes
+    ez80_sfx_t sfx = SFX_NONE;
+    switch ( code )
+    {
+      case 0x40: sfx = SFX_SIS; break;
+      case 0x49: sfx = SFX_LIS; break;
+      case 0x52: sfx = SFX_SIL; break;
+      case 0x5B: sfx = SFX_LIL; break;
+    }
+    if ( sfx != SFX_NONE )
+    {
+      insn.auxpref |= sfx << aux_sfx_shift;
+      ez_l = sfx == SFX_LIS || sfx == SFX_LIL;
+      ez_il = sfx == SFX_SIL || sfx == SFX_LIL;
+      code = insn.get_next_byte();
+      if ( code == 0x40 || code == 0x49 || code == 0x52 || code == 0x5B )
+        return 0;       // double suffix is invalid
+    }
+  }
 
   switch ( code & 0xC0 )
   {
@@ -813,6 +851,10 @@ JUMPS:
                     {
                       insn.itype = Z80_swap;
                     }
+                    else if ( isEZ80() )
+                    {
+                      return 0;     // SLL is reserved on eZ80
+                    }
                   }
                 }
                 else
@@ -977,6 +1019,18 @@ JUMPS:
       return 0;
   }
 
+  if ( isEZ80() && ez_l )
+  {
+    // multibyte registers are 24 bits wide: adjust memory operand sizes
+    // (there is no 3-byte dtype, dt_dword is used as an approximation)
+    for ( int i=0; i < 2; i++ )
+    {
+      op_t &x = insn.ops[i];
+      if ( x.type == o_mem && x.dtype == dt_word )
+        x.dtype = dt_dword;
+    }
+  }
+
   return insn.size;
 
 }
@@ -1034,11 +1088,11 @@ void z80_t::op_dd(op_t &x) const
 }
 
 //------------------------------------------------------------------------
-static void op_nn(insn_t &insn, op_t &x)
+void z80_t::op_nn(insn_t &insn, op_t &x) const
 {
   x.type = o_imm;
-  x.dtype = dt_word;
-  x.value = insn.get_next_word();
+  x.dtype = ez_il ? dt_dword : dt_word;
+  x.value = get_next_mword(insn);
 }
 
 //------------------------------------------------------------------------
@@ -1049,11 +1103,16 @@ static void op_n(insn_t &insn, op_t &x)
 }
 
 //------------------------------------------------------------------------
-static void op_e(insn_t &insn, op_t &x)
+void z80_t::op_e(insn_t &insn, op_t &x) const
 {
   x.type = o_near;
   sval_t rel = char(insn.get_next_byte());
-  x.addr = ushort(insn.ip + insn.size + rel);
+  ea_t target = insn.ip + insn.size + rel;
+  if ( !isEZ80() )
+    target = ushort(target);
+  else
+    target &= ez_adl ? 0xFFFFFF : 0xFFFF;
+  x.addr = target;
 }
 
 //------------------------------------------------------------------------
@@ -1065,10 +1124,10 @@ static void op_a(op_t &x)
 }
 
 //------------------------------------------------------------------------
-static void op_mm(insn_t &insn, op_t &x)
+void z80_t::op_mm(insn_t &insn, op_t &x) const
 {
   x.type = o_mem;
-  x.addr = insn.get_next_word();
+  x.addr = get_next_mword(insn);
 }
 
 //------------------------------------------------------------------------
@@ -1226,6 +1285,8 @@ struct insndesc_t
 #define c5      0x65
 #define c6      0x66
 #define c7      0x67
+
+#define rMB     0x68    // eZ80 MBASE register
 
 static const insndesc_t cmdsDD[] =
 {
@@ -1951,6 +2012,98 @@ static const insndesc_t cmdsEDCB[] =
   { 0xBF, Z80_divuw,  rHL,        imm16       },
 };
 
+// eZ80 additions to the DD page (UM0077 Table 108)
+static const insndesc_t cmdsDD_EZ80[] =
+{
+  { 0x07, Z80_ld,     rBC,        ix8         },
+  { 0x0F, Z80_ld,     ix8,        rBC         },
+  { 0x17, Z80_ld,     rDE,        ix8         },
+  { 0x1F, Z80_ld,     ix8,        rDE         },
+  { 0x27, Z80_ld,     rHL,        ix8         },
+  { 0x2F, Z80_ld,     ix8,        rHL         },
+  { 0x31, Z80_ld,     rIY,        ix8         },
+  { 0x37, Z80_ld,     rIX,        ix8         },
+  { 0x3E, Z80_ld,     ix8,        rIY         },
+  { 0x3F, Z80_ld,     ix8,        rIX         },
+  { 0x00, 0 },
+};
+
+// eZ80 additions to the FD page (UM0077 Table 110)
+static const insndesc_t cmdsFD_EZ80[] =
+{
+  { 0x07, Z80_ld,     rBC,        iy8         },
+  { 0x0F, Z80_ld,     iy8,        rBC         },
+  { 0x17, Z80_ld,     rDE,        iy8         },
+  { 0x1F, Z80_ld,     iy8,        rDE         },
+  { 0x27, Z80_ld,     rHL,        iy8         },
+  { 0x2F, Z80_ld,     iy8,        rHL         },
+  { 0x31, Z80_ld,     rIX,        iy8         },
+  { 0x37, Z80_ld,     rIY,        iy8         },
+  { 0x3E, Z80_ld,     iy8,        rIX         },
+  { 0x3F, Z80_ld,     iy8,        rIY         },
+  { 0x00, 0 },
+};
+
+// eZ80 additions to the ED page (UM0077 Table 109);
+// the Z80/Z180 subset is decoded by z80_misc()
+static const insndesc_t cmdsED_EZ80[] =
+{
+  { 0x02, Z80_lea,    rBC,        ix8         },
+  { 0x03, Z80_lea,    rBC,        iy8         },
+  { 0x04, Z80_tst,    rA,         rB          },
+  { 0x07, Z80_ld,     rBC,        atHL        },
+  { 0x0C, Z80_tst,    rA,         rC          },
+  { 0x0F, Z80_ld,     atHL,       rBC         },
+  { 0x12, Z80_lea,    rDE,        ix8         },
+  { 0x13, Z80_lea,    rDE,        iy8         },
+  { 0x14, Z80_tst,    rA,         rD          },
+  { 0x17, Z80_ld,     rDE,        atHL        },
+  { 0x1C, Z80_tst,    rA,         rE          },
+  { 0x1F, Z80_ld,     atHL,       rDE         },
+  { 0x22, Z80_lea,    rHL,        ix8         },
+  { 0x23, Z80_lea,    rHL,        iy8         },
+  { 0x24, Z80_tst,    rA,         rH          },
+  { 0x27, Z80_ld,     rHL,        atHL        },
+  { 0x2C, Z80_tst,    rA,         rL          },
+  { 0x2F, Z80_ld,     atHL,       rHL         },
+  { 0x31, Z80_ld,     rIY,        atHL        },
+  { 0x32, Z80_lea,    rIX,        ix8         },
+  { 0x33, Z80_lea,    rIY,        iy8         },
+  { 0x34, Z80_tst,    rA,         atHL        },
+  { 0x37, Z80_ld,     rIX,        atHL        },
+  { 0x3C, Z80_tst,    rA,         rA          },
+  { 0x3E, Z80_ld,     atHL,       rIY         },
+  { 0x3F, Z80_ld,     atHL,       rIX         },
+  { 0x54, Z80_lea,    rIX,        iy8         },
+  { 0x55, Z80_lea,    rIY,        ix8         },
+  { 0x64, Z80_tst,    rA,         imm8        },
+  { 0x65, Z80_pea,    ix8                     },
+  { 0x66, Z80_pea,    iy8                     },
+  { 0x6D, Z80_ld,     rMB,        rA          },
+  { 0x6E, Z80_ld,     rA,         rMB         },
+  { 0x7D, Z80_stmix,                          },
+  { 0x7E, Z80_rsmix,                          },
+  { 0x82, Z80_inim,                           },
+  { 0x84, Z80_ini2,                           },
+  { 0x8A, Z80_indm,                           },
+  { 0x8C, Z80_ind2,                           },
+  { 0x92, Z80_inimr,                          },
+  { 0x94, Z80_ini2r,                          },
+  { 0x9A, Z80_indmr,                          },
+  { 0x9C, Z80_ind2r,                          },
+  { 0xA4, Z80_outi2,                          },
+  { 0xAC, Z80_outd2,                          },
+  { 0xB4, Z80_oti2r,                          },
+  { 0xBC, Z80_otd2r,                          },
+  { 0xC2, Z80_inirx,                          },
+  { 0xC3, Z80_otirx,                          },
+  { 0xC7, Z80_ld,     rI,         rHL         },
+  { 0xCA, Z80_indrx,                          },
+  { 0xCB, Z80_otdrx,                          },
+  { 0xD7, Z80_ld,     rHL,        rI          },
+  { 0x00, 0 },
+};
+
 //------------------------------------------------------------------------
 void z80_t::load_z80_operand(insn_t &insn, op_t &x, uchar op)
 {
@@ -2057,13 +2210,18 @@ void z80_t::load_z80_operand(insn_t &insn, op_t &x, uchar op)
 
     case imm16:
       x.type = o_imm;
-      x.dtype = dt_word;
-      x.value = insn.get_next_word();
+      x.dtype = ez_il ? dt_dword : dt_word;
+      x.value = get_next_mword(insn);
       break;
 
     case mem16:
       x.type = o_mem;
-      x.addr = insn.get_next_word();
+      x.addr = get_next_mword(insn);
+      break;
+
+    case rMB:
+      x.type = o_reg;
+      x.reg = R_mb;
       break;
 
     case ix8:
@@ -2181,6 +2339,11 @@ void z80_t::z80_ixcommands(insn_t &insn, bool _isx)
 
   isx = _isx;
   code = insn.get_next_byte();
+  if ( isEZ80()
+    && search_map(insn, _isx ? cmdsDD_EZ80 : cmdsFD_EZ80, (uchar)code) )
+  {
+    return;
+  }
   switch ( (code>>4) & 0xF )
   {
     case 0:                             /* 0000???? */
@@ -2435,6 +2598,8 @@ void z80_t::z80_ixcommands(insn_t &insn, bool _isx)
 void z80_t::z80_misc(insn_t &insn)
 {
   code = insn.get_next_byte();
+  if ( isEZ80() && search_map(insn, cmdsED_EZ80, (uchar)code) )
+    return;
   switch ( code )
   {
     case 0x40:
@@ -2475,6 +2640,7 @@ void z80_t::z80_misc(insn_t &insn)
       break;
     case 0x43:
     case 0x53:
+    case 0x63:
     case 0x73:
       insn.itype = I5_mov;
       op_mm(insn, insn.Op1);
@@ -2497,6 +2663,7 @@ void z80_t::z80_misc(insn_t &insn)
       break;
     case 0x4B:
     case 0x5B:
+    case 0x6B:
     case 0x7B:
       insn.itype = I5_mov;
       op_ss(insn.Op1);
@@ -2611,7 +2778,7 @@ void z80_t::z80_misc(insn_t &insn)
             }
             break;
           case 0x40:
-            if ( code == 0x70 )
+            if ( code == 0x70 && !isEZ80() )  // ED 70 is reserved on eZ80
             {
               insn.itype = I5_in;
               op_f(insn.Op1);

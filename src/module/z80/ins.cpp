@@ -173,7 +173,7 @@ const instruc_t Instructions[] =
   { "otdmr",      0                               },              // load output port (c) with\nlocation (hl),\ndecrement hl and c\ndecrement b\nrepeat until b = 0
   { "out0",       CF_USE1                         },              // load output port (n) from register
   { "slp",        0                               },              // enter sleep mode
-  { "tst",        CF_USE1                         },              // non-destructive'and' with accumulator and specified operand
+  { "tst",        CF_USE1 | CF_USE2               },              // non-destructive'and' with accumulator and specified operand
   { "tstio",      CF_USE1                         },              // non-destructive 'and' of n and the contents of port (c)
   //
   //      A80 special instructions
@@ -291,6 +291,29 @@ const instruc_t Instructions[] =
 
   { "ldh",        CF_CHG1|CF_USE2                 },
   { "stop",       CF_STOP                         },
+
+  // eZ80 instructions
+
+  { "lea",        CF_CHG1|CF_USE2                 },               // Load effective address
+  { "pea",        CF_USE1                         },               // Push effective address
+  { "inim",       0                               },               // Input from I/O and increment
+  { "inimr",      0                               },               // Input from I/O and increment, repeat
+  { "indm",       0                               },               // Input from I/O and decrement
+  { "indmr",      0                               },               // Input from I/O and decrement, repeat
+  { "ini2",       0                               },               // Input from I/O and increment (16-bit port)
+  { "ini2r",      0                               },               // Input from I/O and increment, repeat (16-bit port)
+  { "ind2",       0                               },               // Input from I/O and decrement (16-bit port)
+  { "ind2r",      0                               },               // Input from I/O and decrement, repeat (16-bit port)
+  { "outi2",      0                               },               // Output to I/O and increment (16-bit port)
+  { "oti2r",      0                               },               // Output to I/O and increment, repeat (16-bit port)
+  { "outd2",      0                               },               // Output to I/O and decrement (16-bit port)
+  { "otd2r",      0                               },               // Output to I/O and decrement, repeat (16-bit port)
+  { "inirx",      0                               },               // Input from I/O and increment (DE port)
+  { "otirx",      0                               },               // Output to I/O and increment (DE port)
+  { "indrx",      0                               },               // Input from I/O and decrement (DE port)
+  { "otdrx",      0                               },               // Output to I/O and decrement (DE port)
+  { "stmix",      0                               },               // Set ADL interrupt mode
+  { "rsmix",      0                               },               // Reset ADL interrupt mode
 
 };
 

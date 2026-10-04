@@ -296,6 +296,29 @@ Z80_otdrw,      // Output and decrement, repeat (word)
 GB_ldh,
 GB_stop,
 
+// eZ80 instructions
+
+Z80_lea,        // Load effective address
+Z80_pea,        // Push effective address
+Z80_inim,       // Input from I/O and increment
+Z80_inimr,      // Input from I/O and increment, repeat
+Z80_indm,       // Input from I/O and decrement
+Z80_indmr,      // Input from I/O and decrement, repeat
+Z80_ini2,       // Input from I/O and increment (16-bit port)
+Z80_ini2r,      // Input from I/O and increment, repeat (16-bit port)
+Z80_ind2,       // Input from I/O and decrement (16-bit port)
+Z80_ind2r,      // Input from I/O and decrement, repeat (16-bit port)
+Z80_outi2,      // Output to I/O and increment (16-bit port)
+Z80_oti2r,      // Output to I/O and increment, repeat (16-bit port)
+Z80_outd2,      // Output to I/O and decrement (16-bit port)
+Z80_otd2r,      // Output to I/O and decrement, repeat (16-bit port)
+Z80_inirx,      // Input from I/O and increment (DE port)
+Z80_otirx,      // Output to I/O and increment (DE port)
+Z80_indrx,      // Input from I/O and decrement (DE port)
+Z80_otdrx,      // Output to I/O and decrement (DE port)
+Z80_stmix,      // Set ADL interrupt mode
+Z80_rsmix,      // Reset ADL interrupt mode
+
 I5_last,
 
     };

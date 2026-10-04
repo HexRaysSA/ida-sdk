@@ -10,6 +10,9 @@
 #include "elfbase.h"
 #include "elf.h"
 #include "elfr_arm.h"
+#include "elfr_pc.h"
+#include "elfr_riscv.h"
+#include "elfr_x64.h"
 #include "elfr_mips.h"
 #include "elfr_ia64.h"
 #include "elfr_ppc.h"
@@ -446,6 +449,17 @@ bool reader_t::read_header()
 
   if ( !check_ident() )
     return false;
+
+  // PS3 celloslv2 is a 64-bit ELF that uses 32-bit pointers and is loaded
+  // with 32-bit addressing (ilp32), so its segments must be 32-bit too.
+  // (Kept in sync with the ilp32 handling in elf_loader_t::set_abi();
+  // e_machine/osabi are parsed by check_ident() above.)
+  if ( seg_64
+    && header.e_machine == EM_PPC64
+    && get_ident().osabi == ELFOSABI_CELLOSLV2 )
+  {
+    seg_64 = false;
+  }
 
   _eah.setup(eff_64);
 
@@ -2010,6 +2024,8 @@ bool reader_t::parse_dynamic_info(
         if ( is_arm() )
           di_type = DIT_ANDROID_RELA;
         break;
+      case DT_RELR:           di_type = DIT_RELR;           break;
+      case DT_ANDROID_RELR:   di_type = DIT_ANDROID_RELR;   break;
     }
     if ( di_type != DIT_TYPE_COUNT )
     {
@@ -2027,6 +2043,8 @@ bool reader_t::parse_dynamic_info(
       case DT_RELASZ:          di_type = DIT_RELA;          break;
       case DT_ANDROID_RELSZ:   di_type = DIT_ANDROID_REL;   break;
       case DT_ANDROID_RELASZ:  di_type = DIT_ANDROID_RELA;  break;
+      case DT_RELRSZ:          di_type = DIT_RELR;          break;
+      case DT_ANDROID_RELRSZ:  di_type = DIT_ANDROID_RELR;  break;
       case DT_PLTRELSZ:        di_type = DIT_PLT;           break;
       case DT_PREINIT_ARRAYSZ: di_type = DIT_PREINIT_ARRAY; break;
       case DT_INIT_ARRAYSZ:    di_type = DIT_INIT_ARRAY;    break;
@@ -2040,9 +2058,11 @@ bool reader_t::parse_dynamic_info(
 
     switch ( dyn->d_tag )
     {
-      case DT_SYMENT:  di_type = DIT_SYMTAB; break;
-      case DT_RELENT:  di_type = DIT_REL;    break;
-      case DT_RELAENT: di_type = DIT_RELA;   break;
+      case DT_SYMENT:          di_type = DIT_SYMTAB;       break;
+      case DT_RELENT:          di_type = DIT_REL;          break;
+      case DT_RELAENT:         di_type = DIT_RELA;         break;
+      case DT_RELRENT:         di_type = DIT_RELR;         break;
+      case DT_ANDROID_RELRENT: di_type = DIT_ANDROID_RELR; break;
     }
     if ( di_type != DIT_TYPE_COUNT )
     {
@@ -3242,6 +3262,8 @@ bool dynamic_info_t::fill_section_header(
     case DIT_RELA:         shtype = SHT_RELA;        break;
     case DIT_ANDROID_REL:  shtype = SHT_REL;         break;
     case DIT_ANDROID_RELA: shtype = SHT_RELA;        break;
+    case DIT_RELR:         shtype = SHT_RELR;        break;
+    case DIT_ANDROID_RELR: shtype = SHT_ANDROID_RELR; break;
     case DIT_VERDEF:       shtype = SHT_GNU_verdef;  break;
     case DIT_VERNEED:      shtype = SHT_GNU_verneed; break;
     case DIT_VERSYM:       shtype = SHT_GNU_versym;  break;
@@ -3262,9 +3284,12 @@ bool dynamic_info_t::fill_section_header(
   sh->sh_type    = shtype;
   if ( type != DIT_ANDROID_REL && type != DIT_ANDROID_RELA )
   {
-    sh->sh_entsize = sh->sh_type == SHT_DYNSYM ? entry.entsize
-                   : sh->sh_type == SHT_RELA   ? rela().entsize
-                   :                             rel().entsize;
+    if ( type == DIT_RELR || type == DIT_ANDROID_RELR )
+      sh->sh_entsize = entry.entsize;
+    else
+      sh->sh_entsize = sh->sh_type == SHT_DYNSYM ? entry.entsize
+                     : sh->sh_type == SHT_RELA   ? rela().entsize
+                     :                             rel().entsize;
   }
   return true;
 }
@@ -3368,6 +3393,24 @@ qstring dynamic_info_t::d_tag_str_ext(const reader_t &reader, int64 d_tag)
       if ( e_machine == EM_PPC )
         ext = "addr of _GLOBAL_OFFSET_TABLE_";
       break;
+    case DT_RELR:
+      ext = "addr of RELR relative relocations";
+      break;
+    case DT_RELRSZ:
+      ext = "size in bytes of DT_RELR table";
+      break;
+    case DT_RELRENT:
+      ext = "size in bytes of DT_RELR entry";
+      break;
+    case DT_ANDROID_RELR:
+      ext = "addr of Android RELR relative relocations";
+      break;
+    case DT_ANDROID_RELRSZ:
+      ext = "size of DT_ANDROID_RELR";
+      break;
+    case DT_ANDROID_RELRENT:
+      ext = "size of DT_ANDROID_RELR entry";
+      break;
   }
   if ( ext == nullptr && reader.is_arm() )
   {
@@ -3465,6 +3508,9 @@ const char *dynamic_info_t::d_tag_str(const reader_t &reader, int64 d_tag)
     NM(DT_INIT_ARRAYSZ);
     NM(DT_FINI_ARRAYSZ);
     NM(DT_PREINIT_ARRAYSZ);
+    NM(DT_RELRSZ);
+    NM(DT_RELR);
+    NM(DT_RELRENT);
     NM(DT_FLAGS);
 
     NM(DT_VALRNGLO);
@@ -3605,6 +3651,12 @@ const char *dynamic_info_t::d_tag_str(const reader_t &reader, int64 d_tag)
       NM(DT_ANDROID_RELA);
       NM(DT_ANDROID_RELASZ);
     }
+  }
+  switch ( d_tag )
+  {
+    NM(DT_ANDROID_RELR);
+    NM(DT_ANDROID_RELRSZ);
+    NM(DT_ANDROID_RELRENT);
   }
 
 #undef NM
@@ -3805,6 +3857,464 @@ arm_arch_specific_t::isa_t arm_arch_specific_t::get_isa(const sym_rel &symbol) c
     }
   }
   return current_isa;
+}
+
+//----------------------------------------------------------------------------
+uint32 get_relative_reloc_type(const reader_t &reader)
+{
+  uint16 e_machine = reader.get_header().e_machine;
+  switch ( e_machine )
+  {
+    case EM_386:     return R_386_RELATIVE;
+    case EM_X86_64:  return R_X86_64_RELATIVE;
+    case EM_ARM:     return R_ARM_RELATIVE;
+    case EM_AARCH64:
+      return reader.is_64() ? R_AARCH64_RELATIVE : R_AARCH64_P32_RELATIVE;
+    case EM_PPC:     return R_PPC_RELATIVE;
+    case EM_PPC64:   return R_PPC64_RELATIVE;
+    case EM_RISCV:   return R_RISCV_RELATIVE;
+    default:
+      msg("RELR: unsupported machine type %u for RELATIVE relocations\n",
+          e_machine);
+      return 0;
+  }
+}
+
+//----------------------------------------------------------------------------
+// See https://maskray.me/blog/2021-10-31-relative-relocations-and-relr
+bool decode_relr(
+        elf_rela_vec_t *out,
+        reader_t &reader,
+        uint64 offset,
+        uint64 size,
+        uint32 relative_type)
+{
+  out->clear();
+  size_t wordsize = reader.stdsizes.types.elf_addr;
+
+  if ( size == 0 || size % wordsize != 0 )
+    return false;
+
+  size_t count = size / wordsize;
+  validate_array_count(reader.get_linput(), &count, wordsize, "RELR entries", offset);
+  if ( count == 0 )
+    return false;
+
+  qlseek(reader.get_linput(), offset);
+  uint64 base = 0;
+
+  for ( size_t i = 0; i < count; i++ )
+  {
+    uint64 entry = 0;
+    if ( reader.read_addr(&entry) < 0 )
+    {
+      msg("RELR: failed to read entry at index %zu\n", i);
+      out->clear();
+      return false;
+    }
+
+    if ( (entry & 1) == 0 )
+    {
+      // address entry
+      elf_rela_t r;
+      r.r_offset = entry;
+      r.r_addend = 0;
+      reader.set_rel_info_type(&r, relative_type);
+      out->push_back(r);
+      if ( !is_add_ok(entry, uint64(wordsize)) )
+      {
+        msg("RELR: overflow after address entry at index %zu\n", i);
+        out->clear();
+        return false;
+      }
+      base = entry + wordsize;
+    }
+    else
+    {
+      if ( base == 0 )
+      {
+        msg("RELR: bitmap entry before first address entry at index %zu\n", i);
+        out->clear();
+        return false;
+      }
+      // bitmap entry
+      uint64 bitmap = entry >> 1;
+      size_t nbits = wordsize * 8 - 1;
+      for ( size_t bit = 0; bit < nbits; bit++ )
+      {
+        if ( bitmap & (uint64(1) << bit) )
+        {
+          elf_rela_t r;
+          r.r_offset = base + bit * wordsize;
+          r.r_addend = 0;
+          reader.set_rel_info_type(&r, relative_type);
+          out->push_back(r);
+        }
+      }
+      uint64 delta = uint64(nbits) * wordsize;
+      if ( !is_add_ok(base, delta) )
+      {
+        msg("RELR: overflow after bitmap entry at index %zu\n", i);
+        out->clear();
+        return false;
+      }
+      base += delta;
+    }
+  }
+  return true;
+}
+
+//--------------------------------------------------------------------------
+// PSP PRX packed relocations (PT_MIPS_PSPREL2)
+
+static const psp_relb_type_t psp_relb_types_std[8] =
+{
+  PSPRELB_NONE, PSPRELB_LO16,   PSPRELB_WORD32, PSPRELB_MIPS26,
+  PSPRELB_HI16, PSPRELB_LO16,   PSPRELB_J26,    PSPRELB_JAL26,
+};
+static const psp_relb_type_t psp_relb_types_reboot[8] =
+{
+  PSPRELB_NONE, PSPRELB_MIPS26, PSPRELB_J26,    PSPRELB_JAL26,
+  PSPRELB_LO16, PSPRELB_WORD32, PSPRELB_HI16,   PSPRELB_LO16,
+};
+
+static const uint32 PSPRELB_HI16_CODE_STD = 4;
+static const uint32 PSPRELB_HI16_CODE_REBOOT = 6;
+
+inline uint16 psp_relb_le16(const uint8 *p)
+{
+  return p[0] | (p[1] << 8);
+}
+inline uint32 psp_relb_le32(const uint8 *p)
+{
+  return p[0] | (p[1] << 8) | (p[2] << 16) | (uint32(p[3]) << 24);
+}
+
+//--------------------------------------------------------------------------
+void get_psp_load_segments(
+        qvector<const elf_phdr_t *> *segs,
+        const reader_t &reader)
+{
+  // the firmware uses the first consecutive run of PT_LOAD headers, max 4
+  for ( const elf_phdr_t &phdr : reader.pheaders )
+  {
+    if ( phdr.p_type != PT_LOAD )
+    {
+      if ( !segs->empty() )
+        break;
+      continue;
+    }
+    segs->push_back(&phdr);
+    if ( segs->size() == 4 )
+      break;
+  }
+}
+
+//--------------------------------------------------------------------------
+// decode the command stream of an already validated table
+static bool decode_psp_relb_stream(
+        psp_relb_vec_t *out,
+        bool *truncated,
+        const bytevec_t &table,
+        const qvector<const elf_phdr_t *> &segs,
+        bool reboot)
+{
+  size_t total = table.size();
+  int part1s = table[2];
+  int part2s = table[3];
+  size_t block1 = 4;
+  size_t block1size = table[block1];
+  size_t block2 = block1 + block1size;
+  size_t block2size = table[block2];
+  uint32 nseg = uint32(segs.size());
+  int nbits = nseg < 3 ? 1 : 2;
+  const psp_relb_type_t *types = reboot
+                               ? psp_relb_types_reboot
+                               : psp_relb_types_std;
+  uint32 hi16code = reboot
+                  ? PSPRELB_HI16_CODE_REBOOT
+                  : PSPRELB_HI16_CODE_STD;
+
+  // OFFSET, OFFBASE and ADDEND persist across commands
+  size_t pos = block2 + block2size;
+  uint32 offset = 0;
+  uint32 offbase = 0;
+  uint32 segmask = (1u << nbits) - 1;
+  int32 addend = 0;
+  // the firmware seeds the previous type code with the size byte, not a
+  // type code; keep it, a leading addend reuse must yield 0
+  uint32 lastcode = uint32(block2size);
+  bool ok = true;
+  while ( ok && pos < total )
+  {
+    if ( pos + 2 > total )
+      break; // a truncated trailing command ends processing
+    uint16 cmd = psp_relb_le16(&table[pos]);
+    pos += 2;
+    uint32 i1 = cmd & ((1u << part1s) - 1);
+    if ( i1 >= block1size )
+    {
+      ok = false;
+      break;
+    }
+    uint8 flags = table[block1 + i1];
+    if ( (flags & 1) == 0 )
+    {
+      // offset base command
+      offbase = (cmd >> part1s) & segmask;
+      if ( offbase >= nseg )
+      {
+        ok = false;
+        break;
+      }
+      switch ( flags & 6 )
+      {
+        case 0:
+          offset = cmd >> (part1s + nbits);
+          break;
+        case 4:
+          if ( pos + 4 > total )
+            goto DONE;
+          offset = psp_relb_le32(&table[pos]);
+          pos += 4;
+          break;
+        default:
+          ok = false;
+          break;
+      }
+      continue;
+    }
+
+    // relocation entry
+    {
+      uint32 i2 = (cmd >> (part1s + nbits)) & ((1u << part2s) - 1);
+      if ( i2 >= block2size )
+      {
+        ok = false;
+        break;
+      }
+      uint8 type = table[block2 + i2];
+      uint32 addrbase = (cmd >> part1s) & segmask;
+      uint8 aflags = flags & 0x38;
+      if ( type > 7 || addrbase >= nseg || aflags >= 0x18 )
+      {
+        ok = false;
+        break;
+      }
+      int shift = part1s + nbits + part2s;
+      switch ( flags & 6 )
+      {
+        case 0:
+          offset += int32(int16(cmd)) >> shift;
+          break;
+        case 2: // delta high half in CMD, low half in an extension word
+          if ( pos + 2 > total )
+            goto DONE;
+          offset += (uint32(int32(int16(cmd)) >> shift) << 16)
+                  | psp_relb_le16(&table[pos]);
+          pos += 2;
+          break;
+        case 4:
+          if ( pos + 4 > total )
+            goto DONE;
+          offset = psp_relb_le32(&table[pos]);
+          pos += 4;
+          break;
+        default:
+          ok = false;
+          break;
+      }
+      if ( !ok || offset >= segs[offbase]->p_filesz )
+      {
+        ok = false;
+        break;
+      }
+      switch ( aflags )
+      {
+        case 0x00:
+          addend = 0;
+          break;
+        case 0x08: // reuse the previous addend, but only after a HI16
+          if ( lastcode != hi16code )
+            addend = 0;
+          break;
+        case 0x10:
+          if ( pos + 2 > total )
+            goto DONE;
+          addend = int16(psp_relb_le16(&table[pos]));
+          pos += 2;
+          break;
+      }
+      lastcode = type;
+
+      psp_relb_t &r = out->push_back();
+      r.offset = offset;
+      r.addend = addend;
+      r.type = types[type];
+      r.code = type;
+      r.offbase = uint8(offbase);
+      r.addrbase = uint8(addrbase);
+    }
+  }
+DONE:
+  *truncated = ok && pos < total;
+  return ok;
+}
+
+//--------------------------------------------------------------------------
+// the opcode a relocation type can only sit on,
+// or -1 if it patches arbitrary words
+static int psp_relb_required_op(psp_relb_type_t type)
+{
+  switch ( type )
+  {
+    case PSPRELB_HI16:  return MIPS_OP_LUI;
+    case PSPRELB_J26:   return MIPS_OP_J;
+    case PSPRELB_JAL26: return MIPS_OP_JAL;
+    default:            return -1;
+  }
+}
+
+//--------------------------------------------------------------------------
+// heuristic to detect whether this binary uses the standard or reboot type mapping
+static bool psp_relb_uses_reboot_mapping(
+        reader_t &reader,
+        const qvector<const elf_phdr_t *> &segs,
+        const psp_relb_vec_t &relocs)
+{
+  int std_score = 0;
+  int rbt_score = 0;
+  int nsampled = 0;
+  for ( const psp_relb_t &r : relocs )
+  {
+    int std_op = psp_relb_required_op(psp_relb_types_std[r.code]);
+    int rbt_op = psp_relb_required_op(psp_relb_types_reboot[r.code]);
+    if ( std_op < 0 && rbt_op < 0 )
+      continue;
+    uint32 w;
+    if ( reader.seek(segs[r.offbase]->p_offset + r.offset) == -1
+      || reader.read_word(&w) < 0 )
+      break;
+    int op = w >> 26;
+    if ( std_op >= 0 )
+      std_score += op == std_op ? 1 : -1;
+    if ( rbt_op >= 0 )
+      rbt_score += op == rbt_op ? 1 : -1;
+    if ( nsampled == 1024 )
+      break; // plenty for a verdict
+
+    nsampled++;
+  }
+
+  return rbt_score > std_score;
+}
+
+//--------------------------------------------------------------------------
+// The table carries no symbols: it is a stream of 16-bit commands indexing two
+// small lookup tables. Example:
+//
+//   00 00 03 03             header word 0, part1s=3, part2s=3
+//   06 00 01 11 09 00       block1: own size, then the flag bytes
+//   08 07 04 05 06 02 03 00 block2: own size, then the type codes
+//   81 00 12 00 12 04 2B 0E 40 00 ...   the command stream
+//
+// which groups into little-endian u16 commands. Not every word is a command
+// though: one may be followed by inline payload that it consumes itself, as
+// 0E2B does here:
+//
+//   81 00 -> cmd 0081   12 00 -> cmd 0012   12 04 -> cmd 0412
+//   2B 0E -> cmd 0E2B   40 00 -> not a command, but the s16 addend (64) that
+//                                0E2B asks for
+//
+// A command is cut into fields from the LSB up: part1s bits selecting a block1
+// entry, then nbits (1 here, 2 with 3-4 segments) for a segment, then for a
+// relocation part2s more bits selecting a block2 entry. What is left is the
+// offset, or a delta on it. Only the first command below assigns OFFSET; every
+// later one adds to it, so entries are not self-contained:
+//
+//   0081  low 3 bits    = 1  -> block1[1] = 00, bit0 clear: sets offset base
+//         next 1 bit    = 0  -> segment 0
+//         bits 4 and up = 8  -> OFFSET := 8
+//
+//   0012  low 3 bits    = 2  -> block1[2] = 01, bit0 set: relocation entry
+//         next 1 bit    = 0  -> addrbase = segment 0
+//         next 3 bits   = 1  -> block2[1] = 7, i.e. JAL26
+//         bits 7 and up = 0  -> delta, so OFFSET = 8 + 0 = 8, a JAL26 there
+//
+//   0412  the same fields, delta +8  -> OFFSET = 8 + 8 = 0x10, another JAL26
+//
+//   0E2B  low 3 bits    = 3  -> block1[3] = 11, bit0 set: relocation entry,
+//                               and its bits 3-5 are 0x10, so an s16 addend
+//                               follows the command (the 40 00 above)
+//         next 1 bit    = 1  -> addrbase = segment 1
+//         next 3 bits   = 2  -> block2[2] = 4, i.e. HI16
+//         bits 7 and up = 28 -> OFFSET = 0x10 + 28 = 0x2C, a HI16 there
+//
+// Of the flag byte, bits 1-2 choose the offset encoding (0 = in the command,
+// 2 = plus a u16 extension, 4 = an explicit u32 follows) and bits 3-5 the
+// addend (0 = zero, 8 = reuse the previous one but only after a HI16,
+// 0x10 = an s16 follows).
+bool decode_psp_relb(
+        psp_relb_vec_t *out,
+        reader_t &reader,
+        const elf_phdr_t &rel_phdr,
+        const qvector<const elf_phdr_t *> &segs,
+        bool *reboot_mapping)
+{
+  uint32 nseg = uint32(segs.size());
+  uint64 fsize = reader.size();
+  size_t total = size_t(rel_phdr.p_filesz);
+  bool ok = nseg != 0
+         && total >= 6
+         && rel_phdr.p_offset < fsize
+         && total <= fsize - rel_phdr.p_offset;
+  bytevec_t table;
+  if ( ok )
+  {
+    table.resize(total);
+    if ( reader.seek(rel_phdr.p_offset) == -1
+      || reader.safe_read(table.begin(), total, false) < 0 )
+    {
+      warning("Truncated file.");
+      return false;
+    }
+  }
+
+  if ( ok )
+  {
+    int part1s = table[2];      // bit width of the block1 selector
+    int part2s = table[3];      // bit width of the block2 selector
+    size_t block1size = table[4]; // flag bytes; block2 holds type codes.
+    size_t block2 = 4 + block1size; // each block starts with its own size
+    ok = psp_relb_le16(table.begin()) == 0
+      && part1s >= 1 && part1s <= 8
+      && part2s >= 1 && part2s <= 8
+      && block1size >= 1
+      && block2 < total
+      && table[block2] >= 1
+      && block2 + table[block2] <= total;
+  }
+
+  bool truncated = false;
+  bool reboot = false;
+  if ( ok )
+  {
+    ok = decode_psp_relb_stream(out, &truncated, table, segs, false);
+    if ( ok && psp_relb_uses_reboot_mapping(reader, segs, *out) )
+    {
+      // a boot module: decode again
+      reboot = true;
+      out->qclear();
+      decode_psp_relb_stream(out, &truncated, table, segs, true);
+    }
+  }
+  if ( reboot_mapping != nullptr )
+    *reboot_mapping = reboot;
+  if ( !ok )
+    warning("Bad packed PRX relocation table");
+  else if ( truncated )
+    msg("Truncated packed PRX relocation table\n");
+  return ok;
 }
 
 #endif // ELF_READER_CPP

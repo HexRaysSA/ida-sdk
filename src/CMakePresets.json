@@ -60,6 +60,29 @@
             }
         },
         {
+            "name": "arm32-dbgserver",
+            "displayName": "Debug server only, 32-bit ARM soft-float Linux target",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/arm32-dbgserver",
+            "toolchainFile": "${sourceDir}/cmake/toolchains/arm32-Linux.toolchain.cmake",
+            "cacheVariables": {
+                "IDA_BUILD_IDA": "OFF",
+                "IDA_BUILD_DBGSRV": "ON",
+                "IDA_EA64": "OFF",
+                "IDA_USE_STATIC_RUNTIME": "ON"
+            },
+            "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"}
+        },
+        {
+            "name": "armhf-dbgserver",
+            "displayName": "Debug server only, 32-bit ARM hard-float Linux target",
+            "inherits": "arm32-dbgserver",
+            "binaryDir": "${sourceDir}/build/armhf-dbgserver",
+            "cacheVariables": {
+                "IDA_ARM_HF": "ON"
+            }
+        },
+        {
             "name": "arm-dbgserver",
             "displayName": "Debug server only, ARM target (64-bit address space)",
             "inherits": ["arm", "dbgserver"],
@@ -85,6 +108,8 @@
         {"name": "arm",                "configurePreset": "arm"},
         {"name": "x64",                "configurePreset": "x64"},
         {"name": "arm-dbgserver",      "configurePreset": "arm-dbgserver"},
+        {"name": "arm32-dbgserver",    "configurePreset": "arm32-dbgserver"},
+        {"name": "armhf-dbgserver",    "configurePreset": "armhf-dbgserver"},
         {"name": "x64-dbgserver",      "configurePreset": "x64-dbgserver"},
         {"name": "x64-dbgserver-ea32", "configurePreset": "x64-dbgserver-ea32"}
     ]

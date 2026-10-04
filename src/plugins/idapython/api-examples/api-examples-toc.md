@@ -18,6 +18,7 @@ This file contains the list of all the IDA python examples.
 ## hexrays
 
 * hr_decompile_func_and_callees.py
+* list_classes.py
 
 ## idb
 

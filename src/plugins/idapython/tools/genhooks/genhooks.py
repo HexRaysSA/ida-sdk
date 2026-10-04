@@ -131,9 +131,14 @@ def gen_notifications(out):
               "dref_t", "cm_t", "ui_notification_t", "dbg_notification_t",
               "tcc_renderer_type_t", "range_kind_t", "demreq_type_t",
               "ctree_maturity_t", "comp_t", "local_type_change_t",
-              "mba_maturity_t" ]:
+              "mba_maturity_t", "nametype_t" ]:
                 cast = ptype
                 pick_type = "int"
+            # ... and these to "uint32" (their underlying type), so the va_arg
+            # doesn't need the enum/type to be fully defined in the wrapper.
+            elif ptype in ["callcnv_t" ]:
+                cast = ptype
+                pick_type = "uint32"
             else:
                 cast = ""
             out.write("  %s %s = %s%sva_arg(va, %s)%s;\n" % (

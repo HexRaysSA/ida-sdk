@@ -138,6 +138,7 @@ enum vme_button_t
 #define SETMENU_INS           0x0 ///< add menu item before the specified path (default)
 #define SETMENU_APP           0x1 ///< add menu item after the specified path
 #define SETMENU_FIRST         0x2 ///< add item to the beginning of menu
+#define SETMENU_UNUSED        0x4
 #define SETMENU_ENSURE_SEP    0x8 ///< make sure there is a separator before the action
 ///@}
 
@@ -155,6 +156,13 @@ enum vme_button_t
 #define HIF_REGISTER     0x2  ///< text represents a register (aliases/subregisters will be highlighted as well)
 #define HIF_LOCKED       0x4  ///< locked; clicking/moving the cursor around doesn't change the highlight
 #define HIF_NOCASE       0x8  ///< case insensitive
+#define HIF_ANNOTATION   0x10 ///< text is an annotation a printer adds next to the code
+                              ///< (e.g. the decompiler's "a1:" parameter name hints),
+                              ///< not the code itself. Annotations form their own
+                              ///< highlight namespace: highlighting code never lights up
+                              ///< annotations, and highlighting an annotation lights up
+                              ///< only the annotations bearing the same text.
+                              ///< Such text is tagged as a ::SEMK_ANNOTATION span.
 
                          // bits 27-31 reserved
 #define HIF_USE_SLOT     (1 << 27) ///< use the given number, or just use the "floating" highlight
@@ -240,24 +248,28 @@ enum vme_button_t
                            ///< position in case of success
 #define CVNF_JUMP (1 << 1) ///< push the current position in this viewer's
                            ///< lochist_t before going to the new location
-#define CVNF_ACT  (1 << 2) ///< activate (i.e., switch to) the viewer.
-                           ///< Activation is performed before the new
-                           ///< lochist_entry_t instance is actually copied
+#define CVNF_ACT_OBSOLETE (1 << 2) // deprecated. Please use #CVNF_ACT
+#define CVNF_REVEAL (1 << 3) ///< reveal (i.e., switch to) the viewer, but
+                           ///< leave the keyboard focus where it is.
+                           ///< Revealing & focusing are performed before the
+                           ///< new lochist_entry_t instance is actually copied
                            ///< to the viewer's lochist_t (otherwise, if the
                            ///< viewer was invisible its on_location_changed()
                            ///< handler wouldn't be called.)
-
+#define CVNF_ACT    ((1 << 4)|CVNF_REVEAL) ///< reveal the viewer, and give it
+                           ///< the keyboard focus
 ///@}
+
 /// \defgroup WIDGET_OPEN Widget open flags
 /// passed as options to open_form() and display_widget()
 ///@{
-//
 #define WOPN_RESTORE           0x00000004u ///< if the widget was the only widget in a floating area the
                                            ///< last time it was closed, it will be restored as
                                            ///< floating, with the same position+size as before
 #define WOPN_PERSIST           0x00000040u ///< widget will remain available when starting or stopping debugger sessions
 #define WOPN_CLOSED_BY_ESC     0x00000080u ///< override idagui.cfg:CLOSED_BY_ESC: esc will close
 #define WOPN_NOT_CLOSED_BY_ESC 0x00000100u ///< override idagui.cfg:CLOSED_BY_ESC: esc will not close
+#define WOPN_UNUSED            0x00000200u
 #define WOPN_DP_MASK           0x0FFF0000u
 #define WOPN_DP_SHIFT          16
 #define WOPN_DP_LEFT           (DP_LEFT << WOPN_DP_SHIFT)
@@ -346,6 +358,14 @@ enum execute_sync_ctl_t
   esctl_set_availability,
 };
 
+// In the kernel these macros inject kernel-only UI notification codes.
+#ifndef KERNWIN_INTERNAL_UI_NOTIFICATIONS
+#define KERNWIN_INTERNAL_UI_NOTIFICATIONS
+#endif
+#ifndef KERNWIN_INTERNAL_TEST_UI_NOTIFICATIONS
+#define KERNWIN_INTERNAL_TEST_UI_NOTIFICATIONS
+#endif
+
 /// Events marked as 'ui:' should be used as a parameter to callui().
 /// (See convenience functions like get_screen_ea())
 /// Events marked as 'cb:' are designed to be callbacks and should not
@@ -353,6 +373,10 @@ enum execute_sync_ctl_t
 
 enum ui_notification_t
 {
+  // kernel-only codes are injected before ui_last by
+  // KERNWIN_INTERNAL_UI_NOTIFICATIONS and
+  // KERNWIN_INTERNAL_TEST_UI_NOTIFICATIONS
+
   ui_null = 0,
 
   ui_range,             ///< cb: The disassembly range has been changed (\inf{min_ea} ... \inf{max_ea}).
@@ -969,7 +993,6 @@ enum ui_notification_t
 
   ui_strchoose,         ///< ui: undocumented
 
-
   ui_set_nav_colorizer, ///< ui: see set_nav_colorizer()
   ui_display_widget,    ///< ui: see display_widget()
 
@@ -1020,7 +1043,6 @@ enum ui_notification_t
                           ///< ui: see get_synced_group()
 
   ui_show_rename_dialog,  ///< ui: undocumented
-                          ///< \return success
 
   ui_desktop_applied,     ///< cb: a desktop has been applied
                           ///< \param name      (const char *) the desktop name
@@ -1098,7 +1120,10 @@ enum ui_notification_t
 
   ui_serve,             ///< ui: see serve()
   ui_stop_serving,      ///< ui: see stop_serving()
+  ui_get_widget_dirtree,///< ui: see get_widget_dirtree()
 
+  KERNWIN_INTERNAL_UI_NOTIFICATIONS
+  KERNWIN_INTERNAL_TEST_UI_NOTIFICATIONS
 
   ui_last,              ///< the last notification code
 
@@ -1407,6 +1432,7 @@ inline bool is_ida_library(char *path = nullptr, size_t pathsize = 0, void** han
 {
   return callui(ui_broadcast, IDALIB_API_MAGIC, path, pathsize, handle).ssize > 0;
 }
+
 
 //--------------------------------------------------------------------------
 //      K E R N E L   S E R V I C E S   F O R   U I
@@ -1907,6 +1933,11 @@ public:
     return hexplace_t__ea2str(buf, bufsize, hg, ea);
   }
 
+  /// Get the address at the start of the line.
+  ea_t ea_sol() const { return sol; }
+  friend struct hexplace_internal_t;
+  friend void ida_export hexplace_t__serialize(const hexplace_t *_this, bytevec_t *out);
+  friend bool ida_export hexplace_t__deserialize(hexplace_t *_this, const uchar **pptr, const uchar *end);
 };
 
 //--------------------------------------------------------------------------
@@ -2137,6 +2168,7 @@ struct synced_group_t : public sync_source_vec_t
 /// will always be nullptr.
 enum lecvt_code_t
 {
+  LECVT_RESERVED = -2,
   LECVT_CANCELED = -1,
   LECVT_ERROR = 0,
   LECVT_OK = 1,
@@ -2354,7 +2386,6 @@ struct lines_rendering_input_t
 /// a CSS property of the widget ('qproperty-line-bgovl-extra-N')
 /// instead of a direct color
 ///@{
-//
 #define CK_TRACE     80 ///< traced address
 #define CK_TRACE_OVL 81 ///< overlay trace address
 #define CK_EXTRA1    82 ///< extra background overlay #1
@@ -2490,6 +2521,7 @@ struct line_section_t
 
   bool contains(cpidx_t x) const
   {
+    TB_QASSERT(2932, is_closed());
     return x >= start && x < start + length;
   }
 
@@ -2511,6 +2543,12 @@ struct tagged_line_section_t;
 idaman THREAD_SAFE ea_t ida_export tagged_line_section_t_get_addr(
         const tagged_line_section_t *sec,
         const qstring &line);
+
+/// Out-of-line implementation of tagged_line_section_t::semspan_kind().
+idaman THREAD_SAFE color_t ida_export tagged_line_section_t_get_semspan_kind(
+        const tagged_line_section_t *sec,
+        const qstring &line,
+        idc_value_t *payload=nullptr);
 #endif // SWIG
 
 //-------------------------------------------------------------------------
@@ -2557,12 +2595,15 @@ struct tagged_line_section_t : public line_section_t
         && byte_offsets.text_end <= in.length();
   }
 
+  /// Extract the section's text from `in`.
+  /// `in` must be the same raw line the section was parsed from.
   bool substr(
         qstring *out,
         const qstring &in,
         const tagged_line_section_t *end = nullptr) const
   {
     bool ok = valid_in(in);
+    TB_QASSERT(2933, ok);
     if ( ok )
     {
       out->qclear();
@@ -2584,6 +2625,15 @@ struct tagged_line_section_t : public line_section_t
     return tagged_line_section_t_get_addr(this, line);
   }
 
+  /// For ::COLOR_SEMSPAN sections, decode the semantic kind byte. `line` must be
+  /// the same raw line the section was parsed from. Returns 0 if not a
+  /// ::COLOR_SEMSPAN section. If PAYLOAD is given, it receives whatever the kind
+  /// bundles (empty for kinds that bundle nothing).
+  color_t semspan_kind(const qstring &line, idc_value_t *payload=nullptr) const
+  {
+    return tagged_line_section_t_get_semspan_kind(this, line, payload);
+  }
+
 };
 DECLARE_TYPE_AS_MOVABLE(tagged_line_section_t);
 typedef qvector<tagged_line_section_t> tagged_line_section_vec_t;
@@ -2595,7 +2645,7 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
   const tagged_line_section_t *first(color_t tag) const
   {
     for ( const auto &one : *this )
-      if ( one.tag == tag )
+      if ( _tag_matches(one.tag, tag) )
         return &one;
     return nullptr;
   }
@@ -2606,7 +2656,7 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
   {
     for ( const auto &one : *this )
       if ( one.byte_offsets.text_start > anchor.byte_offsets.text_start
-        && one.tag == tag )
+        && _tag_matches(one.tag, tag) )
         return &one;
     return nullptr;
   }
@@ -2617,7 +2667,7 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
         color_t tag=0) const
   {
     for ( const auto &one : *this )
-      if ( one.contains(x) && (tag == 0 || one.tag == tag) )
+      if ( one.contains(x) && _tag_matches(one.tag, tag) )
         out->push_back(one);
   }
 
@@ -2634,7 +2684,7 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
     for ( const auto &one : *this )
     {
       if ( one.contains(x)
-        && (tag == 0 || one.tag == tag)
+        && _tag_matches(one.tag, tag)
         && (nearest == nullptr || one.start >= nearest->start) )
       {
         nearest = &one;
@@ -2645,13 +2695,33 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
 
 #ifndef NO_OBSOLETE_FUNCS
   /// \deprecated Use innermost_at() instead.
-  DEPRECATED const tagged_line_section_t *nearest_at(
+  IDA_DEPRECATED const tagged_line_section_t *nearest_at(
         cpidx_t x,
         color_t tag=0) const
   {
     return innermost_at(x, tag);
   }
 #endif
+
+  // Same as innermost_at(), but accept any of the NTAGS tags in TAGS
+  // (e.g. all the name tags, to look up a whole symbol).
+  const tagged_line_section_t *innermost_at_any(
+        cpidx_t x,
+        const color_t *tags,
+        size_t ntags) const
+  {
+    const tagged_line_section_t *nearest = nullptr;
+    for ( const auto &one : *this )
+    {
+      if ( one.contains(x)
+        && _tag_matches(one.tag, tags, ntags)
+        && (nearest == nullptr || one.start >= nearest->start) )
+      {
+        nearest = &one;
+      }
+    }
+    return nearest;
+  }
 
   // For example, '// XREF: __loff_t/r _IO_FILE/r'
   // <on><xref>// XREF: <on><addr:FF001BAC>__loff_t/r <on><addr:FF001BC9>_IO_FILE/r<off><dref>
@@ -2673,7 +2743,7 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
     {
       if ( range.contains(one.start)
         && one.start <= start
-        && (tag == 0 || one.tag == tag)
+        && _tag_matches(one.tag, tag)
         && (nearest == nullptr
          || one.start > nearest->start
          || one.byte_offsets.text_start > nearest->byte_offsets.text_start) )
@@ -2693,13 +2763,28 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
     {
       if ( range.contains(one.start)
         && one.start > start
-        && (tag == 0 || one.tag == tag)
+        && _tag_matches(one.tag, tag)
         && (nearest == nullptr || one.start < nearest->start) )
       {
         nearest = &one;
       }
     }
     return nearest;
+  }
+
+private:
+  // Does TAG match the requested SOUGHT tag? A SOUGHT of 0 matches any tag.
+  bool _tag_matches(color_t tag, color_t sought) const
+  {
+    return sought == 0 || tag == sought;
+  }
+  // Does TAG match any of the NTAGS tags in TAGS?
+  bool _tag_matches(color_t tag, const color_t *tags, size_t ntags) const
+  {
+    for ( size_t i = 0; i < ntags; ++i )
+      if ( _tag_matches(tag, tags[i]) )
+        return true;
+    return false;
   }
 };
 
@@ -2734,6 +2819,7 @@ idaman void ida_export mark_builtin_widgets(builtin_widgets_mask_t mask, bool di
 
 inline void mark_builtin_widget_by_id(int bwn, bool dirty=true)
 {
+  TB_QASSERT(3447, bwn <= 62); // attempt detecting ID-vs-mask confusion
   mark_builtin_widgets(builtin_widget_mask_from_id(bwn), dirty);
 }
 
@@ -2843,6 +2929,10 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define BWN_EXAMPLE_SCRIPTS_TREE        81 ///< IDAPython examples dirtree (Scripts window)
 #define BWN_SEARCH_SCRIPTS_TREE         82 ///< Search results dirtree (Scripts window)
 #define BWN_PATHFINDER                  83 ///< Pathfinder (waypoints/exclusions)
+#define BWN_KC_INDEX                    84 ///< KernelCache tree widget
+#define BWN_CLASS_VIEW                  85 ///< decompiler class view
+#define BWN_KC_SYMBOLS                  86 ///< KernelCache symbols search widget
+#define BWN_KC_STRINGS                  87 ///< KernelCache string-literal search widget
 
 #define BWN_SNIPPETS_CSR BWN_SNIPPETS_TREE // bw-compat
 
@@ -2922,8 +3012,11 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define IWID_TEAMS_OPENED_FILES         builtin_widget_mask_from_id(BWN_TEAMS_OPENED_FILES)         ///< the opened files embedded chooser
 #define IWID_TEAMS_VAULT_FILE_PICKER    builtin_widget_mask_from_id(BWN_TEAMS_VAULT_FILE_PICKER)    ///< the opened files embedded chooser
 #define IWID_DSC_INDEX                  builtin_widget_mask_from_id(BWN_DSC_INDEX)                  ///< DyldSharedCache widget
+#define IWID_KC_INDEX                   builtin_widget_mask_from_id(BWN_KC_INDEX)                  ///< KernelCache widget
 #define IWID_DSC_SYMBOLS                builtin_widget_mask_from_id(BWN_DSC_SYMBOLS)                ///< DyldSharedCache symbols widget
 #define IWID_DSC_STRINGS                builtin_widget_mask_from_id(BWN_DSC_STRINGS)                ///< DyldSharedCache strings widget
+#define IWID_KC_SYMBOLS                 builtin_widget_mask_from_id(BWN_KC_SYMBOLS)                 ///< KernelCache symbols widget
+#define IWID_KC_STRINGS                 builtin_widget_mask_from_id(BWN_KC_STRINGS)                 ///< KernelCache strings widget
 #define IWID_XREF_GRAPH                 builtin_widget_mask_from_id(BWN_XREF_GRAPH)                 ///< Xref Graph widget
 #define IWID_GIT_REPOS                  builtin_widget_mask_from_id(BWN_GIT_REPOS)                  ///< the git 'Manage Repositories' chooser
 #define IWID_XREF_GRAPH_MANAGER         builtin_widget_mask_from_id(BWN_XREF_GRAPH_MANAGER)         ///< Xref Graph manager widget
@@ -2931,6 +3024,7 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define IWID_EXAMPLE_SCRIPTS_TREE       builtin_widget_mask_from_id(BWN_EXAMPLE_SCRIPTS_TREE)      ///< IDAPython examples dirtree
 #define IWID_SEARCH_SCRIPTS_TREE        builtin_widget_mask_from_id(BWN_SEARCH_SCRIPTS_TREE)       ///< Search results dirtree
 #define IWID_PATHFINDER                 builtin_widget_mask_from_id(BWN_PATHFINDER)               ///< Pathfinder
+#define IWID_CLASS_VIEW                 builtin_widget_mask_from_id(BWN_CLASS_VIEW)                ///< decompiler class view
 /// the host form_widget_t plus the four trees inside it -- "the cursor
 /// is anywhere within the Scripts window".
 #define IWID_ANY_SCRIPTS_PART (IWID_SNIPPETS                  \
@@ -2939,7 +3033,7 @@ typedef int twidget_type_t; ///< \ref BWN_
                              | IWID_EXAMPLE_SCRIPTS_TREE      \
                              | IWID_SEARCH_SCRIPTS_TREE)
 
-#define IWID_ANY_LISTING   (IWID_DISASM|IWID_HEXVIEW|IWID_TILIST|IWID_FRAME|IWID_PSEUDOCODE|IWID_CUSTVIEW) ///< anything that uses a listing widget
+#define IWID_ANY_LISTING   (IWID_DISASM|IWID_HEXVIEW|IWID_TILIST|IWID_FRAME|IWID_PSEUDOCODE|IWID_CUSTVIEW|IWID_CLASS_VIEW) ///< anything that uses a listing widget
 #define IWID_EA_LISTING    (IWID_DISASM|IWID_HEXVIEW|IWID_PSEUDOCODE)     ///< anything that can be used to represent data/code at an address
 #define IWID_TEAMS_FILES_WIDGETS (IWID_TEAMS_WORKLISTS|IWID_TEAMS_VAULT_FILES|IWID_TEAMS_LOCAL_FILES|IWID_TEAMS_FILE_HISTORY)
 
@@ -3342,6 +3436,8 @@ typedef action_ctx_base_t action_update_ctx_t;
 struct chooser_stdact_desc_t
 {
   int version = 1;      ///< to support the backward compatibility
+                        ///< (when increasing the version, only new fields
+                        ///< or virtual methods may be added)
   const char *label;    ///< see action_desc_t
   const char *tooltip;
   int icon;
@@ -3371,6 +3467,8 @@ struct chooser_base_t
 #endif
 protected:
   uint8 version = 5;  ///< version of the class
+                      // 2: added get_stdact_descs()
+                      // 3: added do_lazy_load_dir(); version(32) split into version(8), reserved(8), flags2(16)
                       // 4: extended storage for builtin id from 6 bits to 8
                       // 5: added checked() for CHCOL_CHECKBOX support
   uint8 reserved = 0;
@@ -3894,6 +3992,8 @@ struct chooser_multi_t : public chooser_base_t
   /// \param sel  new selected items
   virtual void idaapi select(const sizevec_t &/*sel*/) const newapi {}
 
+  // the following methods are duplicated in chooser_t and chooser_multi_t;
+  // they cannot move into chooser_base_t due to backward compatibility
   /// get the dirtree_t that will be used to present a tree-like
   /// structure to the user (see CH_HAS_DIRTREE)
   /// \return the dirtree_t, or nullptr
@@ -4770,13 +4870,19 @@ typedef void idaapi ss_restore_cb_t(const char *errmsg, void *ud);
 /// \defgroup UIJMP_ Jump flags
 /// passed as 'uijmp_flags' parameter to jumpto()
 ///@{
-#define UIJMP_ACTIVATE        0x0001  ///< activate the new window
-#define UIJMP_DONTPUSH        0x0002  ///< do not remember the current address
-                                      ///< in the navigation history
-#define UIJMP_VIEWMASK        0x000C
-#define UIJMP_ANYVIEW         0x0000  ///< jump in any ea_t-capable view
-#define UIJMP_IDAVIEW         0x0004  ///< jump in idaview
-#define UIJMP_IDAVIEW_NEW     0x0008  ///< jump in new idaview
+#define UIJMP_ACTIVATE_OBSOLETE 0x0001 // deprecated. Please use #UIJMP_ACTIVATE
+#define UIJMP_DONTPUSH          0x0002 ///< do not remember the current address
+                                       ///< in the navigation history
+#define UIJMP_VIEWMASK          0x000C
+#define UIJMP_ANYVIEW           0x0000 ///< jump in any ea_t-capable view
+#define UIJMP_IDAVIEW           0x0004 ///< jump in idaview
+#define UIJMP_IDAVIEW_NEW       0x0008 ///< jump in new idaview
+#define UIJMP_FLAGS_SHIFT       16     ///< 4 bits reserved, 2 of them used
+#define UIJMP_REVEAL  (0x1 << UIJMP_FLAGS_SHIFT) ///< reveal the new window
+                                      ///< (i.e., switch to it), but leave the
+                                      ///< keyboard focus where it is
+#define UIJMP_ACTIVATE ((0x2 << UIJMP_FLAGS_SHIFT)|UIJMP_REVEAL) ///< reveal the
+                                      ///< new window, and give it the keyboard focus
 ///@}
 
 class interactive_graph_t;
@@ -5078,6 +5184,69 @@ public:
 };
 #endif // SWIG
 
+
+//-------------------------------------------------------------------------
+struct dual_text_options_t;   // fwd (display options; see get_dual_text_options)
+
+/// One range a listing-lines generation walks: a [first, last] place pair plus
+/// the context to walk it without its view. The endpoint columns (twinpos_t::x)
+/// are honored -- the WYSIWYG of a selection: an intra-line range is one line
+/// trimmed to [first.x, last.x), a multi-line range's first line starts at
+/// first.x and its last line ends at last.x (exclusive; 0 drops the last line
+/// entirely, a selection ending before a line's first glyph). Set
+/// \ref whole_lines to ignore the columns and emit the boundary lines in full.
+/// last.at == nullptr => to the listing end. Owns the endpoint places; \ref ud
+/// and \ref disp are borrowed and must outlive the generation. Movable and
+/// deep-copyable.
+struct lines_gen_range_t
+{
+  twinpos_t first; ///< start place (owned) + glyph column
+  twinpos_t last;  ///< end place (owned; at==nullptr => listing end) + column
+  void *ud = nullptr;   ///< linearray place cookie (borrowed; nullptr for a
+                        ///< disassembly)
+  const dual_text_options_t *disp = nullptr; ///< display options (borrowed;
+                        ///< nullptr => current options)
+  bool expand_hidden = false; ///< walk collapsed/hidden regions in full; the
+                        ///< fold state is restored after the generation
+  bool whole_lines = false; ///< ignore the endpoint columns: the boundary
+                        ///< lines are emitted in full (item/function/document
+                        ///< ranges); off: WYSIWYG columns (a selection)
+  lines_gen_range_t() {}
+  lines_gen_range_t(const twinpos_t &_first, const twinpos_t &_last)
+    : first(_first), last(_last) {}
+  lines_gen_range_t(const lines_gen_range_t &r)
+    : first(r.first.at != nullptr ? r.first.at->clone() : nullptr, r.first.x),
+      last(r.last.at != nullptr ? r.last.at->clone() : nullptr, r.last.x),
+      ud(r.ud), disp(r.disp), expand_hidden(r.expand_hidden),
+      whole_lines(r.whole_lines) {}
+  lines_gen_range_t &operator=(const lines_gen_range_t &r)
+  {
+    lines_gen_range_t t(r);
+    qswap(first.at, t.first.at); first.x = r.first.x;
+    qswap(last.at, t.last.at);   last.x = r.last.x;
+    ud = r.ud;
+    disp = r.disp;
+    expand_hidden = r.expand_hidden;
+    whole_lines = r.whole_lines;
+    return *this;
+  }
+  ~lines_gen_range_t() { qfree(first.at); qfree(last.at); }
+
+  /// An intra-line selection: a single rendered line (the place \p at), trimmed
+  /// to glyph columns [\p x0, \p x1). \p x1 == -1 leaves the whole line (no
+  /// column limit). Encoded as \ref first and \ref last on the SAME place --
+  /// which is how a listing generator recognizes "just this one line".
+  void set_single_line(const place_t *at, int x0, int x1=-1)
+  {
+    qfree(first.at);
+    qfree(last.at);
+    first = twinpos_t(at != nullptr ? at->clone() : nullptr, x0);
+    last = twinpos_t(at != nullptr ? at->clone() : nullptr, x1);
+    whole_lines = false;
+  }
+};
+DECLARE_TYPE_AS_MOVABLE(lines_gen_range_t);
+typedef qvector<lines_gen_range_t> lines_gen_range_vec_t; ///< a listing's ranges
 
 #ifndef __UI__         // Not for the UI
 
@@ -5498,7 +5667,6 @@ inline void get_registered_actions(qstrvec_t *out)
   callui(ui_get_registered_actions, out);
 }
 
-
 /// Create a toolbar with the given name, label and optional position
 /// \param name name of toolbar (must be unique)
 /// \param label label of toolbar
@@ -5729,6 +5897,23 @@ inline twidget_type_t get_widget_type(TWidget *widget)
 inline bool get_widget_title(qstring *buf, TWidget *widget)
 {
   return callui(ui_get_widget_title, buf, widget).cnd;
+}
+
+/// Get the dirtree_t a TWidget presents, if it presents one
+/// (::ui_get_widget_dirtree).
+///
+/// This is how a ::dirtree_cursor_t -- the form a selection takes in
+/// action_ctx_base_t::dirtree_selection -- becomes something meaningful:
+/// feed the cursor to dirtree_t::get_abspath().
+///
+/// \param widget  the widget to query
+/// \return the dirtree, or nullptr when the widget presents none. It is
+///         owned by the widget: do not free it, and do not keep it past
+///         the widget's lifetime.
+
+inline dirtree_t *get_widget_dirtree(TWidget *widget)
+{
+  return (dirtree_t *) callui(ui_get_widget_dirtree, widget).vptr;
 }
 
 /// Create new ida viewer based on ::place_t (::ui_create_custom_viewer).
@@ -6291,7 +6476,7 @@ inline bool prompt_function_prototype(qstring *errbuf, tinfo_t *out_tif, qstring
 /// \param      name - (const char *) function name
 /// \return     true if new type created successfully
 
-DEPRECATED inline bool prompt_function_prototype_ex(qstring *errbuf, tinfo_t *out_tif, qstring *out_name, func_t *pfn, tinfo_t *tif, const char *name)
+IDA_DEPRECATED inline bool prompt_function_prototype_ex(qstring *errbuf, tinfo_t *out_tif, qstring *out_name, func_t *pfn, tinfo_t *tif, const char *name)
 {
   return callui(ui_obsolete_prompt_function_prototype_2, errbuf, out_tif, out_name, pfn, tif, name).cnd;
 }
@@ -6945,7 +7130,7 @@ inline TWidget *open_frame_window_ea(ea_t func_ea, uval_t offset)
 /// \return pointer to resulting window if 'pfn' is a valid function and the window was displayed,  \n
 ///                 nullptr otherwise
 
-DEPRECATED inline TWidget *open_frame_window(func_t *pfn, uval_t offset)
+IDA_DEPRECATED inline TWidget *open_frame_window(func_t *pfn, uval_t offset)
 {
   return (TWidget *) callui(ui_open_builtin, BWN_FRAME, pfn, offset).vptr;
 }
@@ -7086,7 +7271,7 @@ inline ea_t choose_stkvar_xref_ea(ea_t func_ea, tid_t stkvar_tid)
 /// \param srkvar_tid  frame variable TID
 /// \return ea of the selected xref, BADADDR if none selected
 
-DEPRECATED inline ea_t choose_stkvar_xref(func_t *pfn, tid_t srkvar_tid)
+IDA_DEPRECATED inline ea_t choose_stkvar_xref(func_t *pfn, tid_t srkvar_tid)
 {
   ea_t ea;
   callui(ui_choose, chtype_stkvar_xref, &ea, pfn, srkvar_tid);
@@ -7476,19 +7661,22 @@ THREAD_SAFE AS_PRINTF(1, 2) NORETURN inline void error(const char *format, ...)
 }
 
 
+/// \copydoc warning()
+/// \param va       pointer to variadic arguments.
+
+THREAD_SAFE AS_PRINTF(1, 0) inline ssize_t vwarning(const char *format, va_list va)
+{
+  return callui(ui_mbox, mbox_warning, format, va).ssize;
+}
+
+
 /// Display warning dialog box and wait for the user to press Enter or Esc.
 /// This messagebox will by default contain a "Don't display this message again"  \n
 /// checkbox if the message is repetitively displayed. If checked, the message    \n
 /// won't be displayed anymore during the current IDA session.                    \n
 /// \param format  printf() style format string.
 ///                It may have some prefixes, see 'Format of dialog box' for details.
-/// \param va       pointer to variadic arguments.
 /// \return < 0 in case the warning was inhibited, >= 0 otherwise
-
-THREAD_SAFE AS_PRINTF(1, 0) inline ssize_t vwarning(const char *format, va_list va)
-{
-  return callui(ui_mbox, mbox_warning, format, va).ssize;
-}
 
 THREAD_SAFE AS_PRINTF(1, 2) inline ssize_t warning(const char *format, ...)
 {
@@ -7500,19 +7688,22 @@ THREAD_SAFE AS_PRINTF(1, 2) inline ssize_t warning(const char *format, ...)
 }
 
 
+/// \copydoc info()
+/// \param va       pointer to variadic arguments.
+
+THREAD_SAFE AS_PRINTF(1, 0) inline ssize_t vinfo(const char *format, va_list va)
+{
+  return callui(ui_mbox, mbox_info, format, va).ssize;
+}
+
+
 /// Display info dialog box and wait for the user to press Enter or Esc.
 /// This messagebox will by default contain a "Don't display this message again"    \n
 /// checkbox. If checked, the message will never be displayed anymore (state saved  \n
 /// in the Windows registry or the idareg.cfg file for a non-Windows version).
 /// \param format  printf() style format string.
 ///                It may have some prefixes, see 'Format of dialog box' for details.
-/// \param va       pointer to variadic arguments.
 /// \return < 0 in case the message was inhibited, >= 0 otherwise
-
-THREAD_SAFE AS_PRINTF(1, 0) inline ssize_t vinfo(const char *format, va_list va)
-{
-  return callui(ui_mbox, mbox_info, format, va).ssize;
-}
 
 THREAD_SAFE AS_PRINTF(1, 2) inline ssize_t info(const char *format, ...)
 {
@@ -7524,8 +7715,7 @@ THREAD_SAFE AS_PRINTF(1, 2) inline ssize_t info(const char *format, ...)
 }
 
 
-/// Display "no memory for module ..." dialog box and exit.
-/// \param format   printf() style message string.
+/// \copydoc nomem()
 /// \param va       pointer to variadic arguments.
 
 THREAD_SAFE AS_PRINTF(1, 0) NORETURN inline void vnomem(const char *format, va_list va)
@@ -7534,6 +7724,10 @@ THREAD_SAFE AS_PRINTF(1, 0) NORETURN inline void vnomem(const char *format, va_l
   // NOTREACHED
   abort(); // to suppress compiler warning or error
 }
+
+
+/// Display "no memory for module ..." dialog box and exit.
+/// \param format   printf() style message string.
 
 THREAD_SAFE AS_PRINTF(1, 2) NORETURN inline void nomem(const char *format, ...)
 {
@@ -7544,6 +7738,15 @@ THREAD_SAFE AS_PRINTF(1, 2) NORETURN inline void nomem(const char *format, ...)
 }
 
 
+/// \copydoc msg()
+/// \param va       pointer to variadic arguments.
+
+THREAD_SAFE AS_PRINTF(1, 0) inline int vmsg(const char *format, va_list va)
+{
+  return callui(ui_msg, format, va).i;
+}
+
+
 /// Output a formatted string to the output window [analog of printf()].
 /// Everything appearing on the output window may be written
 /// to a text file. For this the user should define the following environment
@@ -7551,13 +7754,7 @@ THREAD_SAFE AS_PRINTF(1, 2) NORETURN inline void nomem(const char *format, ...)
 ///         set IDALOG=idalog.txt
 ///
 /// \param format  printf() style message string.
-/// \param va       pointer to variadic arguments.
 /// \return number of bytes output
-
-THREAD_SAFE AS_PRINTF(1, 0) inline int vmsg(const char *format, va_list va)
-{
-  return callui(ui_msg, format, va).i;
-}
 
 THREAD_SAFE AS_PRINTF(1, 2) inline int msg(const char *format, ...)
 {
@@ -8296,17 +8493,8 @@ AS_PRINTF(5, 6) inline int ask_buttons(
 //      A S K   S T R I N G   O F   T E X T
 //---------------------------------------------------------------------------
 
-/// Display a dialog box and wait for the user to input a text string (::ui_ask_str).
-/// Use this function to ask one-line text. For multiline input, use ask_text().
-/// This function will trim the trailing spaces.
-/// \param str      qstring to fill. Can contain the default value. Cannot be nullptr.
-/// \param hist     category of history lines. an arbitrary number.         \n
-///                 this number determines lines accessible in the history  \n
-///                 of the user input (when he presses down arrow)          \n
-///                 One of \ref HIST_ should be used here
-/// \param format   printf() style format string with the question
+/// \copydoc ask_str()
 /// \param va       pointer to variadic arguments.
-/// \return false if the user cancelled the dialog, otherwise returns true.
 
 AS_PRINTF(3, 0) inline bool vask_str(
         qstring *str,
@@ -8316,6 +8504,18 @@ AS_PRINTF(3, 0) inline bool vask_str(
 {
   return callui(ui_ask_str, str, hist, format, va).cnd;
 }
+
+
+/// Display a dialog box and wait for the user to input a text string (::ui_ask_str).
+/// Use this function to ask one-line text. For multiline input, use ask_text().
+/// This function will trim the trailing spaces.
+/// \param str      qstring to fill. Can contain the default value. Cannot be nullptr.
+/// \param hist     category of history lines. an arbitrary number.         \n
+///                 this number determines lines accessible in the history  \n
+///                 of the user input (when he presses down arrow)          \n
+///                 One of \ref HIST_ should be used here
+/// \param format   printf() style format string with the question
+/// \return false if the user cancelled the dialog, otherwise returns true.
 
 AS_PRINTF(3, 4) inline bool ask_str(qstring *str, int hist, const char *format, ...)
 {
@@ -8375,17 +8575,8 @@ AS_PRINTF(2, 3) inline bool ask_ident2(qstring *str, const char *format, ...)
 
 
 
-/// Display a dialog box and wait for the user to input multiline text (::ui_ask_text).
-/// \param answer   output buffer
-/// \param max_size maximum size of text in bytes including terminating zero (0 for unlimited)
-/// \param defval   default value. will be displayed initially in the input line.
-///                   may be nullptr.
-/// \param format   printf() style format string with the question.
-///                 the following options are accepted at its beginning:
-///                    "ACCEPT TABS\n": accept tabulations in the input
-///                    "NORMAL FONT\n": use regular font (otherwise the notepad font)
+/// \copydoc ask_text()
 /// \param va       pointer to variadic arguments.
-/// \return false-if the user pressed Esc, otherwise returns true.
 
 AS_PRINTF(4, 0) inline bool vask_text(
         qstring *answer,
@@ -8396,6 +8587,18 @@ AS_PRINTF(4, 0) inline bool vask_text(
 {
   return callui(ui_ask_text, answer, max_size, defval, format, va).cnd;
 }
+
+
+/// Display a dialog box and wait for the user to input multiline text (::ui_ask_text).
+/// \param answer   output buffer
+/// \param max_size maximum size of text in bytes including terminating zero (0 for unlimited)
+/// \param defval   default value. will be displayed initially in the input line.
+///                   may be nullptr.
+/// \param format   printf() style format string with the question.
+///                 the following options are accepted at its beginning:
+///                    "ACCEPT TABS\n": accept tabulations in the input
+///                    "NORMAL FONT\n": use regular font (otherwise the notepad font)
+/// \return false-if the user pressed Esc, otherwise returns true.
 
 AS_PRINTF(4, 5) inline bool ask_text(
         qstring *answer,
@@ -8416,6 +8619,19 @@ AS_PRINTF(4, 5) inline bool ask_text(
 //      A S K   A D D R E S S E S,   N A M E S,   N U M B E R S,   E T C.
 //---------------------------------------------------------------------------
 
+/// \copydoc ask_file()
+/// \param va        pointer to variadic arguments.
+
+AS_PRINTF(3, 0) inline char *vask_file(
+        bool for_saving,
+        const char *defval,
+        const char *format,
+        va_list va)
+{
+  return callui(ui_ask_file, for_saving, defval, format, va).cptr;
+}
+
+
 /// Display a dialog box and wait for the user to input a file name (::ui_ask_file).
 /// This function displays a window with file names present in the directory
 /// pointed to by 'defval'.
@@ -8432,19 +8648,8 @@ AS_PRINTF(4, 5) inline bool ask_text(
 /// \param defval    default value. will be displayed initially in the input line.
 ///                  may be nullptr may be or a wildcard file name.
 /// \param format    printf-style format string with the dialog title, possibly including a filter.
-/// \param va        pointer to variadic arguments.
 /// \return nullptr     the user cancelled the dialog.
 /// Otherwise the user entered a valid file name.
-
-AS_PRINTF(3, 0) inline char *vask_file(
-        bool for_saving,
-        const char *defval,
-        const char *format,
-        va_list va)
-{
-  return callui(ui_ask_file, for_saving, defval, format, va).cptr;
-}
-
 
 AS_PRINTF(3, 4) inline char *ask_file(
         bool for_saving,
@@ -9006,28 +9211,28 @@ inline bool place_t__deserialize(place_t *_this, const uchar **pptr, const uchar
 #define ACTION_DESC_LITERAL(name, label, handler, shortcut, tooltip, icon)\
   { sizeof(action_desc_t), name, label, handler, &PLUGIN, shortcut, tooltip, icon, ADF_OT_PLUGIN }
 
-DEPRECATED inline void get_user_strlist_options(strwinsetup_t *out)
+IDA_DEPRECATED inline void get_user_strlist_options(strwinsetup_t *out)
 {
   callui(ui_obsolete_get_user_strlist_options, out);
 }
-DEPRECATED inline bool del_idc_hotkey(const char *hotkey)
+IDA_DEPRECATED inline bool del_idc_hotkey(const char *hotkey)
 {
   return callui(ui_obsolete_del_idckey, hotkey).cnd;
 }
-DEPRECATED inline TWidget *open_calls_window(ea_t ea)
+IDA_DEPRECATED inline TWidget *open_calls_window(ea_t ea)
 {
   return (TWidget *) callui(ui_open_builtin, BWN_RESERVED_1, ea).vptr;
 }
-DEPRECATED inline bool prompt_function_prototype(qstring *errbuf, tinfo_t *out_tif, func_t *pfn, tinfo_t *tif, const char *name)
+IDA_DEPRECATED inline bool prompt_function_prototype(qstring *errbuf, tinfo_t *out_tif, func_t *pfn, tinfo_t *tif, const char *name)
 {
   return callui(ui_obsolete_prompt_function_prototype, errbuf, out_tif, pfn, tif, name).cnd;
 }
-idaman DEPRECATED void ida_export ida_checkmem(const char *file, int line);
+idaman IDA_DEPRECATED void ida_export ida_checkmem(const char *file, int line);
 
-idaman DEPRECATED void ida_export request_refresh(uint64 mask, bool cnd=true);
-idaman DEPRECATED bool ida_export is_refresh_requested(uint64 mask);
+idaman IDA_DEPRECATED void ida_export request_refresh(uint64 mask, bool cnd=true);
+idaman IDA_DEPRECATED bool ida_export is_refresh_requested(uint64 mask);
 #  ifndef SWIG
-idaman DEPRECATED uint64 ida_export get_dirty_infos();
+idaman IDA_DEPRECATED uint64 ida_export get_dirty_infos();
 #  endif // SWIG
 
 #endif

@@ -156,6 +156,13 @@ static inline void PyErr_Clear()
     msg("PyErr_Clear()\n");
   PYAPI(PyErr_Clear)();
 }
+static inline int PyErr_ExceptionMatches(PyObject *exc)
+{
+  int r = PYAPI(PyErr_ExceptionMatches)(exc);
+  if ( TRACE_REDIRECTED_API )
+    msg("PyErr_ExceptionMatches(%p) = %d\n", exc, r);
+  return r;
+}
 static inline void PyErr_Fetch(PyObject **ptype, PyObject **pvalue, PyObject **ptraceback)
 {
   if ( TRACE_REDIRECTED_API )
@@ -675,6 +682,7 @@ static inline void _Py_Dealloc()
 #define PyBool_Type (*get_extapi()->PyBool_Type_ptr)
 #define PyExc_KeyboardInterrupt (*get_extapi()->PyExc_KeyboardInterrupt_ptr)
 #define PyExc_NotImplementedError (*get_extapi()->PyExc_NotImplementedError_ptr)
+#define PyExc_SystemExit (*get_extapi()->PyExc_SystemExit_ptr)
 #define PyExc_TypeError (*get_extapi()->PyExc_TypeError_ptr)
 #define PyExc_ValueError (*get_extapi()->PyExc_ValueError_ptr)
 #define PyFloat_Type (*get_extapi()->PyFloat_Type_ptr)

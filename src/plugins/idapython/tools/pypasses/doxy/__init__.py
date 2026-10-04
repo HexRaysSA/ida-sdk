@@ -7,6 +7,13 @@ import textwrap
 
 import doxygen_utils
 
+# A module binds one header, but a header may draw part of its API from
+# another (ida_kcu's kc_type_t lives in kcu_minimal.h). doxygen indexes one XML
+# per header, so name the extras here or their documentation is lost.
+EXTRA_MODULE_HEADERS = {
+    "ida_kcu" : ["kcu_minimal"],
+}
+
 COMPOUND_KIND_CLASS = "class"
 COMPOUND_KIND_UNION = "union"
 COMPOUND_KIND_STRUCT = "struct"
@@ -840,6 +847,16 @@ def parse(_opts, _logger):
             with open(path, "r") as f:
                 tree = ET.fromstring(f.read())
             module = module_t(opts.idapython_module_name)
+            # extras first: the module's own header must have the last word
+            # on the module-level description
+            for extra in EXTRA_MODULE_HEADERS.get(opts.idapython_module_name, []):
+                # doxygen replaces underscore with double underscore
+                extra_name = extra.replace("_", "__")
+                extra_path = os.path.join(opts.doxygen_xml, f"{extra_name}_8h.xml")
+                if os.path.isfile(extra_path):
+                    logger.debug(f"Found extra module header: {extra_path}")
+                    with open(extra_path, "r") as f:
+                        module.load_tree(ET.fromstring(f.read()))
             module.load_tree(tree)
 
     # And then create fake "hooks" classes

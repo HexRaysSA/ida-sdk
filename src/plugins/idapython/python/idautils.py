@@ -32,6 +32,7 @@ import ida_xref
 
 import idc
 import types
+import warnings
 import os
 import sys
 
@@ -460,19 +461,44 @@ class Strings(object):
             """string type (STRTYPE_xxxxx)"""
             self.length = si.length
             """string length"""
-            self.decompiler_string = si.decompiler_string
-            """decompiler-generated string"""
+            self.synthetic_string = si.synthetic_string
+            """the text of a string that does not exist in the bytes"""
+            synthetic = ida_nalt.is_synth_strtype(si.type) and si.synthetic_string
+            self.provider = ida_nalt.get_synth_provider_id(si.type) if synthetic else None
+            """the id of the provider that reported a synthetic string
+            (SYNTHSTR_PROVIDER_...), None for a string found in the bytes"""
+
+        @property
+        def decompiler_string(self):
+            """deprecated, see synthetic_string"""
+            key = "StringItem.decompiler_string"
+            if key not in ida_idaapi._emitted_deprecations:
+                ida_idaapi._emitted_deprecations.add(key)
+                # stacklevel=2: attributed to the caller, as _ida_deprecated()
+                # does; its signature helper would point into ida_idaapi
+                warnings.warn(
+                    "StringItem.decompiler_string is deprecated,"
+                    " use StringItem.synthetic_string",
+                    DeprecationWarning,
+                    stacklevel=2)
+            return self.synthetic_string
+
+        def is_synthetic_string(self):
+            """a string reported by a provider (the decompiler, a plugin):
+            its text is in synthetic_string, the bytes at ea are something else"""
+            return self.provider is not None
 
         def is_decompiler_string(self):
-            return self.strtype == ida_nalt.STRTYPE_DECOMP and bool(self.decompiler_string)
+            """a synthetic string that the decompiler built"""
+            return self.provider == ida_strlist.SYNTHSTR_PROVIDER_DECOMPILER
 
         def is_1_byte_encoding(self):
             return ida_nalt.get_strtype_bpu(self.strtype) == 1
 
         def _toseq(self, as_unicode):
-            if self.is_decompiler_string():
-                # decompiler-generated string: text is in the following field
-                s = self.decompiler_string
+            if self.is_synthetic_string():
+                # the string is not in the bytes: its text is in the item
+                s = self.synthetic_string
                 if sys.version_info.major >= 3:
                     return s if as_unicode else s.encode("UTF-8")
                 else:

@@ -37,8 +37,7 @@ idaman bool ida_export select_parser_by_srclang(srclang_t lang);
 
 
 /// Get current parser name.
-/// \param[out] out  the current (selected) parser name,
-///                  is empty for default parser
+/// \param[out] out  the current (selected) parser name
 /// \return success
 
 idaman bool ida_export get_selected_parser_name(qstring *out);

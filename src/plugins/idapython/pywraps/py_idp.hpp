@@ -307,7 +307,6 @@ protected:
 private:
   static ssize_t bool_to_insn_t_size(bool in, const insn_t *insn) { return in ? insn->size : 0; }
   static ssize_t bool_to_1or0(bool in) { return in ? 1 : 0; }
-  static ssize_t cm_t_to_ssize_t(cm_t cm) { return ssize_t(cm); }
   static bool _handle_qstring_output(PyObject *o, qstring *buf)
   {
     bool is_str = o != nullptr && PyUnicode_Check(o);
@@ -352,6 +351,16 @@ private:
   static ssize_t handle_decorate_name3_output(PyObject *o, qstring *outbuf, const char * /*name*/, bool /*mangle*/, int /*cc*/, const tinfo_t * /*type*/)
   {
     return _handle_qstring_output(o, outbuf) ? 1 : 0;
+  }
+  // ev_sanitize_name presents the in/out qstring as a 'str' input; the Python
+  // method returns the rewritten name (str) or None to leave it unchanged.
+  static const char *sanitize_name_input(const qstring *name)
+  {
+    return name != nullptr ? name->c_str() : "";
+  }
+  static ssize_t handle_sanitize_name_output(PyObject *o, qstring *name, callcnv_t /*cc*/, nametype_t /*nt*/)
+  {
+    return _handle_qstring_output(o, name) ? 1 : 0;
   }
   static ssize_t handle_delay_slot_insn_output(PyObject *o, ea_t *pea, bool *pbexec, bool *pfexec)
   {

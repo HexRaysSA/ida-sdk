@@ -109,7 +109,7 @@ typedef qvector<llabel_t> llabels_t;
 /// \retval 1  ok
 /// \retval 0  failed (no function, frame already exists)
 
-idaman DEPRECATED bool ida_export add_frame(
+idaman IDA_DEPRECATED bool ida_export add_frame(
         func_t *pfn,
         sval_t frsize,
         ushort frregs,
@@ -121,7 +121,7 @@ idaman DEPRECATED bool ida_export add_frame(
 /// \param pfn  pointer to function structure
 /// \return success
 
-idaman DEPRECATED bool ida_export del_frame(func_t *pfn);
+idaman IDA_DEPRECATED bool ida_export del_frame(func_t *pfn);
 
 
 /// Set size of function frame.
@@ -136,7 +136,7 @@ idaman DEPRECATED bool ida_export del_frame(func_t *pfn);
 ///                 from the stack upon return
 /// \return success
 
-idaman DEPRECATED bool ida_export set_frame_size(
+idaman IDA_DEPRECATED bool ida_export set_frame_size(
         func_t *pfn,
         asize_t frsize,
         ushort frregs,
@@ -152,14 +152,14 @@ idaman DEPRECATED bool ida_export set_frame_size(
 /// \param pfn  pointer to function structure, may be nullptr
 /// \return size of frame in bytes or zero
 
-idaman DEPRECATED asize_t ida_export get_frame_size(const func_t *pfn);
+idaman IDA_DEPRECATED asize_t ida_export get_frame_size(const func_t *pfn);
 
 
 /// Get size of function return address.
 /// \deprecated Use get_frame_retsize_ea() for safer access.
 /// \param pfn  pointer to function structure, can't be nullptr
 
-idaman DEPRECATED int ida_export get_frame_retsize(const func_t *pfn);
+idaman IDA_DEPRECATED int ida_export get_frame_retsize(const func_t *pfn);
 
 /// Parts of a frame
 enum frame_part_t
@@ -177,7 +177,7 @@ enum frame_part_t
 /// \param pfn    pointer to function structure, can't be nullptr
 /// \param part   frame part
 
-idaman DEPRECATED void ida_export get_frame_part(range_t *range, const func_t *pfn, frame_part_t part);
+idaman IDA_DEPRECATED void ida_export get_frame_part(range_t *range, const func_t *pfn, frame_part_t part);
 
 /// Get type of function frame
 /// \deprecated Use get_func_frame_ea() for safer access.
@@ -185,7 +185,7 @@ idaman DEPRECATED void ida_export get_frame_part(range_t *range, const func_t *p
 /// \param      pfn  pointer to function structure
 /// \return success
 
-idaman DEPRECATED bool ida_export get_func_frame(tinfo_t *out, const func_t *pfn);
+idaman IDA_DEPRECATED bool ida_export get_func_frame(tinfo_t *out, const func_t *pfn);
 
 
 /// Convert struct offsets into fp-relative offsets.
@@ -193,7 +193,7 @@ idaman DEPRECATED bool ida_export get_func_frame(tinfo_t *out, const func_t *pfn
 /// This function converts the offsets inside the udt_type_data_t object
 /// into the frame pointer offsets (for example, EBP-relative).
 
-DEPRECATED inline sval_t soff_to_fpoff(func_t *pfn, uval_t soff)
+IDA_DEPRECATED inline sval_t soff_to_fpoff(func_t *pfn, uval_t soff)
 {
   return pfn != nullptr ? soff - pfn->frsize + pfn->fpd : soff;
 }
@@ -206,7 +206,7 @@ DEPRECATED inline sval_t soff_to_fpoff(func_t *pfn, uval_t soff)
 ///             cannot be bigger than the local variable range size.
 /// \return success
 
-idaman DEPRECATED bool ida_export update_fpd(func_t *pfn, asize_t fpd);
+idaman IDA_DEPRECATED bool ida_export update_fpd(func_t *pfn, asize_t fpd);
 
 
 /// Set the number of purged bytes for a function or data item (funcptr).
@@ -260,7 +260,7 @@ idaman bool ida_export add_stkvar(
 /// \param repr    variable representation
 /// \return success
 
-idaman DEPRECATED bool ida_export define_stkvar(
+idaman IDA_DEPRECATED bool ida_export define_stkvar(
         func_t *pfn,
         const char *name,
         sval_t off,
@@ -278,7 +278,7 @@ idaman DEPRECATED bool ida_export define_stkvar(
 /// \param etf_flags \see ETF_
 /// \return success
 
-idaman DEPRECATED bool ida_export add_frame_member(
+idaman IDA_DEPRECATED bool ida_export add_frame_member(
         const func_t *pfn,
         const char *name,
         uval_t offset,
@@ -323,7 +323,7 @@ idaman bool ida_export is_special_frame_member(tid_t tid);
 /// \param etf_flags \see ETF_
 /// \return success
 
-idaman DEPRECATED bool ida_export set_frame_member_type(
+idaman IDA_DEPRECATED bool ida_export set_frame_member_type(
         const func_t *pfn,
         uval_t offset,
         const tinfo_t &tif,
@@ -338,7 +338,7 @@ idaman DEPRECATED bool ida_export set_frame_member_type(
 /// \param end_offset    member offset which not included in the deletion, in bytes
 /// \return success
 
-idaman DEPRECATED bool ida_export delete_frame_members(
+idaman IDA_DEPRECATED bool ida_export delete_frame_members(
         const func_t *pfn,
         uval_t start_offset,
         uval_t end_offset);
@@ -351,7 +351,7 @@ idaman DEPRECATED bool ida_export delete_frame_members(
 /// \param v    value of variable offset
 /// \return length of stack variable name or -1
 
-idaman DEPRECATED ssize_t ida_export build_stkvar_name(
+idaman IDA_DEPRECATED ssize_t ida_export build_stkvar_name(
         qstring *buf,
         const func_t *pfn,
         sval_t v);
@@ -365,7 +365,7 @@ idaman DEPRECATED ssize_t ida_export build_stkvar_name(
 ///              -1 if error, return #BADADDR
 /// \return #BADADDR if some error (issue a warning if stack frame is bad)
 
-idaman DEPRECATED ea_t ida_export calc_stkvar_struc_offset(
+idaman IDA_DEPRECATED ea_t ida_export calc_stkvar_struc_offset(
         func_t *pfn,
         const insn_t &insn,
         int n);
@@ -379,7 +379,7 @@ idaman DEPRECATED ea_t ida_export calc_stkvar_struc_offset(
 /// \param op   the operand
 /// \return     the offset in the frame
 
-idaman DEPRECATED sval_t ida_export calc_frame_offset(
+idaman IDA_DEPRECATED sval_t ida_export calc_frame_offset(
         func_t *pfn,
         sval_t off,
         const insn_t *insn = nullptr,
@@ -398,7 +398,7 @@ idaman DEPRECATED sval_t ida_export calc_frame_offset(
 /// \param should_reanalyze callback to determine which instructions to reanalyze
 /// \return number of deleted definitions
 
-idaman DEPRECATED int ida_export delete_wrong_frame_info(
+idaman IDA_DEPRECATED int ida_export delete_wrong_frame_info(
         func_t *pfn,
         bool idaapi should_reanalyze(const insn_t &insn));
 
@@ -471,7 +471,7 @@ typedef qvector<regvar_t> regvars_t;
 /// \param cmt      comment for the definition
 /// \return \ref REGVAR_ERROR_
 
-idaman DEPRECATED int ida_export add_regvar(
+idaman IDA_DEPRECATED int ida_export add_regvar(
         func_t *pfn,
         ea_t ea1,
         ea_t ea2,
@@ -491,7 +491,7 @@ idaman DEPRECATED int ida_export add_regvar(
 /// \param user     user-defined name for the register
 /// \return nullptr-not found, otherwise ptr to regvar_t
 
-idaman DEPRECATED regvar_t *ida_export find_regvar(func_t *pfn, ea_t ea1, ea_t ea2, const char *canon, const char *user);
+idaman IDA_DEPRECATED regvar_t *ida_export find_regvar(func_t *pfn, ea_t ea1, ea_t ea2, const char *canon, const char *user);
 
 
 /// Find a register variable definition.
@@ -501,7 +501,7 @@ idaman DEPRECATED regvar_t *ida_export find_regvar(func_t *pfn, ea_t ea1, ea_t e
 /// \param canon  name of a general register
 /// \return nullptr-not found, otherwise ptr to regvar_t
 
-DEPRECATED inline regvar_t *find_regvar(func_t *pfn, ea_t ea, const char *canon)
+IDA_DEPRECATED inline regvar_t *find_regvar(func_t *pfn, ea_t ea, const char *canon)
 {
   if ( pfn == nullptr )
     return nullptr;
@@ -520,7 +520,7 @@ GCC_DIAG_ON(deprecated-declarations)
 /// \param user  new user-defined name for the register
 /// \return \ref REGVAR_ERROR_
 
-idaman DEPRECATED int ida_export rename_regvar(func_t *pfn, regvar_t *v, const char *user);
+idaman IDA_DEPRECATED int ida_export rename_regvar(func_t *pfn, regvar_t *v, const char *user);
 
 
 /// Set comment for a register variable.
@@ -530,7 +530,7 @@ idaman DEPRECATED int ida_export rename_regvar(func_t *pfn, regvar_t *v, const c
 /// \param cmt  new comment
 /// \return \ref REGVAR_ERROR_
 
-idaman DEPRECATED int ida_export set_regvar_cmt(func_t *pfn, regvar_t *v, const char *cmt);
+idaman IDA_DEPRECATED int ida_export set_regvar_cmt(func_t *pfn, regvar_t *v, const char *cmt);
 
 
 /// Delete a register variable definition.
@@ -540,7 +540,7 @@ idaman DEPRECATED int ida_export set_regvar_cmt(func_t *pfn, regvar_t *v, const 
 /// \param canon    name of a general register
 /// \return \ref REGVAR_ERROR_
 
-idaman DEPRECATED int ida_export del_regvar(func_t *pfn, ea_t ea1, ea_t ea2, const char *canon);
+idaman IDA_DEPRECATED int ida_export del_regvar(func_t *pfn, ea_t ea1, ea_t ea2, const char *canon);
 
 ///@} regvar
 
@@ -557,7 +557,7 @@ idaman DEPRECATED int ida_export del_regvar(func_t *pfn, ea_t ea1, ea_t ea2, con
 /// \param delta  difference between old and new values of SP
 /// \return success
 
-idaman DEPRECATED bool ida_export add_auto_stkpnt(func_t *pfn, ea_t ea, sval_t delta);
+idaman IDA_DEPRECATED bool ida_export add_auto_stkpnt(func_t *pfn, ea_t ea, sval_t delta);
 
 
 /// Add user-defined SP register change point.
@@ -574,7 +574,7 @@ idaman bool ida_export add_user_stkpnt(ea_t ea, sval_t delta);
 /// \param ea   linear address
 /// \return success
 
-idaman DEPRECATED bool ida_export del_stkpnt(func_t *pfn, ea_t ea);
+idaman IDA_DEPRECATED bool ida_export del_stkpnt(func_t *pfn, ea_t ea);
 
 
 /// Get difference between the initial and current values of ESP.
@@ -584,7 +584,7 @@ idaman DEPRECATED bool ida_export del_stkpnt(func_t *pfn, ea_t ea);
 /// \return 0 or the difference, usually a negative number.
 ///         returns the sp-diff before executing the instruction.
 
-idaman DEPRECATED sval_t ida_export get_spd(func_t *pfn, ea_t ea);
+idaman IDA_DEPRECATED sval_t ida_export get_spd(func_t *pfn, ea_t ea);
 
 
 /// Get effective difference between the initial and current values of ESP.
@@ -596,7 +596,7 @@ idaman DEPRECATED sval_t ida_export get_spd(func_t *pfn, ea_t ea);
 /// \param ea   linear address
 /// \return 0 or the difference, usually a negative number
 
-idaman DEPRECATED sval_t ida_export get_effective_spd(func_t *pfn, ea_t ea);
+idaman IDA_DEPRECATED sval_t ida_export get_effective_spd(func_t *pfn, ea_t ea);
 
 
 /// Get modification of SP made at the specified location
@@ -606,7 +606,7 @@ idaman DEPRECATED sval_t ida_export get_effective_spd(func_t *pfn, ea_t ea);
 /// \return 0 if the specified location doesn't contain a SP change point.
 ///         otherwise return delta of SP modification.
 
-idaman DEPRECATED sval_t ida_export get_sp_delta(func_t *pfn, ea_t ea);
+idaman IDA_DEPRECATED sval_t ida_export get_sp_delta(func_t *pfn, ea_t ea);
 
 
 /// Add such an automatic SP register change point so that at EA the new
@@ -618,7 +618,7 @@ idaman DEPRECATED sval_t ida_export get_sp_delta(func_t *pfn, ea_t ea);
 /// \param new_spd  new value of the cumulative SP delta
 /// \return success
 
-idaman DEPRECATED bool ida_export set_auto_spd(func_t *pfn, ea_t ea, sval_t new_spd);
+idaman IDA_DEPRECATED bool ida_export set_auto_spd(func_t *pfn, ea_t ea, sval_t new_spd);
 
 
 /// Recalculate SP delta for an instruction that stops execution.
@@ -656,7 +656,7 @@ idaman bool ida_export recalc_spd(ea_t cur_ea);
 ///                instruction. SP delta must be set as a result of
 ///                emulating the current instruction.
 
-idaman DEPRECATED bool ida_export recalc_spd_for_basic_block(func_t *pfn, ea_t cur_ea);
+idaman IDA_DEPRECATED bool ida_export recalc_spd_for_basic_block(func_t *pfn, ea_t cur_ea);
 
 
 /// An xref to an argument or variable located in a function's stack frame
@@ -689,7 +689,7 @@ typedef qvector<xreflist_entry_t> xreflist_t; ///< vector of xrefs to variables 
 /// \param start_offset  start frame structure offset, in bytes
 /// \param end_offset    end frame structure offset, in bytes
 
-idaman DEPRECATED void ida_export build_stkvar_xrefs(xreflist_t *out, func_t *pfn, uval_t start_offset, uval_t end_offset);
+idaman IDA_DEPRECATED void ida_export build_stkvar_xrefs(xreflist_t *out, func_t *pfn, uval_t start_offset, uval_t end_offset);
 
 
 //--------------------------------------------------------------------
@@ -853,27 +853,27 @@ inline sval_t processor_t::lvar_off_ea(ea_t func_ea, uval_t frameoff) const
 /// Get starting address of arguments section
 /// \deprecated Use frame_off_args_ea() for safer access.
 
-DEPRECATED inline ea_t frame_off_args(const func_t *pfn) { return pfn != nullptr ? frame_off_args_ea(pfn->start_ea) : BADADDR; }
+IDA_DEPRECATED inline ea_t frame_off_args(const func_t *pfn) { return pfn != nullptr ? frame_off_args_ea(pfn->start_ea) : BADADDR; }
 
 /// Get starting address of return address section
 /// \deprecated Use frame_off_retaddr_ea() for safer access.
 
-DEPRECATED inline ea_t frame_off_retaddr(const func_t *pfn) { return pfn != nullptr ? frame_off_retaddr_ea(pfn->start_ea) : BADADDR; }
+IDA_DEPRECATED inline ea_t frame_off_retaddr(const func_t *pfn) { return pfn != nullptr ? frame_off_retaddr_ea(pfn->start_ea) : BADADDR; }
 
 /// Get starting address of saved registers section
 /// \deprecated Use frame_off_savregs_ea() for safer access.
 
-DEPRECATED inline ea_t frame_off_savregs(const func_t *pfn) { return pfn != nullptr ? frame_off_savregs_ea(pfn->start_ea) : BADADDR; }
+IDA_DEPRECATED inline ea_t frame_off_savregs(const func_t *pfn) { return pfn != nullptr ? frame_off_savregs_ea(pfn->start_ea) : BADADDR; }
 
 /// Get start address of local variables section
 /// \deprecated Use frame_off_lvars_ea() for safer access.
 
-DEPRECATED inline ea_t frame_off_lvars(const func_t *pfn) { return pfn != nullptr ? frame_off_lvars_ea(pfn->start_ea) : BADADDR; }
+IDA_DEPRECATED inline ea_t frame_off_lvars(const func_t *pfn) { return pfn != nullptr ? frame_off_lvars_ea(pfn->start_ea) : BADADDR; }
 
 /// Does the given offset lie within the arguments section?
 /// \deprecated Use processor_t::is_funcarg_off_ea() for safer access.
 
-DEPRECATED inline bool processor_t::is_funcarg_off(const func_t *pfn, uval_t frameoff) const
+IDA_DEPRECATED inline bool processor_t::is_funcarg_off(const func_t *pfn, uval_t frameoff) const
 {
   if ( pfn == nullptr )
     return false;
@@ -888,7 +888,7 @@ DEPRECATED inline bool processor_t::is_funcarg_off(const func_t *pfn, uval_t fra
 /// Does the given offset lie within the local variables section?
 /// \deprecated Use processor_t::lvar_off_ea() for safer access.
 
-DEPRECATED inline sval_t processor_t::lvar_off(const func_t *pfn, uval_t frameoff) const
+IDA_DEPRECATED inline sval_t processor_t::lvar_off(const func_t *pfn, uval_t frameoff) const
 {
   if ( pfn == nullptr )
     return 0;
@@ -1150,7 +1150,7 @@ inline bool has_func_regvar(ea_t func_ea, ea_t ea)
 /// \param pfn    function in question
 /// \param ea     current address
 
-DEPRECATED inline bool has_regvar(func_t *pfn, ea_t ea) { return pfn != nullptr && has_func_regvar(pfn->start_ea, ea); }
+IDA_DEPRECATED inline bool has_regvar(func_t *pfn, ea_t ea) { return pfn != nullptr && has_func_regvar(pfn->start_ea, ea); }
 
 
 /// Rename a register variable.
