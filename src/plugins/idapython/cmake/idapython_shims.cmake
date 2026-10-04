@@ -32,11 +32,10 @@ endif()
 find_package(idasdk REQUIRED PATHS "${IDASDK_CMAKE}"
     NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
 
-# --- 2. Python / SWIG (find only if the includer hasn't set them) ------
-if(NOT Python3_INCLUDE_DIRS)
-    include("${CMAKE_CURRENT_LIST_DIR}/idapython_python.cmake")
-    ida_find_python()
-endif()
+# --- 2. Python / SWIG -----------------------------------------------------
+# Unconditional: ida_find_python() no-ops if the includer already resolved it.
+include("${CMAKE_CURRENT_LIST_DIR}/idapython_python.cmake")
+ida_find_python()
 
 # SWIG (build-from-source / find + ccache-swig) lives in its own module.
 include("${CMAKE_CURRENT_LIST_DIR}/idapython_swig.cmake")
@@ -57,6 +56,10 @@ endif()
 if(NOT DEFINED ST_SDK_EXTRA)
     set(ST_SDK_EXTRA "")
 endif()
+# Headers the includer staged into ST_SDK_EXTRA.
+if(NOT DEFINED IDASDK_EXTRA_FILES)
+    set(IDASDK_EXTRA_FILES "")
+endif()
 if(NOT DEFINED IDAVER_MAJOR)
     set(IDAVER_MAJOR "${IDA_SDK_MAJOR}")
     set(IDAVER_MINOR "${IDA_SDK_MINOR}")
@@ -74,8 +77,20 @@ if(NOT DEFINED IDA_APPLE_SILICON)
         set(IDA_APPLE_SILICON OFF)
     endif()
 endif()
+# Standalone: the header list the SDK packaging wrote next to idasdkConfig.
 if(NOT IDASDK_FILES)
-    file(GLOB_RECURSE IDASDK_FILES "${ST_SDK_DIR}/*.h" "${ST_SDK_DIR}/*.hpp")
+    set(_hdr_list "${IDASDK_CMAKE}/idasdk_headers.cmake")
+    if(NOT EXISTS "${_hdr_list}")
+        message(FATAL_ERROR
+            "The IDA SDK at IDASDK='${IDASDK}' (version ${idasdk_VERSION}) "
+            "has no cmake/idasdk_headers.cmake, the SDK header list this "
+            "IDAPython build reads. SDKs packaged before it was added (9.4 "
+            "and older) lack it: point IDASDK at the SDK from the same IDA "
+            "release as this IDAPython tree.")
+    endif()
+    include("${_hdr_list}")
+    set(IDASDK_FILES ${IDASDK_HEADERS})
+    list(TRANSFORM IDASDK_FILES PREPEND "${ST_SDK_DIR}/")
 endif()
 
 # Released SDK ships only static-runtime import libs -> force /MT (before targets).
@@ -143,7 +158,6 @@ if(IDA_DOXYGEN_BIN AND EXISTS "${IDA_DOXYGEN_BIN}")
     if(ST_SDK_EXTRA)
         set(_doxy_inc "${ST_SDK_DIR},${ST_SDK_EXTRA}")
     endif()
-    file(GLOB _extra_hdrs "${ST_SDK_EXTRA}/*.h" "${ST_SDK_EXTRA}/*.hpp")
     add_custom_command(OUTPUT "${_doxycfg}"
         COMMAND "${IDA_PYTHON}" "${_gh}/gendoxycfg.py"
             -i "${_gh}/doxy_gen_notifs.cfg.in" -o "${_doxycfg}"
@@ -157,7 +171,7 @@ if(IDA_DOXYGEN_BIN AND EXISTS "${IDA_DOXYGEN_BIN}")
         COMMAND "${IDA_DOXYGEN_BIN}" "${_doxycfg}"
         COMMAND ${CMAKE_COMMAND} -E touch "${PARSED_HEADERS_MARKER}"
         WORKING_DIRECTORY "${GEN}"
-        DEPENDS "${_doxycfg}" ${IDASDK_FILES} ${_extra_hdrs}
+        DEPENDS "${_doxycfg}" ${IDASDK_FILES} ${IDASDK_EXTRA_FILES}
         COMMENT "doxygen: generating parsed headers"
         VERBATIM)
 else()

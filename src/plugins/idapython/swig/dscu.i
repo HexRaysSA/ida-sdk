@@ -13,64 +13,6 @@
 %feature("nodirector") dscu_svc_t;
 
 //-------------------------------------------------------------------------
-// intvec_t *out
-//-------------------------------------------------------------------------
-%typemap(in,numinputs=0) intvec_t *out (intvec_t temp)
-{
-  // %typemap(in,numinputs=0) intvec_t *out (intvec_t temp)
-  $1 = &temp;
-}
-%typemap(argout) intvec_t *out
-{
-  // %typemap(argout) intvec_t *out
-  if ( result )
-  {
-    ref_t py_list(PyW_IntVecToPyList(*($1)));
-    py_list.incref();
-    $result = py_list.o;
-  }
-  else
-  {
-    Py_INCREF(Py_None);
-    $result = Py_None;
-  }
-}
-%typemap(freearg) intvec_t *out
-{
-  // %typemap(freearg) intvec_t *out
-  // Nothing. We certainly do not want 'temp' to be deleted.
-}
-
-//-------------------------------------------------------------------------
-// sizevec_t *out
-//-------------------------------------------------------------------------
-%typemap(in,numinputs=0) sizevec_t *out (sizevec_t temp)
-{
-  // %typemap(in,numinputs=0) sizevec_t *out (sizevec_t temp)
-  $1 = &temp;
-}
-%typemap(argout) sizevec_t *out
-{
-  // %typemap(argout) sizevec_t *out
-  if ( result )
-  {
-    ref_t py_list(PyW_SizeVecToPyList(*($1)));
-    py_list.incref();
-    $result = py_list.o;
-  }
-  else
-  {
-    Py_INCREF(Py_None);
-    $result = Py_None;
-  }
-}
-%typemap(freearg) sizevec_t *out
-{
-  // %typemap(freearg) sizevec_t *out
-  // Nothing. We certainly do not want 'temp' to be deleted.
-}
-
-//-------------------------------------------------------------------------
 %extend region_info_t
 {
   inline qstring __str__() const
@@ -200,28 +142,10 @@
   $result = SWIG_NewPointerObj(inst, $1_descriptor, SWIG_POINTER_OWN);
 }
 
-//-------------------------------------------------------------------------
-// range_t *out
-//-------------------------------------------------------------------------
-%typemap(in,numinputs=0) range_t *out (range_t temp)
-{
-  // %typemap(in,numinputs=0) range_t *out (range_t temp)
-  $1 = &temp;
-}
-%typemap(argout) range_t *out
-{
-  // %typemap(argout) range_t *out
-  Py_XDECREF($result);
-  auto *inst = new range_t();
-  if ( result )
-    *inst = *$1;
-  $result = SWIG_NewPointerObj(inst, $1_descriptor, SWIG_POINTER_OWN);
-}
-%typemap(freearg) range_t *out
-{
-  // %typemap(freearg) range_t *out
-  // Nothing. We certainly do not want 'temp' to be deleted.
-}
+// opt into the shared range_t output typemap (defined in header.i.in)
+%apply sizevec_t *result_list { sizevec_t *out };
+%apply intvec_t *result_list { intvec_t *out };
+%apply range_t *result_range { range_t *out };
 
 //-------------------------------------------------------------------------
 // dependency_match_result_t *out

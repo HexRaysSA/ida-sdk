@@ -58,7 +58,7 @@ for mod in all_mods.split(","):
         # Module not present in this installation. Skip silently.
         continue
     except ImportError as e:
-        # Module is present but failed to load — most often a missing
+        # Module is present but failed to load - most often a missing
         # native dependency (e.g. _ida_*.pyd can't bind to ida.dll /
         # idapython3.dll because of an ABI mismatch). Log and carry on
         # so the rest of IDAPython stays available.
@@ -66,7 +66,7 @@ for mod in all_mods.split(","):
         for p in sys.path:
             print("\t%s" % p)
     except Exception as e:
-        # Any other exception during module init — log and continue.
+        # Any other exception during module init - log and continue.
         print("Cannot load module ida_%s: %s" % (mod, e))
         import traceback
         traceback.print_exc()
@@ -92,18 +92,18 @@ class IDAPythonStdOut:
         return False
 
 # -----------------------------------------------------------------------
+@ida_idaapi._ida_deprecated("run_script")
 def runscript(script):
     """
     Executes a script.
-    This function is present for backward compatiblity. Please use idaapi.IDAPython_ExecScript() instead
+
+    Deprecated: use ida_idaapi.run_script() instead.
 
     :param script: script path
 
-    :returns: Error string or None on success
+    :returns: the script's resulting globals dictionary
     """
-
-    import ida_idaapi
-    return ida_idaapi.IDAPython_ExecScript(script, globals())
+    return ida_idaapi.run_script(script, init_globals=globals())
 
 # -----------------------------------------------------------------------
 def print_banner():
@@ -174,7 +174,7 @@ if IDAPYTHON_COMPAT_AUTOIMPORT_MODULES:
     # re-import every ida_* module via `from ida_X import *`; if any
     # of those modules failed to load above (e.g. ABI mismatch, missing
     # native dependency), the wrapper raises ImportError. Catch it so
-    # the rest of init.py — and any IDAPython subset that DID load —
+    # the rest of init.py and any IDAPython subset that DID load 
     # remains usable.
     try:
         from idaapi import get_user_idadir, cvar, Appcall, Form
@@ -204,7 +204,12 @@ if sys.version_info.major >= 3:
 # Load the users personal init file
 userrc = os.path.join(ida_diskio.get_user_idadir(), "idapythonrc.py")
 if os.path.exists(userrc):
-    ida_idaapi.IDAPython_ExecScript(userrc, globals())
+    try:
+        ida_idaapi.run_script(userrc, init_globals=globals())
+    except Exception as e:
+        print("Error executing %s: %s" % (userrc, e))
+        import traceback
+        traceback.print_exc()
 
 # -----------------------------------------------------------------------
 # Exit-time cleanup of Python-held Qt widgets.

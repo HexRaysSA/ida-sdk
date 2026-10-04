@@ -182,6 +182,17 @@
 
 %numbers_list_to_values_vec(ea64vec_t, SWIGTYPE_p_qvectorT_unsigned_long_long_t, PyW_PySeqToEa64Vec);
 
+// kernel-only members: not exported, and not part of the Python API
+%ignore lumina_client_t::get_func_histories;
+%ignore lumina_client_t::sleep;
+%ignore lumina_client_t::trigger_interr;
+%ignore lumina_client_t::call_hexrays_server;
+%ignore lumina_client_t::push_tlm;
+%ignore lumina_client_t::try_reconnect;
+%ignore lumina_client_t::create_failure_packet;
+%ignore lumina_client_t::is_handshake_packet;
+
+%include "lumina_protocol.hpp"
 %include "lumina.hpp"
 
 %inline %{

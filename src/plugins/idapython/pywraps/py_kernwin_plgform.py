@@ -143,29 +143,8 @@ class PluginForm(object):
         return TWidget__from_ptrval__(result[0])
 
 
-    @staticmethod
-    def TWidgetToPySideWidget(tw, ctx = sys.modules['__main__']):
-        """
-        Use this method to convert a TWidget* to a QWidget to be used by PySide
-
-        :param ctx: Context. Reference to a module that already imported QtWidgets module
-        """
-        if tw is None:
-            return None
-        if type(tw).__name__ == "SwigPyObject":
-            # Since 'tw' is a SwigPyObject, we first need to convert it to a PyCapsule.
-            # However, there's no easy way of doing it, so we'll use a rather brutal approach:
-            # converting the SwigPyObject to a 'long' (will go through 'SwigPyObject_long',
-            # that will return the pointer's value as a long), and then convert that value
-            # back to a pointer into a PyCapsule.
-            ptr_l = ida_idaapi.long_type(tw)
-            # Warning: this is untested
-            import ctypes
-            ctypes.pythonapi.PyCapsule_New.restype = ctypes.py_object
-            ctypes.pythonapi.PyCapsule_New.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_void_p]
-            tw = ctypes.pythonapi.PyCapsule_New(ptr_l, PluginForm.VALID_CAPSULE_NAME, 0)
-        return ctx.QtGui.QWidget.FromCapsule(tw)
-    FormToPySideWidget = TWidgetToPySideWidget
+    TWidgetToPySideWidget = TWidgetToQtPythonWidget
+    FormToPySideWidget = TWidgetToQtPythonWidget
 
     def OnCreate(self, form):
         """
