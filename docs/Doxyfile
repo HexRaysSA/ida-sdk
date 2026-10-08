@@ -47,8 +47,10 @@ PROJECT_NAME           = "IDA C++ SDK"
 # The PROJECT_NUMBER tag can be used to enter a project or revision number. This
 # could be handy for archiving the generated documentation or if some version
 # control system is used.
+# SDK_VERSION is derived from IDA_SDK_VERSION in src/include/pro.h,
+# e.g. 940 -> 9.4.
 
-PROJECT_NUMBER         = 9.2
+PROJECT_NUMBER         = $(SDK_VERSION)
 
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewers a
@@ -2522,7 +2524,7 @@ INCLUDE_FILE_PATTERNS  =
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
 PREDEFINED             = __cplusplus \
-                         __X86__ \
+                         __EA64__ \
                          __NT__ \
                          _MSC_VER \
                          UNICODE \
