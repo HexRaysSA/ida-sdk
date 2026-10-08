@@ -1,7 +1,7 @@
 name: Release
 
 # On a vX.Y.Z-release tag (or manual dispatch), publish a DRAFT GitHub Release
-# with separate per-component archives + checksums: SDK, IDAPython (3.9,
+# with separate per-component archives + checksums: SDK, IDAPython (3.10,
 # unlabelled), and debug server, one each per platform, plus SDK docs.
 #
 # Reuse: if build.yml already succeeded for this exact commit and its
@@ -50,7 +50,7 @@ jobs:
 
           # Artifacts the release actually packages.
           REQUIRED="sdk-build-windows sdk-build-linux sdk-build-macos
-                    idapython-windows-py3.9 idapython-linux-py3.9 idapython-macos-py3.9
+                    idapython-windows-py3.10 idapython-linux-py3.10 idapython-macos-py3.10
                     dbgserver-linux dbgserver-linux-ea32 dbgserver-windows dbgserver-windows-ea32
                     sdk-docs-html"
 
@@ -163,8 +163,8 @@ jobs:
           stage_into "$A/sdk-build-$plat" "ida-sdk-$plat" \
             && pack "ida-sdk-$plat" "$plat"
 
-          # IDAPython plugin (Python 3.9)
-          stage_into "$A/idapython-$plat-py3.9" "idapython-$plat" \
+          # IDAPython plugin (Python 3.10)
+          stage_into "$A/idapython-$plat-py3.10" "idapython-$plat" \
             && pack "idapython-$plat" "$plat"
 
           # Debug servers (Linux/Windows only): 64- and 32-bit into one archive
