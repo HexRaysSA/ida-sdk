@@ -54,7 +54,7 @@ To build:
 
 To use the SDK:
 
-- **IDA 9.2**
+- **IDA** of the same version as the SDK you build against
 
 ## Repository fundamentals 
 

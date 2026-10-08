@@ -109,6 +109,15 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y doxygen
 
+    # The Doxyfile sets PROJECT_NUMBER = $(SDK_VERSION), so the docs are
+    # labelled with the version the headers target: IDA_SDK_VERSION in pro.h
+    # is major*100 + minor*10 (940 -> 9.4).
+    - name: Resolve SDK version
+      run: |
+        v=$(sed -n 's/^#define IDA_SDK_VERSION[[:space:]]*\([0-9]\+\).*/\1/p' src/include/pro.h)
+        test -n "$v" || { echo "IDA_SDK_VERSION not found in src/include/pro.h"; exit 1; }
+        echo "SDK_VERSION=$((v / 100)).$((v / 10 % 10))" >> "$GITHUB_ENV"
+
     # Doxyfile has OUTPUT_DIRECTORY = build/ (relative), so this writes to
     # docs/build/html/. WARN_AS_ERROR is off, so the usual cross-reference
     # warnings do not fail the job; a genuine Doxygen error still does.
