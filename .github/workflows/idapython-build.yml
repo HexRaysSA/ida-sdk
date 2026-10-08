@@ -38,22 +38,11 @@ jobs:
       with:
         arch: x64
 
-    # Use the official SWIG release via choco (Cygwin's swig has a different
-    # directory structure and is not compatible).
-    - name: Install SWIG (Windows)
-      if: runner.os == 'Windows'
-      run: choco install swig -y
-
     - name: Install build dependencies (Linux)
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential swig zip unzip
-
-    - name: Install build dependencies (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        brew install swig
+        sudo apt-get install -y build-essential zip unzip
 
     - name: Setup Python
       uses: actions/setup-python@v5

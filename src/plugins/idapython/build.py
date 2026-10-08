@@ -31,13 +31,12 @@ DEFAULT_IDASDK = SCRIPT_DIR.parent.parent
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter,
     epilog=r"""
-A recent version of SWIG (4.2.0+) is required to produce reliable bindings. If
-your platform's package manager ships an older SWIG, build 4.2.0+ from source and
-pass its path with '--swig'.
+CMake finds or installs the pinned SWIG version (see BUILDING.md).
+Use '--swig' to select another SWIG 4.2.0+ executable.
 
 Example build commands:
 
-  # run from inside an SDK tree (SDK auto-detected), SWIG on PATH
+  # run from inside an SDK tree (SDK auto-detected)
   python3 build.py
 
   # explicit SDK + SWIG
@@ -49,7 +48,7 @@ parser.add_argument(
          "or set the IDASDK env var).")
 parser.add_argument(
     "--swig", type=Path, default=None,
-    help="Path to the SWIG 4.2.0+ executable (default: SWIG env var or PATH)")
+    help="Path to SWIG 4.2.0+ (default: SWIG env var, then the pinned version)")
 parser.add_argument(
     "--build-dir", type=Path, default=SCRIPT_DIR / "build",
     help="CMake build directory (default: ./build)")
@@ -70,14 +69,10 @@ def run(argv):
     subprocess.check_call([str(a) for a in argv])
 
 
-def get_swig_or_raise():
-    """Resolve the SWIG executable."""
-    swig = parser_args.swig or os.environ.get("SWIG") or shutil.which("swig")
-    if not swig:
-        raise EnvironmentError(
-            "SWIG executable not found. Install SWIG 4.2.0+ or pass --swig "
-            "(or set the SWIG environment variable).")
-    return str(Path(swig))
+def get_swig():
+    """Return the requested SWIG path, or None."""
+    swig = parser_args.swig or os.environ.get("SWIG")
+    return str(Path(swig)) if swig else None
 
 
 def main():
@@ -95,8 +90,10 @@ def main():
         "cmake", "-S", SCRIPT_DIR, "-B", build_dir,
         f"-DIDASDK={idasdk}",
         f"-DCMAKE_BUILD_TYPE={build_type}",
-        f"-DIDA_SWIG={get_swig_or_raise()}",
     ]
+    swig = get_swig()
+    if swig:
+        configure.append(f"-DIDA_SWIG={swig}")
     if shutil.which("ninja"):
         configure += ["-G", "Ninja"]
     run(configure)

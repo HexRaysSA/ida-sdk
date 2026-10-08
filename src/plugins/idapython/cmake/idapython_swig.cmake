@@ -55,13 +55,16 @@ function(_ida_build_swig version)
     set(IDA_SWIG "${_swig}" PARENT_SCOPE)
 endfunction()
 
-# SWIG: explicit IDA_SWIG > find_package > pip-installed wheel. IDA_SWIG_VERSION is
-# unset here by default (public); when set it pins find + pip. Floor is the min.
+# IDA_SWIG_VERSION pins both find_package and the pip install; empty accepts any
+# installed SWIG >= the floor.
 set(IDA_SWIG_MIN_VERSION "4.2.0")
 option(IDA_SWIG_FROM_PYPI "Skip the search and install SWIG from PyPI" OFF)
-# Pip-installed when IDA_SWIG_VERSION is unset. 4.4.1 is the first release with
-# arm wheels, and carries the PyImport_AddModuleRef fix 4.4.0 lacked.
+# 4.4.1 is the first release with arm wheels, and carries the
+# PyImport_AddModuleRef fix 4.4.0 lacked. Pinned so that the SWIG a machine
+# happens to have cannot change the generated bindings.
 set(_swig_build_default "4.4.1")
+set(IDA_SWIG_VERSION "${_swig_build_default}" CACHE STRING
+    "SWIG version to use (empty: any installed >= ${IDA_SWIG_MIN_VERSION})")
 # A pinned version below the floor can never pass the check below - fail now,
 # before find_package or a pointless pip download.
 if(IDA_SWIG_VERSION AND IDA_SWIG_VERSION VERSION_LESS IDA_SWIG_MIN_VERSION)
