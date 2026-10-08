@@ -16,7 +16,7 @@ jobs:
   build-dbgserver:
     uses: ./.github/workflows/dbgserver-build.yml
 
-  # build-idapython -> windows|linux|macos, each with py3.9..py3.14
+  # build-idapython -> windows|linux|macos, each with py3.10..py3.15
   # Self-contained; runs in parallel with build-sdk (no dependency).
   build-idapython:
     uses: ./.github/workflows/idapython-os.yml
