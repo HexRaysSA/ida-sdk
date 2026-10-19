@@ -38,27 +38,20 @@ jobs:
       with:
         arch: x64
 
-    # Use the official SWIG release via choco (Cygwin's swig has a different
-    # directory structure and is not compatible).
-    - name: Install SWIG (Windows)
-      if: runner.os == 'Windows'
-      run: choco install swig -y
-
     - name: Install build dependencies (Linux)
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential swig zip unzip
-
-    - name: Install build dependencies (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        brew install swig
+        sudo apt-get install -y build-essential zip unzip
 
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python }}
+
+    # Install SWIG from PyPI, pinned.
+    - name: Install SWIG
+      run: python -m pip install swig==4.4.1
 
     - name: Build IDAPython
       working-directory: src/plugins/idapython
