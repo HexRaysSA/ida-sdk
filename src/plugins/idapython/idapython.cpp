@@ -2211,6 +2211,22 @@ static bool strip_leading_whitespace(qstring *lines)
 }
 
 //-------------------------------------------------------------------------
+// Print the pending Python error; PyErr_Print() would terminate
+// the process on SystemExit
+static void print_cli_error()
+{
+  if ( PyErr_ExceptionMatches(PyExc_SystemExit) )
+  {
+    PyErr_Clear();
+    msg("SystemExit ignored. Use File > Quit or qexit(0) to close IDA.\n");
+  }
+  else
+  {
+    PyErr_Print();
+  }
+}
+
+//-------------------------------------------------------------------------
 // Execute a line in the Python CLI
 bool idapython_plugin_t::_cli_execute_line(const char *line)
 {
@@ -2269,7 +2285,11 @@ bool idapython_plugin_t::_cli_execute_line(const char *line)
       PyErr_Clear();
 
       // Run as a string
-      extapi.PyRun_SimpleStringFlags_ptr(line, nullptr);
+      PyObject *py_globals = _get_module_globals();
+      newref_t py_result(extapi.PyRun_StringFlags_ptr(
+                              line, Py_file_input, py_globals, py_globals, nullptr));
+      if ( !py_result )
+        print_cli_error();
     }
     else
     {
@@ -2278,7 +2298,7 @@ bool idapython_plugin_t::_cli_execute_line(const char *line)
 
       if ( !py_result || PyErr_Occurred() )
       {
-        PyErr_Print();
+        print_cli_error();
       }
       else
       {
@@ -2365,10 +2385,8 @@ bool idapython_plugin_t::_handle_file(
     globals = _get_module_globals();
   if ( globals != _get_module_globals() )
   {
-    // Executions that take place in the scope of their own module,
-    // should have the '__file__' attribute properly set (so that
-    // it doesn't just get temporarily set and then removed by
-    // `ida_idaapi.IDAPython_ExecScript`.
+    // Executions that take place in the scope of their own module
+    // should have the '__file__' attribute set to the script path.
     newref_t py_file_key(PyUnicode_FromString(S_FILE));
     if ( !PyDict_Contains(globals, py_file_key.o) )
       PyDict_SetItem(globals, py_file_key.o, py_script.o);

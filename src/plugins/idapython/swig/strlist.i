@@ -2,6 +2,13 @@
 #include <strlist.hpp>
 %}
 
+%uncomparable_elements_qvector(synth_string_t, synth_strings_t);
+
+// TEXTS is a list of str: without compactdefaultargs the overload for the
+// defaulted FLAGS needs a typecheck that const qstrvec_t & does not have
+%feature("compactdefaultargs") synth_string_set;
+%feature("compactdefaultargs") synth_string_provider_t::set;
+
 %ignore strwinsetup_t::setup_strings_window;
 %ignore strwinsetup_t::save_config;
 %ignore strwinsetup_t::restore_config;

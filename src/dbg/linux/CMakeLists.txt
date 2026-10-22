@@ -9,8 +9,13 @@ set(_linux_hdrs
     ../../plugins/dwarf/look_for_debug_file.cpp
     ../../ldr/elf/common.cpp ../../ldr/elf/reader.cpp)
 # --undefined-version: lld rejects PLUGIN-naming scripts that gnu ld tolerates.
+include(CheckLinkerFlag)
+check_linker_flag(CXX "-Wl,--undefined-version" IDA_LD_UNDEFINED_VERSION)
 set(_linux_script
-    "-Wl,--undefined-version -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/linux_debmod.script")
+    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/linux_debmod.script")
+if(IDA_LD_UNDEFINED_VERSION)
+    string(PREPEND _linux_script "-Wl,--undefined-version ")
+endif()
 
 # Local Linux debugger plugin (Linux host only).
 if(IDA_PLATFORM_NAME STREQUAL "linux" AND IDA_BUILD_IDA AND IDA_EA64)
@@ -27,7 +32,13 @@ endif()
 
 # Debug server (Linux host only).
 if(IDA_PLATFORM_NAME STREQUAL "linux" AND IDA_BUILD_DBGSRV)
-    set(_linux_server_name "linux_server${IDA_SUFF32}")
+    if(IDA_ARCH STREQUAL "armhf")
+        set(_linux_server_name "armlinux_serverhf32")
+    elseif(IDA_ARCH STREQUAL "arm")
+        set(_linux_server_name "armlinux_server32")
+    else()
+        set(_linux_server_name "linux_server${IDA_SUFF32}")
+    endif()
     add_executable(${_linux_server_name} ${_linux_base} ${_linux_hdrs})
     set_source_files_properties(${_linux_hdrs} PROPERTIES HEADER_FILE_ONLY TRUE)
     target_include_directories(${_linux_server_name} PRIVATE

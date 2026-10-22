@@ -542,7 +542,8 @@ idaman void   ida_export del_str_type(ea_t ea);
 #define STRLYT_PASCAL1 1
 #define STRLYT_PASCAL2 2
 #define STRLYT_PASCAL4 3
-#define STRLYT_DECOMP  4
+#define STRLYT_SYNTH   4      // not in the bytes, see STRTYPE_SYNTH
+#define STRLYT_DECOMP  STRLYT_SYNTH // compatibility alias
 #define STRLYT_MASK 0xFC
 #define STRLYT_SHIFT 2
 
@@ -574,8 +575,14 @@ idaman void   ida_export del_str_type(ea_t ea);
 #define STRTYPE_LEN4_16   (STRWIDTH_2B|STRLYT_PASCAL4<<STRLYT_SHIFT)
 /// Pascal-style, 32-bit chars, four-byte length prefix
 #define STRTYPE_LEN4_32   (STRWIDTH_4B|STRLYT_PASCAL4<<STRLYT_SHIFT)
-/// Synthetic, decompiler generated string (0x10)
-#define STRTYPE_DECOMP    (STRWIDTH_1B|STRLYT_DECOMP<<STRLYT_SHIFT)
+/// Synthetic, string list only: the string does not exist in the bytes and
+/// carries its own text (e.g. built by the decompiler, or recovered by a
+/// plugin from immediates). The second byte is the id of the provider that
+/// reported it, see \ref SYNTHSTR_PROVIDER_. (0x10)
+#define STRTYPE_SYNTH     (STRWIDTH_1B|STRLYT_SYNTH<<STRLYT_SHIFT)
+/// Synthetic, decompiler generated string: #STRTYPE_SYNTH with
+/// #SYNTHSTR_PROVIDER_DECOMPILER in the second byte (0x110)
+#define STRTYPE_DECOMP    (STRTYPE_SYNTH|(1<<8))
 ///@}
 
 /// \name Work with string type codes
@@ -631,6 +638,26 @@ inline THREAD_SAFE size_t get_str_type_prefix_length(int32 strtype)
       return 1;
   }
   return 0;
+}
+///@}
+
+/// \name Synthetic strings
+/// A synthetic string does not exist in the bytes: a provider - the
+/// decompiler, or a plugin - reported it and it carries its own text, see
+/// string_info_ex_t::synthetic_string and strlist.hpp.
+///@{
+
+/// Does STRTYPE belong to a synthetic string?
+inline THREAD_SAFE bool is_synth_strtype(int32 strtype)
+{
+  return get_str_type_code(strtype) == STRTYPE_SYNTH;
+}
+
+/// Who reported the synthetic string, see \ref SYNTHSTR_PROVIDER_
+
+inline THREAD_SAFE uchar get_synth_provider_id(int32 strtype)
+{
+  return uchar(strtype >> 8);
 }
 ///@}
 
@@ -1368,6 +1395,7 @@ inline void idaapi del_op_tinfo(ea_t ea, int n) { set_op_tinfo(ea, n, nullptr); 
 #define RIDX_ALT_IDSNODE        uval_t(-7) ///< ids modnode id (for import_module)
 #define RIDX_ALT_FSIZE          uval_t(-8) ///< input file size
 #define RIDX_ALT_OUTFILEENC     uval_t(-9) ///< output file encoding index
+#define RIDX_ALT_NAME_POLICY    uval_t(-10)///< name-garbling policy (GarbleNames) fixed at creation
 ///@}
 
 //---------------------------------------------------------------------------

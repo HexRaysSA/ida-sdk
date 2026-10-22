@@ -178,6 +178,77 @@ def ask_str(defval, hist, prompt):
     """
     pass
 
+def ask_ident2(defval: str, prompt: str) -> bool:
+    """
+    Display a dialog box and wait for the user to input an identifier
+
+    If the user enters an invalid identifier, a warning is displayed and the
+    user can correct it. CPU register names are permitted.
+
+    Only the success flag is returned; the identifier the user typed is
+    written to an output parameter that is not accessible from Python.
+    Use ask_ident() to obtain the identifier itself.
+
+    :param defval: the initial value
+    :param prompt: the question to ask
+    :returns: False if the user cancelled the dialog, True otherwise
+    """
+    pass
+
+def ask_yn(deflt: int, prompt: str) -> int:
+    """
+    Display a dialog box and get a choice from "Yes", "No", "Cancel"
+
+    :param deflt: the default choice, one of the ASKBTN_ constants
+    :param prompt: the question to ask
+    :returns: the selected button, one of the ASKBTN_ constants.
+              Esc returns ASKBTN_CANCEL
+    """
+    pass
+
+def ask_buttons(yes: str, no: str, cancel: str, deflt: int, prompt: str) -> int:
+    """
+    Display a dialog box with up to three buttons
+
+    Pass "" or None for a button to give it its default name. The prompt may
+    start with "HIDECANCEL
+" to hide the Cancel button, or "HIDENO
+" to
+    hide the No button.
+
+    :param yes: text for the first button
+    :param no: text for the second button
+    :param cancel: text for the third button
+    :param deflt: the default choice, one of the ASKBTN_ constants
+    :param prompt: the question to ask
+    :returns: the selected button, one of the ASKBTN_ constants.
+              Esc returns the value of the third button
+    """
+    pass
+
+def ask_file(
+        for_saving: bool,
+        defval: Union[str, None],
+        prompt: str) -> Union[str, None]:
+    """
+    Display a dialog box and wait for the user to select a file.
+
+    The prompt can start with ``FILTER `` followed by a filter description,
+    a newline, and the dialog title. A filter description has the form
+    ``description1|wildcard1|...|descriptionN|wildcardN``. Multiple wildcards
+    in one entry are separated with semicolons.
+
+    >>> ask_file(False, None,
+    ...          "FILTER Text files|*.txt|Programs|*.exe;*.dll\\n"
+    ...          "Select a file")
+
+    :param for_saving: Whether the file will be used for saving
+    :param defval: The initial file name or wildcard, or None
+    :param prompt: The dialog title, optionally prefixed with a filter
+    :returns: the selected file name, or None if the dialog was canceled
+    """
+    pass
+
 def ask_long(defval: int, prompt: str) -> Union[int, None]:
     """
     Display a dialog box and wait for the user to input a number
@@ -398,11 +469,50 @@ def warning(message):
     """
     pass
 
+def info(message: str) -> int:
+    """
+    Display an info message box and wait for the user to press Enter or Esc
+
+    The box carries a "Don't display this message again" checkbox. Once
+    checked, the message is never shown again; the choice is persisted.
+
+    :param message: message to print
+    :returns: < 0 if the message was inhibited, >= 0 otherwise
+    """
+    pass
+
 def error(message):
     """
     Display a fatal message in a message box and quit IDA
 
     :param format: message to print
+    """
+    pass
+
+def ask_for_feedback(message: str) -> None:
+    """
+    Show a message box asking the user to send the input file to Hex-Rays support
+
+    :param message: the reason why the input file is bad
+    """
+    pass
+
+def replace_wait_box(label: str) -> None:
+    """
+    Replace the label of the "Please wait" dialog box
+
+    :param label: the new label
+    """
+    pass
+
+def nomem(message: str) -> None:
+    """
+    Display an out-of-memory message box and quit IDA
+
+    'message' names what could not be allocated; it is shown as
+    "No memory for module <message>". This function does not return.
+
+    :param message: name of the module or allocation that failed
     """
     pass
 

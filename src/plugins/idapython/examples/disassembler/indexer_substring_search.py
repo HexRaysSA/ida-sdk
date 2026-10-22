@@ -31,6 +31,7 @@ import ida_indexer
 SUBIDX_NAMES = {
     ida_indexer.SUBIDX_FUNCTIONS:                    "function",
     ida_indexer.SUBIDX_LTYPES:                       "local type",
+    ida_indexer.SUBIDX_LTYPE_MEMBERS:                "type member",
     ida_indexer.SUBIDX_NAMES:                        "name",
     ida_indexer.SUBIDX_SEGMENTS:                     "segment",
     ida_indexer.SUBIDX_FUNCTION_COMMENTS:            "func comment",

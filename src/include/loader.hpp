@@ -1011,7 +1011,7 @@ idaman bool ida_export save_database(
 /// Used to manage saving/closing of a database
 ///@{
 #define DBFL_KILL       0x01            ///< delete unpacked database
-#define DBFL_COMP       0x02            ///< collect garbage
+#define DBFL_COMP       0x02            ///< compact database (drop unused data)
 #define DBFL_BAK        0x04            ///< create backup file (if !DBFL_KILL)
 #define DBFL_TEMP       0x08            ///< temporary database
 ///@}

@@ -189,9 +189,6 @@ struct point_t
     x = -x;
     y = -y;
   }
-#ifdef VCL_H
-  point_t(const TPoint &p) : x(p.x), y(p.y) {}
-#endif
   bool operator ==(const point_t &r) const { return x == r.x && y == r.y; }
   bool operator !=(const point_t &r) const { return !(*this == r); }
   const char *idaapi dstr(void) const;
@@ -324,11 +321,6 @@ struct rect_t
   }
   bool idaapi operator != (const rect_t &r) const { return !(*this == r); }
   bool idaapi operator < (const rect_t &r) const;
-#ifdef VCL_H
-  const TRect &operator()(void) const { return *(TRect *)this; }
-        TRect &operator()(void)       { return *(TRect *)this; }
-  rect_t(const TRect &r) : left(r.left), top(r.top), right(r.right), bottom(r.bottom) {}
-#endif
 };
 DECLARE_TYPE_AS_MOVABLE(rect_t);
 
@@ -496,14 +488,6 @@ struct edge_segment_t
   bool idaapi operator < (const edge_segment_t &r) const
   {
     return e < r.e;
-/*    // longest edges first
-    int ll =   x1 -   x0; if ( ll < 0 ) ll = -ll;
-    int rl = r.x1 - r.x0; if ( rl < 0 ) rl = -rl;
-    if ( rl < ll )
-      return true;
-    if ( rl == ll )
-      return e < r.e;
-    return false;*/
   }
 };
 
@@ -876,6 +860,7 @@ struct edge_infos_wrapper_t
 class interactive_graph_t : public drawable_graph_t
 {
   typedef drawable_graph_t inherited;
+  friend struct graph_dispatcher_t;
   int idaapi _find_subgraph_node(int group, int n) const;
   void idaapi collapse_edges(const intvec_t &nodes, int group);
   void idaapi del_node_keep_edges(int n);
@@ -1124,9 +1109,20 @@ protected:
 };
 
 //-------------------------------------------------------------------------
+// In the kernel these macros inject kernel-only graph notification codes.
+#ifndef GRAPH_INTERNAL_CALLBACK_NOTIFICATIONS
+#define GRAPH_INTERNAL_CALLBACK_NOTIFICATIONS
+#endif
+#ifndef GRAPH_INTERNAL_CALLGATE_NOTIFICATIONS
+#define GRAPH_INTERNAL_CALLGATE_NOTIFICATIONS
+#endif
+
 /// Graph notification codes
 enum graph_notification_t
 {
+  // kernel-only codes are injected by GRAPH_INTERNAL_CALLBACK_NOTIFICATIONS
+  // and GRAPH_INTERNAL_CALLGATE_NOTIFICATIONS
+
   // Callbacks called by IDA (plugins can hook to them):
 
   grcode_calculating_layout,  ///< calculating user-defined graph layout.
@@ -1275,6 +1271,7 @@ enum graph_notification_t
                               ///< \param g   (::interactive_graph_t *)
                               ///< \retval 0  must return 0
 
+  GRAPH_INTERNAL_CALLBACK_NOTIFICATIONS
 
   //-------------------------------------------------------------------------
   // Callbacks callable from plugins (see inline functions below):
@@ -1342,6 +1339,7 @@ enum graph_notification_t
   grcode_set_gli,                     ///< use viewer_set_gli()
   grcode_get_gli,                     ///< use viewer_get_gli()
 
+  GRAPH_INTERNAL_CALLGATE_NOTIFICATIONS
 };
 
 

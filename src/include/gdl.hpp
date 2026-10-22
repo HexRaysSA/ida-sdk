@@ -323,7 +323,7 @@ idaman int ida_export display_gdl(const char *fname);
 /// \return success. if fails, a warning message is displayed on the screen
 /// \deprecated Use gen_flow_graph_ea() for safer access.
 
-idaman DEPRECATED bool ida_export gen_flow_graph(
+idaman IDA_DEPRECATED bool ida_export gen_flow_graph(
         const char *filename,
         const char *title,
         func_t *pfn,

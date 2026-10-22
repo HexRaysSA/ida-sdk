@@ -33,8 +33,8 @@ PyObject* SWIG_Python_AppendOutput(PyObject* result, PyObject* obj, int is_void)
 #endif
 #include <pro.h>
 #include <parsejson.hpp>
-#undef DEPRECATED
-#define DEPRECATED
+#undef IDA_DEPRECATED
+#define IDA_DEPRECATED
 %}
 
 #define SWIG_PYTHON_LEGACY_BOOL 1
@@ -42,6 +42,10 @@ PyObject* SWIG_Python_AppendOutput(PyObject* result, PyObject* obj, int is_void)
 // Have SWiG flatten the hierarchy of types
 // (instead of plain ignoring nested ones.)
 %feature("flatnested");
+
+// SWiG < 4.5 renamed 'print' members to '_print' (a Python 2 keyword);
+// 4.5 no longer does. Keep the published names.
+%rename("_print") print;
 
 %pythonbegin %{
 from __future__ import annotations
@@ -728,6 +732,94 @@ SWIGINTERN PyObject *_maybe_byte_array_or_none_result(
 {
   // %typemap(freearg) qstrvec_t* out
   // Nothing. We certainly don't want 'temp' to be deleted.
+}
+
+// range_t *result_range: return the range by value (an empty range on
+// failure). NOT applied globally: several functions take range_t* as an
+// input pointer (e.g. funcs' void chunk(range_t *out), inf_get_privrange),
+// and a global argout typemap breaks them (it references the C++ return
+// value, which void chunk() doesn't have, and shadows inf_get_privrange()).
+// Modules opt in for a specific parameter via %apply, e.g.:
+//   %apply range_t *result_range { range_t *out };
+%typemap(in,numinputs=0) range_t *result_range (range_t temp)
+{
+  // %typemap(in,numinputs=0) range_t *result_range (range_t temp)
+  $1 = &temp;
+}
+%typemap(argout) range_t *result_range
+{
+  // %typemap(argout) range_t *result_range
+  Py_XDECREF($result);
+  auto *inst = new range_t();
+  if ( result )
+    *inst = *$1;
+  $result = SWIG_NewPointerObj(inst, $1_descriptor, SWIG_POINTER_OWN);
+}
+%typemap(freearg) range_t *result_range
+{
+  // %typemap(freearg) range_t *result_range
+  // Nothing. We certainly do not want 'temp' to be deleted.
+}
+
+// <vec> *result_list: return the vector as a Python list (None on failure).
+// NOT applied globally, for the same reason as range_t *result_range: `out`
+// is a common parameter name and a global argout typemap would shadow
+// unrelated functions. Modules opt in per parameter via %apply, e.g.:
+//   %apply sizevec_t *result_list { sizevec_t *out };
+%typemap(in,numinputs=0) sizevec_t *result_list (sizevec_t temp)
+{
+  // %typemap(in,numinputs=0) sizevec_t *result_list (sizevec_t temp)
+  $1 = &temp;
+}
+%typemap(argout) sizevec_t *result_list
+{
+  // %typemap(argout) sizevec_t *result_list
+  // the C++ return value is already in $result; drop it before replacing it
+  Py_XDECREF($result);
+  if ( result )
+  {
+    ref_t py_list(PyW_SizeVecToPyList(*($1)));
+    py_list.incref();
+    $result = py_list.o;
+  }
+  else
+  {
+    Py_INCREF(Py_None);
+    $result = Py_None;
+  }
+}
+%typemap(freearg) sizevec_t *result_list
+{
+  // %typemap(freearg) sizevec_t *result_list
+  // Nothing. We certainly do not want 'temp' to be deleted.
+}
+
+%typemap(in,numinputs=0) intvec_t *result_list (intvec_t temp)
+{
+  // %typemap(in,numinputs=0) intvec_t *result_list (intvec_t temp)
+  $1 = &temp;
+}
+%typemap(argout) intvec_t *result_list
+{
+  // %typemap(argout) intvec_t *result_list
+  // the C++ return value is already in $result; drop it before replacing it
+  Py_XDECREF($result);
+  if ( result )
+  {
+    ref_t py_list(PyW_IntVecToPyList(*($1)));
+    py_list.incref();
+    $result = py_list.o;
+  }
+  else
+  {
+    Py_INCREF(Py_None);
+    $result = Py_None;
+  }
+}
+%typemap(freearg) intvec_t *result_list
+{
+  // %typemap(freearg) intvec_t *result_list
+  // Nothing. We certainly do not want 'temp' to be deleted.
 }
 
 // Same, but for tuple-appending

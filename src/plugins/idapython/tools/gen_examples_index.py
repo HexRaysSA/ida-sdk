@@ -107,6 +107,8 @@ def read_config():
         config = ast.literal_eval(f.read())
 
     config["exclude"] = set(config["exclude"])
+    # subdirectories of examples/ that the generated index does not cover
+    config["exclude-dirs"] = set(config.get("exclude-dirs", []))
 
     for _, key_res in config["auto-keywords"]:
         for i in range(len(key_res)):
@@ -443,7 +445,9 @@ class Examples(object):
         self.examples_set = set(e.name for e in self.examples)
 
     def _files_with_extension(self, ext, rootdir):
-        for path, _, files in os.walk(rootdir):
+        for path, dirs, files in os.walk(rootdir):
+            if path == rootdir:
+                dirs[:] = [d for d in dirs if d not in config["exclude-dirs"]]
             for filename in files:
                 if os.path.splitext(filename)[1] == ext:
                     relpath = os.path.relpath(path, rootdir)

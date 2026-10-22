@@ -10,5 +10,6 @@ ida_add_procmod(arc
         ../idaidp.hpp
         arc.hpp
         ins.hpp
+        millicode.hpp
 )
 copy_cfg(arc ${CMAKE_CURRENT_SOURCE_DIR}/arc.cfg)

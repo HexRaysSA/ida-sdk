@@ -2812,6 +2812,40 @@ static void simplify(insn_t &insn)
         insn.Op3.type = o_void;
       }
       break;
+    case ARC_asl:
+    case ARC_lsr:
+    case ARC_asr:
+    case ARC_ror:
+      // both sources read the same immediate: this is how a constant that
+      // does not fit into the immediate field is loaded
+      //   ror a, imm, imm -> mov a, ror(imm, imm)
+      if ( insn.Op2.type == o_imm
+        && insn.Op3.type == o_imm
+        && insn.Op2.value == insn.Op3.value )
+      {
+        uint32 val = uint32(insn.Op2.value);
+        uint32 cnt = val & 31;  // the shifter uses the low 5 bits only
+        switch ( insn.itype )
+        {
+          case ARC_asl:
+            val <<= cnt;
+            break;
+          case ARC_lsr:
+            val >>= cnt;
+            break;
+          case ARC_asr:
+            val = uint32(int32(val) >> cnt);
+            break;
+          case ARC_ror:
+            if ( cnt != 0 )
+              val = (val >> cnt) | (val << (32 - cnt));
+            break;
+        }
+        insn.itype = ARC_mov;
+        insn.Op2.value = val;
+        insn.Op3.type = o_void;
+      }
+      break;
     case ARC_mov:
       // mov     0, 0 -> nop
       if ( insn.Op1.is_imm(0) && insn.Op2.is_imm(0) )

@@ -12,6 +12,8 @@
 
 #include "showmic.hpp"
 
+#include <algorithm>
+
 //#define _DUMP_FLOWCHART
 //#define _DUMP_STKPNTS
 
@@ -2285,75 +2287,60 @@ void anchor_object_end(qstring *out, entity_anchor_t anchor)
 // Locate anchored entities within the character buffer `[begin, end)`. For
 // each located entity, `cb` is invoked, given a pointer to the entity's
 // representation in the string.
+// One located anchored entity: its anchor value and codepoint (column) span.
+struct anchor_span_t
+{
+  entity_anchor_t anchor;
+  cpidx_t cp_begin;
+  cpidx_t cp_end;
+};
+DECLARE_TYPE_AS_MOVABLE(anchor_span_t);
+
 void for_each_anchored_range(
-        const char *begin,
-        const char *end,
+        const char *line,
         anchored_entity_locator_t *cb,
         void *ud)
 {
-  using anchored_location_t = std::pair<entity_anchor_t, size_t>;
-
-  // COLOR_ON <tag-specific color> COLOR_ON COLOR_ADDR <8 or 16 bytes>
-  static constexpr size_t COLOR_ADDR_BEGIN_LEN = 4 + COLOR_ADDR_SIZE;
-  static constexpr size_t COLOR_ADDR_END_LEN = 2;
-
-  if ( &(begin[COLOR_ADDR_BEGIN_LEN + COLOR_ADDR_END_LEN]) >= end )
+  // An anchored entity is an anchor-colored span whose content is preceded by
+  // an embedded COLOR_ADDR encoding the anchor value:
+  //   COLOR_ON <anchor-color> COLOR_ON COLOR_ADDR <addr> ...content... COLOR_OFF <anchor-color>
+  // Use the shared tagged-line parser rather than a hand-rolled tag walk: it
+  // yields the content span directly in codepoints (which is what callers want)
+  // and is robust to any tag structure (nested COLOR_ADDR, COLOR_SEMSPAN payloads,
+  // ...) instead of baking in per-tag byte sizes.
+  tagged_line_sections_t secs;
+  if ( !parse_tagged_line_sections(&secs, line) )
     return;
 
-  qvector<anchored_location_t> opening_anchors;
-  for ( const char *place = begin; place < end; )
+  qvector<anchor_span_t> spans;
+  for ( const tagged_line_section_t &s : secs )
   {
-    if ( place[0] == COLOR_ON )
-    {
-      // A normal, "uncolored" address tag.
-      if ( place[1] == COLOR_ADDR )
-      {
-        place += 2;
-        place += COLOR_ADDR_SIZE;
-        continue;
-      }
-
-      if ( &(place[3]) >= end
-        || !is_anchor_color_tag(place[1])
-        || place[2] != COLOR_ON
-        || place[3] != COLOR_ADDR )
-      {
-        // In all cases, only jump by two. `place[2]` could be a `COLOR_OFF`, or
-        // `place[3]` could be an anchor color tag.
-        place += 2;
-        continue;
-      }
-
-      uval_t anchor_repr = 0;
-      addr_from_tag(&anchor_repr, &(place[2]));
-      TB_QASSERT(52912, get_anchor_color_tag(anchor_repr) == place[1]);
-      place += COLOR_ADDR_BEGIN_LEN;
-      opening_anchors.emplace_back(anchor_repr, place - begin);
-    }
-    else if ( place[0] == COLOR_OFF )
-    {
-      if ( &(place[1]) >= end
-        || !is_anchor_color_tag(place[1])
-        || opening_anchors.empty() )
-      {
-        place += 2;
-        continue;
-      }
-
-      anchored_location_t start = opening_anchors.back();
-      opening_anchors.pop_back();
-
-      TB_QASSERT(52913, get_anchor_color_tag(start.first) == place[1]);
-      if ( !cb(start.first, start.second, place - begin, ud) )
-        return;
-
-      place += 2;
-    }
-    else
-    {
-      ++place;
-    }
+    if ( !is_anchor_color_tag(s.tag) )
+      continue;
+    // the anchor value is the COLOR_ADDR embedded at the span's start
+    ea_t anchor = tag_get_addr(line + s.byte_offsets.text_start);
+    if ( anchor == BADADDR )
+      continue;
+    TB_QASSERT(52912, get_anchor_color_tag(entity_anchor_t(anchor)) == s.tag);
+    anchor_span_t &sp = spans.push_back();
+    sp.anchor = entity_anchor_t(anchor);
+    sp.cp_begin = s.start;
+    sp.cp_end = s.start + s.length;
   }
 
-  QASSERT(52914, opening_anchors.empty());
+  // Report inner-before-outer: the previous walker reported at each closing tag
+  // via a stack, and the callers' overlap elimination relies on that order.
+  std::stable_sort(spans.begin(), spans.end(),
+      [](const anchor_span_t &a, const anchor_span_t &b)
+      {
+        if ( a.cp_end != b.cp_end )
+          return a.cp_end < b.cp_end;
+        return a.cp_begin > b.cp_begin;
+      });
+
+  for ( const anchor_span_t &sp : spans )
+  {
+    if ( !cb(sp.anchor, sp.cp_begin, sp.cp_end, ud) )
+      return;
+  }
 }

@@ -381,6 +381,7 @@
 %ignore file_printer_t;
 %ignore mba_ranges_t::range_contains;
 %ignore decomp_ranges_t::range_contains;
+%ignore mbl_graph_t::get_global_uses; // not hexapi/inline: no exported symbol to wrap
 
 %ignore qstring_printer_t::qstring_printer_t(const cfunc_t *, qstring &, bool);
 %ignore qstring_printer_t::~qstring_printer_t();
@@ -401,6 +402,20 @@ public:
 };
 
 %template(hexwarns_t) qvector<hexwarn_t>;
+%uncomparable_elements_qvector(class_t, classes_t);
+%uncomparable_elements_qvector(class_member_t, class_members_t);
+// render_class()/render_member() return a status plus the rendered lines:
+// keep the bool result and append 'lines' as a second tuple element instead
+// of the plain 'qstrvec_t *out' typemap, which would replace it.
+%apply qstrvec_t *out_wrap_in_list_and_append { qstrvec_t *lines };
+// Makes the class API structs' qstrvec_t members (decl, attrs, nested,
+// supertypes, interfaces) read as Python lists of str, the same way
+// kernwin.i and lumina.i already expose their own qstrvec_t members.
+%typemap(out) qstrvec_t *
+{
+  Py_XDECREF($result);
+  $result = qstrvec2pylist(*$1);
+}
 %template(user_numforms_t) qmap<operand_locator_t, number_format_t>;
 
 %{

@@ -9,6 +9,7 @@
 #include "i5.hpp"
 #include <diskio.hpp>
 #include <cvt64.hpp>
+#include <segregs.hpp>
 
 int data_id;
 
@@ -23,7 +24,8 @@ static const char *const RegNames[] =
   "bc'", "de'", "hl'","ix'","iy'",
   "b'",  "c'",  "d'", "e'", "h'", "l'", "m'", "a'",
 
-  "cs","ds"
+  "cs","ds",
+  "mb","adl"        // eZ80
 };
 
 //-----------------------------------------------------------------------
@@ -767,6 +769,7 @@ static const asm_t *const i8085asms[]   = { &tasm,    &xm80,   &pseudosam, &cros
 static const asm_t *const Z80asms[]     = { &zmasm, &tasmz80, &xm80z,  &pseudosam, &cross16z80, &a80z, &avocet, &asxxxx, nullptr };
 static const asm_t *const HD64180asms[] = { &zmasm, &tasmz80, &avocet, &asxxxx, nullptr };
 static const asm_t *const GBasms[]      = { &rgbasm, nullptr };
+static const asm_t *const EZ80asms[]    = { &zmasm, &tasmz80, nullptr };
 
 //------------------------------------------------------------------
 const char *z80_t::find_ioport(uval_t port)
@@ -821,7 +824,7 @@ static bool idaapi can_have_type(const op_t &x)      // returns 1 - operand can 
 
 
 //----------------------------------------------------------------------
-static char const features[] = { _PT_8085, _PT_Z80, _PT_64180, _PT_Z180, _PT_Z380, _PT_GB };
+static char const features[] = { _PT_8085, _PT_Z80, _PT_64180, _PT_Z180, _PT_Z380, _PT_GB, _PT_EZ80 };
 
 //----------------------------------------------------------------------
 void z80_t::set_cpu(int np)
@@ -834,6 +837,15 @@ void z80_t::set_cpu(int np)
     ph.assemblers = HD64180asms;
   if ( isGB() )
     ph.assemblers = GBasms;
+  if ( isEZ80() )
+    ph.assemblers = EZ80asms;
+  // eZ80 has a 24-bit address space, use 32-bit segments by default
+  setflag(ph.flag, PR_DEFSEG32, isEZ80());
+  // only eZ80 exposes the mb/adl virtual segment registers and
+  // permits editing them; other variants keep just cs/ds
+  ph.regs_num = isEZ80() ? R_adl+1 : R_vds+1;
+  ph.reg_last_sreg = isEZ80() ? R_adl : R_vds;
+  setflag(ph.flag, PR_SEGS, isEZ80());
 }
 
 //----------------------------------------------------------------------
@@ -882,6 +894,14 @@ ssize_t idaapi z80_t::on_event(ssize_t msgid, va_list va)
     case processor_t::ev_newfile:
       if ( inf_get_procname() == "z180" )
         choose_device(IORESP_AREA);
+      if ( isEZ80() )
+      {
+        // eZ80 application code usually runs in ADL mode;
+        // Z80-mode ranges can be marked by changing the 'adl'
+        // virtual segment register value
+        set_default_sreg_value_ea(BADADDR, R_adl, 1);
+        set_default_sreg_value_ea(BADADDR, R_mb, 0);
+      }
       break;
 
     case processor_t::ev_out_header:
@@ -1031,6 +1051,7 @@ static const char *const shnames[] =
   "z180",
   "z380",
   "gb",
+  "ez80",
   nullptr
 };
 
@@ -1042,6 +1063,7 @@ static const char *const lnames[] =
   "Zilog Z180",
   "Zilog Z380",
   "GameBoy",
+  "Zilog eZ80",
   nullptr
 };
 
@@ -1066,6 +1088,7 @@ processor_t LPH =
   IDP_INTERFACE_VERSION,  // version
   PLFM_Z80,               // id
                           // flag
+                          // (set_cpu() adds PR_SEGS|PR_DEFSEG32 for eZ80)
     PRN_HEX
   | PR_SEGTRANS,
                           // flag2
@@ -1081,7 +1104,7 @@ processor_t LPH =
   notify,
 
   RegNames,
-  R_vds+1,              // number of registers
+  R_vds+1,              // number of registers (set_cpu() extends to R_adl+1 for eZ80)
 
   R_vcs,R_vds,          // first, last
   0,                    // size of a segment register
