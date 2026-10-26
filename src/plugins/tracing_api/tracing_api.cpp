@@ -155,6 +155,6 @@ plugin_t PLUGIN =
   nullptr,
   "Search for a string in the recorded trace memory", // long comment about the plugin
   "", // multiline help about the plugin
-  "Trace search",       // the preferred short name of the plugin
+  "Examples/Trace search",       // the preferred short name of the plugin
   "" // the preferred hotkey to run the plugin
 };

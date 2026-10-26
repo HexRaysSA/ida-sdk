@@ -85,6 +85,6 @@ plugin_t PLUGIN =
   nullptr,
   comment,              // long comment about the plugin
   nullptr,              // multiline help about the plugin
-  "Dump microcode for selected range", // the preferred short name of the plugin
+  "Examples/Dump microcode for selected range", // the preferred short name of the plugin
   nullptr,              // the preferred hotkey to run the plugin
 };

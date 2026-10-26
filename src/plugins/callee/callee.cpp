@@ -95,7 +95,7 @@ bool idaapi callee_vars_t::run(size_t)
 }
 
 //--------------------------------------------------------------------------
-static const char wanted_name[] = "Change the callee address";
+static const char wanted_name[] = "Examples/Change the callee address";
 static const char wanted_hotkey[] = "Alt-F11";
 
 //--------------------------------------------------------------------------

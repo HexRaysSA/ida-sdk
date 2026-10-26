@@ -219,7 +219,7 @@ static plugmod_t *idaapi init()
 
 //-------------------------------------------------------------------------
 static const char comment[] = "An example how to implement CVT64 functionality";
-static const char wanted_name[] = "CVT64 sample";
+static const char wanted_name[] = "Examples/CVT64 sample";
 static const char wanted_hotkey[] = "";
 
 //-------------------------------------------------------------------------

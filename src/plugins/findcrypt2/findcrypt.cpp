@@ -243,7 +243,7 @@ static plugmod_t *idaapi init()
 //--------------------------------------------------------------------------
 static const char help[] = "Find crypt v2";
 static const char comment[] = "Find crypt v2";
-static const char wanted_name[] = "Find crypt v2";
+static const char wanted_name[] = "Examples/Find crypt v2";
 static const char wanted_hotkey[] = "";
 
 //--------------------------------------------------------------------------

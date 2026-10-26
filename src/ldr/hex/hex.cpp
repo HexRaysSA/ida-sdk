@@ -80,8 +80,8 @@ static struct local_data
     uint32 ln;    // load
     int size;     // write
   };
+  uint   len;     // load
   ushort sum;     // load/write
-  uchar  len;     // load
 } lc;
 
 //--------------------------------------------------------------------------

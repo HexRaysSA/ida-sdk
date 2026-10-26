@@ -1035,40 +1035,32 @@ static special_func_t check_call(
 }
 
 //-------------------------------------------------------------------------
-// ENTRY_EA if PROLOG the address of the function start
-//          else the address after the function end
-static bool handle_ghs_func_with_locals(
+// returns the address of the local size word of a GHS function.
+// if PROLOG, EA is the save call at the function start and the word
+// precedes it; otherwise EA is the address after the return call and
+// the word is at EA. returns BADADDR if the word is outside the address space
+static ea_t get_ghs_locals_ea(
         const procmod_t &pm,
-        uval_t *locals,
-        ea_t entry_ea,
+        ea_t ea,
         bool prolog)
 {
   if ( prolog ) // go back
-  {
-    if ( entry_ea < 2 )
-      return false;
-    entry_ea -= 2;
-  }
-  else // go forward
-  {
-    if ( entry_ea > pm.eah().ea_space_end() - 2 )
-      return false;
-  }
-  if ( !is_defarg0(get_flags32(entry_ea)) )
-    create_word(entry_ea, 2);
-  if ( locals != nullptr )
-    *locals = get_word(entry_ea);
-  return true;
+    return ea < 2 ? BADADDR : ea - 2;
+  // go forward
+  return ea > pm.eah().ea_space_end() - 2 ? BADADDR : ea;
 }
 
 //-------------------------------------------------------------------------
-special_func_t nec850_t::is_special_func_call(
-        reglist_t *regs,
-        uval_t *locals,
-        const insn_t &insn) const
+// returns the address of the local size word for the call INSN, which
+// check_call() classified as RES with SPF_FEATURE. a GHS save function that
+// allocates locals has the word before the call, a ghsld4* return function
+// right after it. returns BADADDR for other calls
+static ea_t get_ghs_locals_ea(
+        const procmod_t &pm,
+        const insn_t &insn,
+        special_func_t res,
+        uint32 spf_feature)
 {
-  uint32 spf_feature;
-  special_func_t res = check_call(*this, regs, &spf_feature, insn);
   if ( res == SPF_SAVE
     && (spf_feature & (GHS|GHS_LOCALS)) == (GHS|GHS_LOCALS) )
   {
@@ -1076,24 +1068,40 @@ special_func_t nec850_t::is_special_func_call(
     // and  0xFFFF, r12    ld.hu -4[r10], r11
     // shl  2, r12         sub   r11, sp
     // sub  r12, sp
-    if ( handle_ghs_func_with_locals(*this, locals, insn.ea, true) )
-    {
-      if ( locals != nullptr && (spf_feature & GHS_CALLT) == 0 )
-        *locals *= 4;
-      return res;
-    }
+    return get_ghs_locals_ea(pm, insn.ea, true);
   }
-  else if ( res == SPF_RETURN && is_ghs_ld4_sv5(spf_feature) )
+  if ( res == SPF_RETURN && is_ghs_ld4_sv5(spf_feature) )
   {
     // stsr  ctpc, lp
     // ld.hu [lp], reg
     // add   reg, sp
-    ea_t entry_ea = insn.ea + insn.size;
-    if ( handle_ghs_func_with_locals(*this, locals, entry_ea, false) )
-      return res;
+    return get_ghs_locals_ea(pm, insn.ea + insn.size, false);
   }
+  return BADADDR;
+}
+
+//-------------------------------------------------------------------------
+special_func_t nec850_t::is_special_func_call(
+        reglist_t *regs,
+        uval_t *locals,
+        const insn_t &insn,
+        ea_t *locals_ea) const
+{
+  uint32 spf_feature;
+  special_func_t res = check_call(*this, regs, &spf_feature, insn);
+  ea_t ea = get_ghs_locals_ea(*this, insn, res, spf_feature);
+  if ( locals_ea != nullptr )
+    *locals_ea = ea;
   if ( locals != nullptr )
+  {
     *locals = 0;
+    if ( ea != BADADDR )
+    {
+      *locals = get_word(ea);
+      if ( res == SPF_SAVE && (spf_feature & GHS_CALLT) == 0 )
+        *locals *= 4;
+    }
+  }
   return res;
 }
 
@@ -1181,10 +1189,14 @@ bool nec850_t::is_special_save_r29_func(const insn_t &insn) const
 }
 
 //-------------------------------------------------------------------------
-bool nec850_t::is_special_return_func(const insn_t &insn) const
+bool nec850_t::is_special_return_func(
+        const insn_t &insn,
+        ea_t *locals_ea) const
 {
   uint32 spf_feature;
   special_func_t res = check_call(*this, nullptr, &spf_feature, insn);
+  if ( locals_ea != nullptr )
+    *locals_ea = get_ghs_locals_ea(*this, insn, res, spf_feature);
   if ( res != SPF_RETURN )
   {
     // FIXME we cannot recognize yet some CALLT return functions
@@ -1204,11 +1216,19 @@ bool nec850_t::is_special_return_func(const insn_t &insn) const
     // jr __return_r27_r29 is the 'tail' return insn
     return insn.itype == NEC850_JR;
   }
-  // we cannot update SPD after a noret function so we don't format the
-  // local size word for ghsld4* functions. do it right now!
-  if ( is_ghs_ld4_sv5(spf_feature) )
-    handle_ghs_func_with_locals(*this, nullptr, insn.ea + insn.size, false);
   return true;
+}
+
+//-------------------------------------------------------------------------
+// this function changes the database, so call it only while analyzing
+// the call (emulation, frame creation), never from a query
+void create_ghs_locals_word(ea_t ea)
+{
+  if ( ea == BADADDR )
+    return;
+  flags64_t F = get_flags32(ea);
+  if ( !is_word(F) && !is_defarg0(F) )
+    create_word(ea, 2);
 }
 
 //-------------------------------------------------------------------------

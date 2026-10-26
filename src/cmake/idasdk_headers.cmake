@@ -69,6 +69,7 @@ set(IDASDK_HEADERS
     strlist.hpp
     tryblks.hpp
     ua.hpp
+    uefi.h
     undo.hpp
     workarounds.hpp
     xref.hpp

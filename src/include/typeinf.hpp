@@ -561,6 +561,7 @@ inline THREAD_SAFE bool is_type_bool(type_t t)    { return get_base_type(t) == B
 #define TAUDT_INVBF     0x2000  ///< struct: bitfields are allocated in the order
                                 ///<         opposite to ::inf_get_bf_order()
 ///@}
+// 0x0200 is reserved (kernel)
 
 /// \defgroup tattr_field Type attributes for udt fields
 ///@{
@@ -1133,6 +1134,7 @@ private:
     biggest_t biggest;          // to facilitate manipulation of this union
   };
   ARGLOC_HELPER_DEFINITIONS(friend)
+  friend struct kdata_t;
 
 public:
   argloc_t() : type(ALOC_NONE), biggest(0) {}
@@ -2130,6 +2132,7 @@ enum sclass_t    ///< storage class
 #define HTI_NO_MANGLE   0x01000000     ///< don't mangle name (see \ref HTI_NDC)
 #define HTI_QUOTED_NAMES 0x02000000    ///< the input may contain type/member names wrapped in `...` or "..." (as produced with #PRTYPE_QUOTE_NAMES); unwrap them. Only set this when re-parsing such printed output (e.g. the type editor), not for ordinary input.
 ///@}
+// 0x00040000 is reserved (kernel)
 
 
 /// This callback will be called for each type/variable declaration.
@@ -2229,6 +2232,7 @@ idaman bool ida_export parse_decl(
 #define PT_NO_MANGLE   0x00020000  ///< don't mangle name (see \ref PT_NDC)
 #define PT_QUOTED_NAMES 0x00040000 ///< unwrap `...`/"..." names (see \ref HTI_QUOTED_NAMES)
 ///@}
+// 0x00000800 is reserved (kernel)
 
 
 /// Parse many declarations and store them in a til.
@@ -2283,8 +2287,10 @@ idaman bool ida_export print_type(qstring *out, ea_t ea, int prtype_flags);
 #define PRTYPE_ARGLOCS 0x40000 ///< print function arglocs (not only for usercall)
 #define PRTYPE_SEMSPAN 0x80000 ///< wrap each type/declarator name in a ::COLOR_SEMSPAN
                                ///< span so a view can select the whole name at once
-#define PRTYPE_QUOTE_NAMES 0x100000 ///< quote type/member names that are not valid C identifiers (in `...` or "...", with \\-escaping) so the printout can be parsed back. Use it when the output is meant to be re-parsed (e.g. the type editor), not for plain display.
+#define PRTYPE_QUOTE_NAMES 0x100000 ///< put type/member names that are not valid C identifiers (or are C keywords) in backticks, with \\-escaping, so the printout can be parsed back. Use it when the output is meant to be re-parsed (e.g. the type editor), not for plain display.
+#define PRTYPE_LISTING_NAMES 0x200000 ///< put type/member names that could merge with the text around them in backticks (see make_listing_name()). Use it for display. #PRTYPE_QUOTE_NAMES has priority.
 ///@}
+// 0x80000000 is reserved (kernel)
 
 ///@} parse_tinfo
 
@@ -2345,7 +2351,14 @@ idaman int ida_export get_named_type(
 #define NTF_NO_NAMECHK 0x00000400   ///< do not validate type name
                                     ///< (set_numbered_type, set_named_type)
 #define NTF_COPY       0x00001000   ///< save a new type definition, not a typeref (tinfo_t::set_numbered_type, tinfo_t::set_named_type)
+#define NTF_AUTONAME   0x00002000   ///< name the udt after its members and save it
+                                    ///< under this name (tinfo_t::save_type).
+                                    ///< an equal type saved under this name is
+                                    ///< reused, a different one fails the call
+                                    ///< with #TERR_SAVE_ERROR.
+                                    ///< implies #NTF_TYPE, ignores #NTF_REPLACE
 ///@}
+// 0x80000000 is reserved (kernel)
 
 
 // Tag to denote a regular comment in serialized form.
@@ -2379,6 +2392,7 @@ inline int idaapi get_named_type64(
 enum tinfo_code_t
 {
   TERR_OK          =   0, ///< ok
+  TERR_STABLE      =   1, ///< it means no errors occurred but nothing has changed (this code is internal: should never be returned to caller)
   TERR_SAVE_ERROR  =  -1, ///< failed to save
   TERR_SERIALIZE   =  -2, ///< failed to serialize
   TERR_BAD_NAME    =  -3, ///< name %s is not acceptable
@@ -2978,8 +2992,10 @@ enum etf_flag_t : uint
   ETF_AUTONAME    = 0x00000040, ///< udm - generate a member name if was not specified (add_udm, set_udm_type)
   ETF_BYTIL       = 0x00000080, ///< udm - new type was created by the type subsystem
   ETF_NO_ARRAY    = 0x00000100, ///< add_udm, set_udm_type - do not convert type to an array on the size mismatch
+  ETF_RET_STABLE  = 0x00000200, ///< return TERR_STABLE as is
 };
 ///@}
+// 0x80000000 is reserved (kernel)
 
 /// Constants to be used with get_udt_details()
 enum gtd_udt_t
@@ -3026,6 +3042,7 @@ enum gts_code_t
 #define SUDT_TRUNC    0x0100    ///< serialize: truncate useless strings from fields, fldcmts
 #define SUDT_SERDEF   0x0200    ///< serialize: if a typeref, serialize its definition
 ///@}
+// 0x0400 and 0x0800 are reserved (kernel)
 
 typedef uint64 typid_t;
 
@@ -3070,6 +3087,7 @@ decl bool ida_export value_repr_t__parse_value_repr(value_repr_t *_this, const q
 decl ssize_t ida_export udt_type_data_t__find_member(const udt_type_data_t *_this, udm_t *udm, int strmem_flags); \
 decl ssize_t ida_export udt_type_data_t__get_best_fit_member(const udt_type_data_t *_this, asize_t disp); \
 decl bool ida_export udt_type_data_t__deduplicate_members(udt_type_data_t *_this); \
+decl bool ida_export udt_type_data_t__build_autoname(const udt_type_data_t *_this, qstring *out); \
 decl bool ida_export udm_t__compare_with(const udm_t *_this, const udm_t &r, int tcflags); \
 decl uchar ida_export enum_type_data_t__get_max_serial(const enum_type_data_t *ei, uint64 value); \
 decl tinfo_code_t ida_export enum_type_data_t__set_value_repr(enum_type_data_t *ei, const value_repr_t &repr); \
@@ -3084,6 +3102,7 @@ decl ssize_t ida_export get_frame_var(tinfo_t *tif, sval_t *actval, const insn_t
 decl bool ida_export tinfo_get_func_frame(tinfo_t *tif, const func_t *pfn); \
 decl bool ida_export tinfo_get_func_frame_ea(tinfo_t *tif, ea_t func_ea); \
 decl bool ida_export tinfo_t__build_anon_type_name(qstring *out, const tinfo_t &tif); \
+decl tinfo_code_t ida_export tinfo_t__create_tuple(tinfo_t *tif, const qvector<tinfo_t> &types, til_t *til); \
 
 DECLARE_TINFO_HELPERS(idaman)
 
@@ -3115,6 +3134,8 @@ class tinfo_t // #tinfo_t #tif
   bool get_type_details(type_t bt2, void *buf) const { return get_tinfo_details(typid, bt2, buf); }
   void copy(const tinfo_t &r) { copy_tinfo_t(this, r); }
   DECLARE_TINFO_HELPERS(friend)
+  friend struct kdata_t;
+  friend struct tinfo_vars_t;
   friend struct type_detail_t;
   friend tinfo_t remove_pointer(const tinfo_t &tif);
   /// Various type properties (properties are 64-bit scalar values)
@@ -3175,6 +3196,7 @@ class tinfo_t // #tinfo_t #tif
     GTA_UDT_BITS,       ///< udt: get udt_type_data_t::taudt_bits
     GTA_IS_ANON_NAME,   ///< is anonymous type name?
   };
+  // 0x02000000 and above are reserved (kernel)
   enum sta_prop_t       ///< set type property
   {
     STA_DECLALIGN,      ///< set declared alignment
@@ -3219,6 +3241,7 @@ class tinfo_t // #tinfo_t #tif
     STA_TUPLE,          ///< struct: set as tuple
     STA_IFACE,          ///< struct: set as interface
   };
+  // 0x04000000 and above are reserved (kernel)
   enum gta_pdata_t      ///< get info returned by pointer
   {
     GTP_NAME,           ///< get referenced name
@@ -3742,6 +3765,7 @@ public:
                                ///<   can be combined with #STRMEM_OFFSET, #STRMEM_LOWBND
                                ///<   skip gap members
 ///@}
+// 0x08000000 is reserved (kernel)
 
   /// ::BTF_STRUCT,::BTF_UNION: Find an udt member at the specified offset
   /// \return the index of the found member or -1
@@ -4002,6 +4026,22 @@ public:
   ///@{
   inline bool create_udt(udt_type_data_t &p);
   bool create_udt(udt_type_data_t &p, type_t decl_type) { return create_type(decl_type, BTF_STRUCT, &p); }
+
+  /// Create a tuple with members of the given types and save it.
+  /// The members are named _0, _1, ...
+  /// The tuple is saved under the name made of the member types
+  /// (see #NTF_AUTONAME).
+  /// An equal tuple saved under the name is reused.
+  /// In the local type library, if the name can not be built or saved,
+  /// the tuple is saved under the anonymous $hash name instead.
+  /// \param types  member types, at least one, none of them empty
+  /// \param til    type library, nullptr means the local type library
+  /// \return TERR_OK: the object becomes a reference to the saved tuple;
+  ///         TERR_BAD_TYPE: bad input types;
+  ///         otherwise the error code of save_tinfo(), e.g. TERR_SAVE_ERROR
+  ///         if a different type exists under the name.
+  ///         On failure the object is not modified.
+  tinfo_code_t create_tuple(const qvector<tinfo_t> &types, til_t *til=nullptr) { return tinfo_t__create_tuple(this, types, til); }
   bool create_enum(enum_type_data_t &p, type_t decl_type=BTF_ENUM) { return create_type(decl_type, BTF_ENUM, &p); }
   bool create_func(func_type_data_t &p, type_t decl_type=BT_FUNC) { return create_type(decl_type, BT_FUNC, &p); }
   ///@}
@@ -4029,12 +4069,15 @@ public:
   /// \name Store type
   /// Store the type info in the type library as a named or numbered type.
   /// The tinfo_t object will be replaced by a reference to the created type.
-  /// Allowed bits for ntf_flags: #NTF_NOBASE, #NTF_REPLACE
+  /// Allowed bits for ntf_flags: #NTF_NOBASE, #NTF_REPLACE, #NTF_AUTONAME
   /// \note These methods are not applicable for the function frame
   ///@{
   tinfo_code_t set_named_type(til_t *til, const char *name, int ntf_flags=0) { return save_tinfo(this, til, 0, name, ntf_flags|NTF_TYPE); }
   tinfo_code_t set_symbol_type(til_t *til, const char *name, int ntf_flags=0) { return save_tinfo(this, til, 0, name, ntf_flags); } // NTF_SYMM and NTF_SYMU are permitted
   tinfo_code_t set_numbered_type(til_t *til, uint32 ord, int ntf_flags=0, const char *name=nullptr) { return save_tinfo(this, til, ord, name, ntf_flags); }
+  /// With #NTF_AUTONAME, save a new udt under a name made of its member types:
+  /// _DWORD_x2 (array wrapper), _2__DWORDs_double (tuple), struct__int_char,
+  /// union__int_char (other udts)
   tinfo_code_t save_type(int ntf_flags=NTF_TYPE|NTF_REPLACE) { return save_tinfo(this, nullptr, 0, nullptr, ntf_flags); }
   tinfo_code_t copy_type(til_t *til, const char *name, int ntf_flags=NTF_TYPE|NTF_COPY) { return save_tinfo(this, til, 0, name, ntf_flags); }
   ///@}
@@ -4852,7 +4895,6 @@ struct funcarg_t
         && type == r.type;
   }
   bool operator != (const funcarg_t &r) const { return !(*this == r); }
-
 };
 DECLARE_TYPE_AS_MOVABLE(funcarg_t);
 typedef qvector<funcarg_t> funcargvec_t; ///< vector of function argument objects
@@ -4998,7 +5040,6 @@ struct edm_t // #edm
   bool operator != (const edm_t &r) const { return !(*this == r); }
   void swap(edm_t &r) { qswap(*this, r); }
   inline tid_t get_tid() const;
-
 
   DEFINE_MEMORY_ALLOCATION_FUNCS()
 };
@@ -5552,7 +5593,6 @@ struct udm_t // #udm
   {
     return !is_gap() && !is_baseclass() && !can_be_dtor();
   }
-
 };
 DECLARE_TYPE_AS_MOVABLE(udm_t);
 struct udtmembervec_t : public qvector<udm_t> {}; ///< vector of udt member objects
@@ -5653,6 +5693,15 @@ struct udt_type_data_t : public udtmembervec_t // #udt
   /// by substituting ~ by dtr_.
   /// \return true if renamed a member
   bool deduplicate_members() { return udt_type_data_t__deduplicate_members(this); }
+
+  /// Build a name made of the member types, as used by #NTF_AUTONAME:
+  /// _DWORD_x2 (array wrapper), _2__DWORDs_double (tuple), struct__int_char,
+  /// union__int_char (other udts)
+  /// \param[out] out  the name
+  /// \return false if a member type can not be named (anonymous udt,
+  ///         function pointer...) or the name would be longer than 128
+  ///         characters
+  bool build_autoname(qstring *out) const { return udt_type_data_t__build_autoname(this, out); }
 
 };
 DECLARE_TYPE_AS_MOVABLE(udt_type_data_t);
@@ -6382,6 +6431,7 @@ enum update_type_t
 {
   UTP_ENUM,
   UTP_STRUCT,
+  UTP_LAST,             ///< number of values above
 };
 
 /// Mark the beginning of a large update operation on the types.

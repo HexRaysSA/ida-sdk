@@ -85,6 +85,6 @@ plugin_t PLUGIN =
                         // long comment about the plugin
   "A sample ui_requests and process_ui_commands plugin",
                         // multiline help about the plugin
-  "UI requests demo",   // the preferred short name of the plugin
+  "Examples/UI requests demo",   // the preferred short name of the plugin
   "Shift-F8"            // the preferred hotkey to run the plugin
 };

@@ -545,6 +545,19 @@ static inline bool is_paci_sp(const insn_t &insn)
   return key == PAC_KEY_IA || key == PAC_KEY_IB;
 }
 
+//------------------------------------------------------------------
+// is operand N the label of AUTIASPPC/AUTIBSPPC or RETAASPPC/RETABSPPC
+// (FEAT_PAuth_LR)? the label is the address of the PACIxSPPC that signed
+// the return address
+static inline bool is_pac_lr_label(const insn_t &insn, int n)
+{
+  return n == 1
+      && (insn.itype == ARM_aut || insn.itype == ARM_ret)
+      && (insn.auxpref & aux_pac) != 0
+      && (insn.pac_flags & PAC_MOD2) != 0
+      && insn.ops[n].type == o_imm;
+}
+
 
 //------------------------------------------------------------------
 enum RegNo
@@ -1165,6 +1178,8 @@ struct arm_arch_t
 
   uint8 cde_cps = 0;     // coprocessors with enabled Custom Datapath
 
+  bool btie = false;     // FEAT_BTIE: HINT #32 is BTI r, a return landing pad
+
   static const char *get_canonical_name(unsigned archno);
   bool set_from_name(const char *name); // arch name or core name
   bool set_options(const char *opts); // semicolon-delimited option string
@@ -1180,6 +1195,11 @@ struct arm_arch_t
       return base_arch >= arch_ARMv6M && base_arch <= arch_ARMv7EM;
     }
     return profile == arch_profile_M;
+  }
+  // FEAT_BTIE needs Armv9.6-A
+  bool may_have_btie() const
+  {
+    return base_arch == arch_ARMv9 || base_arch == arch_ARM_meta;
   }
   bool has_armv8m() const
   {
@@ -1748,9 +1768,7 @@ public:
 };
 
 //-------------------------------------------------------------------------
-struct arm_reg_finder_t;
-arm_reg_finder_t *alloc_reg_finder(const arm_t &pm);
-void free_reg_finder(arm_reg_finder_t *rf);
+struct arm_private_t;
 
 #define PROCMOD_T arm_t
 struct arm_t : public procmod_t
@@ -1847,6 +1865,7 @@ struct arm_t : public procmod_t
   inline bool has_sve2()   const { return arch.sve_arch >= sve_arch_v2; }
   inline bool has_sme()    const { return arch.sve_arch >= sve_arch_sme_v1; }
   inline bool has_sme2()   const { return arch.sve_arch >= sve_arch_sme_v2; }
+  inline bool has_btie()   const { return arch.btie; }
 #ifndef ENABLE_LOWCNDS
   inline bool has_armv5()  const { return arch.base_arch >= arch_ARMv5T; }
   inline bool has_armv7a() const { return arch.base_arch == arch_ARMv7 || arch.base_arch > arch_ARMv7EM; }
@@ -1896,7 +1915,7 @@ struct arm_t : public procmod_t
   it_blocks_t it_blocks;
   sp_alias_cache_t sp_alias_cache;
 
-  arm_reg_finder_t *reg_finder = nullptr;
+  arm_private_t *priv = nullptr;
 
   //----------------------------------------------------------------------
   mmtype_t *mmtypes = nullptr;
@@ -2045,13 +2064,13 @@ struct arm_t : public procmod_t
   void handle_numloop_phrase(
         const insn_t &insn,
         const op_t &op,
-        dref_t dref_type);
+        dref_t dref_type) const;
   bool emulate_ldr_str_with_displ(const insn_t &insn, const op_t &op);
   void handle_numloop_data_array(
         const insn_t &insn,
         const op_t &op,
         const ::reg_value_info_t &base,
-        dref_t dref_type);
+        dref_t dref_type) const;
   bool check_for_sjlj_setup(
         const insn_t &insn,
         ea_t pcval,
@@ -2154,6 +2173,7 @@ struct arm_t : public procmod_t
   bool is_sp_based(const insn_t &insn, const op_t &x);
   sval_t special_func_spd(const insn_t &insn) const;
   static bool is_start_func_hint(const insn_t &_insn);
+  static bool is_pac_lr_label_xref(ea_t from, ea_t to);
   void try_delay_offset(ea_t ea);
   int sp_based(const insn_t &insn, const op_t &x);
   bool uses(const insn_t &insn, int reg) const;
@@ -2294,7 +2314,11 @@ struct arm_t : public procmod_t
   const char *cond2str(cond_t cond) const;
   void footer(outctx_t &ctx) const;
   bool outspec(outctx_t &ctx, uchar stype) const;
-  void get_hint(qstring *out, int *important_lines, const char *name);
+  void get_hint(
+        qstring *out,
+        int *important_lines,
+        const char *name,
+        ea_t ea = BADADDR);
   void init_sys_regs() const;
   bool find_sys_reg(qstring *name, const insn_t &ins) const;
 
@@ -2348,6 +2372,10 @@ struct arm_t : public procmod_t
         const insn_t &insn,
         bool before = true,
         int max_depth = 0) const;
+  bool is_loaded_from_array(
+        ea_t *start,
+        int *elsize,
+        const reg_value_info_t &value) const;
   void get_rvi_eas(eavec_t *value_eas, const reg_value_info_t &rvi);
   bool can_resolve_mem(ea_t ea) const;
   void update_reg_finder_sizes();

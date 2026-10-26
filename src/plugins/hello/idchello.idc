@@ -16,7 +16,7 @@ class hello_plugin_t
     this.flags = PLUGIN_MULTI;
     this.comment = "This is a comment";
     this.help = "This is help";
-    this.wanted_name = "Hello IDC plugin";
+    this.wanted_name = "Examples/Hello IDC plugin";
     this.wanted_hotkey = "Alt-F6";
   }
   init()

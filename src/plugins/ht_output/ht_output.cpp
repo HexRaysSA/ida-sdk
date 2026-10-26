@@ -191,7 +191,7 @@ bool idaapi ht_output_plugin_t::run(size_t)
   return true;
 }
 
-static const char wanted_name[] = "HT_OUTPUT notifications handling example";
+static const char wanted_name[] = "Examples/HT_OUTPUT notifications handling example";
 static const char wanted_hotkey[] = "Ctrl-Alt-F11";
 //--------------------------------------------------------------------------
 static const char comment[] = "HT_OUTPUT notifications handling";

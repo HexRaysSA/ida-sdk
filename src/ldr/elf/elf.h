@@ -890,14 +890,17 @@ struct elf_hexagon_t : public proc_def_t
   virtual const char *proc_describe_flag_bit(uint32 *e_flags) override;
   virtual const char *proc_handle_dynamic_tag(const Elf64_Dyn *dyn) override;
   virtual bool proc_handle_symbol(sym_rel &sym, const char *symname) override;
+  virtual bool proc_on_end_data_loading() override;
 
 private:
   bool do_apply(ea_t addr, uint32 value, uint32 mask) const;
   int32 extract_addend(ea_t addr, uint32 mask, int shift) const;
   bool dtprel_offset(uint32 *out, uint32 Sadd);
   ea_t got_origin(reloc_tools_t *tools, bool create);
+  ea_t get_sda_base();
 
-  uint32 sda_base_ = 0;
+  ea_t sda_base_ = BADADDR;
+  bool sda_known_ = false;
   uint32 got_addr_ = 0;
   uint32 plt_addr_ = 0;
 };
@@ -1184,11 +1187,12 @@ struct elf_m32r_t : public hexrays_procdef_t
 struct elf_rx_t : public hexrays_procdef_t
 {
   elf_rx_t(elf_loader_t &ldr, reader_t &reader);
-    virtual const char *proc_handle_reloc(
+  virtual const char *proc_handle_reloc(
         const rel_data_t &rel_data,
         const sym_rel *symbol,
         const elf_rela_t *reloc,
         reloc_tools_t *tools) override;
+  virtual void proc_on_start_data_loading(elf_ehdr_t &header) override;
 };
 
 //----------------------------------------------------------------------------

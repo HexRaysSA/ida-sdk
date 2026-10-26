@@ -977,6 +977,7 @@ decl void ida_export reg_finder_emulate_unary_op(reg_finder_t *_this, reg_value_
 decl void ida_export reg_finder_emulate_binary_op_shifted(reg_finder_t *_this, reg_value_base_t *value, int aop, const op_t *op1, const op_t *op2, int width, bool is_signed, int shift, uint8 shift_count, const insn_t *insn, ea_t ea, ea_t ds);\
 decl bool ida_export reg_finder_may_modify_stkvar(reg_finder_t *_this, reg_value_base_t *value, reg_finder_op_t op, const insn_t *insn);\
 decl bool ida_export reg_finder_can_resolve_mem(const reg_finder_t *_this, ea_t ea);\
+decl bool ida_export reg_finder_is_loaded_from_array(reg_finder_t *_this, ea_t *start, int *elsize, const reg_value_base_t *value, int max_depth);\
 decl void ida_export reg_finder_ctr(reg_finder_t *_this);\
 decl void ida_export reg_finder_dtr(reg_finder_t *_this);
 
@@ -1393,6 +1394,23 @@ public:
     return reg_finder_can_resolve_mem(this, ea);
   }
 
+  // is VALUE unknown because it was loaded from an array that a loop walks
+  // by one element per iteration (the load address is a NUMLOOP whose
+  // stride is the load width)?
+  // \param start      the address of the first loaded element
+  // \param elsize     the element size
+  // \param value      the loaded value
+  // \param max_depth  the maximum search depth for the load address
+  bool is_loaded_from_array(
+        ea_t *start,
+        int *elsize,
+        const rvb_t &value,
+        int max_depth = 0)
+  {
+    return reg_finder_is_loaded_from_array(this, start, elsize,
+                                           &value, max_depth);
+  }
+
   friend struct reg_finder_debug_t;
 
 protected:
@@ -1516,6 +1534,23 @@ protected:
     // DELTA is positive for the 'add' insn.
     sval_t delta = 0;
   };
+  // a helper for is_move_insn() and the loop merge: can DELTA be the
+  // register change per one loop iteration that we track as a NUMLOOP
+  // stride? anything that fits into reg_value_base_t::stride
+  static bool is_trackable_stride(sval_t delta)
+  {
+    return delta != 0 && delta == int8(delta);
+  }
+  // a helper for is_move_insn(): is the immediate OP displayed as a plain
+  // number? an operand with another representation (an offset, a struct
+  // offset, an enum, ...) is an address computation rather than a loop
+  // stride: emulate it as usual, so we do not lose the offset expressions
+  // and the flags of a complex immediate operand
+  static bool is_plain_number(const insn_t &insn, const op_t &op)
+  {
+    flags64_t F = get_flags(insn.ea);
+    return !is_defarg(F, op.n) || is_numop(F, op.n);
+  }
   // \param [out] move_desc  the decription of the 'move' insn
   // \param [in] rfop        the operand to find a value of
   // \param insn             the emulating insn
@@ -1873,7 +1908,29 @@ private:
         rfop_t rfop,
         const insn_t &insn);
   bool can_resolve_mem_impl(ea_t ea) const;
+  bool is_loaded_from_array_impl(
+        ea_t *start,
+        int *elsize,
+        const rvb_t &value,
+        int max_depth);
 };
+
+//-------------------------------------------------------------------------
+/// OP of INSN accesses a static array that a loop walks by the stride ESIZE:
+/// the access base is a NUMLOOP starting at START and OFF is the
+/// displacement (0 if the access does not move the address, e.g. a
+/// post-indexed or a register-offset access). Link INSN to the accessed
+/// element: for a member of a structure element set the struct offset of
+/// OP and add the xref to the member, otherwise add the xref to START+OFF
+/// (to START for a displacement of one stride).
+/// \return false if START is not an array with the element size ESIZE
+idaman bool ida_export apply_array_access(
+        const insn_t &insn,
+        const op_t &op,
+        ea_t start,
+        int esize,
+        sval_t off,
+        dref_t dref_type);
 
 //-------------------------------------------------------------------------
 // compatibility helpers

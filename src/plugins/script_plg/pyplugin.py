@@ -12,7 +12,7 @@ class myplugin_t(ida_idaapi.plugin_t):
     flags = ida_idaapi.PLUGIN_UNL | ida_idaapi.PLUGIN_MULTI
     comment = "This is a sample Python plugin"
     help = "This is help"
-    wanted_name = "Sample Python plugin"
+    wanted_name = "Examples/Sample Python plugin"
     wanted_hotkey = "Alt-F8"
 
     #def __del__(self):

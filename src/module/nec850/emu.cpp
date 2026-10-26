@@ -777,8 +777,10 @@ void nec850_t::handle_operand(
 
 //-------------------------------------------------------------------------
 // for PREPARE/DISPOSE
-int nec850_t::calc_stack_delta(const insn_t &insn) const
+int nec850_t::calc_stack_delta(const insn_t &insn, ea_t *locals_ea) const
 {
+  if ( locals_ea != nullptr )
+    *locals_ea = BADADDR;
   reglist_t regs;
   uval_t locals = 0;
   bool sub;
@@ -799,7 +801,7 @@ int nec850_t::calc_stack_delta(const insn_t &insn) const
     case NEC850_JARL:
     case NEC850_JR:
     case NEC850_CALLT:
-      switch ( is_special_func_call(&regs, &locals, insn) )
+      switch ( is_special_func_call(&regs, &locals, insn, locals_ea) )
       {
         case SPF_SAVE:
           sub = true;
@@ -831,7 +833,11 @@ void nec850_t::trace_sp(ea_t func_ea, const insn_t &insn) const
     case NEC850_JARL:
     case NEC850_JR:
     case NEC850_CALLT:
-      delta = calc_stack_delta(insn);
+      {
+        ea_t locals_ea;
+        delta = calc_stack_delta(insn, &locals_ea);
+        create_ghs_locals_word(locals_ea);
+      }
       break;
     case NEC850_ADD:
     case NEC850_ADDI:
@@ -1029,8 +1035,14 @@ bool nec850_t::handle_call_or_jump(const insn_t &insn) const
 
   if ( is_call && !func_does_return(target) )
     flow = false;
-  if ( is_call && is_special_return_func(insn) )
+  ea_t locals_ea;
+  if ( is_call && is_special_return_func(insn, &locals_ea) )
+  {
     flow = false;
+    // we cannot update SPD after a noret function so we don't format the
+    // local size word for ghsld4* functions. do it right now!
+    create_ghs_locals_word(locals_ea);
+  }
   if ( is_call )
     auto_apply_type(insn.ea, target);
   return flow;

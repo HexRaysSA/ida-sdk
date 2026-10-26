@@ -9,7 +9,7 @@ class hello_plugin_t(idaapi.plugin_t):
     flags = idaapi.PLUGIN_UNL | idaapi.PLUGIN_MULTI
     comment = "This is a comment"
     help = "This is help"
-    wanted_name = "Hello Python plugin"
+    wanted_name = "Examples/Hello Python plugin"
     wanted_hotkey = "Alt-F8"
 
     def init(self):

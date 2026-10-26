@@ -138,6 +138,6 @@ plugin_t PLUGIN =
   "Search functions, names, types, segments and comments "
     "using the IDA indexer API.",
   nullptr,
-  "Indexer Search",     // short name shown in Edit > Plugins
+  "Examples/Indexer Search",     // short name shown in Edit > Plugins
   "Ctrl-Alt-I",         // preferred hotkey
 };

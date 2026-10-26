@@ -353,6 +353,9 @@ struct idainfo
 #define OFLG_GEN_ORG      0x100         ///< Generate 'org' directives?
 #define OFLG_GEN_ASSUME   0x200         ///< Generate 'assume' directives?
 #define OFLG_GEN_TRYBLKS  0x400         ///< Generate try/catch directives?
+#define OFLG_BARE_NAMES   0x800         ///< Do not put backticks around names
+                                        ///< that could merge with the text
+                                        ///< around them (see #GN_LISTING)
 ///@}
 
   uchar s_cmtflg;                       ///< \ref SCF_
@@ -909,6 +912,8 @@ inline bool inf_gen_assume(void) { return getinf_flag(INF_OUTFLAGS, OFLG_GEN_ASS
 inline bool inf_set_gen_assume(bool _v=true) { return setinf_flag(INF_OUTFLAGS, OFLG_GEN_ASSUME, _v); }
 inline bool inf_gen_tryblks(void) { return getinf_flag(INF_OUTFLAGS, OFLG_GEN_TRYBLKS); }
 inline bool inf_set_gen_tryblks(bool _v=true) { return setinf_flag(INF_OUTFLAGS, OFLG_GEN_TRYBLKS, _v); }
+inline bool inf_bare_names(void) { return getinf_flag(INF_OUTFLAGS, OFLG_BARE_NAMES); }
+inline bool inf_set_bare_names(bool _v=true) { return setinf_flag(INF_OUTFLAGS, OFLG_BARE_NAMES, _v); }
 
 inline uchar inf_get_cmtflg() { return uchar(getinf(INF_CMTFLG)); }
 inline bool inf_set_cmtflg(uchar _v) { return setinf(INF_CMTFLG, ssize_t(_v)); }

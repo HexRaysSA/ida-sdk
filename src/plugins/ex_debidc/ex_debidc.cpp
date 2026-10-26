@@ -149,7 +149,7 @@ static plugmod_t *idaapi init()
 }
 
 //--------------------------------------------------------------------------
-static const char wanted_name[] = "Specify Debugger IDC Script";
+static const char wanted_name[] = "Examples/Specify Debugger IDC Script";
 static const char wanted_hotkey[] = "";
 
 //--------------------------------------------------------------------------

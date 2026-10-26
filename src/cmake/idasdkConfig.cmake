@@ -237,6 +237,12 @@ if(NOT DEFINED IDA_PROCMOD_DIR)
     cmake_path(APPEND IDABIN "procs" OUTPUT_VARIABLE IDA_PROCMOD_DIR)
 endif()
 
+# /EHs, not CMake's default /EHsc: idaman (extern "C") exports such as
+# vloader_failure() throw C++ exceptions; /EHc lets MSVC assume they don't
+if(MSVC)
+    string(REPLACE "/EHsc" "/EHs" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+endif()
+
 # 3. Interface lib for compile/link settings + idasdk::* imported targets.
 if(NOT TARGET ida_addon_base)
     add_library(ida_addon_base INTERFACE)
@@ -263,7 +269,7 @@ if(NOT TARGET ida_addon_base)
 
     if(MSVC)
         target_compile_options(ida_addon_base INTERFACE
-            /EHsc /Zc:wchar_t /Zc:inline /utf-8
+            /EHs /Zc:wchar_t /Zc:inline /utf-8
             /wd4244 /wd4267 /wd4146 /wd4018 /wd4996)
     else()
         target_compile_options(ida_addon_base INTERFACE
@@ -436,7 +442,9 @@ function(_idasdk_define_addon kind target_name out_dir)
     endif()
 
     # SDK headers are warning-noisy; silence per-target by default.
-    if(MSVC)
+    if(IDA_DEPRECATED_AS_ERROR AND NOT MSVC)
+        # -w would also silence the deprecated-API error
+    elseif(MSVC)
         target_compile_options(${target_name} PRIVATE /w)
     else()
         target_compile_options(${target_name} PRIVATE -w)
@@ -474,6 +482,14 @@ if(NOT COMMAND copy_cfg)
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different
                     "${src}" "${IDABIN}/cfg/${_name}")
     endfunction()
+endif()
+
+if(NOT COMMAND ida_module_warnings)
+    if(NOT DEFINED IDA_WARNINGS)
+        set(IDA_WARNINGS "default")
+    endif()
+    include("${CMAKE_CURRENT_LIST_DIR}/modules/warnings_configure.cmake")
+    ida_apply_global_warnings(ida_addon_base INTERFACE)
 endif()
 
 if(NOT COMMAND ida_disable_warnings)

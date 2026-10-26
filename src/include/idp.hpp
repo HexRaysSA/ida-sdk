@@ -1634,6 +1634,13 @@ struct processor_t
                                 ///< \retval 1 the function is outlined
                                 ///< \retval 0 not implemented / not outlined
 
+    ev_show_rename_dialog,      ///< Rename an address with the module's own
+                                ///< dialog instead of the standard one.
+                                ///< \param ea  (::ea_t) the address to rename
+                                ///< \retval 1  renamed
+                                ///< \retval -1 handled, nothing was renamed
+                                ///< \retval 0  not implemented
+
     ev_last_cb_before_debugger, ///< START OF DEBUGGER CALLBACKS
 
     ev_next_exec_insn = 1000,   ///< Get next address to be executed
@@ -2030,6 +2037,7 @@ struct processor_t
   inline static ssize_t rename(ea_t ea, const char *new_name, int flags);
   inline static ssize_t sanitize_name(qstring *name, callcnv_t cc, nametype_t nt=VNT_IDENT);
   inline static ssize_t is_outlined_function(ea_t func_ea);
+  inline static ssize_t show_rename_dialog(ea_t ea);
   inline static ssize_t may_show_sreg(ea_t current_ea);
   inline static ssize_t coagulate(ea_t start_ea);
   inline static void auto_queue_empty(/*atype_t*/ int type);
@@ -2533,6 +2541,10 @@ inline ssize_t processor_t::sanitize_name(qstring *name, callcnv_t cc, nametype_
 inline ssize_t processor_t::is_outlined_function(ea_t func_ea)
 {
   return notify(ev_is_outlined_function, func_ea);
+}
+inline ssize_t processor_t::show_rename_dialog(ea_t ea)
+{
+  return notify(ev_show_rename_dialog, ea);
 }
 inline ssize_t processor_t::may_show_sreg(ea_t current_ea)
 {
@@ -3120,6 +3132,8 @@ enum setproc_level_t
   SETPROC_LOADER_NON_FATAL = 2, ///< the same as SETPROC_LOADER but non-fatal failures.
   SETPROC_USER = 3,   ///< set user-specified processor
                       ///< used for -p and manual processor change at later time
+  SETPROC_LOADER_KEEP_USER_NON_FATAL = 4, ///< the same as SETPROC_LOADER
+                      ///< but if failure, return false
 };
 
 /// Set target processor type.

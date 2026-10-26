@@ -943,12 +943,39 @@ int linux_debmod_t::get_debug_event(debug_event_t *event, int timeout_ms)
       // deliver via explicit PTRACE_CONT, clear child_signum so
       // a subsequent thaw (e.g. after SIGSTOP) won't re-deliver it.
       thif->child_signum = 0;
+      if ( requested_to_suspend )
+      {
+        // a thread faulting in a loop can starve the stop we are waiting
+        // for: suspend here. the signal is dropped, but the faulting
+        // instruction runs again on resume and ART gets the SIGSEGV then.
+        dbg_freeze_threads(NO_THREAD);
+        may_run = false;
+        event->set_eid(PROCESS_SUSPENDED);
+        event->pid = process_handle;
+        event->tid = tid;
+        event->ea = get_ip(tid);
+        event->handled = true;
+        goto EVENT_READY;
+      }
       set_thread_state(*thif, RUNNING);
       qptrace(PTRACE_CONT, tid, 0, (void *)(size_t)SIGSEGV);
       return false; // no event; caller will retry
     }
   }
 #endif
+
+  // a seized thread reports group-stops and their end as PTRACE_EVENT_STOP.
+  // these are not debug events: the thread was running, let it go on.
+  if ( WIFSTOPPED(status) && (status >> 16) == PTRACE_EVENT_STOP )
+  {
+    log(tid, "group-stop event, resuming\n");
+    // the late PTRACE_INTERRUPT stop of an attached thread
+    if ( WSTOPSIG(status) == SIGTRAP )
+      thif->waiting_sigstop = false;
+    set_thread_state(*thif, RUNNING);
+    qptrace(PTRACE_CONT, tid, 0, 0);
+    return false; // no event; caller will retry
+  }
 
   dbg_freeze_threads(NO_THREAD);
   may_run = false;
@@ -2264,20 +2291,32 @@ void linux_debmod_t::cleanup_signals(void)
     {
       thread_info_t &ti = p->second;
       ldeb("cleanup_signals:\n");
-      // With PTRACE_SEIZE + PTRACE_INTERRUPT, there's no pending signal to drain -
-      // the stop is a ptrace-stop (PTRACE_EVENT_STOP), not a signal-delivery-stop.
-      if ( using_seize )
-      {
-        ti.waiting_sigstop = false;
+      // even with PTRACE_SEIZE this can be a real SIGSTOP (sent to suspend
+      // the thread): left queued, it would stop the process after detaching.
+      // otherwise it is the PTRACE_INTERRUPT stop, consumed the same way.
+      ti.waiting_sigstop = false;
+      if ( ti.state != STOPPED && ti.state != RUNNING )
         continue;
+      // a running thread is about to stop by itself
+      if ( ti.state == STOPPED || ti.got_pending_status )
+        qptrace(PTRACE_CONT, ti.tid, 0, 0);
+      while ( true )
+      {
+        int status;
+        int tid = check_for_signal(&status, ti.tid, 1000);
+        if ( tid != ti.tid )
+        {
+          msg("%d: failed to clean up pending SIGSTOP\n", ti.tid);
+          break;
+        }
+        if ( !WIFSTOPPED(status) )
+          break;
+        int sig = WSTOPSIG(status);
+        if ( sig == SIGSTOP || (status >> 16) == PTRACE_EVENT_STOP )
+          break;
+        // another signal came first: deliver it and keep waiting
+        qptrace(PTRACE_CONT, ti.tid, 0, (void *)(size_t)(sig == SIGTRAP ? 0 : sig)); //lint !e571 cast results in sign extension
       }
-      log(ti.tid, "must be STOPPED\n");
-      QASSERT(30181, ti.state == STOPPED);
-      qptrace(PTRACE_CONT, ti.tid, 0, 0);
-      int status;
-      int tid = check_for_signal(&status, ti.tid, -1);
-      if ( tid != ti.tid )
-        msg("%d: failed to clean up pending SIGSTOP\n", tid);
     }
   }
 }

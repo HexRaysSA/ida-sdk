@@ -209,6 +209,25 @@ inline bool is_visible_cp(wchar32_t cp)
 { return is_valid_cp(cp, VNT_VISIBLE); }
 
 
+/// Append a name as a listing line shows it: in backticks if it could merge
+/// with the text around it. It is not put in backticks if the database setting
+/// is off (see inf_bare_names()), if all its characters are allowed
+/// (::NameChars or ::TypeNameChars, plus '.' and the '::' separator), or if it
+/// has the syntax of a C++ name. Inside the backticks, '`' and '\' are escaped
+/// with '\'.
+/// \param vout     the buffer
+/// \param name     the name
+/// \param vnt      #VNT_IDENT for a symbol name, #VNT_TYPE for a type or member name
+/// \param semspan  wrap the name in a semantic span (see ::COLOR_SEMSPAN).
+///                 The backticks are outside of the span.
+
+idaman void ida_export make_listing_name(
+        qstring *vout,
+        const char *name,
+        int vnt,
+        bool semspan=false);
+
+
 /// Is a valid name? (including ::MangleChars)
 
 idaman bool ida_export is_ident(const char *name);
@@ -344,6 +363,9 @@ idaman ssize_t ida_export get_ea_name(
 #define GN_ISRET     0x0080 ///< for dummy names: use retloc
 #define GN_NOT_ISRET 0x0100 ///< for dummy names: do not use retloc
 #define GN_NOT_DUMMY 0x0200 ///< do not return a dummy name
+#define GN_LISTING   0x0400 ///< return a name that can go inside a listing line:
+                            ///< put it in backticks if it could merge with
+                            ///< the text around it (see make_listing_name()).
 
 ///@}
 
@@ -382,6 +404,13 @@ inline ssize_t idaapi get_colored_short_name(qstring *out, ea_t ea, int gtn_flag
 inline ssize_t idaapi get_colored_long_name(qstring *out, ea_t ea, int gtn_flags=0)
 {
   return get_ea_name(out, ea, GN_VISIBLE|GN_COLORED|GN_DEMANGLED|GN_LONG|gtn_flags);
+}
+
+/// Get the name as a listing shows it: short demangled form, in backticks
+/// if it could merge with the text around it (see #GN_LISTING)
+inline ssize_t idaapi get_listing_name(qstring *out, ea_t ea, int gtn_flags=0)
+{
+  return get_ea_name(out, ea, GN_VISIBLE|GN_DEMANGLED|GN_SHORT|GN_LISTING|gtn_flags);
 }
 
 inline ssize_t idaapi get_demangled_name(
@@ -435,6 +464,13 @@ inline qstring idaapi get_short_name(ea_t ea, int gtn_flags=0)
 {
   qstring out;
   get_ea_name(&out, ea, GN_VISIBLE|GN_DEMANGLED|GN_SHORT|gtn_flags);
+  return out;
+}
+
+inline qstring idaapi get_listing_name(ea_t ea, int gtn_flags=0)
+{
+  qstring out;
+  get_listing_name(&out, ea, gtn_flags);
   return out;
 }
 
@@ -575,6 +611,8 @@ idaman ssize_t ida_export get_nice_colored_name(
                              ///< ::COLOR_SEMSPAN span, so a viewer highlights the whole
                              ///< qualified name as one unit; typically combined with
                              ///< #GNCN_NOCOLOR to group without painting the name
+#define GNCN_LISTING  0x0800 ///< put a name in backticks if it could merge with the
+                             ///< text around it (see #GN_LISTING)
 ///@}
 
 
@@ -587,6 +625,9 @@ idaman ssize_t ida_export get_nice_colored_name(
 #define ASF_TAG_MEMBERS 0x00000002  ///< wrap each printed member in a navigable
                                     ///< ::COLOR_SEMSPAN span (interactive
                                     ///< disassembly operands)
+#define ASF_LISTING     0x00000004  ///< put a member name in backticks if it
+                                    ///< could merge with the text around it
+                                    ///< (see #GN_LISTING)
 ///@}
 
 /// Append names of struct fields to a name if the name is a struct name.

@@ -335,7 +335,7 @@ static const char help[] =
   "Z80 debugger module\n"
   "\n"
   "This plugin extends the Z80 processor module to support debugging.\n";
-static const char wanted_name[] = "Z80 debugger processor extension";
+static const char wanted_name[] = "Examples/Z80 debugger processor extension";
 static const char wanted_hotkey[] = "";
 plugin_t PLUGIN =
 {

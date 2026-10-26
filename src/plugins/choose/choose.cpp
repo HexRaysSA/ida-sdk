@@ -183,7 +183,7 @@ plugin_t PLUGIN =
   "This module shows you how to use choose() function.\n",
 
   // the preferred short name of the plugin
-  "Called functions",
+  "Examples/Called functions",
   // the preferred hotkey to run the plugin
   ""
 };

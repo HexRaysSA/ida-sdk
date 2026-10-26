@@ -77,6 +77,6 @@ plugin_t PLUGIN =
   nullptr,
   nullptr,              // long comment about the plugin
   nullptr,              // multiline help about the plugin
-  "License info",       // the preferred short name of the plugin
+  "Examples/License info",       // the preferred short name of the plugin
   nullptr,              // the preferred hotkey to run the plugin
 };

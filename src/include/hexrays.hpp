@@ -548,9 +548,9 @@ enum merror_t
   MERR_STOP      = -33, ///< no error, stop the analysis
   MERR_CLOUD     = -34, ///< cloud: %s
   MERR_EMULATOR  = -35, ///< emulator: %s
-  MERR_TIMEOUT   = -36, ///< decompilation timed out, see \ref set_decompiler_timeout
-  MERR_MAX_ERR   = 36,
-  MERR_LOOP      = -37, ///< internal code: redo last loop (never reported)
+  MERR_LOOP      = -36, ///< internal code: redo last loop (never reported)
+  MERR_TIMEOUT   = -37, ///< decompilation timed out, see \ref set_decompiler_timeout
+  MERR_MAX_ERR   = 37,
 };
 ///@}
 
@@ -3393,6 +3393,14 @@ enum funcrole_t
   ROLE_SPUT,                 ///< set static field
   ROLE_AGET,                 ///< get array element
   ROLE_APUT,                 ///< set array element
+  ROLE_IGET_QUICK,           ///< get instance field at a byte offset
+                             ///< (Dalvik +iget-quick, field unknown)
+  ROLE_IPUT_QUICK,           ///< set instance field at a byte offset
+                             ///< (Dalvik +iput-quick, field unknown)
+  ROLE_INVOKE_QUICK,         ///< instance method call through a vtable slot
+                             ///< (Dalvik +invoke-virtual-quick)
+  ROLE_INVOKE_SUPER_QUICK,   ///< parent class method call through a vtable
+                             ///< slot (Dalvik +invoke-super-quick)
   ROLE_FMOD,                 ///< floating-point remainder (fmod)
   ROLE_INVOKE_VIRTUAL,       ///< instance method call (obj.method)
   ROLE_INVOKE_SUPER,         ///< parent class method call (super.method)
@@ -6345,6 +6353,9 @@ vdui_t *hexapi get_widget_vdui(TWidget *f);
 #define VDRUN_STATS   0x00000040  ///< Print statistics into vd_stats.txt
 #define VDRUN_LUMINA  0x00000080  ///< Use lumina server
 #define VDRUN_TMPFILE 0x00000100  ///< Use a temp file for decompiled text to save memory
+#define VDRUN_NOSERIALIZE 0x00000200 ///< Do not save each decompiled function
+                                     ///< to the database at once (keep it in
+                                     ///< the memory cache, if it is used)
 #define VDRUN_PERF    0x00200000  ///< Print performance stats to ida.log
 #define VDRUN_RECURSIVE 0x10000000 ///< decompile the specified functions and their callees
 ///@}
@@ -8525,7 +8536,7 @@ inline bool cblock_t::is_ordinary_flow() const
 const char *hexapi get_ctype_name(ctype_t op);
 qstring hexapi create_field_name(const tinfo_t &type, uval_t offset=BADADDR);
 typedef void *hexdsp_t(int code, ...);
-const int64 HEXRAYS_API_MAGIC = 0x00DEC0DE00000006LL;
+const int64 HEXRAYS_API_MAGIC = 0x00DEC0DE00000005LL;
 
 /// Decompiler events.
 /// Use install_hexrays_callback() to install a handler for decompiler events.
@@ -9323,8 +9334,10 @@ struct class_member_t
 {
   qstring name;                 ///< the member's name as the class view shows it
   qstring typestr;              ///< the type as the language spells it, when it says more than
-                                ///< 'type': "List<String>", "map[string]int", "Option<Box<T>>"
-  qstring value;                ///< field: constant initializer text ("42", "\"abc\""); else empty
+                                ///< 'type': "List<String>", "map[string]int", "Option<Box<T>>";
+                                ///< empty when decl uses the database type instead of the declared one
+  qstring value;                ///< field: constant initializer text ("42", "\"abc\""); empty
+                                ///< for a method, or when decl uses the database type
   qstring decl;                 ///< declaration without body, as the class view renders it
   qstrvec_t attrs;              ///< attribute lines as the language writes them:
                                 ///< "@Inject", "#[derive(Debug)]", "@objc", Go struct tags

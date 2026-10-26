@@ -4570,6 +4570,8 @@ THREAD_SAFE inline bool unpack_bytevec(
   uint32 nbytes = unpack_dd(pptr, end);
   if ( nbytes == 0 )
     return true;
+  if ( nbytes > size_t(end - *pptr) )
+    return false; // do not allocate memory for a bogus size
   const size_t old_size = out->size();
   out->resize_noinit(old_size + nbytes);
   return unpack_obj(out->begin() + old_size, nbytes, pptr, end) != nullptr;

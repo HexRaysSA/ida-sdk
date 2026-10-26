@@ -221,6 +221,6 @@ plugin_t PLUGIN =
   nullptr,
   "Generate list of exported function prototypes",
   "Generate list of exported function prototypes",
-  "List of exported functions",
+  "Examples/List of exported functions",
   "Ctrl-F11",
 };

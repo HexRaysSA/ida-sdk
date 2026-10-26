@@ -169,6 +169,6 @@ plugin_t PLUGIN =
   nullptr,
   nullptr,              // long comment about the plugin
   nullptr,              // multiline help about the plugin
-  "ask_form sample",    // the preferred short name of the plugin
+  "Examples/ask_form sample",    // the preferred short name of the plugin
   nullptr,              // the preferred hotkey to run the plugin
 };

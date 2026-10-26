@@ -137,6 +137,6 @@ plugin_t PLUGIN =
   nullptr,
   nullptr,              // long comment about the plugin
   nullptr,              // multiline help about the plugin
-  "Multi-threaded sample", // the preferred short name of the plugin
+  "Examples/Multi-threaded sample", // the preferred short name of the plugin
   nullptr,              // the preferred hotkey to run the plugin
 };

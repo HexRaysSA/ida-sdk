@@ -122,11 +122,13 @@ inline kcu_svc_t *get_kcu_svc(kcu_config_t *cfg=nullptr)
 /// that maps an address back to its owning KEXT.
 enum kcu_region_type_t
 {
+  // values are persisted in the region map; append, never renumber
   krt_invalid,       ///< no/invalid region
   krt_header,        ///< the fileset mach header
   krt_kext_header,   ///< a KEXT's mach-o header (kext is set)
   krt_kext_section,  ///< a section belonging to a KEXT (kext is set)
-  krt_linkedit,      ///< the collection-wide shared __LINKEDIT (no owning KEXT)
+  krt_collection,    ///< collection-level content owned by no KEXT (the shared
+                     ///< __LINKEDIT, prelink info, boot-exec, SPTM, ...)
   krt_unknown,       ///< covered but not (yet) identified
 };
 
@@ -140,7 +142,7 @@ inline const char *kcu_region_type_name(kcu_region_type_t type)
     case krt_header:       return "krt_header";
     case krt_kext_header:  return "krt_kext_header";
     case krt_kext_section: return "krt_kext_section";
-    case krt_linkedit:     return "krt_linkedit";
+    case krt_collection:   return "krt_collection";
     case krt_unknown:      return "krt_unknown";
   }
   return "?";
@@ -365,6 +367,56 @@ DECLARE_TYPE_AS_MOVABLE(kcu_string_match_t);
 typedef qvector<kcu_string_match_t> kcu_string_match_vec_t;
 
 //-------------------------------------------------------------------------
+/// One kalloc_type descriptor, as kcu_svc_t::get_kalloc_view() reads it.
+///
+/// From iOS 16 on, an allocation of a known type passes a descriptor instead
+/// of a size; it names the type, gives its size, and carries a map of which
+/// of its eight-byte granules hold pointers. The two flavours -- a fixed type
+/// in __kalloc_type, one whose length is known only at run time in
+/// __kalloc_var -- are reported through the same record.
+///
+/// The field offsets this is read from come from the til, so a layout change
+/// in a future kernel is picked up with the til. Read the descriptor through
+/// here rather than by hand for that reason.
+struct kcu_kalloc_view_t
+{
+  qstring site_name;        ///< What the macro stringified, after "site.".
+                            ///< Only some are type names: "IOEventSource" and
+                            ///< "struct inpcb *" are, "typeof(*region)" is not.
+  qstring type;             ///< The part of it naming a type, empty if none.
+  qstring sig;              ///< One hex digit per eight-byte granule, the or of
+                            ///< its members' kt_granule_t kinds (1 pointer,
+                            ///< 2 data, 4 dual, 8 subject to PAC). Empty for a
+                            ///< type that is all data, which carries none.
+  qstring sig_hdr;          ///< The same for the header, when there is one.
+  ea_t ea = BADADDR;        ///< The descriptor itself.
+  uint32 size = 0;          ///< kt_size; for a var view, one element.
+  uint32 size_hdr = 0;      ///< The header's size; 0 for the fixed flavour.
+  uint32 flags = 0;         ///< kalloc_type_flags_t, as the descriptor holds it.
+  uint8 ptr_depth = 0;      ///< Stars after \ref type: a view of "struct inpcb *"
+                            ///< allocates inpcb pointers.
+  bool var_view = false;    ///< From __kalloc_var: a run of elements, after an
+                            ///< optional header.
+
+  bool operator==(const kcu_kalloc_view_t &r) const
+  {
+    return ea == r.ea
+        && size == r.size
+        && size_hdr == r.size_hdr
+        && flags == r.flags
+        && ptr_depth == r.ptr_depth
+        && var_view == r.var_view
+        && site_name == r.site_name
+        && type == r.type
+        && sig == r.sig
+        && sig_hdr == r.sig_hdr;
+  }
+  bool operator!=(const kcu_kalloc_view_t &r) const { return !(*this == r); }
+};
+DECLARE_TYPE_AS_MOVABLE(kcu_kalloc_view_t);
+typedef qvector<kcu_kalloc_view_t> kcu_kalloc_view_vec_t;
+
+//-------------------------------------------------------------------------
 /// Resolution of a single address into the cache layout: the region it lives
 /// in, the KEXT and collection that own it, and where it sits in the file.
 /// Cf. dscu's address_info_t.
@@ -395,6 +447,58 @@ struct kcu_extref_t
 };
 DECLARE_TYPE_AS_MOVABLE(kcu_extref_t);
 typedef qvector<kcu_extref_t> kcu_extref_vec_t;
+
+//-------------------------------------------------------------------------
+/// \defgroup KLRF_ Load request flags
+/// Passed as kcu_load_request_t::flags
+//@{
+#define KLRF_UNDO_ON_FAILURE   0x1 ///< failure to satisfy any part of the
+                                   ///< request reverts everything
+#define KLRF_CREATE_UNDO_POINT (0x2 | KLRF_UNDO_ON_FAILURE) ///< create an own
+                                   ///< undo point (or rely on the caller's)
+#define KLRF_ASK_CONFIRMATION  0x8 ///< ask the user's confirmation before
+                                   ///< performing the load, listing it
+#define KLRF_DEFAULT           (KLRF_CREATE_UNDO_POINT) ///< default flags
+//@}
+
+//-------------------------------------------------------------------------
+/// What an on-demand load should map. Every load the UI triggers (the KC
+/// Index "Load" actions, navigation into an unmapped address) funnels into
+/// kcu_svc_t::load_regions() through one of these; cf. the DSC's
+/// dscu_load_request_t.
+struct kcu_load_request_t
+{
+  uint32 flags = 0;        ///< \ref KLRF_
+  kext_coords_vec_t kexts; ///< the KEXTs to map
+  qstrvec_t blobs;         ///< owner-less collection regions, by segment name
+
+  kcu_load_request_t(uint32 _flags=KLRF_DEFAULT) : flags(_flags) {}
+  bool empty() const { return kexts.empty() && blobs.empty(); }
+
+  void clear()
+  {
+    kexts.clear();
+    blobs.clear();
+    flags = KLRF_DEFAULT;
+  }
+
+  /// file the region under the right bucket, deduplicated. A region that is
+  /// neither KEXT-owned nor a collection blob is not loadable on demand,
+  /// and is ignored.
+  void add_region(const kcu_region_info_t &ri)
+  {
+    if ( ri.kext.is_valid() )
+      kexts.add_unique(ri.kext);
+    else if ( ri.type == krt_collection )
+      blobs.add_unique(ri.segname);
+  }
+  void add_regions(const kcu_region_info_vec_t &regions)
+  {
+    for ( const kcu_region_info_t &ri : regions )
+      add_region(ri);
+  }
+};
+DECLARE_TYPE_AS_MOVABLE(kcu_load_request_t);
 
 //-------------------------------------------------------------------------
 /// The kernelcache services interface.
@@ -526,10 +630,17 @@ struct kcu_svc_t
   virtual bool is_kext_loaded(kext_coords_t kext) const = 0;
   inline bool is_kext_loaded(const char *kext_name) const { return is_kext_loaded(get_kext_coords(kext_name)); }
 
-  /// map the collection-wide shared __LINKEDIT region into the database
-  /// (a single owner-less region, cf. krt_linkedit). Returns true if it is
-  /// (or is now) mapped.
-  virtual bool load_linkedit() = 0;
+  /// map the owner-less collection region carrying `segname` into the
+  /// database (e.g. "__LINKEDIT", "__PRELINK_INFO"; cf. krt_collection).
+  /// Returns true if it is (or is now) mapped.
+  virtual bool load_collection_region(const char *segname) = 0;
+
+  /// Perform an on-demand load: map the requested KEXTs and collection
+  /// regions, skipping what is already mapped. With KLRF_ASK_CONFIRMATION
+  /// the user is asked first, shown what will actually be mapped; a request
+  /// with nothing left to map succeeds without asking.
+  /// \return false if the load failed or the user declined
+  virtual bool load_regions(const kcu_load_request_t &req) = 0;
 
   /// Return the number of KEXTs load_kexts() has mapped successfully,
   /// including the on-demand loads navigation triggers
@@ -670,6 +781,38 @@ struct kcu_svc_t
         const char *needle,
         uint32 flags=0,
         size_t max_count=size_t(-1)) const = 0;
+
+  //@}
+
+  /// \name Typed allocations
+  //@{
+
+  /// The kalloc_type descriptor at `ea`, if there is one there.
+  /// \param out  the descriptor, read through the til's layout
+  /// \param ea   the address to look at
+  /// \return false when `ea` holds no descriptor we understand
+  virtual bool get_kalloc_view(kcu_kalloc_view_t *out, ea_t ea) const = 0;
+
+  /// Every descriptor that allocates `type_name`, or all of them.
+  ///
+  /// A type is commonly described by several descriptors -- 460 of the 739
+  /// types an iOS 26 kernel allocates have more than one -- so the references
+  /// of any single one of them are only part of the answer to "what allocates
+  /// this type". That is what this call is for; walking the xrefs of one
+  /// descriptor quietly answers for that descriptor alone.
+  ///
+  /// Only the images mapped so far can answer: a descriptor in a KEXT that has
+  /// not been loaded is not in the database to be found.
+  ///
+  /// \param out        the descriptors, in address order
+  /// \param type_name  the type, as \ref kcu_kalloc_view_t::type spells it;
+  ///                   nullptr for every descriptor in the mapped images, and
+  ///                   "" for the ones whose site name is not a type at all
+  ///                   ("typeof(*region)" and the like)
+  /// \return how many were found
+  virtual size_t get_kalloc_views(
+        kcu_kalloc_view_vec_t *out,
+        const char *type_name=nullptr) const = 0;
 
   //@}
 };

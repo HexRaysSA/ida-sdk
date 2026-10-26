@@ -5869,6 +5869,12 @@ ARM_setge,              // Memory set with tag setting, epilogue
 // FEAT_FCMA: Advanced SIMD complex numbers
 ARM_fcadd,              // Floating-point Complex Add
 ARM_fcmla,              // Floating-point Complex Multiply Accumulate
+// FEAT_TEV: TIndex exception-like vector
+ARM_tenter,             // Enter critical region of code through an exception
+ARM_texit,              // Return from exception caused by TENTER
+// FEAT_S1POE2: TIndex change
+ARM_tchangef,           // TIndex change forward
+ARM_tchangeb,           // TIndex change backward
 ARM_last
 };
 /*

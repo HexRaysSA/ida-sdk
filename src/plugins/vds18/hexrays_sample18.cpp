@@ -268,6 +268,6 @@ plugin_t PLUGIN =
   nullptr,
   comment,              // long comment about the plugin
   nullptr,              // multiline help about the plugin
-  "Specify register value",  // the preferred short name of the plugin
+  "Examples/Specify register value",  // the preferred short name of the plugin
   nullptr,              // the preferred hotkey to run the plugin
 };

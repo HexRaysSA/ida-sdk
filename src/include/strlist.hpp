@@ -128,16 +128,24 @@ idaman bool ida_export get_strlist_item_ex(string_info_ex_t *si, size_t n);
 ///@{
 #define SYNTHSTR_NOCMT 0x0001 ///< list them in the Strings window, but do not
                               ///< show them as a comment in the listing.
-                              ///< Of the strings that may be shown there,
-                              ///< the listing shows one: the first of the
-                              ///< provider with the lowest id
+                              ///< The listing shows all the others, each
+                              ///< text once and on a line of its own, by
+                              ///< provider id
 #define SYNTHSTR_REPEATABLE 0x0002 ///< like a repeatable comment: the listing
                               ///< also shows them at the instructions that
                               ///< refer to the address (or into the item
-                              ///< at it), as it does for a string literal.
-                              ///< Of the repeatable strings at an address,
-                              ///< the references show the first one of the
-                              ///< provider with the lowest id
+                              ///< at it), as it does for a string literal
+///@}
+
+/// \defgroup SYNTHREL_ Synthetic string relations
+/// How an instruction relates to a synthetic string, see
+/// synth_string_t::uses and synth_string_t::parts
+///@{
+#define SYNTHREL_USE  0x01  ///< it uses the finished string, e.g. a call
+                            ///< that takes it or a store of it
+#define SYNTHREL_PART 0x02  ///< it builds a piece of it, e.g. the store of
+                            ///< a character of a string built on the stack
+#define SYNTHREL_ALL  (SYNTHREL_USE|SYNTHREL_PART)
 ///@}
 
 /// A stored synthetic string
@@ -147,6 +155,11 @@ struct synth_string_t
   qstring text;           ///< the string itself
   uint32 flags = 0;       ///< \ref SYNTHSTR_
   uchar provider = SYNTHSTR_PROVIDER_NONE; ///< \ref SYNTHSTR_PROVIDER_
+  eavec_t uses;           ///< the instructions that use it, e.g. a call
+                          ///< that takes it or a store of it
+  eavec_t parts;          ///< the instructions that build a piece of it,
+                          ///< e.g. the store of a character of a string
+                          ///< built on the stack
 };
 DECLARE_TYPE_AS_MOVABLE(synth_string_t);
 typedef qvector<synth_string_t> synth_strings_t; ///< synthetic strings
@@ -174,6 +187,22 @@ idaman bool ida_export synth_string_set(
         uint32 flags=0);
 
 
+/// Store what the provider PROVIDER_ID knows about EA, as synth_string_set()
+/// does, with the flags and the relations of each string: the instructions
+/// that use or build it (synth_string_t::uses and synth_string_t::parts),
+/// which synth_string_get_related() finds it from. A text given several
+/// times is stored once, with all their relations. The relations share the
+/// room of the texts; those that do not fit are dropped. The fields ea and
+/// provider of STRINGS are ignored.
+/// \return false if something was cut or dropped, or if nothing could be
+///         stored (PROVIDER_ID is #SYNTHSTR_PROVIDER_NONE, EA is BADADDR)
+
+idaman bool ida_export synth_string_set_strings(
+        uchar provider_id,
+        ea_t ea,
+        const synth_strings_t &strings);
+
+
 /// Forget everything the provider PROVIDER_ID said in [ea1, ea2).
 
 idaman void ida_export synth_string_forget(
@@ -195,6 +224,18 @@ idaman void ida_export synth_string_get_range(
         synth_strings_t *out,
         ea_t ea1,
         ea_t ea2);
+
+
+/// Get the strings that the instruction at EA uses or builds: those that
+/// name EA among their uses or parts (\ref SYNTHREL_).
+/// synth_string_t::ea is the address they are stored at.
+/// \param rels  \ref SYNTHREL_, the relations to look for
+/// \return false if there are none
+
+idaman bool ida_export synth_string_get_related(
+        synth_strings_t *out,
+        ea_t ea,
+        uchar rels=SYNTHREL_ALL);
 
 
 /// Register a synthetic string provider for the current database.
@@ -240,6 +281,10 @@ struct synth_string_provider_t
   /// \return false if the texts did not fit in full
   bool set(ea_t ea, const qstrvec_t &texts, uint32 flags=0) const
     { return synth_string_set(id, ea, texts, flags); }
+  /// Replace what this provider says about EA, with the flags and the
+  /// relations of each string, see synth_string_set_strings()
+  bool set_strings(ea_t ea, const synth_strings_t &strings) const
+    { return synth_string_set_strings(id, ea, strings); }
   /// What this provider said about EA, as it was passed to set().
   /// The strings of all providers, with their flags, are returned by
   /// synth_string_get().

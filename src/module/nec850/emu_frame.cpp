@@ -274,9 +274,11 @@ rh850_frame_t::track_res_t rh850_frame_t::track_stack(const insn_t &insn)
   {
     reglist_t regs;
     uval_t locals;
-    special_func_t spf = pm.is_special_func_call(&regs, &locals, insn);
+    ea_t locals_ea;
+    special_func_t spf = pm.is_special_func_call(&regs, &locals, insn, &locals_ea);
     if ( spf == SPF_SAVE )
     {
+      create_ghs_locals_word(locals_ea);
       // the register order is opposite to DISPOSE
       uval_t delta = regs.count() * 4;
       // allocate the frame

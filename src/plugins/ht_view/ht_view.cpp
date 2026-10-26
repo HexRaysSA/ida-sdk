@@ -206,7 +206,7 @@ void ht_view_plugin_t::desc_mouse_event(
 
 
 //-------------------------------------------------------------------------
-static const char wanted_name[] = "HT_VIEW notification handling example";
+static const char wanted_name[] = "Examples/HT_VIEW notification handling example";
 static const char wanted_hotkey[] = "";
 //--------------------------------------------------------------------------
 static const char comment[] = "HT_VIEW notification Handling";

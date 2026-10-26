@@ -58,7 +58,7 @@ static const char help[] = "Generate disassembly lines for one address\n";
 // This is the preferred name of the plugin module in the menu system
 // The preferred name may be overridden in plugins.cfg file
 
-static const char wanted_name[] = "Disassembly lines sample";
+static const char wanted_name[] = "Examples/Disassembly lines sample";
 
 
 // This is the preferred hotkey for the plugin module

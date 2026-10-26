@@ -88,6 +88,6 @@ plugin_t PLUGIN =
   nullptr,
   nullptr,              // long comment about the plugin
   nullptr,              // multiline help about the plugin
-  "Modify navigation band colors",// the preferred short name of the plugin
+  "Examples/Modify navigation band colors",// the preferred short name of the plugin
   nullptr,              // the preferred hotkey to run the plugin
 };
