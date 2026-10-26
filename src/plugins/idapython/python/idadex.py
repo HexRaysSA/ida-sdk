@@ -20,6 +20,7 @@ import idaapi
 import ida_idaapi
 import ida_bytes
 import ida_segment
+import ida_typeinf
 import idc
 
 uint8  = ctypes.c_ubyte
@@ -253,7 +254,7 @@ class dex_method_t(object):
 struct dex_field_t
 {
   uint32 ctype, name, type;
-  ea_t maddr;            // Address used for xrefs.
+  ea_t maddr;            // DexFieldId record; xref target unless saddr.
   uint32 access_flags;   // populated by the loader from class_data_item;
                          // for fields of external classes only ACC_STATIC
                          // is derived (from sget/sput uses).
@@ -272,7 +273,7 @@ class dex_field_t(ctypes.LittleEndianStructure):
         ("ctype",        uint32), #
         ("name",         uint32), #
         ("type",         uint32), #
-        ("maddr",        ea_t),   # Address used for xrefs.
+        ("maddr",        ea_t),   # DexFieldId record; xref target unless saddr.
         ("access_flags", uint32), # see dex_access_flags
         ("saddr",        ea_t),   # static-field slot in SFIELDS, 0 if none
         ("flags",        uint32), # IS_LOCAL
@@ -320,7 +321,8 @@ class Dex(object):
     DEXVAR_OLD_TYPIDS = ord('T')    # type_id => descriptor string_id (obsolete)
     DEXVAR_OLD_TYPSTR  = ord('U')    # type_id => type string (obsolete per-index)
     DEXVAR_OLD_TYPSTRO = ord('V')    # type_id => type string original (obsolete per-index)
-    DEXVAR_TYPE_RENS   = ord('v')    # user-renamed type strings (blob)
+    DEXVAR_OLD_TYPRENS = ord('v')    # user-renamed type strings (obsolete blob)
+    DEXVAR_CLASS_TIDS  = ord('K')    # type_id => tid of the class type, altval
     DEXVAR_METHOD     = ord('M')    # method_id => packed dex_method_t, supval
     DEXVAR_METH_STR   = ord('N')    # method_id => method name, char data
     DEXVAR_METH_STRO  = ord('O')    # method_id => method name fromdex file, char data
@@ -352,28 +354,6 @@ class Dex(object):
         return eas
 
 
-    @staticmethod
-    def _unpack_str(packed, off):
-        """Unpack a null-terminated string (matches C++ pack_str/unpack_str)."""
-        end = packed.index(0, off) if 0 in packed[off:] else len(packed)
-        s = packed[off:end].decode('utf-8', errors='replace')
-        return (s, end + 1)  # skip past the null terminator
-
-    @staticmethod
-    def _load_type_renames(nn_var):
-        """Load user-renamed type strings blob from netnode."""
-        packed = nn_var.getblob(0, Dex.DEXVAR_TYPE_RENS)
-        if packed is None:
-            return None
-        off = 0
-        (nrenames, off) = unpack_dd(packed, off)
-        renames = {}
-        for _ in range(nrenames):
-            (tid, off) = unpack_dd(packed, off)
-            (s, off) = Dex._unpack_str(packed, off)
-            renames[tid] = s
-        return renames
-
     #---------------------------------------------------------------------------
     def __init__(self):
         self.nn_meta = idaapi.netnode("$ dex_meta")
@@ -386,14 +366,14 @@ class Dex(object):
         self.xtrnaddrs = unpack_eavec(packed, 0) if packed else []
         self.nn_vars = []
         self.string_eas = []
-        self.type_renames = []
         self.nn_vars.append(idaapi.netnode("$ dex_var"))
         for i in range(2, len(self.baseaddrs) + 1):
             nn_var_name = "$ dex_var%d" % i
             self.nn_vars.append(idaapi.netnode(nn_var_name))
         for nn_var in self.nn_vars:
             self.string_eas.append(Dex._load_string_eas(nn_var))
-            self.type_renames.append(Dex._load_type_renames(nn_var))
+        # original class name => [(dexnum, type_idx)], filled on demand
+        self._class_entries = None
 
     #---------------------------------------------------------------------------
     def get_dexnum(self, from_ea):
@@ -565,22 +545,93 @@ class Dex(object):
         return res
 
     #---------------------------------------------------------------------------
-    def get_type_string(self, from_ea, type_idx):
-        idx = self.get_dexnum(from_ea) - 1
-        # check in-memory rename map first
-        if idx < len(self.type_renames) and self.type_renames[idx] is not None:
-            renames = self.type_renames[idx]
-            if type_idx in renames:
-                return renames[type_idx]
-        # read from the TYPES segment: type_id -> string_id -> string
-        dexnum = idx + 1
+    @staticmethod
+    def _element_classname(descr):
+        """The class name of DESCR, a class or an array of one, or None."""
+        elem = (descr or '').lstrip('[')
+        if len(elem) < 2 or elem[0] != 'L':
+            return None
+        if elem.endswith(';'):
+            elem = elem[:-1]
+        return elem[1:].replace('/', '.')
+
+    #---------------------------------------------------------------------------
+    @staticmethod
+    def _spells_class(name):
+        """Can NAME spell a class? As the module's spells_class()."""
+        return bool(name) and name[0] != '.' and name[-1] != '.' \
+            and '..' not in name and not any(c in name for c in '/;[@')
+
+    #---------------------------------------------------------------------------
+    @staticmethod
+    def _types_seg(dexnum):
+        """The start of file DEXNUM's TYPES segment, or BADADDR."""
         segname = "TYPES" if dexnum == 1 else "TYPES%d" % dexnum
-        seg_ea = ida_segment.get_segment_ea_by_name(segname)
+        return ida_segment.get_segment_ea_by_name(segname)
+
+    #---------------------------------------------------------------------------
+    def _get_class_entries(self):
+        """Original class name => [(dexnum, type_idx)] of the class and of its
+        arrays."""
+        if self._class_entries is None:
+            self._class_entries = {}
+            for dexnum in range(1, len(self.nn_vars) + 1):
+                seg_ea = Dex._types_seg(dexnum)
+                if seg_ea == ida_idaapi.BADADDR:
+                    continue
+                # as the module sizes it, up to the next segment
+                end_ea = ida_segment.get_next_segment_ea(seg_ea)
+                if end_ea == ida_idaapi.BADADDR:
+                    continue
+                for type_idx in range((end_ea - seg_ea) // 4):
+                    type_ea = seg_ea + type_idx * 4
+                    if not ida_bytes.is_mapped(type_ea):
+                        break
+                    string_id = ida_bytes.get_dword(type_ea)
+                    cls = Dex._element_classname(
+                        self.get_string(seg_ea, string_id))
+                    if cls is not None:
+                        self._class_entries.setdefault(cls, []).append(
+                            (dexnum, type_idx))
+        return self._class_entries
+
+    #---------------------------------------------------------------------------
+    def _names_other_class(self, name, tid):
+        """Is NAME the original name of a class not linked to TID?"""
+        for dexnum, type_idx in self._get_class_entries().get(name, ()):
+            nn_var = self.nn_vars[dexnum - 1]
+            if nn_var.altval(type_idx, Dex.DEXVAR_CLASS_TIDS) != tid:
+                return True
+        return False
+
+    #---------------------------------------------------------------------------
+    def _respell_renamed_class(self, descr, dexnum, type_idx):
+        """DESCR, file DEXNUM's TYPE_IDX, spelled by the name of its class's
+        type, if the user renamed the type to a name that can be this class's."""
+        was = Dex._element_classname(descr)
+        if was is None:
+            return descr
+        nn_var = self.nn_vars[dexnum - 1]
+        tid = nn_var.altval(type_idx, Dex.DEXVAR_CLASS_TIDS)
+        name = ida_typeinf.get_tid_name(tid) if tid else None
+        if not name or not ida_typeinf.get_type_ordinal(None, name) \
+                or name == was or not Dex._spells_class(name) \
+                or self._names_other_class(name, tid):
+            return descr
+        dims = len(descr) - len(descr.lstrip('['))
+        return descr[:dims] + 'L' + name.replace('.', '/') + ';'
+
+    #---------------------------------------------------------------------------
+    def get_type_string(self, from_ea, type_idx):
+        # read from the TYPES segment: type_id -> string_id -> string
+        dexnum = self.get_dexnum(from_ea)
+        seg_ea = Dex._types_seg(dexnum)
         if seg_ea != ida_idaapi.BADADDR:
             type_ea = seg_ea + type_idx * 4
             if ida_bytes.is_mapped(type_ea):
                 string_id = ida_bytes.get_dword(type_ea)
-                return self.get_string(from_ea, string_id)
+                return self._respell_renamed_class(
+                    self.get_string(from_ea, string_id), dexnum, type_idx)
         # fallback for old IDBs
         nn_var = self.get_nn_var(from_ea)
         return Dex.get_string_by_index(nn_var, type_idx, Dex.DEXVAR_OLD_TYPSTR)

@@ -2299,10 +2299,11 @@ def set_inf_attr(attr, value):
 
 set_processor_type  = ida_idp.set_processor_type
 
-SETPROC_IDB              = ida_idp.SETPROC_IDB
-SETPROC_LOADER           = ida_idp.SETPROC_LOADER
-SETPROC_LOADER_NON_FATAL = ida_idp.SETPROC_LOADER_NON_FATAL
-SETPROC_USER             = ida_idp.SETPROC_USER
+SETPROC_IDB                        = ida_idp.SETPROC_IDB
+SETPROC_LOADER                     = ida_idp.SETPROC_LOADER
+SETPROC_LOADER_NON_FATAL           = ida_idp.SETPROC_LOADER_NON_FATAL
+SETPROC_USER                       = ida_idp.SETPROC_USER
+SETPROC_LOADER_KEEP_USER_NON_FATAL = ida_idp.SETPROC_LOADER_KEEP_USER_NON_FATAL
 
 def SetPrcsr(processor): return set_processor_type(processor, SETPROC_USER)
 

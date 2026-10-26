@@ -125,6 +125,7 @@ set(IDAPYTHON_EXAMPLES
     decompiler/vds_modify_user_lvars.py
     decompiler/vds_xrefs.py
     disassembler/add_frame_member.py
+    disassembler/add_synthetic_strings.py
     disassembler/ana_emu_out.py
     disassembler/assemble.py
     disassembler/custom_data_types_and_formats.py
@@ -139,6 +140,7 @@ set(IDAPYTHON_EXAMPLES
     disassembler/func_ti_changed_listener.py
     disassembler/indexer_substring_search.py
     disassembler/install_user_defined_prefix.py
+    disassembler/kalloc_type_views.py
     disassembler/list_bookmarks.py
     disassembler/list_function_items.py
     disassembler/list_imports.py
@@ -153,6 +155,7 @@ set(IDAPYTHON_EXAMPLES
     disassembler/operand_changed.py
     disassembler/produce_lst_file.py
     disassembler/replay_prototypes_changes.py
+    disassembler/uefi_query.py
     index.md
     misc/cvt64/py_cvt64_sample.py
     misc/extend_idc.py

@@ -38,6 +38,8 @@
 %ignore get_demangled_name(qstring *, ea_t, int32, int);
 %ignore get_colored_demangled_name(qstring *, ea_t, int32, int, int);
 %ignore get_colored_demangled_name(qstring *, ea_t, int32, int);
+%ignore get_listing_name(qstring *, ea_t, int);
+%ignore get_listing_name(qstring *, ea_t);
 
 %uncomparable_elements_qvector(ea_name_t, ea_name_vec_t);
 

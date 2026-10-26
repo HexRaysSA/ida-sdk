@@ -683,7 +683,7 @@ class kc_backend_t:
         return [(start, size) for start, size, _t in self._regions(name)]
 
     def map_linkedit(self, vmaddr):
-        return self.svc.load_linkedit()
+        return self.svc.load_collection_region("__LINKEDIT")
 
     def _coords(self, name):
         kext = self.svc.get_kext_coords(name)

@@ -98,11 +98,11 @@ This collection of examples organizes all IDAPython sample code into [categories
 
 <tr>
   <td>Beginner</td>
-  <td><ul><li><a href='#dscu_query'>Query a Dyld Shared Cache (DSC) from IDAPython</a></li><li><a href='#dump_flowchart'>Dump function flowchart</a></li><li><a href='#dump_flowchart_ea'>Dump function flowchart, new API</a></li><li><a href='#indexer_substring_search'>Search the IDA indexer for a name (substring match)</a></li><li><a href='#install_user_defined_prefix'>Insert information into listing prefixes</a></li><li><a href='#list_imports'>Enumerate file imports</a></li><li><a href='#list_patched_bytes'>Enumerate patched bytes</a></li><li><a href='#list_problems'>Enumerate known problems</a></li><li><a href='#list_segment_functions'>List segment functions (and cross-references to them)</a></li><li><a href='#list_segment_functions_using_idautils'>List all functions (and cross-references) in segment</a></li><li><a href='#list_strings'>Dump the strings that are present in the file</a></li><li><a href='#produce_lst_file'>Produce disassembly listing for the entire file</a></li></ul></td>
+  <td><ul><li><a href='#dscu_query'>Query a Dyld Shared Cache (DSC) from IDAPython</a></li><li><a href='#dump_flowchart'>Dump function flowchart</a></li><li><a href='#dump_flowchart_ea'>Dump function flowchart, new API</a></li><li><a href='#indexer_substring_search'>Search the IDA indexer for a name (substring match)</a></li><li><a href='#install_user_defined_prefix'>Insert information into listing prefixes</a></li><li><a href='#list_imports'>Enumerate file imports</a></li><li><a href='#list_patched_bytes'>Enumerate patched bytes</a></li><li><a href='#list_problems'>Enumerate known problems</a></li><li><a href='#list_segment_functions'>List segment functions (and cross-references to them)</a></li><li><a href='#list_segment_functions_using_idautils'>List all functions (and cross-references) in segment</a></li><li><a href='#list_strings'>Dump the strings that are present in the file</a></li><li><a href='#produce_lst_file'>Produce disassembly listing for the entire file</a></li><li><a href='#uefi_query'>Query the UEFI analysis results from IDAPython</a></li></ul></td>
 </tr>
 <tr>
   <td>Intermediate</td>
-  <td><ul><li><a href='#ana_emu_out'>Rewrite the representation of some instructions</a></li><li><a href='#assemble'>Implement assembly of instructions</a></li><li><a href='#dump_extra_comments'>Retrieve comments surrounding instructions</a></li><li><a href='#dump_func_info'>Dump function information</a></li><li><a href='#dump_line_sections'>Parse listing line, and dump some information</a></li><li><a href='#extract_macho_image'>A plugin that extracts images of an Apple cache as standalone Mach-Os</a></li><li><a href='#find_string'>Using "ida_bytes.find_string"</a></li><li><a href='#func_ti_changed_listener'>Print notifications about function prototype changes</a></li><li><a href='#list_bookmarks'>List listing bookmarks</a></li><li><a href='#list_function_items'>Showcase (some of) the iterators available on a function</a></li><li><a href='#log_idb_events'>React to database events/notifications</a></li><li><a href='#log_idp_events'>React to processor events/notifications</a></li><li><a href='#replay_prototypes_changes'>Record and replay changes in function prototypes</a></li></ul></td>
+  <td><ul><li><a href='#add_synthetic_strings'>Add strings that exist only in the code to the string list</a></li><li><a href='#ana_emu_out'>Rewrite the representation of some instructions</a></li><li><a href='#assemble'>Implement assembly of instructions</a></li><li><a href='#dump_extra_comments'>Retrieve comments surrounding instructions</a></li><li><a href='#dump_func_info'>Dump function information</a></li><li><a href='#dump_line_sections'>Parse listing line, and dump some information</a></li><li><a href='#extract_macho_image'>A plugin that extracts images of an Apple cache as standalone Mach-Os</a></li><li><a href='#find_string'>Using "ida_bytes.find_string"</a></li><li><a href='#func_ti_changed_listener'>Print notifications about function prototype changes</a></li><li><a href='#kalloc_type_views'>A plugin that browses the typed allocations of a kernelcache</a></li><li><a href='#list_bookmarks'>List listing bookmarks</a></li><li><a href='#list_function_items'>Showcase (some of) the iterators available on a function</a></li><li><a href='#log_idb_events'>React to database events/notifications</a></li><li><a href='#log_idp_events'>React to processor events/notifications</a></li><li><a href='#replay_prototypes_changes'>Record and replay changes in function prototypes</a></li></ul></td>
 </tr>
 <tr>
   <td>Advanced</td>
@@ -1187,6 +1187,7 @@ indexer_is_enabled() at runtime.
 * `ida_indexer.SUBIDX_FUNCTIONS`
 * `ida_indexer.SUBIDX_FUNCTION_COMMENTS`
 * `ida_indexer.SUBIDX_LTYPES`
+* `ida_indexer.SUBIDX_LTYPE_MEMBERS`
 * `ida_indexer.SUBIDX_NAMES`
 * `ida_indexer.SUBIDX_REPEATABLE_FUNCTION_COMMENTS`
 * `ida_indexer.SUBIDX_SEGMENTS`
@@ -1369,6 +1370,95 @@ where:
 * `ida_loader.gen_file`
 * `ida_loader.get_path`
 * `ida_pro.qexit`
+
+***
+
+
+### Query the UEFI analysis results from IDAPython {#uefi_query}
+This script shows how to use uefi_svc_t, the public service of IDA's
+UEFI analysis, to query the modules of a firmware image, the protocol
+events found in them, the installed interfaces, the structure bound
+to a protocol, the functions implementing a protocol member and the
+calls through it, and the GUID database.
+
+Run `help(svc)` after `svc = ida_uefi.get_uefi_svc()` to see every
+method available.
+
+Run this script in a database of a UEFI module (a PE/TE image), or of
+a firmware image loaded by the UEFI firmware loader, once the
+autoanalysis has finished.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [uefi_query.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/uefi_query.py) |  | Beginner |
+
+**APIs Used:**
+* `ida_name.get_name`
+* `ida_uefi.UEFI_GS_KNOWN`
+* `ida_uefi.UEFI_PK_INSTALL`
+* `ida_uefi.UEFI_PK_LOCATE`
+* `ida_uefi.UEFI_PK_NOTIFY`
+* `ida_uefi.UEFI_PK_UNINSTALL`
+* `ida_uefi.get_uefi_svc`
+
+***
+
+
+### Add strings that exist only in the code to the string list {#add_synthetic_strings}
+Some strings are never stored in the bytes of a file: the code builds
+them from immediates, or they are slices of a larger blob. A plugin can
+still have IDA show them, as a synthetic string provider:
+
+* the provider registers once; its name is shown in the "Type" column
+  of the Strings window
+* `synth_string_provider_t.set()` stores strings at an address: the
+  listing shows them as a comment there, and the Strings window lists
+  them
+* with `SYNTHSTR_REPEATABLE`, the listing also shows the string at the
+  instructions that refer to its address, as it does for a string
+  literal
+* `synth_string_provider_t.set_strings()` stores strings together with
+  the instructions that build their pieces (`parts`) and that use them
+  (`uses`); `synth_string_get_related()` finds a string from any of
+  those instructions
+* `synth_string_provider_t.forget()` removes them again
+
+The strings are stored in the database: they stay after the database is
+closed and reopened, also when no provider is registered.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [add_synthetic_strings.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/add_synthetic_strings.py) |  | Intermediate |
+
+**APIs Used:**
+* `ida_bytes.get_flags`
+* `ida_bytes.is_code`
+* `ida_bytes.is_strlit`
+* `ida_ida.inf_get_max_ea`
+* `ida_ida.inf_get_start_ea`
+* `ida_idp.is_call_insn`
+* `ida_lines.generate_disassembly`
+* `ida_segment.SEG_DATA`
+* `ida_segment.get_segment_info`
+* `ida_segment.segment_info_t`
+* `ida_strlist.SYNTHREL_ALL`
+* `ida_strlist.SYNTHREL_PART`
+* `ida_strlist.SYNTHREL_USE`
+* `ida_strlist.SYNTHSTR_PROVIDER_CUSTOM`
+* `ida_strlist.SYNTHSTR_REPEATABLE`
+* `ida_strlist.build_strlist`
+* `ida_strlist.synth_string_get_related`
+* `ida_strlist.synth_string_provider_name`
+* `ida_strlist.synth_string_provider_t`
+* `ida_strlist.synth_string_t`
+* `ida_strlist.synth_strings_t`
+* `ida_ua.decode_insn`
+* `ida_ua.insn_t`
+* `idautils.DataRefsTo`
+* `idautils.FuncItems`
+* `idautils.Heads`
+* `idautils.Segments`
+* `idautils.Strings`
 
 ***
 
@@ -1634,6 +1724,78 @@ IDB events, and if it is a function prototype that changed, print it.
 * `ida_funcs.get_func_name`
 * `ida_idp.IDB_Hooks`
 * `ida_typeinf.tinfo_t`
+
+***
+
+
+### A plugin that browses the typed allocations of a kernelcache {#kalloc_type_views}
+From iOS 16 and macOS 13 on, an XNU allocation of a known type does
+not pass a size. The kalloc_type() macro emits a descriptor into
+__DATA_CONST.__kalloc_type and passes its address instead; the
+runtime uses it to pick a zone segregated by the type's memory
+layout. A descriptor names the type, gives its size, and carries a
+map saying which of its eight-byte granules hold pointers. A second
+flavour, in __kalloc_var, describes an allocation whose length is
+only known at run time: a header, then a run of elements.
+
+Taken together they are an inventory of what a kernel allocates, and
+this plugin browses it: one row per type, with its size, what its
+granules hold, its flags, its signature, and how many descriptors
+describe it. Double-click a row to jump to a descriptor; the context
+menu lists every allocation site of that type.
+
+The point of the context menu is that it does not walk the xrefs of
+one descriptor. A type is commonly described by several -- on an
+iOS 26 kernel, 438 of the 696 types allocated have more than one --
+so the references of any single descriptor are only part of the
+answer. ida_kcu.kcu_svc_t.get_kalloc_views() gathers them.
+
+Nothing here knows the shape of a descriptor. The kcu plugin reads
+the fields through the kernel's own type library, so a kernel that
+moves them is picked up with the type library rather than here, and
+the flag and granule names below are read from that library's enums
+too. A script that parses the sections itself is hardcoding a layout
+that changes.
+
+Using it: drop this file in your plugins directory and open a
+kernelcache. Ctrl-Alt-K opens the browser, which is also under
+Edit > Plugins. On a cache loaded on demand it lists the types of
+the images mapped so far; map more KEXTs and refresh it.
+
+| Source code                   | Keywords   | Level                              |
+|-------------------------------|------------|------------------------------------|
+| [kalloc_type_views.py](https://github.com/HexRaysSA/ida-sdk/blob/main/src/plugins/idapython/examples/disassembler/kalloc_type_views.py) | ctxmenu plugin | Intermediate |
+
+**APIs Used:**
+* `ida_funcs.get_func_name`
+* `ida_idaapi.BADADDR`
+* `ida_idaapi.PLUGIN_MULTI`
+* `ida_idaapi.plugin_t`
+* `ida_idaapi.plugmod_t`
+* `ida_kcu.get_kcu_svc`
+* `ida_kcu.kcu_config_t`
+* `ida_kernwin.AST_DISABLE_FOR_WIDGET`
+* `ida_kernwin.AST_ENABLE_ALWAYS`
+* `ida_kernwin.AST_ENABLE_FOR_WIDGET`
+* `ida_kernwin.Choose`
+* `ida_kernwin.Choose.ALL_CHANGED`
+* `ida_kernwin.Choose.CH_CAN_REFRESH`
+* `ida_kernwin.Choose.CH_RESTORE`
+* `ida_kernwin.Choose.NOTHING_CHANGED`
+* `ida_kernwin.action_desc_t`
+* `ida_kernwin.action_handler_t`
+* `ida_kernwin.attach_action_to_popup`
+* `ida_kernwin.find_widget`
+* `ida_kernwin.info`
+* `ida_kernwin.jumpto`
+* `ida_kernwin.register_action`
+* `ida_kernwin.unregister_action`
+* `ida_kernwin.warning`
+* `ida_typeinf.enum_type_data_t`
+* `ida_typeinf.get_idati`
+* `ida_typeinf.tinfo_t`
+* `ida_xref.get_first_dref_to`
+* `ida_xref.get_next_dref_to`
 
 ***
 

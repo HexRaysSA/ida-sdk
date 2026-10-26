@@ -55,7 +55,7 @@ if(IDA_TESTABLE_BUILD AND INTERNAL_ONLY_MODULES)
 endif()
 list(APPEND MODULE_NAMES
     moves nalt name netnode offset pro problems range registry regfinder
-    search segment segregs srclang strlist tryblks typeinf ua xref
+    search segment segregs srclang strlist tryblks typeinf ua uefi xref
     mergemod merge undo
 )
 

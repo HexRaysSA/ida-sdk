@@ -160,6 +160,9 @@ def XrefsTo(ea, flags=0):
     :param ea: Reference address
     :param flags: one of ida_xref.XREF_ALL (default), ida_xref.XREF_FAR, ida_xref.XREF_DATA
 
+    If 'ea' is 16-bit ISA code (ARM Thumb, MIPS16), the references from
+    code pointers to it, stored under 'ea'|1, come last, with xref.to == 'ea'|1.
+
     Example::
            for xref in XrefsTo(here(), 0):
                print(xref.type, XrefTypeName(xref.type), \

@@ -307,7 +307,7 @@ IDAPython: merge example 1
 # --------------------------------------------------------------------------
 class mex3_plugin_t(ida_idaapi.plugin_t):
     flags = ida_idaapi.PLUGIN_MULTI | ida_idaapi.PLUGIN_MOD
-    wanted_name = "IDAPython: Merge example 3"
+    wanted_name = "Examples/IDAPython: Merge example 3"
     comment = "IDAPython: An example 1 how to implement IDA merge functionality"
     wanted_hotkey = ""
     help = ""

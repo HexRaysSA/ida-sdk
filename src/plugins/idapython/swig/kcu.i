@@ -214,6 +214,27 @@
 %template(kcu_string_match_vec_t) qvector<kcu_string_match_t>;
 
 //-------------------------------------------------------------------------
+%extend kcu_kalloc_view_t
+{
+  qstring __str__() const
+  {
+    qstring tmp;
+    tmp.sprnt("kcu_kalloc_view_t(ea=%a, %s, site_name=\"%s\", type=\"%s\", "
+              "ptr_depth=%u, size=%u, size_hdr=%u, flags=0x%X, sig=\"%s\")",
+              $self->ea, $self->var_view ? "var" : "fixed",
+              $self->site_name.c_str(), $self->type.c_str(),
+              uint($self->ptr_depth), $self->size, $self->size_hdr,
+              $self->flags, $self->sig.c_str());
+    return tmp;
+  }
+  %pythoncode {
+    __repr__ = __str__
+  }
+}
+
+%template(kcu_kalloc_view_vec_t) qvector<kcu_kalloc_view_t>;
+
+//-------------------------------------------------------------------------
 %extend kcu_address_info_t
 {
   qstring __str__() const
@@ -328,6 +349,28 @@
 %typemap(freearg) kcu_string_match_vec_t *out
 {
   // %typemap(freearg) kcu_string_match_vec_t *out
+  // Nothing. We certainly do not want 'temp' to be deleted.
+}
+
+//-------------------------------------------------------------------------
+// kcu_kalloc_view_vec_t *out
+//-------------------------------------------------------------------------
+%typemap(in,numinputs=0) kcu_kalloc_view_vec_t *out (kcu_kalloc_view_vec_t temp)
+{
+  // %typemap(in,numinputs=0) kcu_kalloc_view_vec_t *out (kcu_kalloc_view_vec_t temp)
+  $1 = &temp;
+}
+%typemap(argout) kcu_kalloc_view_vec_t *out
+{
+  // %typemap(argout) kcu_kalloc_view_vec_t *out
+  Py_XDECREF($result);
+  auto *inst = new kcu_kalloc_view_vec_t();
+  inst->swap(*$1);
+  $result = SWIG_NewPointerObj(inst, $1_descriptor, SWIG_POINTER_OWN);
+}
+%typemap(freearg) kcu_kalloc_view_vec_t *out
+{
+  // %typemap(freearg) kcu_kalloc_view_vec_t *out
   // Nothing. We certainly do not want 'temp' to be deleted.
 }
 
