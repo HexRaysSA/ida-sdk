@@ -60,7 +60,7 @@ struct jvalue_t;
 #define S_IDA_KERNWIN_MODNAME                    "ida_kernwin"
 #define S_IDA_MOVES_MODNAME                      "ida_moves"
 #define S_IDC_MODNAME                            "idc"
-#define S_IDAAPI_EXECSCRIPT                      "IDAPython_ExecScript"
+#define S_IDAAPI_EXECSCRIPT                      "_ida_exec_script"
 #define S_IDAAPI_FINDCOMPLETIONS                 "IDAPython_Completion"
 #define S_IDAAPI_FORMATEXC                       "IDAPython_FormatExc"
 #define S_IDAAPI_LOADPROCMOD                     "IDAPython_LoadProcMod"
@@ -1144,12 +1144,12 @@ idaman void ida_export idapython_unregister_hook(
         void *user_data);
 
 //-------------------------------------------------------------------------
-idaman DEPRECATED bool ida_export idapython_hook_to_notification_point(
+idaman IDA_DEPRECATED bool ida_export idapython_hook_to_notification_point(
         hook_type_t hook_type,
         hook_cb_t *cb,
         void *user_data,
         bool is_hooks_base);
-idaman DEPRECATED bool ida_export idapython_unhook_from_notification_point(
+idaman IDA_DEPRECATED bool ida_export idapython_unhook_from_notification_point(
         hook_type_t hook_type,
         hook_cb_t *cb,
         void *user_data);

@@ -229,6 +229,10 @@ protected:
 // for PREPARE/DISPOSE
 int calc_stack_delta(const insn_t &insn);
 
+// create the local size word of a GHS save/return function call at EA
+// (see nec850_t::is_special_func_call()); does nothing for BADADDR
+void create_ghs_locals_word(ea_t ea);
+
 //-------------------------------------------------------------------------
 constexpr uint16 IDP_MACRO_HIDDEN_R1 = 0x0001; // allow modification of rR1 in macros
 constexpr uint16 IDP_GP_CALLEE_SAVED = 0x0002; // the GP register is callee-saved
@@ -428,7 +432,7 @@ struct nec850_t : public procmod_t
         getreg_t *getreg,
         const regval_t *rv) const;
   void trace_sp(ea_t func_ea, const insn_t &insn) const;
-  int calc_stack_delta(const insn_t &insn) const;
+  int calc_stack_delta(const insn_t &insn, ea_t *locals_ea = nullptr) const;
 
   int  may_be_func(const insn_t &insn) const;
   bool is_return_insn(const insn_t &insn, bool strict) const;
@@ -483,11 +487,14 @@ struct nec850_t : public procmod_t
   // \param[out] locals  the size of local variables (in bytes),
   //                     LOCALS may be nullptr
   // \param[in]  insn    the instruction to check
+  // \param[out] locals_ea the address of the local size word or BADADDR,
+  //                     LOCALS_EA may be nullptr
   // \return     SPF_NONE or the special function kind
   special_func_t is_special_func_call(
         reglist_t *regs,
         uval_t *locals,
-        const insn_t &insn) const;
+        const insn_t &insn,
+        ea_t *locals_ea = nullptr) const;
   // what registers does a call of a save/return function spoil?
   // \param[out] regs    the list of spoiled registers
   // \return     is INSN a special_func_t function call?
@@ -495,7 +502,9 @@ struct nec850_t : public procmod_t
   bool is_special_save_func(const insn_t &insn) const;
   bool is_special_save_alloc_func(const insn_t &insn) const;
   bool is_special_save_r29_func(const insn_t &insn) const;
-  bool is_special_return_func(const insn_t &insn) const;
+  bool is_special_return_func(
+        const insn_t &insn,
+        ea_t *locals_ea = nullptr) const;
   // create the call table at EA
   void check_call_table(ea_t ea) const;
 

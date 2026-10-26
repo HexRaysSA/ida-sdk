@@ -79,6 +79,17 @@ static PyObject *py_extract_module_from_archive(const char *fname, bool is_remot
   return Py_BuildValue("(ss)", ok ? fname_buf : nullptr, ok ? temp_file_ptr : nullptr);
 }
 
+//-------------------------------------------------------------------------
+// Returns (success, error message)
+static PyObject *py_load_additional_file(
+        const char *path,
+        const char *loader_name=nullptr)
+{
+  qstring errbuf;
+  bool ok = load_additional_file(path, loader_name, &errbuf);
+  return Py_BuildValue("(Ns)", PyBool_FromLong(ok), errbuf.c_str());
+}
+
 //</inline(py_loader)>
 
 #endif

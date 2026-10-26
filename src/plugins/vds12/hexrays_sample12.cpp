@@ -267,6 +267,6 @@ plugin_t PLUGIN =
   nullptr,
   comment,              // long comment about the plugin
   nullptr,              // multiline help about the plugin
-  "Cross-references to register", // the preferred short name of the plugin
+  "Examples/Cross-references to register", // the preferred short name of the plugin
   nullptr,              // the preferred hotkey to run the plugin
 };

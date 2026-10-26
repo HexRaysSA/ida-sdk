@@ -1225,9 +1225,9 @@ struct outctx_t : public outctx_base_t
   virtual void idaapi out_immchar_cmts(void) newapi;
 
   /// \deprecated Use gen_function_header()
-  DEPRECATED virtual void idaapi gen_func_header(func_t *pfn) newapi;
+  IDA_DEPRECATED virtual void idaapi gen_func_header(func_t *pfn) newapi;
   /// \deprecated Use gen_function_footer()
-  DEPRECATED virtual void idaapi gen_func_footer(const func_t *pfn) newapi;
+  IDA_DEPRECATED virtual void idaapi gen_func_footer(const func_t *pfn) newapi;
 
   // display data items and undefined bytes.
   virtual void idaapi out_data(bool analyze_only) newapi;

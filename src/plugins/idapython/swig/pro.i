@@ -27,6 +27,8 @@
 %ignore utf8_wchar16;
 %ignore utf8_wchar32;
 %ignore skip_utf8;
+%ignore UTF32LE_BOM; // contains NUL bytes which swig doesn't handle well, defined in py_pro.py instead
+%ignore UTF32BE_BOM;
 %ignore qustrncpy;
 %ignore expand_argv;
 %ignore free_argv;

@@ -46,10 +46,27 @@ import pypasses
 #         args = value, etf_flags, bmask, serial
 #         return _ida_typeinf.tinfo_t_del_edm_by_value(*args)
 #
+# The starred call may be nested in generated setup code, such as a context
+# manager around a modal UI call.
+#
 
 def process(tree, opts, top_logger):
 
     class source_transformer_t(pypasses.base_transformer_t):
+
+        class starred_args_finder_t(ast.NodeVisitor):
+            def __init__(self):
+                self.found = False
+
+            def visit_FunctionDef(self, node):
+                pass
+
+            def visit_Lambda(self, node):
+                pass
+
+            def visit_Starred(self, node):
+                if isinstance(node.value, ast.Name) and node.value.id == "args":
+                    self.found = True
 
         def _is_string_literal(self, node):
             if isinstance(node, ast.Expr):
@@ -70,48 +87,29 @@ def process(tree, opts, top_logger):
             #   def my_function(something: sometype, otherthing: othertype=-2)
             #       return ...(*args)
             #
-            has_self = False
             real_arg = None
             for arg in node.args.args:
-                if arg.arg == "self":
-                    has_self = True
-                else:
+                if arg.arg != "self":
                     logger.debug(f"Found 'real' argument \"{arg.arg}\". Needs investigating.")
                     real_arg = arg
                     break
 
-            if real_arg:
-                #
-                # Now we need to see if the entire function body
-                # consists solely of a call to a function, with
-                # an `*args` expression
-                #
-                retexpr_idx = 0
-                if self._is_string_literal(node.body[0]): # docstring
-                    logger.debug("Ignoring docstring during body investigation")
-                    retexpr_idx = 1
-
-                if isinstance(node.body[retexpr_idx], ast.Return):
-                    _return = node.body[retexpr_idx]
-                    if isinstance(_return.value, ast.Call):
-                        args = _return.value.args
-                        logger.debug(f"Arguments to function call: {args}")
-                        if args:
-                            if isinstance(args[0], ast.Name) and args[0].id == "self":
-                                logger.debug(f"Dropping \"{args[0].id}\" from the list of arguments to the call")
-                                args = args[1:]
-                        if args:
-                            if isinstance(args[0], ast.Starred) and args[0].value.id == "args":
-                                logger.debug(f"Call consists of a single starred \"{args[0].value.id}\". Let's create it!")
-                                targets = [ast.Name("args", ast.Store())]
-                                elts = []
-                                for arg in node.args.args:
-                                    if arg.arg != "self":
-                                        elts.append(ast.Name(arg.arg))
-                                value = ast.Tuple(elts, ast.Load())
-                                assign = ast.Assign(targets, value)
-                                node.body.insert(retexpr_idx, assign)
-                                # logger.debug(f">>>> {ast.dump(node, indent=4)}")
+            if real_arg and node.args.vararg is None:
+                finder = self.starred_args_finder_t()
+                for statement in node.body:
+                    finder.visit(statement)
+                if finder.found:
+                    logger.debug("Found a starred 'args' call. Let's create it!")
+                    insert_idx = 1 if self._is_string_literal(node.body[0]) else 0
+                    elts = []
+                    for arg in node.args.args:
+                        if arg.arg != "self":
+                            elts.append(ast.Name(arg.arg))
+                    targets = [ast.Name("args", ast.Store())]
+                    value = ast.Tuple(elts, ast.Load())
+                    assign = ast.Assign(targets, value)
+                    node.body.insert(insert_idx, assign)
+                    # logger.debug(f">>>> {ast.dump(node, indent=4)}")
 
             self.generic_visit(node)
             return node

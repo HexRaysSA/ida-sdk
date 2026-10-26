@@ -77,6 +77,8 @@
 
 %ignore extract_module_from_archive;
 %rename (extract_module_from_archive) py_extract_module_from_archive;
+%ignore load_additional_file;
+%rename (load_additional_file) py_load_additional_file;
 
 /* %extend qvector< snapshot_t *> { */
 /*     snapshot_t *at(size_t n) { return self->at(n); } */

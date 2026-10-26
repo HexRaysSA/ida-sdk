@@ -751,7 +751,7 @@ static const char help[] =
 // This is the preferred name of the plugin module in the menu system
 // The preferred name may be overridden in plugins.cfg file
 
-static const char wanted_name[] = "Create sample graph view";
+static const char wanted_name[] = "Examples/Create sample graph view";
 
 
 // This is the preferred hotkey for the plugin module

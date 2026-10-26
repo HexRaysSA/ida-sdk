@@ -52,6 +52,9 @@ struct loader_t
 #define LDRF_REQ_PROC 0x0002 ///< Requires a processor to be set.
                              ///< if this bit is not set, load_file() must
                              ///< call set_processor_type(..., SETPROC_LOADER)
+#define LDRF_ADDFILE  0x0004 ///< load_file() can add a file to an existing
+                             ///< database (called without #NEF_FIRST).
+                             ///< See load_additional_file()
 ///@}
 
   /// Check input file format.
@@ -72,7 +75,8 @@ struct loader_t
   /// this function will be called another time.
   /// If the return value is ORed with #ACCEPT_FIRST, then this format
   /// should be placed first in the "load file" dialog box.
-  /// In the sorting order of file formats the archive formats have priority.
+  /// In the sorting order of file formats the #ACCEPT_FIRST formats come
+  /// first, then the archive formats, then all others.
   int (idaapi *accept_file)(
         qstring *fileformatname,
         qstring *processor,
@@ -322,6 +326,24 @@ idaman bool ida_export load_nonbinary_file(
         const char *sysdlldir,
         ushort _neflags,
         load_info_t *loader);
+
+
+/// Add a file to the current database.
+/// Only loaders with the #LDRF_ADDFILE flag are considered.
+/// The operation cannot be undone: the undo history is reset.
+/// \param path         name of the input file
+/// \param loader_name  name of the loader to use (e.g. "dex"),
+///                     nullptr: the first loader with #LDRF_ADDFILE
+///                     that accepts the file
+/// \param errbuf       error message if false is returned, may be nullptr.
+///                     The loader's loader_failure() message goes here
+///                     instead of being displayed
+/// \return success
+
+idaman bool ida_export load_additional_file(
+        const char *path,
+        const char *loader_name=nullptr,
+        qstring *errbuf=nullptr);
 
 
 /// Calls loader_t::process_archive()
@@ -1011,7 +1033,7 @@ idaman bool ida_export save_database(
 /// Used to manage saving/closing of a database
 ///@{
 #define DBFL_KILL       0x01            ///< delete unpacked database
-#define DBFL_COMP       0x02            ///< collect garbage
+#define DBFL_COMP       0x02            ///< compact database (drop unused data)
 #define DBFL_BAK        0x04            ///< create backup file (if !DBFL_KILL)
 #define DBFL_TEMP       0x08            ///< temporary database
 ///@}

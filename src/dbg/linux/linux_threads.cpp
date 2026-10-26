@@ -1316,7 +1316,12 @@ bool linux_debmod_t::attach_to_thread(int tid, ea_t ea)
     INTERR(30197);
   }
 
-  return finish_attaching(tid, ea, false);
+  if ( !finish_attaching(tid, ea, false) )
+    return false;
+  // ptrace options are per thread: without PTRACE_O_TRACECLONE the threads
+  // this one creates would run untraced and die on our breakpoints
+  linux_enable_event_reporting(tid);
+  return true;
 }
 
 //--------------------------------------------------------------------------
@@ -1371,6 +1376,10 @@ bool linux_debmod_t::finish_attaching(int tid, ea_t ea, bool use_ip)
       get_thread(tid)->waiting_sigstop = true;
       if ( tid2 > 0 )
         store_pending_signal(tid2, status);
+      // another signal stopped the thread first: like any thread with a
+      // pending status, it counts as running until the status is handled
+      if ( tid2 == tid )
+        set_thread_state(*get_thread(tid), RUNNING);
     }
   }
 

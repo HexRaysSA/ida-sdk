@@ -189,6 +189,6 @@ plugin_t PLUGIN =
   nullptr,
   comment,              // long comment about the plugin
   nullptr,              // multiline help about the plugin
-  "Find value ranges of the register", // the preferred short name of the plugin
+  "Examples/Find value ranges of the register", // the preferred short name of the plugin
   nullptr,              // the preferred hotkey to run the plugin
 };

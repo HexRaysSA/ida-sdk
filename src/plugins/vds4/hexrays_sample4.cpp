@@ -211,6 +211,6 @@ plugin_t PLUGIN =
   nullptr,
   comment,              // long comment about the plugin
   nullptr,              // multiline help about the plugin
-  "Hex-Rays Dump User Info", // the preferred short name of the plugin
+  "Examples/Hex-Rays Dump User Info", // the preferred short name of the plugin
   nullptr,              // the preferred hotkey to run the plugin
 };

@@ -22,8 +22,8 @@
 
 //-------------------------------------------------------------------------
 // Conversion of 32-bit databases to 64-bit is performed by ida64,
-// only in IDA Pro and IDA Teams
-#if !defined(IDAFREE) && !defined(IDAHOME) && !defined(CVT64) && !defined(UPG32)
+// in every edition except IDA Free
+#if !defined(IDAFREE) && !defined(CVT64) && !defined(UPG32)
 #  if defined(__EA64__)
 #    define CVT64
 #  else

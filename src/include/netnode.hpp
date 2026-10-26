@@ -232,16 +232,20 @@ idaman bool ida_export netnode_exist(const netnode &n);
 //      N E T N O D E
 //--------------------------------------------------------------------------
 
+#include <netnode_base.hpp>
+
+// In the kernel this macro injects kernel-only methods into netnode.
+#ifndef NETNODE_INTERNAL_METHODS
+#define NETNODE_INTERNAL_METHODS
+#endif
+
 /// Definition of the IDA database node.
 /// Note that the size of the 'netnode' class is 4 bytes and it can be
 /// freely casted to 'uint32' and back. This makes it easy to store
 /// information about the program location in the netnodes.
 /// Please pass netnodes to functions by value.
-class netnode
+class netnode : public netnode_internal_t
 {
-  /// \cond
-  friend class netlink;
-  /// \endcond
 public:
 
   //--------------------------------------------------------------------------
@@ -1000,7 +1004,14 @@ public:
         nodeidx_t _start,
         uchar tag)
   {
-    return netnode_qgetblob(*this, (bytevec_t *)buf, 1, _start, tag|NETMAP_STR);
+    bytevec_t bv;
+    ssize_t sz = netnode_qgetblob(*this, &bv, 1, _start, tag|NETMAP_STR);
+    if ( sz >= 0 )
+    {
+      buf->clear();
+      buf->inject((char *)bv.extract(), sz);
+    }
+    return sz;
   }
 
   /// Store a blob in a netnode.
@@ -1114,10 +1125,7 @@ public:
   static bool inited(void)       { return netnode_inited(); }
   static bool is_available(void) { return netnode_is_available(); }
 
-private:
-  // The netnode number.
-  // Usually this is the linear address that the netnode keeps information about.
-  nodeidx_t netnodenumber;
+  NETNODE_INTERNAL_METHODS
 };
 #ifdef __EA64__
 CASSERT(sizeof(netnode) == 8);

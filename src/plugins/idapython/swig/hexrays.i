@@ -381,6 +381,7 @@
 %ignore file_printer_t;
 %ignore mba_ranges_t::range_contains;
 %ignore decomp_ranges_t::range_contains;
+%ignore mbl_graph_t::get_global_uses; // not hexapi/inline: no exported symbol to wrap
 
 %ignore qstring_printer_t::qstring_printer_t(const cfunc_t *, qstring &, bool);
 %ignore qstring_printer_t::~qstring_printer_t();
@@ -401,7 +402,22 @@ public:
 };
 
 %template(hexwarns_t) qvector<hexwarn_t>;
+%uncomparable_elements_qvector(class_t, classes_t);
+%uncomparable_elements_qvector(class_member_t, class_members_t);
+// render_class()/render_member() return a status plus the rendered lines:
+// keep the bool result and append 'lines' as a second tuple element instead
+// of the plain 'qstrvec_t *out' typemap, which would replace it.
+%apply qstrvec_t *out_wrap_in_list_and_append { qstrvec_t *lines };
+// Makes the class API structs' qstrvec_t members (decl, attrs, nested,
+// supertypes, interfaces) read as Python lists of str, the same way
+// kernwin.i and lumina.i already expose their own qstrvec_t members.
+%typemap(out) qstrvec_t *
+{
+  Py_XDECREF($result);
+  $result = qstrvec2pylist(*$1);
+}
 %template(user_numforms_t) qmap<operand_locator_t, number_format_t>;
+%template(user_mflags_t) qmap<operand_locator_t, int32>;
 
 %{
 qstring_printer_t *new_qstring_printer_t(const cfunc_t *f, bool tags)
@@ -687,6 +703,7 @@ treeloc_t *ctree_item_t_loc_get(ctree_item_t *item) { return item->citype == VDI
 %template(user_unions_t) qmap<ea_t, intvec_t>;
 %template(user_cmts_t) qmap<treeloc_t, citem_cmt_t>;
 %template(user_iflags_t) qmap<citem_locator_t, int32>;
+%template(user_casts_t) qmap<citem_locator_t, tinfo_t>;
 %template(cinsnptrvec_t) qvector<cinsn_t *>;
 %template(eamap_t) qmap<ea_t, cinsnptrvec_t>;
 %template(boundaries_t) qmap<cinsn_t *, rangeset_t>;
@@ -1062,6 +1079,7 @@ void qswap(cinsn_t &a, cinsn_t &b);
 };
 
 %template(lvar_mapping_t) qmap<lvar_locator_t, lvar_locator_t>;
+%template(udcall_map_t) qmap<ea_t, udcall_t>;
 %template(qvector_lvar_t) qvector<lvar_t>;
 %template(lvar_saved_infos_t) qvector<lvar_saved_info_t>;
 

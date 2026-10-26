@@ -6,11 +6,13 @@
 // ignore not published structs
 %ignore reg_finder_op_t;
 %ignore reg_finder_t;
+%ignore reg_slots_t;
 
 //-------------------------------------------------------------------------
 %immutable reg_value_def_t::SHORT_INSN;
 %immutable reg_value_def_t::PC_BASED;
 %immutable reg_value_def_t::LIKE_GOT;
+%immutable reg_value_def_t::HAD_DELTA;
 %ignore reg_value_def_t::val_eq;
 %ignore reg_value_def_t::val_less;
 %ignore reg_value_info_t::set_context(const reg_finder_t *rf);
@@ -37,6 +39,7 @@
 %ignore reg_finder_invalidate_cache(reg_finder_t *_this, ea_t to, ea_t from, cref_t cref);
 %ignore reg_finder_invalidate_cache(reg_finder_t *_this);
 %ignore reg_finder_invalidate_xrefs_cache(reg_finder_t *_this, ea_t ea, dref_t dref);
+%ignore reg_finder94_find(reg_finder_t *_this, reg_value_base_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insns);
 %ignore reg_finder_find(reg_finder_t *_this, reg_value_base_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insns);
 %ignore reg_finder94_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, ea_t func_ea);
 %ignore reg_finder_calc_op_addr(reg_finder_t *_this, reg_value_base_t *addr, const op_t *memop, const insn_t *insn, ea_t ea, ea_t ds, int max_depth);
@@ -46,6 +49,8 @@
 %ignore reg_finder_emulate_binary_op_shifted(reg_finder_t *_this, reg_value_base_t *value, int aop, const op_t *op1, const op_t *op2, int width, bool is_signed, int shift, uint8 shift_count, const insn_t *insn, ea_t ea, ea_t ds);
 %ignore reg_finder_may_modify_stkvar(reg_finder_t *_this, reg_value_base_t *value, reg_finder_op_t op, const insn_t *insn);
 %ignore reg_finder_can_resolve_mem(const reg_finder_t *_this, ea_t ea);
+%ignore apply_array_access;
+%ignore reg_finder_is_loaded_from_array(reg_finder_t *_this, ea_t *start, int *elsize, const reg_value_base_t *value, int max_depth);
 %ignore reg_finder_ctr(reg_finder_t *_this);
 %ignore reg_finder_dtr(reg_finder_t *_this);
 %ignore reg_value_def_dstr(const reg_value_def_t *_this, qstring *vout, int how, const procmod_t *pm);

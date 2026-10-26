@@ -71,6 +71,24 @@ inline bool print_predefined_segname(
 }
 
 //--------------------------------------------------------------------------
+// is the ELF header magic at EA?
+inline bool is_elf_magic(ea_t ea)
+{
+  uint32 magic = get_dword(ea);
+  if ( inf_is_be() )
+    magic = swap32(magic);
+  return magic == 0x464C457F; // "\x7FELF"
+}
+
+//--------------------------------------------------------------------------
+// may the address 0 be the entry of a function? only an ELF file may have
+// code there, and only when its header is not mapped at 0
+inline bool may_func_start_at_zero()
+{
+  return inf_get_filetype() == f_ELF && !is_elf_magic(0);
+}
+
+//--------------------------------------------------------------------------
 // A function to create merge handlers for module.
 // This function is defined by processor modules.
 void create_std_procmod_handlers(merge_data_t &md);

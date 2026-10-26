@@ -13,6 +13,10 @@ else:
     uvalvec_t = uintvec_t
 eavec_t = uvalvec_t
 
+# swig doesn't handle the NUL bytes very well
+UTF32LE_BOM = "\udcff\udcfe\x00\x00"
+UTF32BE_BOM = "\x00\x00\udcfe\udcff"
+
 ida_idaapi._listify_types(
         intvec_t,
         uintvec_t,

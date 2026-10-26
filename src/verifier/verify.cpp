@@ -60,6 +60,18 @@ bool hexrays_vars_t::should_verify()
 }
 
 //-------------------------------------------------------------------------
+// the bytes of a scattered value that are in registers: a tuple may have
+// padding between the parts, and parts on the stack
+static int calc_scattered_reg_bytes(const scattered_aloc_t &scl)
+{
+  int nbytes = 0;
+  for ( const argpart_t &part : scl )
+    if ( part.is_reg() )
+      nbytes += part.size;
+  return nbytes;
+}
+
+//-------------------------------------------------------------------------
 void mcallinfo_t::verify(micro_verifier_t &mv, int size) const
 {
   if ( cc == CM_CC_INVALID )
@@ -108,7 +120,14 @@ void mcallinfo_t::verify(micro_verifier_t &mv, int size) const
   if ( (flags & FCI_PROP) == 0 )
   {
     mlist_t tmp = used_retvals();
-    if ( tmp.reg.count() != size )
+    // size 0: the return value is dead (e.g. a noreturn call), even if
+    // it is a scattered udt
+    int regsize = size != 0
+               && return_argloc.is_scattered()
+               && return_type.is_udt()
+                ? calc_scattered_reg_bytes(return_argloc.scattered())
+                : size;
+    if ( tmp.reg.count() != regsize )
       mv.MINSN_INTERR(50743); // size of registers returned from a call mismatches the retval size
     int s2 = 0;
     int vmop = 0;
@@ -1254,6 +1273,8 @@ void mblock_t::verify(micro_verifier_t &mv) const
     {
       if ( start >= end && (flags & MBL_FAKE) == 0 )
         mv.MBLOCK_INTERR(50869); // wrong block boundaries
+      if ( start == BADADDR )
+        mv.MBLOCK_INTERR(53166); // non-empty block without address
       if ( end != BADADDR
         && getf_reginsn(head) != nullptr
         && (mba->get_mba_flags() & MBA_CMBBLK) != 0

@@ -310,6 +310,6 @@ plugin_t PLUGIN =
 
   "",                   // long comment about the plugin
   "",                   // multiline help about the plugin
-  "Sample custview",    // the preferred short name of the plugin
+  "Examples/Sample custview",    // the preferred short name of the plugin
   ""                    // the preferred hotkey to run the plugin
 };

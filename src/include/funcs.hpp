@@ -148,18 +148,51 @@ public:
                                        ///< insn is analyzed.
 #define FUNC_UNWIND     0x00080000     ///< function is an exception unwind handler
 #define FUNC_CATCH      0x00100000     ///< function is an exception catch handler
+#define FUNC_OVERSIZED  0x00200000     ///< function exceeds OVERSIZED_FUNC_SIZE (ida.cfg)
 
 #define FUNC_RESERVED   0x8000000000000000LL ///< Reserved (for internal usage)
 ///@}
 
   /// Is a far function?
-  bool is_far(void) const { return (flags & FUNC_FAR) != 0; }
+  bool is_far() const { return (flags & FUNC_FAR) != 0; }
   /// Does function return?
-  bool does_return(void) const { return (flags & FUNC_NORET) == 0; }
+  bool does_return() const { return (flags & FUNC_NORET) == 0; }
   /// Has SP-analysis been performed?
-  bool analyzed_sp(void) const { return (flags & FUNC_SP_READY) != 0; }
+  bool analyzed_sp() const { return (flags & FUNC_SP_READY) != 0; }
   /// Needs prolog analysis?
-  bool need_prolog_analysis(void) const { return (flags & FUNC_PROLOG_OK) == 0; }
+  bool need_prolog_analysis() const { return (flags & FUNC_PROLOG_OK) == 0; }
+  /// Is a library function?
+  bool is_lib() const { return (flags & FUNC_LIB) != 0; }
+  /// Is a static function?
+  bool is_static() const { return (flags & FUNC_STATICDEF) != 0; }
+  /// Does the function use a frame pointer (BP)?
+  bool uses_frame() const { return (flags & FUNC_FRAME) != 0; }
+  /// Has the user specified the far-ness of the function?
+  bool is_userfar() const { return (flags & FUNC_USERFAR) != 0; }
+  /// Is a hidden function chunk?
+  bool is_hidden() const { return (flags & FUNC_HIDDEN) != 0; }
+  /// Is a thunk (jump) function?
+  bool is_thunk() const { return (flags & FUNC_THUNK) != 0; }
+  /// Does BP point to the bottom of the stack frame?
+  bool is_bottom_bp() const { return (flags & FUNC_BOTTOMBP) != 0; }
+  /// Needs 'non-return' analysis?
+  bool need_noret_analysis() const { return (flags & FUNC_NORET_PENDING) != 0; }
+  /// Does the function change SP in an untraceable way?
+  bool has_fuzzy_sp() const { return (flags & FUNC_FUZZY_SP) != 0; }
+  /// Has the 'argsize' field been validated?
+  bool is_purged_ok() const { return (flags & FUNC_PURGED_OK) != 0; }
+  /// Is the function info provided by Lumina?
+  bool is_from_lumina() const { return (flags & FUNC_LUMINA) != 0; }
+  /// Is this outlined code (not a real function)?
+  bool is_outlined() const { return (flags & FUNC_OUTLINE) != 0; }
+  /// Is a reanalysis of the function requested?
+  bool needs_reanalysis() const { return (flags & FUNC_REANALYZE) != 0; }
+  /// Is the function an exception unwind handler?
+  bool is_unwind() const { return (flags & FUNC_UNWIND) != 0; }
+  /// Is the function an exception catch handler?
+  bool is_catch() const { return (flags & FUNC_CATCH) != 0; }
+  /// Does the function exceed OVERSIZED_FUNC_SIZE (ida.cfg)?
+  bool is_oversized() const { return (flags & FUNC_OVERSIZED) != 0; }
 #ifndef SWIG
   union
   {
@@ -263,10 +296,10 @@ DECLARE_TYPE_AS_MOVABLE(func_t);
 
 /// Does function describe a function entry chunk?
 /// \deprecated Use is_function_entry() for safer access.
-DEPRECATED inline bool is_func_entry(const func_t *pfn) { return pfn != nullptr && (pfn->flags & FUNC_TAIL) == 0; }
+IDA_DEPRECATED inline bool is_func_entry(const func_t *pfn) { return pfn != nullptr && (pfn->flags & FUNC_TAIL) == 0; }
 /// Does function describe a function tail chunk?
 /// \deprecated Use is_function_tail() for safer access.
-DEPRECATED inline bool is_func_tail(const func_t *pfn) { return pfn != nullptr && (pfn->flags & FUNC_TAIL) != 0; }
+IDA_DEPRECATED inline bool is_func_tail(const func_t *pfn) { return pfn != nullptr && (pfn->flags & FUNC_TAIL) != 0; }
 
 
 /// Lock function pointer
@@ -274,12 +307,12 @@ DEPRECATED inline bool is_func_tail(const func_t *pfn) { return pfn != nullptr &
 /// Ranges with locked pointers cannot be deleted or moved.
 /// \deprecated Use lock_func_range_ea() for safer access.
 
-idaman DEPRECATED void ida_export lock_func_range(const func_t *pfn, bool lock);
+idaman IDA_DEPRECATED void ida_export lock_func_range(const func_t *pfn, bool lock);
 
 /// Is the function pointer locked?
 /// \deprecated Use is_func_locked_ea() for safer access.
 
-idaman DEPRECATED bool ida_export is_func_locked(const func_t *pfn);
+idaman IDA_DEPRECATED bool ida_export is_func_locked(const func_t *pfn);
 
 //--------------------------------------------------------------------
 //      F U N C T I O N S
@@ -290,7 +323,7 @@ idaman DEPRECATED bool ida_export is_func_locked(const func_t *pfn);
 /// This function returns a function entry chunk.
 /// \deprecated Use get_func_start() or get_func_entry_info() for safer access.
 
-idaman DEPRECATED func_t *ida_export get_func(ea_t ea);
+idaman IDA_DEPRECATED func_t *ida_export get_func(ea_t ea);
 
 
 /// Get the containing tail chunk of 'ea'.
@@ -299,7 +332,7 @@ idaman DEPRECATED func_t *ida_export get_func(ea_t ea);
 /// \retval >0   the number of the containing function tail chunk
 /// \deprecated Use get_func_chunknum_ea() for safer access.
 
-idaman DEPRECATED int ida_export get_func_chunknum(func_t *pfn, ea_t ea);
+idaman IDA_DEPRECATED int ida_export get_func_chunknum(func_t *pfn, ea_t ea);
 
 /// Get pointer to function structure by number.
 /// \param n  number of function, is in range 0..get_func_qty()-1
@@ -307,7 +340,7 @@ idaman DEPRECATED int ida_export get_func_chunknum(func_t *pfn, ea_t ea);
 /// This function returns a function entry chunk.
 /// \deprecated Use get_func_ea_by_num() or get_func_entry_info_by_num() for safer access.
 
-idaman DEPRECATED func_t *ida_export getn_func(size_t n);
+idaman IDA_DEPRECATED func_t *ida_export getn_func(size_t n);
 
 
 /// Get total number of functions in the program
@@ -328,7 +361,7 @@ idaman int ida_export get_func_num(ea_t ea);
 /// \return ptr to function or nullptr if previous function doesn't exist
 /// \deprecated Use get_prev_func_ea() for safer access.
 
-idaman DEPRECATED func_t *ida_export get_prev_func(ea_t ea);
+idaman IDA_DEPRECATED func_t *ida_export get_prev_func(ea_t ea);
 
 
 /// Get pointer to the next function.
@@ -336,7 +369,7 @@ idaman DEPRECATED func_t *ida_export get_prev_func(ea_t ea);
 /// \return ptr to function or nullptr if next function doesn't exist
 /// \deprecated Use get_next_func_ea() for safer access.
 
-idaman DEPRECATED func_t *ida_export get_next_func(ea_t ea);
+idaman IDA_DEPRECATED func_t *ida_export get_next_func(ea_t ea);
 
 
 /// Get function ranges.
@@ -345,7 +378,7 @@ idaman DEPRECATED func_t *ida_export get_next_func(ea_t ea);
 /// \return end address of the last function range (BADADDR-error)
 /// \deprecated Use get_func_ranges_ea() for safer access.
 
-idaman DEPRECATED ea_t ida_export get_func_ranges(rangeset_t *ranges, func_t *pfn);
+idaman IDA_DEPRECATED ea_t ida_export get_func_ranges(rangeset_t *ranges, func_t *pfn);
 
 
 /// Get function comment.
@@ -356,7 +389,7 @@ idaman DEPRECATED ea_t ida_export get_func_ranges(rangeset_t *ranges, func_t *pf
 /// In fact this function works with function chunks too.
 /// \deprecated Use get_func_cmt_ea() for safer access.
 
-idaman DEPRECATED ssize_t ida_export get_func_cmt(qstring *buf, const func_t *pfn, bool repeatable);
+idaman IDA_DEPRECATED ssize_t ida_export get_func_cmt(qstring *buf, const func_t *pfn, bool repeatable);
 
 
 /// Set function comment.
@@ -367,7 +400,7 @@ idaman DEPRECATED ssize_t ida_export get_func_cmt(qstring *buf, const func_t *pf
 /// \param repeatable  set repeatable comment?
 /// \deprecated Use set_func_cmt_ea() for safer access.
 
-idaman DEPRECATED bool ida_export set_func_cmt(const func_t *pfn, const char *cmt, bool repeatable);
+idaman IDA_DEPRECATED bool ida_export set_func_cmt(const func_t *pfn, const char *cmt, bool repeatable);
 
 
 /// Update information about a function in the database (::func_t).
@@ -377,7 +410,7 @@ idaman DEPRECATED bool ida_export set_func_cmt(const func_t *pfn, const char *cm
 /// \return success
 /// \deprecated Use set_func_entry_info() for safer access.
 
-idaman DEPRECATED bool ida_export update_func(func_t *pfn);
+idaman IDA_DEPRECATED bool ida_export update_func(func_t *pfn);
 
 
 /// Add a new function.
@@ -387,7 +420,7 @@ idaman DEPRECATED bool ida_export update_func(func_t *pfn);
 /// \param pfn  ptr to filled function structure
 /// \return success
 
-idaman DEPRECATED bool ida_export add_func_ex(func_t *pfn);
+idaman IDA_DEPRECATED bool ida_export add_func_ex(func_t *pfn);
 
 
 /// Delete a function.
@@ -433,7 +466,7 @@ idaman bool ida_export set_func_end(ea_t ea, ea_t newend);
 ///                         if false, only the given tail will be reanalyzed.
 /// \deprecated Use reanalyze_function_ea() for safer access.
 
-idaman DEPRECATED void ida_export reanalyze_function(
+idaman IDA_DEPRECATED void ida_export reanalyze_function(
         func_t *pfn,
         ea_t ea1=0,
         ea_t ea2=BADADDR,
@@ -450,7 +483,7 @@ idaman DEPRECATED void ida_export reanalyze_function(
 /// \param flags  \ref FIND_FUNC_F
 /// \return \ref FIND_FUNC_R
 
-idaman DEPRECATED int ida_export find_func_bounds(func_t *nfn, int flags);
+idaman IDA_DEPRECATED int ida_export find_func_bounds(func_t *nfn, int flags);
 
 /// \defgroup FIND_FUNC_F Find function bounds flags
 /// Passed as 'flags' parameter to find_func_bounds() and find_function_bounds()
@@ -488,7 +521,7 @@ idaman ssize_t ida_export get_func_name(qstring *out, ea_t ea);
 /// \param pfn    ptr to function structure
 /// \deprecated Use calc_func_size_ea() for safer access.
 
-idaman DEPRECATED asize_t ida_export calc_func_size(func_t *pfn);
+idaman IDA_DEPRECATED asize_t ida_export calc_func_size(func_t *pfn);
 
 
 /// Get function bitness (which is equal to the function segment bitness).
@@ -498,12 +531,12 @@ idaman DEPRECATED asize_t ida_export calc_func_size(func_t *pfn);
 /// \retval 2  64
 /// \deprecated Use get_func_bitness_ea() for safer access.
 
-idaman DEPRECATED int ida_export get_func_bitness(const func_t *pfn);
+idaman IDA_DEPRECATED int ida_export get_func_bitness(const func_t *pfn);
 
 /// Set visibility of function
 /// \deprecated Use set_visible_func_ea() for safer access.
 
-idaman DEPRECATED void ida_export set_visible_func(func_t *pfn, bool visible);
+idaman IDA_DEPRECATED void ida_export set_visible_func(func_t *pfn, bool visible);
 
 
 /// Give a meaningful name to function if it consists of only 'jump' instruction.
@@ -515,7 +548,7 @@ idaman DEPRECATED void ida_export set_visible_func(func_t *pfn, bool visible);
 /// \return success
 /// \deprecated Use set_function_name_if_jumpfunc() for safer access.
 
-idaman DEPRECATED int ida_export set_func_name_if_jumpfunc(func_t *pfn, const char *oldname);
+idaman IDA_DEPRECATED int ida_export set_func_name_if_jumpfunc(func_t *pfn, const char *oldname);
 
 
 /// Calculate target of a thunk function.
@@ -524,7 +557,7 @@ idaman DEPRECATED int ida_export set_func_name_if_jumpfunc(func_t *pfn, const ch
 /// \return the target function or #BADADDR
 /// \deprecated Use calc_thunk_function_target() for safer access.
 
-idaman DEPRECATED ea_t ida_export calc_thunk_func_target(func_t *pfn, ea_t *fptr);
+idaman IDA_DEPRECATED ea_t ida_export calc_thunk_func_target(func_t *pfn, ea_t *fptr);
 
 
 /// Does the function return?
@@ -562,7 +595,7 @@ idaman bool ida_export set_noret_insn(ea_t insn_ea, bool noret);
 ///         This function may return a function entry as well as a function tail.
 /// \deprecated Use get_fchunk_start() or get_fchunk_info() for safer access.
 
-idaman DEPRECATED func_t *ida_export get_fchunk(ea_t ea);
+idaman IDA_DEPRECATED func_t *ida_export get_fchunk(ea_t ea);
 
 
 /// Get pointer to function chunk structure by number.
@@ -571,7 +604,7 @@ idaman DEPRECATED func_t *ida_export get_fchunk(ea_t ea);
 ///         This function may return a function entry as well as a function tail.
 /// \deprecated Use get_fchunk_ea_by_num() for safer access.
 
-idaman DEPRECATED func_t *ida_export getn_fchunk(int n);
+idaman IDA_DEPRECATED func_t *ida_export getn_fchunk(int n);
 
 
 /// Get total number of function chunks in the program
@@ -592,7 +625,7 @@ idaman int ida_export get_fchunk_num(ea_t ea);
 /// \return ptr to function chunk or nullptr if previous function chunk doesn't exist
 /// \deprecated Use get_prev_fchunk_ea() for safer access.
 
-idaman DEPRECATED func_t *ida_export get_prev_fchunk(ea_t ea);
+idaman IDA_DEPRECATED func_t *ida_export get_prev_fchunk(ea_t ea);
 
 
 /// Get pointer to the next function chunk in the global list.
@@ -600,7 +633,7 @@ idaman DEPRECATED func_t *ida_export get_prev_fchunk(ea_t ea);
 /// \return ptr to function chunk or nullptr if next function chunk doesn't exist
 /// \deprecated Use get_next_fchunk_ea() for safer access.
 
-idaman DEPRECATED func_t *ida_export get_next_fchunk(ea_t ea);
+idaman IDA_DEPRECATED func_t *ida_export get_next_fchunk(ea_t ea);
 
 
 //--------------------------------------------------------------------
@@ -618,7 +651,7 @@ idaman DEPRECATED func_t *ida_export get_next_fchunk(ea_t ea);
 ///             the end address itself.
 /// \deprecated Use append_func_tail_ea() for safer access.
 
-idaman DEPRECATED bool ida_export append_func_tail(func_t *pfn, ea_t ea1, ea_t ea2);
+idaman IDA_DEPRECATED bool ida_export append_func_tail(func_t *pfn, ea_t ea1, ea_t ea2);
 
 
 /// Remove a function tail.
@@ -629,7 +662,7 @@ idaman DEPRECATED bool ida_export append_func_tail(func_t *pfn, ea_t ea1, ea_t e
 /// \param tail_ea any address inside the tail to remove
 /// \deprecated Use remove_func_tail_ea() for safer access.
 
-idaman DEPRECATED bool ida_export remove_func_tail(func_t *pfn, ea_t tail_ea);
+idaman IDA_DEPRECATED bool ida_export remove_func_tail(func_t *pfn, ea_t tail_ea);
 
 
 /// Set a new owner of a function tail.
@@ -638,7 +671,7 @@ idaman DEPRECATED bool ida_export remove_func_tail(func_t *pfn, ea_t tail_ea);
 /// \param new_owner the entry point of the new owner function
 /// \deprecated Use set_tail_owner_ea() for safer access.
 
-idaman DEPRECATED bool ida_export set_tail_owner(func_t *fnt, ea_t new_owner);
+idaman IDA_DEPRECATED bool ida_export set_tail_owner(func_t *fnt, ea_t new_owner);
 
 
 //--------------------------------------------------------------------
@@ -647,7 +680,7 @@ idaman DEPRECATED bool ida_export set_tail_owner(func_t *fnt, ea_t new_owner);
 ///@{
 idaman void ida_export read_regargs(func_t *pfn);
 /// \deprecated Use add_func_regarg() for safer access.
-idaman DEPRECATED void ida_export add_regarg(func_t *pfn, int reg, const tinfo_t &tif, const char *name);
+idaman IDA_DEPRECATED void ida_export add_regarg(func_t *pfn, int reg, const tinfo_t &tif, const char *name);
 ///@}
 
 //--------------------------------------------------------------------
@@ -868,12 +901,12 @@ inline bool is_finally_visible_func(ea_t ea)
 
 /// Is the function visible (not hidden)?
 /// \deprecated
-DEPRECATED inline bool is_visible_func(func_t *pfn) { return pfn != nullptr && is_visible_func(pfn->start_ea); }
+IDA_DEPRECATED inline bool is_visible_func(func_t *pfn) { return pfn != nullptr && is_visible_func(pfn->start_ea); }
 
 
 /// Is the function visible (event after considering #SCF_SHHID_FUNC)?
 /// \deprecated
-DEPRECATED inline bool is_finally_visible_func(func_t *pfn) { return pfn != nullptr && is_finally_visible_func(pfn->start_ea); }
+IDA_DEPRECATED inline bool is_finally_visible_func(func_t *pfn) { return pfn != nullptr && is_finally_visible_func(pfn->start_ea); }
 
 
 /// Set function chunk flags.
@@ -960,12 +993,12 @@ inline int idaapi get_func_bytes_ea(ea_t ea)
 
 /// Get number of bits in the function addressing
 /// \deprecated
-DEPRECATED inline int idaapi get_func_bits(const func_t *pfn) { return pfn != nullptr ? get_func_bits_ea(pfn->start_ea) : 16; }
+IDA_DEPRECATED inline int idaapi get_func_bits(const func_t *pfn) { return pfn != nullptr ? get_func_bits_ea(pfn->start_ea) : 16; }
 
 
 /// Get number of bytes in the function addressing
 /// \deprecated
-DEPRECATED inline int idaapi get_func_bytes(const func_t *pfn) { return pfn != nullptr ? get_func_bytes_ea(pfn->start_ea) : 2; }
+IDA_DEPRECATED inline int idaapi get_func_bytes(const func_t *pfn) { return pfn != nullptr ? get_func_bytes_ea(pfn->start_ea) : 2; }
 
 
 /// Calculate function size by address.
@@ -1138,7 +1171,7 @@ idaman bool ida_export is_same_fchunk(ea_t ea1, ea_t ea2);
 
 /// Does the given function contain the given address?
 /// \deprecated Use function_contains() for safer access.
-DEPRECATED inline bool func_contains(func_t *pfn, ea_t ea) { return pfn != nullptr && function_contains(pfn->start_ea, ea); }
+IDA_DEPRECATED inline bool func_contains(func_t *pfn, ea_t ea) { return pfn != nullptr && function_contains(pfn->start_ea, ea); }
 
 
 /// Callback type for iterate_func_chunks_ea().
@@ -1211,7 +1244,7 @@ public:
 
 /// Helper class to lock a function pointer so it stays valid
 /// \deprecated Use lock_func_ea instead.
-class DEPRECATED lock_func
+class IDA_DEPRECATED lock_func
 {
   ea_t ea = BADADDR;
 public:
@@ -1242,7 +1275,7 @@ class lock_func_with_tails_t
 
 public:
   /// \deprecated
-  DEPRECATED lock_func_with_tails_t(func_t *pfn)
+  IDA_DEPRECATED lock_func_with_tails_t(func_t *pfn)
   {
     if ( pfn != nullptr )
     {
@@ -1335,7 +1368,7 @@ inline THREAD_SAFE bool idaapi f_any(flags64_t, void *) { return true; }
 /// It is also possible to enumerate one single arbitrary range using set_range()
 /// This function is mainly designed to be used from ::func_item_iterator_t.
 /// \deprecated Use function_tail_iterator_t for safer ea-based access.
-class DEPRECATED func_tail_iterator_t
+class IDA_DEPRECATED func_tail_iterator_t
 {
   friend struct kdata_t;
   friend class func_item_iterator_t;
@@ -1385,7 +1418,7 @@ public:
 ///                         if false, only the given tail will be iterated.
 /// \deprecated Use iterate_func_chunks_ea() for safer access.
 
-idaman DEPRECATED void ida_export iterate_func_chunks(
+idaman IDA_DEPRECATED void ida_export iterate_func_chunks(
         func_t *pfn,
         void (idaapi *func)(ea_t ea1, ea_t ea2, void *ud),
         void *ud=nullptr,
@@ -1410,7 +1443,7 @@ idaman DEPRECATED void ida_export iterate_func_chunks(
 /// limited by the segment boundaries.
 /// It is also possible to enumerate addresses in an arbitrary range using set_range().
 /// \deprecated Use function_item_iterator_t for safer ea-based access.
-class DEPRECATED func_item_iterator_t
+class IDA_DEPRECATED func_item_iterator_t
 {
   friend struct kdata_t;
   GCC_DIAG_OFF(deprecated-declarations)
@@ -1479,7 +1512,7 @@ public:
 ///        ....
 /// \endcode
 /// \deprecated Use function_parent_iterator_t for safer ea-based access.
-class DEPRECATED func_parent_iterator_t
+class IDA_DEPRECATED func_parent_iterator_t
 {
   friend struct kdata_t;
   func_t *fnt;
@@ -1508,10 +1541,10 @@ public:
 ///@{
 
 /// \deprecated Use get_prev_function_addr() for safer access.
-idaman DEPRECATED ea_t ida_export get_prev_func_addr(func_t *pfn, ea_t ea);
+idaman IDA_DEPRECATED ea_t ida_export get_prev_func_addr(func_t *pfn, ea_t ea);
 
 /// \deprecated Use get_next_function_addr() for safer access.
-idaman DEPRECATED ea_t ida_export get_next_func_addr(func_t *pfn, ea_t ea);
+idaman IDA_DEPRECATED ea_t ida_export get_next_func_addr(func_t *pfn, ea_t ea);
 ///@}
 
 //--------------------------------------------------------------------
@@ -1559,6 +1592,38 @@ public:
   bool analyzed_sp() const { return (flags_ & FUNC_SP_READY) != 0; }
   /// Needs prolog analysis?
   bool need_prolog_analysis() const { return (flags_ & FUNC_PROLOG_OK) == 0; }
+  /// Is a library function?
+  bool is_lib() const { return (flags_ & FUNC_LIB) != 0; }
+  /// Is a static function?
+  bool is_static() const { return (flags_ & FUNC_STATICDEF) != 0; }
+  /// Does the function use a frame pointer?
+  bool uses_frame() const { return (flags_ & FUNC_FRAME) != 0; }
+  /// Has the user specified the far-ness of the function?
+  bool is_userfar() const { return (flags_ & FUNC_USERFAR) != 0; }
+  /// Is a hidden function chunk?
+  bool is_hidden() const { return (flags_ & FUNC_HIDDEN) != 0; }
+  /// Is a thunk function?
+  bool is_thunk() const { return (flags_ & FUNC_THUNK) != 0; }
+  /// Does BP point to the bottom of the stack frame?
+  bool is_bottom_bp() const { return (flags_ & FUNC_BOTTOMBP) != 0; }
+  /// Needs 'non-return' analysis?
+  bool need_noret_analysis() const { return (flags_ & FUNC_NORET_PENDING) != 0; }
+  /// Does the function change SP in an untraceable way?
+  bool has_fuzzy_sp() const { return (flags_ & FUNC_FUZZY_SP) != 0; }
+  /// Has the 'argsize' field been validated?
+  bool is_purged_ok() const { return (flags_ & FUNC_PURGED_OK) != 0; }
+  /// Is the function info provided by Lumina?
+  bool is_from_lumina() const { return (flags_ & FUNC_LUMINA) != 0; }
+  /// Is this outlined code (not a real function)?
+  bool is_outlined() const { return (flags_ & FUNC_OUTLINE) != 0; }
+  /// Is a reanalysis of the function requested?
+  bool needs_reanalysis() const { return (flags_ & FUNC_REANALYZE) != 0; }
+  /// Is the function an exception unwind handler?
+  bool is_unwind() const { return (flags_ & FUNC_UNWIND) != 0; }
+  /// Is the function an exception catch handler?
+  bool is_catch() const { return (flags_ & FUNC_CATCH) != 0; }
+  /// Does the function exceed OVERSIZED_FUNC_SIZE (ida.cfg)?
+  bool is_oversized() const { return (flags_ & FUNC_OVERSIZED) != 0; }
 
 protected:
   uint64 flags_ = 0;

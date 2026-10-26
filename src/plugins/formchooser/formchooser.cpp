@@ -308,6 +308,6 @@ plugin_t PLUGIN =
   nullptr,
   nullptr,
   nullptr,
-  "Forms chooser sample",// the preferred short name of the plugin
+  "Examples/Forms chooser sample",// the preferred short name of the plugin
   nullptr,
 };

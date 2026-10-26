@@ -264,6 +264,6 @@ plugin_t PLUGIN =
   "\n"
   "This plugin allows you to list and restore snapshots.\n",
                         // multiline help about the plugin
-  "Simple snapshot manager", // the preferred short name of the plugin
+  "Examples/Simple snapshot manager", // the preferred short name of the plugin
   "Shift-F8",           // the preferred hotkey to run the plugin
 };

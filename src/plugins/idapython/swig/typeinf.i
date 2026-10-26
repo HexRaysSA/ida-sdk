@@ -363,6 +363,7 @@ idaman bool ida_export deserialize_tinfo(tinfo_t *tif, const til_t *til, const t
 %ignore tinfo_t::~tinfo_t();
 
 %template(funcargvec_t)      qvector<funcarg_t>;
+%template(tinfovec_t)        qvector<tinfo_t>;
 %template(reginfovec_t)      qvector<reg_info_t>;
 %template(edmvec_t)          qvector<edm_t>;
 %template(argpartvec_t)      qvector<argpart_t>;

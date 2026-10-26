@@ -111,6 +111,8 @@ int pdb_remote_session_t::pack_symbol(IDiaSymbol *symbol)
   PROC_BOOL(t_hasCastOperator);
   PROC_BOOL(t_function);
   PROC_BOOL(t_constructor);
+  PROC_BOOL(t_virtualBaseClass);
+  PROC_BOOL(t_isCxxReturnUdt);
 #undef PROC_BOOL
 
 #define PROC_DWORD(prop) PROC_PROP(DWORD, prop, dd, uint32)

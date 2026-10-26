@@ -33,6 +33,7 @@ static const char *subidx_label(subindex_typeid_t subidx)
     case SUBIDX_SEGMENTS:                     return "segment";
     case SUBIDX_FUNCTION_COMMENTS:            return "func comment";
     case SUBIDX_REPEATABLE_FUNCTION_COMMENTS: return "func rep-comment";
+    case SUBIDX_LTYPE_MEMBERS:                return "type member";
     default:                                  return "unknown";
   }
 }
@@ -137,6 +138,6 @@ plugin_t PLUGIN =
   "Search functions, names, types, segments and comments "
     "using the IDA indexer API.",
   nullptr,
-  "Indexer Search",     // short name shown in Edit > Plugins
+  "Examples/Indexer Search",     // short name shown in Edit > Plugins
   "Ctrl-Alt-I",         // preferred hotkey
 };

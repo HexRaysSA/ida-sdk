@@ -119,7 +119,7 @@ mex_ctx_t::~mex_ctx_t()
 
 //-------------------------------------------------------------------------
 static const char comment[] = "An example " MEX_NUMBER " how to implement IDA merge functionality";
-static const char wanted_name[] = "Merge example " MEX_NUMBER;
+static const char wanted_name[] = "Examples/Merge example " MEX_NUMBER;
 static const char wanted_hotkey[] = "";
 
 //-------------------------------------------------------------------------

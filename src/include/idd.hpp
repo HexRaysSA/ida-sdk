@@ -20,7 +20,7 @@
 */
 
 /// The IDD interface version number
-#define         IDD_INTERFACE_VERSION   31
+#define         IDD_INTERFACE_VERSION   32
 
 class idc_value_t;
 struct fpvalue_t;

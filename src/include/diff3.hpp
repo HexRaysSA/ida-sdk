@@ -276,6 +276,7 @@ enum merge_policy_t ENUM_SIZE(uint8)
   MERGE_POLICY_POSTPONE,   ///< merge, do not resolve conflicts
   MERGE_POLICY_MDIFF,      ///< view mode: diff only, do not save the database
   MERGE_POLICY_VDIFF,      ///< view mode: visual diff only, do not save the database
+  MERGE_POLICY_LISTING_DIFF, ///< view mode: textual listing diff, do not save the database
   MERGE_POLICY_LAST,
 };
 

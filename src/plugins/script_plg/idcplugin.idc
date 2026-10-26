@@ -4,7 +4,7 @@ class myplugmod_t
 {
   myplugmod_t()
   {
-    this.wanted_name = "Sample IDC plugin";
+    this.wanted_name = "Examples/Sample IDC plugin";
   }
   run(arg)
   {
@@ -24,7 +24,7 @@ class myplugin_t
     this.flags = PLUGIN_MULTI;
     this.comment = "This is a sample IDC plugin";
     this.help = "This is help";
-    this.wanted_name = "Sample IDC plugin";
+    this.wanted_name = "Examples/Sample IDC plugin";
     this.wanted_hotkey = "Alt-F6";
   }
 

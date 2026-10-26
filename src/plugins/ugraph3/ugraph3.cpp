@@ -57,6 +57,6 @@ plugin_t PLUGIN =
   nullptr,
   nullptr,              // long comment about the plugin
   nullptr,              // multiline help about the plugin
-  "Generate graph for selection",
+  "Examples/Generate graph for selection",
   nullptr,              // the preferred hotkey to run the plugin
 };

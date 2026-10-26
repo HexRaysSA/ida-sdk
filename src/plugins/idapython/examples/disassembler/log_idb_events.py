@@ -399,5 +399,8 @@ class idb_logger_hooks_t(ida_idp.IDB_Hooks):
     def moving_range_cmt(self, kind, oldea, newea, is_repeatable):
         return self._log()
 
+    def flirt_applied(self):
+        return self._log()
+
 idb_hooks = idb_logger_hooks_t()
 idb_hooks.hook()

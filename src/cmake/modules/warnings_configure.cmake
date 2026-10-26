@@ -31,9 +31,29 @@ else()
         -Wno-unused-function
         -Wno-switch)
 endif()
+# Hex-Rays internal SDK build only; customer builds keep them as warnings.
+option(IDA_DEPRECATED_AS_ERROR "Fail on use of deprecated IDA API" OFF)
+if(IDA_DEPRECATED_AS_ERROR AND NOT MSVC)
+    # -w would also silence -Werror=deprecated-declarations
+    if(IDA_WARNINGS STREQUAL "none")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            set(_w_global -Wno-everything)
+        else()
+            set(_w_global "")
+        endif()
+    endif()
+    list(APPEND _w_global -Werror=deprecated-declarations)
+endif()
 set(IDA_MODULE_WNO_none    "")
 set(IDA_MODULE_WNO_default "${_w_module}")
 set(IDA_MODULE_WNO_all     "${_w_module}")
+if(IDA_DEPRECATED_AS_ERROR AND NOT MSVC)
+    # idapython wraps the deprecated API on purpose
+    set(_w_depr_off -Wno-deprecated-declarations)
+    set(IDA_MODULE_WNO_idapython_none    "${_w_depr_off}")
+    set(IDA_MODULE_WNO_idapython_default "${_w_module};${_w_depr_off}")
+    set(IDA_MODULE_WNO_idapython_all     "${_w_module};${_w_depr_off}")
+endif()
 
 # Shared application functions (ida_apply_global_warnings / ida_module_warnings).
 include(${CMAKE_CURRENT_LIST_DIR}/warnings.cmake)

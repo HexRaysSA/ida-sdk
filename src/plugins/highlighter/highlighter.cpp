@@ -171,7 +171,7 @@ static plugmod_t *idaapi init()
 }
 
 //--------------------------------------------------------------------------
-static const char wanted_name[] = "Highlighter";
+static const char wanted_name[] = "Examples/Highlighter";
 static const char wanted_hotkey[] = "";
 
 //--------------------------------------------------------------------------

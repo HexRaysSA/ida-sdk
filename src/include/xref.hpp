@@ -214,6 +214,12 @@ struct xrefblk_t
 #define XREF_TID        0x10            ///< return only type ids.
                                         ///< XREF_EA and XREF_TID are exclusive,
                                         ///< only one of them can be specified
+#define XREF_EXACT      0x20            ///< first_to(): return only xrefs to
+                                        ///< the exact address. Without it,
+                                        ///< 16-bit ISA functions (e.g. ARM
+                                        ///< Thumb) also get the xrefs from
+                                        ///< pointers to them (stored at
+                                        ///< address|1)
 ///@}
 
   /// \name Get first/next
@@ -233,7 +239,9 @@ struct xrefblk_t
   bool next_from()
     { return xrefblk_t_next_from(this); }
 
-  /// Get xref to given address (store in #from)
+  /// Get xref to given address (store in #from).
+  /// On processors with #PR2_CODE16_BIT (ARM Thumb, MIPS16),
+  /// xrefs to '_to'|1 come last with #to set to '_to'|1.
   bool first_to(ea_t _to, int flags=XREF_FLOW)
     { return xrefblk_t_first_to(this, _to, flags); }
 
@@ -365,7 +373,7 @@ idaman bool ida_export has_external_refs_ea(ea_t func_ea, ea_t ea);
 
 /// Does 'ea' have references from outside of the function at 'func_ea'?
 /// \deprecated Use has_external_refs_ea() for safer access.
-idaman DEPRECATED bool ida_export has_external_refs(func_t *pfn, ea_t ea);
+idaman IDA_DEPRECATED bool ida_export has_external_refs(func_t *pfn, ea_t ea);
 
 
 /// Are there jump or flow references to EA?

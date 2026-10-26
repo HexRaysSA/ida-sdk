@@ -107,6 +107,6 @@ plugin_t PLUGIN =
   nullptr,
   "Instruction tracer sample", // long comment about the plugin
   "",                   // multiline help about the plugin
-  "tracer",             // the preferred short name of the plugin
+  "Examples/tracer",             // the preferred short name of the plugin
   "",                   // the preferred hotkey to run the plugin
 };

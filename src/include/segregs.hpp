@@ -92,7 +92,7 @@ idaman bool ida_export split_sreg_range(
 ///               if value of the register is unknown at the specified address.
 /// \return success
 
-idaman DEPRECATED bool ida_export set_default_sreg_value(segment_t *sg, int rg, sel_t value);
+idaman IDA_DEPRECATED bool ida_export set_default_sreg_value(segment_t *sg, int rg, sel_t value);
 
 
 /// Set default value of a segment register for a segment.

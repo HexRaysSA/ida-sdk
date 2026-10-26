@@ -301,6 +301,6 @@ plugin_t PLUGIN =
   nullptr,
   nullptr,
   nullptr,
-  "Open non-modal form sample",// the preferred short name of the plugin
+  "Examples/Open non-modal form sample",// the preferred short name of the plugin
   nullptr,
 };

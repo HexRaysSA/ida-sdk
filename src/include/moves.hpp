@@ -466,22 +466,22 @@ public:
 #ifndef SWIG
 /// Deprecated. Please use `navstack_t` instead
 class lochist_t {};
-idaman DEPRECATED void ida_export lochist_t_register_live(lochist_t &);
-idaman DEPRECATED void ida_export lochist_t_deregister_live(lochist_t &);
-idaman DEPRECATED bool ida_export lochist_t_init(lochist_t &, const char *, const place_t &, void *, uint32);
-idaman DEPRECATED void ida_export lochist_t_jump(lochist_t &, bool try_to_unhide, const lochist_entry_t &e);
-idaman DEPRECATED bool ida_export lochist_t_fwd(lochist_t &, uint32 cnt, bool try_to_unhide);
-idaman DEPRECATED bool ida_export lochist_t_back(lochist_t &, uint32 cnt, bool try_to_unhide);
-idaman DEPRECATED bool ida_export lochist_t_seek(lochist_t &, uint32 index, bool try_to_unhide, bool apply_cur);
-idaman DEPRECATED const lochist_entry_t *ida_export lochist_t_get_current(const lochist_t &);
-idaman DEPRECATED uint32 ida_export lochist_t_current_index(const lochist_t &);
-idaman DEPRECATED void ida_export lochist_t_set(lochist_t &, uint32, const lochist_entry_t &);
-idaman DEPRECATED bool ida_export lochist_t_get(lochist_entry_t *, const lochist_t &, uint32);
-idaman DEPRECATED uint32 ida_export lochist_t_size(const lochist_t &);
-idaman DEPRECATED void ida_export lochist_t_save(const lochist_t &);
-idaman DEPRECATED void ida_export lochist_t_clear(lochist_t &);
-idaman DEPRECATED void ida_export lochist_entry_t_serialize(bytevec_t *, const lochist_entry_t &);
-idaman DEPRECATED bool ida_export lochist_entry_t_deserialize(lochist_entry_t *, const uchar **, const uchar *const, const place_t *);
+idaman IDA_DEPRECATED void ida_export lochist_t_register_live(lochist_t &);
+idaman IDA_DEPRECATED void ida_export lochist_t_deregister_live(lochist_t &);
+idaman IDA_DEPRECATED bool ida_export lochist_t_init(lochist_t &, const char *, const place_t &, void *, uint32);
+idaman IDA_DEPRECATED void ida_export lochist_t_jump(lochist_t &, bool try_to_unhide, const lochist_entry_t &e);
+idaman IDA_DEPRECATED bool ida_export lochist_t_fwd(lochist_t &, uint32 cnt, bool try_to_unhide);
+idaman IDA_DEPRECATED bool ida_export lochist_t_back(lochist_t &, uint32 cnt, bool try_to_unhide);
+idaman IDA_DEPRECATED bool ida_export lochist_t_seek(lochist_t &, uint32 index, bool try_to_unhide, bool apply_cur);
+idaman IDA_DEPRECATED const lochist_entry_t *ida_export lochist_t_get_current(const lochist_t &);
+idaman IDA_DEPRECATED uint32 ida_export lochist_t_current_index(const lochist_t &);
+idaman IDA_DEPRECATED void ida_export lochist_t_set(lochist_t &, uint32, const lochist_entry_t &);
+idaman IDA_DEPRECATED bool ida_export lochist_t_get(lochist_entry_t *, const lochist_t &, uint32);
+idaman IDA_DEPRECATED uint32 ida_export lochist_t_size(const lochist_t &);
+idaman IDA_DEPRECATED void ida_export lochist_t_save(const lochist_t &);
+idaman IDA_DEPRECATED void ida_export lochist_t_clear(lochist_t &);
+idaman IDA_DEPRECATED void ida_export lochist_entry_t_serialize(bytevec_t *, const lochist_entry_t &);
+idaman IDA_DEPRECATED bool ida_export lochist_entry_t_deserialize(lochist_entry_t *, const uchar **, const uchar *const, const place_t *);
 #endif
 
 #endif // __MOVES_HPP

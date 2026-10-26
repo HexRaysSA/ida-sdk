@@ -118,7 +118,7 @@ char help[] =
 // This is the preferred name of the plugin module in the menu system
 // The preferred name may be overridden in plugins.cfg file
 
-char wanted_name[] = "Qt Project Sample";
+char wanted_name[] = "Examples/Qt Project Sample";
 
 
 // This is the preferred hotkey for the plugin module
