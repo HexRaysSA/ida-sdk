@@ -1,0 +1,17 @@
+
+SERVER_LIBS += $(L)dbg_server$(A)
+SERVER_LIBS += $(L)dbg_rpc$(A)
+SERVER_LIBS += $(L)dbg_proc$(A)
+SERVER_LIBS += $(L)network$(A)
+SERVER_LIBS += $(DUMB)
+SERVER_LIBS += $(L)unicode$(A)
+SERVER_LIBS += $(L)pro$(A)
+SERVER_LIBS += $(L)compress$(A)
+
+server: $(SERVERS)
+$(SERVERS): LDFLAGS += $(SERVER_LDFLAGS)
+$(SERVERS): STDLIBS += $(SERVER_STDLIBS)
+$(SERVERS): $(SERVER_OBJS) $(SERVER_LIBS)
+	$(call link_exe, $(SERVER_OBJS), $(SERVER_LIBS))
+	$(CHECKSYMS_CMD)
+	$(SERVER_POSTACTION)
