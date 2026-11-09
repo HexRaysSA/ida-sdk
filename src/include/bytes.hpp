@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -1057,7 +1057,7 @@ idaman bool ida_export leading_zero_important(ea_t ea, int n);
 
 inline constexpr int get_operand_type_shift(uint32 n)
 {
-  return 20 + (4 * (n + (n > 1))); //-V602 (2) Consider inspecting the '(n > 1)' expression. '>' possibly should be replaced with '>>'.
+  return 20 + (4 * (n + (n > 1)));
 }
 
 /// Place operand `n`'s type flag in the right nibble of a

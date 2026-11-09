@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -277,6 +277,10 @@ public:
 
   /// Check if the intended move_chunk() arguments are correct.
   int check_move_args(ea_t from, ea_t to, asize_t size); // returns VAMOVE_...
+
+  /// Return underlying rangevec_t object
+  const rangevec_t &as_rangevec() const
+    { return bag; }
 };
 DECLARE_TYPE_AS_MOVABLE(rangeset_t);
 typedef qvector<rangeset_t> array_of_rangesets; ///< Array of rangeset_t objects

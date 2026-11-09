@@ -16,9 +16,10 @@ class rpc_debmod_t
 
 public:
   rpc_debmod_t(const char *default_platform = nullptr);
-  virtual bool idaapi open_remote(const char *hostname, int port_number, const char *password, qstring *errbuf) newapi;
-  drc_t close_remote();
+  virtual bool idaapi open_remote(const char *hostname, int port_number, const char *password, qstring *errbuf) override;
+  virtual drc_t close_remote() override;
 
+  // to avoid ambiguity in multiple inheritance
   int send_ioctl(int fn, const void *buf, size_t size, void **poutbuf, ssize_t *poutsize)
   {
     return rpc_engine_t::send_ioctl(fn, buf, size, poutbuf, poutsize);
@@ -44,7 +45,7 @@ public:
 
   //
   virtual void idaapi dbg_set_debugging(bool _debug_debugger) override;
-  virtual drc_t idaapi dbg_init(uint32_t *flags2, qstring *errbuf) override;
+  virtual drc_t idaapi dbg_init(uint64 *add_debugger_flags, qstring *errbuf) override;
   virtual void idaapi dbg_term(void) override;
   virtual drc_t idaapi dbg_get_processes(procinfo_vec_t *procs, qstring *errbuf) override;
   virtual drc_t idaapi dbg_detach_process(void) override;
@@ -117,6 +118,12 @@ public:
         const compiled_binpat_vec_t &ptns,
         int srch_flags,
         qstring *errbuf) override;
+  virtual drc_t idaapi dbg_get_register_descriptions() override;
+
+private:
+  int calc_regmap(bytevec_t *regmap, int clsmask);
+  void load_dynamic_register_set(memory_deserializer_t &mmdsr);
 };
+inline rpc_debmod_t &get_rpc_debmod() { return *static_cast<rpc_debmod_t*>(&get_debmod()); }
 
 #endif

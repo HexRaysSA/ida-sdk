@@ -144,6 +144,20 @@ inline bool second_unit(const insn_t &insn)
 }
 
 //--------------------------------------------------------------------------
+inline void op_reg(
+        op_t &x,
+        const insn_t &insn,
+        int reg,
+        bool cross_path = false)
+{
+  x.type  = o_reg;
+  x.dtype = dt_dword;
+  x.reg   = reg;
+  if ( second_unit(insn) != cross_path )
+    x.reg += rB0;
+}
+
+//--------------------------------------------------------------------------
 static uchar make_reg(const insn_t &insn, int32 v, bool isother)
 {
   if ( second_unit(insn) == isother )
@@ -161,6 +175,31 @@ inline void op_imm(op_t &x, uval_t val)
 }
 
 //--------------------------------------------------------------------------
+inline void get_unit(insn_t &insn, ushort code, funit_t base_unit)
+{
+  uint8 s = code & 1;
+  insn.funit = base_unit + s;
+}
+
+//--------------------------------------------------------------------------
+inline sval_t cst3_to_scst5(uint16 cst3, bool sn)
+{
+  int scst5 = sn ? cst3 - 8 : cst3;
+  if ( scst5 == 0 )
+    scst5 = 8;
+  return scst5;
+}
+
+//--------------------------------------------------------------------------
+inline uval_t cst3_to_ucst5(uint16 cst3)
+{
+  uval_t scst5 = cst3 == 0 ? 16
+            : cst3 == 7 ? 8
+            : cst3;
+  return scst5;
+}
+
+//--------------------------------------------------------------------------
 // bcb __ea64__ fails with backend error if this function is declared inline
 void tms6_t::op_near(
         const insn_t &insn,
@@ -175,7 +214,18 @@ void tms6_t::op_near(
   int signbit = (mask + 1) >> 1;
   if ( cst & signbit )
     cst |= ~mask;     // extend sign
-  cst <<= 2;
+
+  // for BNOP the shift amount changes when its in a compact fetch packet
+  if ( insn.itype == TMS6_bnop
+    && get_fph(nullptr, get_fph_pos(insn.ea)) )
+  {
+    cst <<= 1;
+  }
+  else
+  {
+    cst <<= 2;
+  }
+
   x.addr = trunc_ea((insn.ip & ~0x1F) + cst);
 }
 
@@ -220,6 +270,7 @@ static const tms_reginfo_t ctrls[] =
   { 0x3FF, 0x1F, rIERR   }, // Internal exception report register
 };
 
+//--------------------------------------------------------------------------
 static int find_crreg(int idx)
 {
   for ( int i=0; i < qnumber(ctrls); i++ )
@@ -227,6 +278,12 @@ static int find_crreg(int idx)
       return ctrls[i].reg;
   return -1;
 }
+
+//--------------------------------------------------------------------------
+static const uint8 cond_map[] =
+{
+  0xC, 0xD, 0x2, 0x3
+};
 
 //--------------------------------------------------------------------------
 int tms6_t::make_op(
@@ -662,8 +719,21 @@ int tms6_t::l_ops(insn_t &insn, uint32 code) const
 // |31    29|28|27    23|22   18|17        13|12|11    5|4|3|2|1|0|
 // |  creg  |z |  dst   |  src2 |  src1/cst  |x |   op  |1|1|0|s|p|
 // +--------------------------------------------------------------+
-
   int opcode = (code >> 5) & 0x7F;
+  if ( opcode == 2 && (code & BIT17) != 0 )
+  {
+    // SUB (.unit) src1, scst5, dst is encoded as ADD (.unit) -scst5, src2, dst
+    // where the src1 register is now scst5 and scst5 is now -scst5
+    static const tmsinsn_t t_sub = { TMS6_sub, t_scst5, t_sint, t_sint };
+    int res = table_insns(insn, code, &t_sub, (code & BIT12) != 0);
+    if ( res != 0 )
+    {
+      insn.Op1.value = ~insn.Op1.value + 1;
+      swap_op1_and_op2(insn);
+      return res;
+    }
+  }
+
   const tmsinsn_t *table = lops;
   switch ( opcode )
   {
@@ -1011,9 +1081,11 @@ int tms6_t::ld_common(insn_t &insn, uint32 code, bool use_bit8) const
   {
     insn.Op2.reg &= ~1;
     insn.Op2.type = o_regpair;
-    if ( (code & BIT23) == 0 )
-      if ( insn.itype == TMS6_ldndw || insn.itype == TMS6_stndw )
-        return 1; // no scaling
+    if ( (code & BIT23) == 0
+      && (insn.itype == TMS6_ldndw || insn.itype == TMS6_stndw) )
+    {
+      return 0; // no scaling
+    }
   }
   return ld->shift;
 }
@@ -1042,10 +1114,8 @@ int tms6_t::ld15(insn_t &insn, uint32 code) const
   insn.Op1.type = o_displ;
   insn.Op1.mode = 5;             // *+R[cst]
   insn.Op1.reg  = code & BIT7 ? rB15 : rB14;
-  insn.Op1.addr = (code >> 8) & 0x7FFF;
+  insn.Op1.addr = ((code >> 8) & 0x7FFF) << shift;
   bool is_store = is_store_insn(insn.itype);
-  if ( is_off(get_flags(insn.ea), is_store) )
-    insn.Op1.addr <<= shift;
   if ( is_store )
     swap_op1_and_op2(insn);
   return insn.size;
@@ -1080,9 +1150,7 @@ int tms6_t::ldbase(insn_t &insn, uint32 code) const
     case 0x0A:  // 1010 *R--[cst]
     case 0x0B:  // 1011 *R++[cst]
       insn.Op1.type = o_displ;
-      insn.Op1.addr = (code >> 13) & 0x1F;
-      if ( is_off(get_flags(insn.ea), is_store) )
-        insn.Op1.addr <<= shift;
+      insn.Op1.addr = ((code >> 13) & 0x1F) << shift;
       break;
     case 0x04:  // 0100 *-Rb[Ro]
     case 0x05:  // 0101 *+Rb[Ro]
@@ -1375,12 +1443,22 @@ int tms6_t::nopred(insn_t &insn, uint32 code) const
     if ( p->index == (idx & p->mask) )
     {
       insn.funit = p->unit + ((code & BIT1) >> 1);
-      bool other = (code & BIT1) != 0;
-      if ( p->unit == FU_M1 || p->unit == FU_L1 )
-        other = (code & BIT12) != 0;
+      bool other = false;
+      if ( p->itype != TMS6_callp )
+      {
+        if ( p->unit == FU_M1 || p->unit == FU_L1 )
+          other = (code & BIT12) != 0;
+        else
+          other = (code & BIT1) != 0;
+      }
+
       int size = table_insns(insn, code, (tmsinsn_t *)p, other);
-      if ( p->src1 == t_b14 )
+      // ADDAW doesn't have a x-path bit, so we need to manually check for it
+      if ( insn.itype == TMS6_addaw && !second_unit(insn) )
+        insn.cflags |= aux_xp;
+      else if ( p->src1 == t_b14 )
         insn.cflags &= ~aux_xp;
+
       return size;
     }
   }
@@ -1626,8 +1704,9 @@ static const struct cmpct_tmsinsn_ldst_t cmpct_ldst_ops[] =
   { TMS6_ldndw, dt_qword, dt_qword, 1, 0x23, 0x27 }  // 1 x x   0   1   1
 };
 
-static void cmpct_Doff4_Dind_Dinc_Ddec(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_Doff4_Dind_Dinc_Ddec(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
+  qnotused(proc);
   // Doff4    +-----------------------------------------------+
   // 0x0004   |15    13|12|11|10| 9| 8  7| 6     4| 3| 2| 1| 0|
   // 0x0406   |ucst 2-0| t|uc| 0|sz| ptr | src/dst|ld| 1| 0| s|
@@ -1719,26 +1798,31 @@ static void cmpct_Doff4_Dind_Dinc_Ddec(insn_t &insn, uint32 fph, ushort code)
     reg->type = o_reg;
     reg->reg = (code >> 4) & 7;
   }
-  reg->reg += (code & BIT12) ? rA16 : rB16;
+
+  if ( (code & BIT12) != 0 )
+    reg->reg += rB0;
 
   // pointer
-  ptr->reg = (code >> 7) & 3;
-  ptr->reg += (code & BIT0) ? rA4 : rB4;
+  ptr->reg = ((code >> 7) & 3) + rA4;
+  if ( (code & BIT0) != 0 )
+    ptr->reg += rB0;
 
   if ( !(code & BIT10) )
   {
     // Doff4 & Doff4DW
     ptr->type = o_displ;
-    ptr->mode = 0;
+    ptr->mode = 1;
     ptr->addr = (((code >> 11) & 1) << 3) | ((code >> 13) & 7);
   }
   else if ( !(code & BIT11) )
   {
     // Dind & DindDW
     ptr->type = o_phrase;
-    ptr->mode = 0;
+    ptr->mode = 1;
     ptr->secreg = (code >> 13) & 7;
-    ptr->secreg += (code & BIT0) ? rA16 : rB16;
+    if ( (code & BIT0) != 0 )
+      ptr->secreg += rB0;
+
     ptr->addr = 0;
   }
   else if ( !(code & BIT14) )
@@ -1760,9 +1844,10 @@ static void cmpct_Doff4_Dind_Dinc_Ddec(insn_t &insn, uint32 fph, ushort code)
 }
 
 
-// Dpp Instruction Format (0x0877 / 0x087f)
-static void cmpct_Dpp(insn_t &insn, uint32 fph, ushort code)
+// Dpp Instruction Format (0x0077 / 0x087f)
+static void cmpct_Dpp(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
+  qnotused(proc);
   qnotused(fph);
   // +-----------------------------------------------+
   // |15|14|13|12|11|10        7| 6| 5| 4| 3| 2| 1| 0|
@@ -1779,7 +1864,7 @@ static void cmpct_Dpp(insn_t &insn, uint32 fph, ushort code)
 
   bool dw = (code & BIT15) != 0;
   int srcdst = (code >> 7) & 0x1F;
-  // int ucst = ((code >> 13) & 1) + 1;
+  int ucst = ((code >> 13) & 1) + 1;
 
   // operand selection + itype
   if ( code & BIT14 )
@@ -1796,24 +1881,24 @@ static void cmpct_Dpp(insn_t &insn, uint32 fph, ushort code)
   }
 
   // src/dst register
-  reg->type = o_reg;
+  reg->type = dw ? o_regpair : o_reg;
   reg->dtype = dt_dword;
   reg->reg = srcdst;
-  reg->reg += (code & BIT12) ? rA4 : rB4;
+  if ( (code & BIT12) != 0 )
+    reg->reg += rB0;
 
   // pointer
   ptr->type = o_displ;
   ptr->dtype = dt_dword;
-  ptr->mode = 0;
+  ptr->mode = ((code & BIT14) != 0) ? 0x09 : 0x0A;
   ptr->reg = rB15;
-  ptr->addr = (((code >> 7) & 7) << 2) | ((code >> 13) & 3);
-  ptr->addr <<= 2;
-
+  ptr->addr = ucst << (dw ? 3 : 2);
 }
 
 // Dstk Instruction Format (0x8c04 / 0x8c06)
-static void cmpct_Dstk(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_Dstk(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
+  qnotused(proc);
   qnotused(fph);
   // +-----------------------------------------------+
   // |15|14 13|12|11|10| 9     7| 6     4| 3| 2| 1| 0|
@@ -1854,39 +1939,65 @@ static void cmpct_Dstk(insn_t &insn, uint32 fph, ushort code)
   ptr->addr <<= 2;
 }
 
-// Dx2op Instruction Format
-inline void cmpct_Dx2op(insn_t &insn, uint32 fph, ushort code)
+// Dx2op Instruction Format (0x0036 / 0x04fe)
+static void cmpct_Dx2op(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
+  qnotused(proc);
   qnotused(fph);
+
   // +-----------------------------------------------+
   // |15    13|12|11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
   // | src/dst| x|op| 0|   src2 | 0| 1| 1| 0| 1| 1| s|
   // +-----------------------------------------------+
-
   insn.itype = (code & BIT11) ? TMS6_sub : TMS6_add;
+  get_unit(insn, code, FU_D1);
 
-  insn.Op1.type = o_reg;
-  insn.Op1.dtype = dt_dword;
-  insn.Op1.reg = 0;
-
-  insn.Op2.type = o_reg;
-  insn.Op2.dtype = dt_dword;
-
-  insn.Op3 = insn.Op1;
-
+  uint16 src_dst = make_reg(insn, (code >> 13) & 7, false);
+  op_reg(insn.Op1, src_dst);
+  op_reg(insn.Op2, insn, (code >> 7) & 7, (code & BIT12) != 0);
+  op_reg(insn.Op3, src_dst);
 }
 
-// Dx5 Instruction Format
-// +-----------------------------------------------+
-// |15    13|12 11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
-// |ucst 2-0|ucst | 1|   dst  | 0| 1| 1| 0| 1| 1| s|
-// +------------43---------------------------------+
+// Dx5 Instruction Format (0x0436 / 0x047e)
+static void cmpct_Dx5(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
 
-// Dx5p Instruction Format
-// +-----------------------------------------------+
-// |15    13|12|11|10| 9  8| 7| 6| 5| 4| 3| 2| 1| 0|
-// |ucst 2-0| 0| 1| 1|ucst |op| 1| 1| 1| 0| 1| 1| 1|
-// +---------------------43------------------------+
+  // +-----------------------------------------------+
+  // |15    13|12 11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
+  // |ucst 2-0|ucst | 1|   dst  | 0| 1| 1| 0| 1| 1| s|
+  // +------------43---------------------------------+
+  get_unit(insn, code, FU_D1);
+  insn.itype = TMS6_addaw;
+
+  op_reg(insn.Op1, rB15);
+  op_imm(insn.Op2, ((code >> 11) & 1) | ((code >> 13) & 7));
+  op_reg(insn.Op3, make_reg(insn, ((code >> 7) & 7), false));
+
+  // The Dx5 version always uses rB15,
+  // if the other side uses the a-side, it crosses paths
+  if ( insn.funit == FU_D1 )
+    insn.cflags |= aux_xp;
+}
+
+// Dx5p Instruction Format (0x0c77 / 0x1c7f)
+static void cmpct_Dx5p(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
+
+   // +-----------------------------------------------+
+   // |15    13|12|11|10| 9  8| 7| 6| 5| 4| 3| 2| 1| 0|
+   // |ucst 2-0| 0| 1| 1|ucst |op| 1| 1| 1| 0| 1| 1| 1|
+   // +---------------------43------------------------+
+  insn.funit = FU_D2;
+  insn.itype = (code & BIT7) ? TMS6_subaw : TMS6_addaw;
+
+  op_reg(insn.Op1, rB15);
+  op_imm(insn.Op2, ((code >> 8) & 3) << 3 | ((code >> 13) & 7));
+  op_reg(insn.Op3, rB15);
+}
 
 // Dx1 Instruction Format
 // +-----------------------------------------------+
@@ -1894,44 +2005,69 @@ inline void cmpct_Dx2op(insn_t &insn, uint32 fph, ushort code)
 // |   op   | 1| 1| 0|src2/dst| 1| 1| 1| 0| 1| 1| s|
 // +-----------------------------------------------+
 
-// Dpp Instruction Format
-// +-----------------------------------------------+
-// |15|14|13|12|11|10        7| 6| 5| 4| 3| 2| 1| 0|
-// |dw|ld|uc| t| 0|  src/dst  | 1| 1| 1| 0| 1| 1| 1|
-// +--/st-st0--------------------------------------+
-
 //--------------------------------------------------------------------------
 // L Unit
 
+//--------------------------------------------------------------------------
 // L3 Instruction Format (0x0000 / 0x040e)
-static void cmpct_L3(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_L3(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
-  qnotused(insn);
-  qnotused(fph);
-  qnotused(code);
+  qnotused(proc);
+
   // +-----------------------------------------------+
   // |15    13|12|11|10| 9     7| 6     4| 3| 2| 1| 0|
   // |  src1  | x|op| 0|  src2  |   dst  | 0| 0| 0| s|
   // +-----------------------------------------------+
 
+  static const uint16 map[] =
+  {
+    TMS6_add, TMS6_sadd, TMS6_sub, TMS6_ssub
+  };
+
+  uint8 op = ((uint8)(fph >> 14) & 1) | ((uint8)(code >> 11) & 1) << 1;
+  if ( op < qnumber(map) )
+  {
+    insn.itype = map[op];
+    get_unit(insn, code, FU_L1);
+
+    uint16 s1 = ((code >> 13) & 7);
+    uint16 s2 = ((code >> 7) & 7);
+    uint16 dst = ((code >> 4) & 7);
+    bool cross_path = (code & BIT12) != 0;
+    op_reg(insn.Op1, insn, s1);
+    op_reg(insn.Op2, insn, s2, cross_path);
+    op_reg(insn.Op3, insn, dst);
+  }
 }
 
 // L3i Instruction Format (0x0400 / 0x040e)
-static void cmpct_L3i(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_L3i(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
-  qnotused(insn);
+  qnotused(proc);
   qnotused(fph);
-  qnotused(code);
+
   // +-----------------------------------------------+
   // |15    13|12|11|10| 9     7| 6     4| 3| 2| 1| 0|
   // |  cst3  | x|sn| 1|  src2  |   dst  | 0| 0| 0| s|
   // +-----------------------------------------------+
 
+  insn.itype = TMS6_add;
+  get_unit(insn, code, FU_L1);
+
+  uint16 val = (code >> 13) & 7;
+  op_imm(insn.Op1, cst3_to_scst5(val, (code & BIT11) != 0));
+
+  uint16 s2 = ((code >> 7) & 7);
+  uint16 dst = ((code >> 4) & 7);
+  bool cross_path = (code & BIT12) != 0;
+  op_reg(insn.Op2, insn, s2, cross_path);
+  op_reg(insn.Op3, insn, dst);
 }
 
 // Ltbd Instruction Format (0x0008 / 0x040e)
-static void cmpct_Ltbd(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_Ltbd(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
+  qnotused(proc);
   qnotused(insn);
   qnotused(fph);
   qnotused(code);
@@ -1943,35 +2079,91 @@ static void cmpct_Ltbd(insn_t &insn, uint32 fph, ushort code)
 }
 
 // L2c Instruction Format (0x0408 / 0x040e)
-static void cmpct_L2c(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_L2c(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
-  qnotused(insn);
+  qnotused(proc);
   qnotused(fph);
-  qnotused(code);
+
   // +-----------------------------------------------+
   // |15    13|12|11|10| 9     7| 6  5| 4| 3| 2| 1| 0|
   // |  src1  | x|op| 1|  src2  |op 10|ds| 1| 0| 0| s|
   // +-------------2--------------------t------------+
+  static const uint16 map[] =
+  {
+    TMS6_and, TMS6_or, TMS6_xor, TMS6_cmpeq,
+    TMS6_cmplt, TMS6_cmpgt, TMS6_cmpltu, TMS6_cmpgtu
+  };
 
+  uint8 op = ((uint8)(code >> 5) & 3) | ((uint8)(code >> 11) & 1) << 2;
+  if ( op < qnumber(map) )
+  {
+    insn.itype = map[op];
+    get_unit(insn, code, FU_L1);
+
+    uint16 s1 = ((code >> 13) & 7);
+    uint16 s2 = ((code >> 7) & 7);
+    uint16 dst = ((code >> 4) & 1);
+    bool cross_path = (code & BIT12) != 0;
+    op_reg(insn.Op1, insn, s1);
+    op_reg(insn.Op2, insn, s2, cross_path);
+    op_reg(insn.Op3, insn, dst);
+  }
 }
 
-// Lx5 Instruction Format
-// +-----------------------------------------------+
-// |15    13|12 11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
-// |scst 2-0|scst | 1|   dst  | 0| 1| 0| 0| 1| 1| s|
-// +------------43---------------------------------+
+// Lx5 Instruction Format (0x426 / 0x47e)
+static void cmpct_Lx5(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
 
-// Lx3c Instruction Format
-// +-----------------------------------------------+
-// |15    13|12|11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
-// |  ucst3 | 0|ds| 0|  src2  | 0| 1| 0| 0| 1| 1| s|
-// +-------------t---------------------------------+
+  // +-----------------------------------------------+
+  // |15    13|12 11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
+  // |scst 2-0|scst | 1|   dst  | 0| 1| 0| 0| 1| 1| s|
+  // +------------43---------------------------------+
+  insn.itype = TMS6_mvk;
+  get_unit(insn, code, FU_L1);
 
-// Lx1c Instruction Format
-// +-----------------------------------------------+
-// |15 14|13|12|11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
-// |  op |uc| 1|ds| 0|  src2  | 0| 1| 0| 0| 1| 1| s|
-// +------st1----t---------------------------------+
+  op_imm(insn.Op1, ((code >> 11) & 3) << 3 | ((code >> 13) & 7));
+  op_reg(insn.Op2, make_reg(insn, (code >> 7) & 7, false));
+}
+
+// Lx3c Instruction Format (0x26 / 0x147e)
+static void cmpct_Lx3c(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
+
+  // +-----------------------------------------------+
+  // |15    13|12|11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
+  // |  ucst3 | 0|ds| 0|  src2  | 0| 1| 0| 0| 1| 1| s|
+  // +-------------t---------------------------------+
+  insn.itype = TMS6_cmpeq;
+  get_unit(insn, code, FU_L1);
+
+  op_imm(insn.Op1, (code >> 13) & 7);
+  op_reg(insn.Op2, make_reg(insn, (code >> 7) & 7, false));
+  op_reg(insn.Op3, make_reg(insn, (code >> 11) & 1, false));
+}
+
+// Lx1c Instruction Format (0x1026 / 0x1466)
+static void cmpct_Lx1c(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
+
+  // +-----------------------------------------------+
+  // |15 14|13|12|11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
+  // |  op |uc| 1|ds| 0|  src2  | 0| 1| 0| 0| 1| 1| s|
+  // +------st1----t---------------------------------+
+  get_unit(insn, code, FU_L1);
+
+  static const uint16 map[] = { TMS6_cmplt, TMS6_cmpgt, TMS6_cmpltu, TMS6_cmpgtu };
+  insn.itype = map[(code >> 14) & 3];
+
+  op_imm(insn.Op1, (code >> 13) & 1);
+  op_reg(insn.Op2, insn, (code >> 7) & 7);
+  op_reg(insn.Op3, insn, (code >> 11) & 1);
+}
 
 // Lx1 Instruction Format
 // +-----------------------------------------------+
@@ -1982,107 +2174,354 @@ static void cmpct_L2c(insn_t &insn, uint32 fph, ushort code)
 //--------------------------------------------------------------------------
 // M Unit
 
-// M3 Instruction Format
-inline void cmpct_M3(insn_t &insn, uint32 fph, ushort code)
+// M3 Instruction Format (0x1e / 0x1e)
+static void cmpct_M3(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
-  qnotused(insn);
-  qnotused(fph);
-  qnotused(code);
+  qnotused(proc);
+
   // +-----------------------------------------------+
   // |15    13|12|11 10| 9     7| 6  5| 4| 3| 2| 1| 0|
   // |  src1  | x| dst |  src2  |  op | 1| 1| 1| 1| s|
   // +-----------------------------------------------+
+  get_unit(insn, code, FU_M1);
 
+  // SAT + OP
+  uint8 op = ((uint8)(fph >> 14) & 1) << 2 | ((uint8)(code >> 5) & 3);
+  static const uint16 map[] =
+  {
+    TMS6_mpy, TMS6_mpyh, TMS6_mpylh, TMS6_mpyhl,
+    TMS6_smpy, TMS6_smpyh, TMS6_smpylh, TMS6_smpyhl
+  };
+
+  if ( op < qnumber(map) )
+  {
+    insn.itype = map[op];
+
+    bool cross_path = (code & BIT12) != 0;
+
+    uint16 s1 = (code >> 13) & 7;
+    uint16 s2 = (code >> 7) & 7;
+    uint16 dst = ((code >> 10) & 3) * 2;
+    if ( (fph & BIT19) != 0 )
+    {
+      s1 += rA16;
+      s2 += rA16;
+      dst += rA16;
+    }
+
+    op_reg(insn.Op1, make_reg(insn, s1, false));
+    op_reg(insn.Op2, insn, s2, cross_path);
+    op_reg(insn.Op3, make_reg(insn, dst, false));
+  }
 }
 
 //--------------------------------------------------------------------------
 // S Unit
 
-// Sbs7 Instruction Format
-// +-----------------------------------------------+
-// |15    13|12                 6| 5| 4| 3| 2| 1| 0|
-// |   N3   |        scst7       | 0| 0| 1| 0| 1| s|
-// +-----------------------------------------------+
-// N3 = 0,1,2,3,4 or 5
+// Sbs7 (0xa / 0x3e), Sbs7c (0x2a / 0x2e)
+// Sbu8 (0xc00a / 0xc03e), Sbu8c (0xc02a / 0xc02e)
+// Instruction Formats
+static void cmpct_Sbs7_c_sbu8_c(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
 
-// Sbu8 Instruction Format
-// +-----------------------------------------------+
-// |15|14|13                    6| 5| 4| 3| 2| 1| 0|
-// | 1| 1|        ucst8          | 0| 0| 1| 0| 1| s|
-// +-----------------------------------------------+
+  // Sbs7 Instruction Format
+  // +-----------------------------------------------+
+  // |15    13|12                 6| 5| 4| 3| 2| 1| 0|
+  // |   N3   |        scst7       | 0| 0| 1| 0| 1| s|
+  // +-----------------------------------------------+
+  // N3 = 0,1,2,3,4 or 5
 
-// Scs10 Instruction Format
-// +-----------------------------------------------+
-// |15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
-// |            scst10           | 0| 1| 1| 0| 1| s|
-// +-----------------------------------------------+
+  // Sbs7c Instruction Format
+  // +-----------------------------------------------+
+  // |15    13|12                 6| 5| 4| 3| 2| 1| 0|
+  // |   N3   |        scst7       | 1| z| 1| 0| 1| s|
+  // +-----------------------------------------------+
+  // N3 = 0,1,2,3,4 or 5
 
-// Sbs7c Instruction Format
-// +-----------------------------------------------+
-// |15    13|12                 6| 5| 4| 3| 2| 1| 0|
-// |   N3   |        scst7       | 1| z| 1| 0| 1| s|
-// +-----------------------------------------------+
-// N3 = 0,1,2,3,4 or 5
+  // Sbu8 Instruction Format
+  // +-----------------------------------------------+
+  // |15|14|13                    6| 5| 4| 3| 2| 1| 0|
+  // | 1| 1|        ucst8          | 0| 0| 1| 0| 1| s|
+  // +-----------------------------------------------+
 
-// Sbu8c Instruction Format
-// +-----------------------------------------------+
-// |15|14|13                    6| 5| 4| 3| 2| 1| 0|
-// | 1| 1|        ucst8          | 1| z| 1| 0| 1| s|
-// +-----------------------------------------------+
+  // Sbu8c Instruction Format
+  // +-----------------------------------------------+
+  // |15|14|13                    6| 5| 4| 3| 2| 1| 0|
+  // | 1| 1|        ucst8          | 1| z| 1| 0| 1| s|
+  // +-----------------------------------------------+
 
-// S3 Instruction Format
-// +-----------------------------------------------+
-// |15    13|12|11|10| 9     7| 6     4| 3| 2| 1| 0|
-// |  src1  | x|op| 0|  src2  |   dst  | 1| 0| 1| s|
-// +-----------------------------------------------+
+  get_unit(insn, code, FU_S1);
+  insn.itype = TMS6_bnop;
 
-// S3i Instruction Format
-// +-----------------------------------------------+
-// |15    13|12|11|10| 9     7| 6     4| 3| 2| 1| 0|
-// |  cst3  | x|op| 1|  src2  |   dst  | 1| 0| 1| s|
-// +-----------------------------------------------+
+  bool bit5_set = (code & BIT5) != 0; // /c variant
 
-// Smvk8 Instruction Format
-// +-----------------------------------------------+
-// |15    13|12 11|10| 9     7| 6  5| 4| 3| 2| 1| 0|
-// |ucst 2-0|ucst |uc|   dst  |ucst | 1| 0| 0| 1| s|
-// +------------43-st7------------65---------------+
+  uval_t imm = 0;
+  int offset = 0;
+  if ( (code & 0xC000) == 0xC000 ) // Sbu8/c
+  {
+    imm = 5;
+    if ( bit5_set )
+      offset = (code >> 5) & 0x1FE;
+    else
+      offset = (2 * (code >> 6)) & 0x1FE;
+  }
+  else // Sbs7/c
+  {
+    imm = code >> 13;
+    if ( bit5_set )
+      offset = (code >> 5) & 0xFE;
+    else
+      offset = 2 * ((code >> 6) & 0x7F);
+  }
 
-// Ssh5 Instruction Format
-// +-----------------------------------------------+
-// |15    13|12 11|10| 9     7| 6  5| 4| 3| 2| 1| 0|
-// |ucst 2-0|ucst | 1|src2/dst|  op | 0| 0| 0| 1| s|
-// +------------43---------------------------------+
+  insn.Op1.dtype = dt_code;
+  insn.Op1.type = o_near;
+  insn.Op1.addr = (insn.ip & ~0x1F) + offset;
+  op_imm(insn.Op2, imm);
 
-// S2sh Instruction Format
-// +-----------------------------------------------+
-// |15    13|12 11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
-// |  src1  |  op | 1|src2/dst| 1| 1| 0| 0| 0| 1| s|
-// +-----------------------------------------------+
+  if ( (code & BIT5) == 0 )
+    return;
 
-// Sc5 Instruction Format
-// +-----------------------------------------------+
-// |15    13|12 11|10| 9     7| 6  5| 4| 3| 2| 1| 0|
-// |ucst 2-0|ucst | 0|src2/dst|  op | 0| 0| 0| 1| s|
-// +------------43---------------------------------+
+  // BR + s + z
+  uint32 cnd = (((fph >> 15) & 1) << 2 | (code & 1u) << 1 | ((code >> 4) & 1)) - 4;
+  if ( cnd < qnumber(cond_map) )
+    insn.cond = cond_map[cnd];
+}
 
-// S2ext Instruction Format
-// +-----------------------------------------------+
-// |15    13|12 11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
-// |   dst  |  op | 0|   src2 | 1| 1| 0| 0| 0| 1| s|
-// +-----------------------------------------------+
+// Scs10 Instruction Format (0x1a / 0x3e)
+//lint -e{818, 1762} member function parameter 'proc' ... could be pointer to const
+static void cmpct_Scs10(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(fph);
 
-// Sx2op Instruction Format
-// +-----------------------------------------------+
-// |15    13|12|11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
-// |src1/dst| x|op| 0|   src2 | 0| 1| 0| 1| 1| 1| s|
-// +-----------------------------------------------+
+  // +-----------------------------------------------+
+  // |15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
+  // |            scst10           | 0| 1| 1| 0| 1| s|
+  // +-----------------------------------------------+
+  insn.itype = TMS6_callp;
 
-// Sx5 Instruction Format
-// +-----------------------------------------------+
-// |15    13|12 11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
-// |ucst 2-0|ucst | 1|src2/dst| 0| 1| 0| 1| 1| 1| s|
-// +------------43---------------------------------+
+  get_unit(insn, code, FU_S1);
+  proc->op_near(insn, insn.Op1, code, 6, 0x3FF);
+  op_reg(insn.Op2, make_reg(insn, rA3, false));
+}
+
+// S3 (0xa / 0x40e), S3i (0x40a / 0x40e) Instruction Formats
+static void cmpct_S3_S3i(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+
+  // S3 Instruction Format
+  // +-----------------------------------------------+
+  // |15    13|12|11|10| 9     7| 6     4| 3| 2| 1| 0|
+  // |  src1  | x|op| 0|  src2  |   dst  | 1| 0| 1| s|
+  // +-----------------------------------------------+
+
+  // S3i Instruction Format
+  // +-----------------------------------------------+
+  // |15    13|12|11|10| 9     7| 6     4| 3| 2| 1| 0|
+  // |  cst3  | x|op| 1|  src2  |   dst  | 1| 0| 1| s|
+  // +-----------------------------------------------+
+
+  uint16 src1_cst3 = (code >> 13) & 7;
+
+  // SAT + op
+  bool is_S3i = (code & BIT10) != 0;
+  uint8 op = (uint8)(((fph >> 14) & 1) << 1 | ((code >> 11) & 1));
+  switch ( op )
+  {
+    case 0:
+      insn.itype = is_S3i ? TMS6_shl : TMS6_add;
+      break;
+    case 1:
+      insn.itype = is_S3i ? TMS6_shr : TMS6_sub;
+      break;
+    case 2:
+      insn.itype = TMS6_sadd;
+      break;
+    case 3:
+      insn.itype = TMS6_sub;
+      break;
+    default:
+      INTERR(0);
+  }
+
+  get_unit(insn, code, FU_S1);
+
+  op_t &src2_op = is_S3i ? insn.Op1 : insn.Op2;
+  op_reg(src2_op, make_reg(insn, (code >> 7) & 7, (code & BIT12) != 0));
+
+  if ( is_S3i )
+    op_imm(insn.Op2, cst3_to_ucst5(src1_cst3));
+  else
+    op_reg(insn.Op1, make_reg(insn, src1_cst3, false));
+
+  op_reg(insn.Op3, make_reg(insn, (code >> 4) & 7, false));
+}
+
+// Smvk8 Instruction Format (0x12 / 0x1e)
+static void cmpct_Smvk8(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
+
+  // +-----------------------------------------------+
+  // |15    13|12 11|10| 9    7| 6  5| 4| 3| 2| 1| 0|
+  // |ucst 2-0|ucst |uc|   dst  |ucst | 1| 0| 0| 1| s|
+  // +------------43-st7------------65---------------+
+
+  get_unit(insn, code, FU_S1);
+
+  insn.itype = TMS6_mvk;
+
+  op_imm(insn.Op1, ((code >> 10) & 1) << 7 | ((code >> 5) & 3) << 5 | ((code >> 11) & 3) << 3 | (code >> 13) & 7);
+  op_reg(insn.Op2, make_reg(insn, (code >> 7) & 7, false));
+}
+
+// Ssh5 (0x402 / 0x41e), S2sh (0x462 / 0x47e) Instruction Formats
+static void cmpct_Ssh5_S2sh(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+
+  // Ssh5 Instruction Format
+  // +-----------------------------------------------+
+  // |15    13|12 11|10| 9     7| 6  5| 4| 3| 2| 1| 0|
+  // |ucst 2-0|ucst | 1|src2/dst|  op | 0| 0| 0| 1| s|
+  // +------------43---------------------------------+
+
+  // S2sh Instruction Format
+  // +-----------------------------------------------+
+  // |15    13|12 11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
+  // |  src1  |  op | 1|src2/dst| 1| 1| 0| 0| 0| 1| s|
+  // +-----------------------------------------------+
+
+  get_unit(insn, code, FU_S1);
+
+  bool sat = (fph & BIT14) != 0;
+  bool is_S2sh = (code & 0x60) == 0x60;
+
+  uint8 op = (code >> (is_S2sh ? 11 : 5)) & 3;
+  switch ( op )
+  {
+    case 0:
+      insn.itype = TMS6_shl;
+      break;
+    case 1:
+      insn.itype = TMS6_shr;
+      break;
+    case 2:
+      insn.itype = (!is_S2sh && sat) ? TMS6_sshl : TMS6_shru;
+      break;
+    case 3:
+      {
+        if ( is_S2sh )
+          insn.itype = TMS6_sshl;
+        break;
+      }
+  }
+
+  uint16 src2_dst = make_reg(insn, (code >> 7) & 7, false);
+  op_reg(insn.Op1, src2_dst);
+  op_reg(insn.Op3, src2_dst);
+
+  if ( is_S2sh )
+    op_reg(insn.Op2, make_reg(insn, (code >> 13) & 7, false));
+  else
+    op_imm(insn.Op2, ((code >> 11) & 3) << 3 | (code >> 13) & 7);
+}
+
+// Sc5 (0x2 / 41e), S2ext (0x62 / 4de) Instruction Formats
+static void cmpct_Sc5_S2ext(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
+
+  // Sc5 Instruction Format
+  // +-----------------------------------------------+
+  // |15    13|12 11|10| 9     7| 6  5| 4| 3| 2| 1| 0|
+  // |ucst 2-0|ucst | 0|src2/dst|  op | 0| 0| 0| 1| s|
+  // +------------43---------------------------------+
+
+  // S2ext Instruction Format
+  // +-----------------------------------------------+
+  // |15    13|12 11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
+  // |   dst  |  op | 0|   src2 | 1| 1| 0| 0| 0| 1| s|
+  // +-----------------------------------------------+
+
+  get_unit(insn, code, FU_S1);
+
+  bool is_S2ext = (code & 0x60) == 0x60;
+  uint8 op = (code >> (is_S2ext ? 11 : 5)) & 3;
+
+  uint16 src2_dst = make_reg(insn, (code >> 7) & 7, false);
+
+  uint8 ucst5_val = 0;
+  if ( is_S2ext )
+  {
+    insn.itype = ((code & BIT12) != 0) ? TMS6_extu : TMS6_ext;
+    ucst5_val = ((code & BIT11) != 0) ? 24 : 16;
+
+    op_reg(insn.Op3, src2_dst);
+    op_imm(insn.Op2, ucst5_val);
+  }
+  else
+  {
+    static const uint16 Scs5_table[] = { TMS6_extu, TMS6_set, TMS6_clr };
+
+    insn.itype = Scs5_table[op];
+    ucst5_val = ((code >> 11) & 3) << 3 | (code >> 13) & 7;
+
+    bool is_extu = insn.itype == TMS6_extu;
+    op_imm(insn.Op2, is_extu ? 31 : ucst5_val);
+    op_reg(insn.Op3, is_extu ? (uint16)(((code & BIT0) != 0) ? rB0 : rA0) : src2_dst);
+  }
+
+  op_imm(insn.Op1, ucst5_val);
+  insn.Op1.src2 = src2_dst;
+
+  insn.cflags |= aux_src2;
+}
+
+// Sx2op Instruction Format (0x2e / 0x47e)
+static void cmpct_Sx2op(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
+
+  // +-----------------------------------------------+
+  // |15    13|12|11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
+  // |src1/dst| x|op| 0|   src2 | 0| 1| 0| 1| 1| 1| s|
+  // +-----------------------------------------------+
+
+  get_unit(insn, code, FU_S1);
+
+  insn.itype = ((code & BIT11) != 0) ? TMS6_sub : TMS6_add;
+
+  uint16 src1_dst = make_reg(insn, (code >> 13) & 7, false);
+  op_reg(insn.Op1, src1_dst);
+  op_reg(insn.Op2, make_reg(insn, (code >> 7) & 7, (code & BIT12) != 0));
+  op_reg(insn.Op3, src1_dst);
+}
+
+// Sx5 Instruction Format (0x42e / 0x47e)
+static void cmpct_Sx5(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
+
+  // +-----------------------------------------------+
+  // |15    13|12 11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
+  // |ucst 2-0|ucst | 1|src2/dst| 0| 1| 0| 1| 1| 1| s|
+  // +------------43---------------------------------+
+
+  get_unit(insn, code, FU_S1);
+
+  insn.itype = TMS6_addk;
+
+  op_imm(insn.Op1, ((code >> 11) & 3) << 3 | (code >> 13) & 7);
+  op_reg(insn.Op2, make_reg(insn, (code >> 7) & 7, false));
+}
 
 // Sx1 Instruction Format
 // +-----------------------------------------------+
@@ -2090,50 +2529,178 @@ inline void cmpct_M3(insn_t &insn, uint32 fph, ushort code)
 // |   op   | 1| 1| 0|src2/dst| 1| 1| 0| 1| 1| 1| s|
 // +-----------------------------------------------+
 
-// Sx1b Instruction Format
-// +-----------------------------------------------+
-// |15    13|12|11|10        7| 6| 5| 4| 3| 2| 1| 0|
-// |   N3   | 0| 0|    src2   | 1| 1| 0| 1| 1| 1| s|
-// +-----------------------------------------------+
+// Sx1b Instruction Format (0x6e / 0x187e)
+static void cmpct_Sx1b(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
 
+  // +-----------------------------------------------+
+  // |15    13|12|11|10        7| 6| 5| 4| 3| 2| 1| 0|
+  // |   N3   | 0| 0|    src2   | 1| 1| 0| 1| 1| 1| s|
+  // +-----------------------------------------------+
+
+  get_unit(insn, code, FU_S1);
+
+  insn.itype = TMS6_bnop;
+
+  op_reg(insn.Op1, make_reg(insn, (code >> 7) & 0xF, false));
+  op_imm(insn.Op2, (code >> 13) & 7);
+}
 
 //--------------------------------------------------------------------------
 // .D .L or .S Unit
 
+//--------------------------------------------------------------------------
+bool get_lsd_unit(insn_t &insn, uint16 code)
+{
+  static const funit_t unit_map[] =
+  {
+    FU_L1, FU_S1, FU_D1
+  };
+  uint8 unit_idx = (code >> 3) & 3;
 
-// LSDmvto Instruction Format
-// +-----------------------------------------------+
-// |15    13|12|11 10| 9     7| 6| 5| 4  3| 2| 1| 0|
-// |   dst  | x|srcms|   src2 | 0| 0| unit| 1| 1| s|
-// +-----------------------------------------------+
+  // Fixes collision with the M3 format (unit can't be 1|1)
+  if ( unit_idx >= qnumber(unit_map) )
+    return false;
 
+  get_unit(insn, code, unit_map[unit_idx]);
+  return true;
+}
 
-// LSDmvfr Instruction Format
-// +-----------------------------------------------+
-// |15    13|12|11 10| 9     7| 6| 5| 4  3| 2| 1| 0|
-// |   dst  | x|dstms|   src2 | 1| 0| unit| 1| 1| s|
-// +-----------------------------------------------+
+// LSDmvto (0x66 / 0x06), LSDmvfr (0x66 / 0x46) Instruction Formats
+static void cmpct_LSDmvto_LSDmvfr(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
 
+  // LSDmvto Instruction Forma
+  // +-----------------------------------------------+
+  // |15    13|12|11 10| 9     7| 6| 5| 4  3| 2| 1| 0|
+  // |   dst  | x|srcms|   src2 | 0| 0| unit| 1| 1| s|
+  // +-----------------------------------------------+
 
-// LSDx1c Instruction Format
-// +-----------------------------------------------+
-// |15 14|13|12|11|10| 9     7| 6| 5| 4  3| 2| 1| 0|
-// |  cc |uc| 0| 1| 0|   dst  | 1| 1| unit| 1| 1| s|
-// +------st---------------------------------------+
+  // LSDmvfr Instruction Format
+  // +-----------------------------------------------+
+  // |15    13|12|11 10| 9     7| 6| 5| 4  3| 2| 1| 0|
+  // |   dst  | x|dstms|   src2 | 1| 0| unit| 1| 1| s|
+  // +-----------------------------------------------+
 
+  // Fixes collision with the M3 format (unit can't be 1|1)
+  if ( !get_lsd_unit(insn, code) )
+    return;
 
-// LSDx1 Instruction Format
-// +-----------------------------------------------+
-// |15    13|12|11|10| 9     7| 6| 5| 4  3| 2| 1| 0|
-// |   op   | 1| 1| 0| src/dst| 1| 1| unit| 1| 1| s|
-// +-----------------------------------------------+
+  insn.itype = TMS6_mv;
+
+  bool is_LSDmvto = (code & BIT6) == 0;
+  uint16 ms = ((code & 0xC00) >> 7);
+
+  uint16 src = (code >> 7) & 7;
+  uint16 dst = (code >> 13) & 7;
+  if ( is_LSDmvto )
+    src |= ms;
+  else
+    dst |= ms;
+
+  op_reg(insn.Op1, make_reg(insn, src, (code & BIT12) != 0));
+  op_reg(insn.Op2, make_reg(insn, dst, false));
+}
+
+// LSDx1c Instruction Format (0x866 / 0x1c66)
+static void cmpct_LSDx1c(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
+
+  // +-----------------------------------------------+
+  // |15 14|13|12|11|10| 9     7| 6| 5| 4  3| 2| 1| 0|
+  // |  cc |uc| 0| 1| 0|   dst  | 1| 1| unit| 1| 1| s|
+  // +------st---------------------------------------+
+
+  if ( !get_lsd_unit(insn, code) )
+    return;
+
+  insn.itype = TMS6_mvk;
+
+  uint8 cc = (code >> 14) & 3;
+  insn.cond = cond_map[cc];
+
+  op_imm(insn.Op1, (code & BIT13) != 0);
+  op_reg(insn.Op2, make_reg(insn, (code >> 7) & 7, false));
+}
+
+// LSDx1 Instruction Format (0x1866 / 0x1c66)
+static void cmpct_LSDx1(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
+{
+  qnotused(proc);
+  qnotused(fph);
+
+  // +-----------------------------------------------+
+  // |15    13|12|11|10| 9     7| 6| 5| 4  3| 2| 1| 0|
+  // |   op   | 1| 1| 0| src/dst| 1| 1| unit| 1| 1| s|
+  // +-----------------------------------------------+
+
+  if ( !get_lsd_unit(insn, code) )
+    return;
+
+  uint8 src_dst = make_reg(insn, (code >> 7) & 7, false);
+  uint8 unit = (code >> 3) & 3;
+
+  uint8 op = (code >> 13) & 7;
+  switch ( op )
+  {
+    case 0:
+    case 1:
+      insn.itype = TMS6_mvk;
+      op_imm(insn.Op1, op);
+      op_reg(insn.Op2, src_dst);
+      break;
+    case 2:
+      {
+        // Lx1/Sx1
+        if ( unit <= 1 )
+        {
+          insn.itype = TMS6_neg;
+          op_reg(insn.Op1, src_dst);
+          op_reg(insn.Op2, src_dst);
+        }
+        break;
+      }
+    case 3:
+      insn.itype = TMS6_sub;
+      op_reg(insn.Op1, src_dst);
+      op_imm(insn.Op2, 1);
+      op_reg(insn.Op3, src_dst);
+      break;
+    case 5:
+      insn.itype = TMS6_add;
+      op_reg(insn.Op1, src_dst);
+      op_imm(insn.Op2, 1);
+      op_reg(insn.Op3, src_dst);
+      break;
+    case 6:
+      insn.itype = TMS6_mvc;
+      op_reg(insn.Op1, src_dst);
+      op_reg(insn.Op2, rILC);
+      break;
+    case 7:
+      insn.itype = TMS6_xor;
+      op_reg(insn.Op1, src_dst);
+      op_imm(insn.Op2, 1);
+      op_reg(insn.Op3, src_dst);
+      break;
+    default:
+      break;
+  }
+}
 
 //--------------------------------------------------------------------------
 // No Unit
 
 // Uspl Instruction Format (0x0c66 / 0xbc7e)
-static void cmpct_Uspl(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_Uspl(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
+  qnotused(proc);
   qnotused(fph);
   // +-----------------------------------------------+
   // |15|14|13|12|11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
@@ -2148,8 +2715,9 @@ static void cmpct_Uspl(insn_t &insn, uint32 fph, ushort code)
 }
 
 // Uspldr Instruction Format (0x8c66 / 0xbc7e)
-static void cmpct_Uspldr(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_Uspldr(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
+  qnotused(proc);
   qnotused(fph);
   // +-----------------------------------------------+
   // |15|14|13|12|11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
@@ -2166,8 +2734,9 @@ static void cmpct_Uspldr(insn_t &insn, uint32 fph, ushort code)
 }
 
 // Uspk Instruction Format (0x1c66 / 0x3c7e)
-static void cmpct_Uspk(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_Uspk(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
+  qnotused(proc);
   qnotused(fph);
   // +-----------------------------------------------+
   // |15 14|13|12|11|10| 9     7| 6| 5| 4| 3| 2| 1| 0|
@@ -2184,8 +2753,9 @@ static void cmpct_Uspk(insn_t &insn, uint32 fph, ushort code)
 }
 
 // Uspm Instruction Format (0x2c66 / 0x2c7e)
-static void cmpct_Uspm(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_Uspm(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
+  qnotused(proc);
   qnotused(fph);
   // +-----------------------------------------------+
   // |15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
@@ -2202,8 +2772,9 @@ static void cmpct_Uspm(insn_t &insn, uint32 fph, ushort code)
 }
 
 // Unop Instruction Format (0x0c6e / 0x1fff)
-static void cmpct_Unop(insn_t &insn, uint32 fph, ushort code)
+static void cmpct_Unop(tms6_t *proc, insn_t &insn, uint32 fph, ushort code)
 {
+  qnotused(proc);
   qnotused(fph);
   // +-----------------------------------------------+
   // |15    13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
@@ -2226,29 +2797,80 @@ struct cmpct_tmsinsn_t
   ushort code_mask;
   uchar exp_val;
   uchar exp_mask;
-  void (*handler)(insn_t &insn, uint32 fph, ushort code);
+  void (*handler)(tms6_t *proc, insn_t &insn, uint32 fph, ushort code);
+  uint32 xpath_bit; // there can't be a xpath at bit0
 };
 
 static const struct cmpct_tmsinsn_t cmpct_tmsinsn[] =
 {
-  { 0x0077, 0x087f, 0x00, 0x00, cmpct_Dstk },
-  { 0x8c04, 0x8c06, 0x00, 0x00, cmpct_Dpp },
-  { 0x0004, 0x0006, 0x00, 0x00, cmpct_Doff4_Dind_Dinc_Ddec },
+  { 0x8c04, 0x8c06, 0x00, 0x00, cmpct_Dstk, 0 },
+  { 0x0077, 0x087f, 0x00, 0x00, cmpct_Dpp, 0 },
+  { 0x0004, 0x0006, 0x00, 0x00, cmpct_Doff4_Dind_Dinc_Ddec, 0 },
 
-  { 0x0000, 0x040e, 0x00, 0x00, cmpct_L3 },
-  { 0x0400, 0x040e, 0x00, 0x00, cmpct_L3i },
-  { 0x0008, 0x040e, 0x00, 0x00, cmpct_Ltbd },
-  { 0x0408, 0x040e, 0x00, 0x00, cmpct_L2c },
+  // LSDmvto
+  { 0x0006, 0x0066, 0x00, 0x00, cmpct_LSDmvto_LSDmvfr, BIT12 },
 
-  { 0x0c6e, 0x1fff, 0x00, 0x00, cmpct_Unop },
-  { 0x8c66, 0xbc7e, 0x00, 0x00, cmpct_Uspldr },
-  { 0x0c66, 0xbc7e, 0x00, 0x00, cmpct_Uspl },
-  { 0x1c66, 0x3c7e, 0x00, 0x00, cmpct_Uspk },
-  { 0x2c66, 0x2c7e, 0x00, 0x00, cmpct_Uspm },
+  // LSDmvfr
+  { 0x0046, 0x0066, 0x00, 0x00, cmpct_LSDmvto_LSDmvfr, BIT12 },
+
+  { 0x0000, 0x040e, 0x00, 0x00, cmpct_L3, BIT12 },
+  { 0x0400, 0x040e, 0x00, 0x00, cmpct_L3i, BIT12 },
+  { 0x0008, 0x040e, 0x00, 0x00, cmpct_Ltbd, BIT12 },
+  { 0x0408, 0x040e, 0x00, 0x00, cmpct_L2c, BIT12 },
+  { 0x0426, 0x047e, 0x00, 0x00, cmpct_Lx5, 0 },
+  { 0x1026, 0x147e, 0x00, 0x00, cmpct_Lx1c, 0 },
+  { 0x0026, 0x147e, 0x00, 0x00, cmpct_Lx3c, 0 },
+
+  { 0x0c6e, 0x1fff, 0x00, 0x00, cmpct_Unop, 0 },
+  { 0x8c66, 0xbc7e, 0x00, 0x00, cmpct_Uspldr, 0 },
+  { 0x0c66, 0xbc7e, 0x00, 0x00, cmpct_Uspl, 0 },
+  { 0x1c66, 0x3c7e, 0x00, 0x00, cmpct_Uspk, 0 },
+  { 0x2c66, 0x2c7e, 0x00, 0x00, cmpct_Uspm, 0 },
+
+  { 0x001a, 0x003e, 0x02, 0x02, cmpct_Scs10, 0 }, // BR = 1
+
+  // Sbs7
+  { 0x000a, 0x003e, 0x02, 0x03, cmpct_Sbs7_c_sbu8_c, 0 }, // SAT = 0, BR = 1
+
+  // Sbs7c
+  { 0x002a, 0x002e, 0x02, 0x03, cmpct_Sbs7_c_sbu8_c, 0 }, // SAT = 0, BR = 1
+
+  // Sbu8
+  { 0xc00a, 0xc03e, 0x02, 0x03, cmpct_Sbs7_c_sbu8_c, 0 }, // SAT = 0, BR = 1
+
+  // Sbu8c
+  { 0xc02a, 0xc02e, 0x02, 0x03, cmpct_Sbs7_c_sbu8_c, 0 }, // SAT = 0, BR = 1
+
+  // S3
+  { 0x000a, 0x040e, 0x00, 0x02, cmpct_S3_S3i, BIT12 }, // BR = 0
+
+  // S3i
+  { 0x040a, 0x040e, 0x00, 0x02, cmpct_S3_S3i, BIT12 }, // BR = 0
+
+  { 0x0402, 0x041e, 0x00, 0x00, cmpct_Ssh5_S2sh, 0 }, // SAT = 0/1
+
+  { 0x0002, 0x041e, 0x00, 0x00, cmpct_Sc5_S2ext, 0 },
+
+  { 0x0012, 0x001e, 0x00, 0x00, cmpct_Smvk8, 0 },
+
+  { 0x042e, 0x047e, 0x00, 0x00, cmpct_Sx5, 0 },
+
+  { 0x002e, 0x047e, 0x00, 0x00, cmpct_Sx2op, BIT12 },
+
+  { 0x006e, 0x187e, 0x00, 0x00, cmpct_Sx1b, 0 },
+
+  { 0x0436, 0x047e, 0x00, 0x00, cmpct_Dx5, 0 },
+  { 0x0c77, 0x1c7f, 0x00, 0x00, cmpct_Dx5p, 0 },
+  { 0x0036, 0x04fe, 0x00, 0x00, cmpct_Dx2op, BIT12 },
+
+  { 0x001e, 0x001e, 0x00, 0x00, cmpct_M3, BIT12 },
+
+  { 0x866, 0x1c66, 0x00, 0x00, cmpct_LSDx1c, 0 },
+  { 0x1866, 0x1c66, 0x00, 0x00, cmpct_LSDx1, 0 }
 };
 
-
-int tms6_t::ana_compact(insn_t *_insn, uint32 fph) const
+//lint -e{818, 1762} parameter could be pointer to const, member function could be made const
+int tms6_t::ana_compact(insn_t *_insn, uint32 fph)
 {
   int i;
 
@@ -2272,9 +2894,14 @@ int tms6_t::ana_compact(insn_t *_insn, uint32 fph) const
     if ( ((code & cinsn->code_mask) == cinsn->code_val)
       && ((exp & cinsn->exp_mask) == cinsn->exp_val) )
     {
-      cinsn->handler(insn, fph, code);
+      cinsn->handler(this, insn, fph, code);
       if ( insn.itype != TMS6_null )
+      {
+        if ( cinsn->xpath_bit != 0 && (code & cinsn->xpath_bit) != 0 )
+          insn.cflags |= aux_xp;
+
         break;
+      }
     }
   }
 
@@ -2304,7 +2931,8 @@ int tms6_t::ana(insn_t *_insn)
     {
       // Nothing to output, generated by the compiler directly
       insn.size = 4;
-      insn.itype = TMS6_null;
+      insn.itype = TMS6_fphead;
+      insn.auxpref = fph;
       rv = insn.size;
     }
     // Is it a compact instruction?

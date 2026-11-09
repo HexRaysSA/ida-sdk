@@ -244,7 +244,9 @@ int st9_t::st9_emu(const insn_t &insn)
   }
 
   // reanalyze switch info
-  if ( insn.itype == st9_jp && get_auto_state() == AU_USED )
+  if ( inf_create_jump_tables()
+    && insn.itype == st9_jp
+    && get_auto_state() == AU_USED )
   {
     switch_info_t si;
     if ( get_switch_info(&si, insn.ea) > 0 && !si.is_user_defined() )

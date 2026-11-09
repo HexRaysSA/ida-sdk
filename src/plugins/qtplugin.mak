@@ -25,7 +25,7 @@ ifdef __MAC__
   CC_INCP += $(PREF)QtWidgets.framework/Headers
   CFLAGS += -F$(PREF)
 
-  ifndef NDEBUG
+  ifneq ($(DEBUG_QT),)
     DEBUG_SUFFIX=_debug
   endif
   LIBS += $(PREF)QtCore.framework/QtCore$(DEBUG_SUFFIX)
@@ -48,13 +48,13 @@ else
       POST=d$(A)
     endif
   endif
-  LIBS += $(PREF)Qt5Core$(POST)
-  LIBS += $(PREF)Qt5Gui$(POST)
-  LIBS += $(PREF)Qt5Widgets$(POST)
+  LIBS += $(PREF)Qt$(QT_VERSION_MAJOR)Core$(POST)
+  LIBS += $(PREF)Qt$(QT_VERSION_MAJOR)Gui$(POST)
+  LIBS += $(PREF)Qt$(QT_VERSION_MAJOR)Widgets$(POST)
 endif
 
 $(F)moc_%.cpp: %.h
-	$(QTDIR)bin/moc -I. $< > $@
+	$(QT_LIBEXEC)/moc -I. $< > $@
 
 # Add $(F) to vpath for $(F)moc_*$(O).
 vpath %.cpp $(F)

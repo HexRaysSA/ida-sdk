@@ -13,7 +13,7 @@
 bool is_win32_remote_debugger_loaded();
 
 //----------------------------------------------------------------------------
-//-V:remote_pdb_access_t:730 not all members of a class are initialized inside the constructor
+
 class remote_pdb_access_t : public pdb_access_t
 {
 public:

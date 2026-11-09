@@ -479,7 +479,7 @@ HRESULT remote_pdb_access_t::open_connection()
           REPORT_ERROR(errmsg, E_FAIL);
           // if opening pdb fails, win32_remote closes the MSDIA pdb
           // session automatically.
-          remote_session_id = -1;   //-V779 Unreachable code detected
+          remote_session_id = -1;
         }
         break;
       default:

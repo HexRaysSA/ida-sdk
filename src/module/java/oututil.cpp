@@ -696,6 +696,8 @@ size_t out_java_t::putDeb(uchar next)
 //----------------------------------------------------------------------
 bool out_java_t::out_operand(const op_t &x)
 {
+  uint32 sav_maxpos = pm().maxpos;
+  pm().maxpos = 0x0F000000; // output operand in one line
   int outf;
   uchar warn = 0;
 
@@ -718,6 +720,7 @@ bool out_java_t::out_operand(const op_t &x)
       // no break
     case o_void:
 badop:
+      pm().maxpos = sav_maxpos;
       return false;
 
     case o_imm:
@@ -799,6 +802,7 @@ putidcv_num:
       warning("out: %a: bad optype %d", insn.ip, x.type);
       break;
   }
+  pm().maxpos = sav_maxpos;
   return true;
 }
 

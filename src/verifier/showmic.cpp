@@ -1,6 +1,6 @@
 /*
  *      Decompiler project
- *      Copyright (c) 2005-2024 Hex-Rays SA <support@hex-rays.com>
+ *      Copyright (c) 2005-2025 Hex-Rays SA <support@hex-rays.com>
  *      ALL RIGHTS RESERVED.
  *
  *      Display microcode objects in text form (for debugging)
@@ -631,7 +631,7 @@ void mblock_t::vdump_block(const char *title, va_list va) const
           qfprintf(fp, "%s", oldlines[j].c_str());
         qfclose(fp);
         char *p = strrchr(path, '.');
-        qstrncpy(p, "a.dmp", path+sizeof(path)-p);    //-V575 The potential null pointer is passed into function
+        qstrncpy(p, "a.dmp", path+sizeof(path)-p);
         fp = fopenWT(path);
       }
 
@@ -1247,7 +1247,7 @@ GCC_DIAG_OFF(DIAG_NAME);
 #endif
 void minsn_t::print(qstring *out, int shins_flags) const
 {
-  if ( this == nullptr ) //lint !e3417 this is never null //-V704
+  if ( this == nullptr ) //lint !e3417 this is never null
   {
     out->append("(null)");
     return;
@@ -1258,7 +1258,7 @@ void minsn_t::print(qstring *out, int shins_flags) const
   if ( is_wild_match()   ) out->append(KEYCOL("many") " ");
   if ( is_cleaning_pop() ) out->append(KEYCOL("sideft") " ");
 
-  const char *mnem = (opcode < 0 || opcode >= m_max) ? "???" : rasm_keywords[opcode];   //lint !e685 //-V560 A part is always false
+  const char *mnem = (opcode < 0 || opcode >= m_max) ? "???" : rasm_keywords[opcode];   //lint !e685
   size_t len = strlen(mnem);
   tag_on(out, VD_COLOR_KEYWORD);
   out->append(mnem);

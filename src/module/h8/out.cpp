@@ -368,18 +368,20 @@ void h8_t::h8_gen_stkvar_def(outctx_t &ctx, const udm_t *stkvar, sval_t v) const
   if ( is_hew_asm() )
   {
     ctx.out_printf(COLSTR("%s", SCOLOR_LOCNAME)
-                   COLSTR(": ", SCOLOR_SYMBOL)
+                   COLSTR(":", SCOLOR_SYMBOL)
+                   " "
                    COLSTR(".assign", SCOLOR_ASMDIR)
-                   COLSTR(" %c", SCOLOR_SYMBOL)
-                   COLSTR("%s", SCOLOR_DNUM),
+                   " "
+                   COLSTR("%c%s", SCOLOR_DNUM),
                    stkvar->name.c_str(), sign, num);
   }
   else
   {
-    ctx.out_printf(COLSTR("%-*s", SCOLOR_LOCNAME)
-                   COLSTR("= %c", SCOLOR_SYMBOL)
-                   COLSTR("%s", SCOLOR_DNUM),
-                   inf_get_indent(), stkvar->name.c_str(), sign, num);
+    ctx.out_lvar(stkvar->name.c_str(), inf_get_indent());
+    ctx.out_printf(COLSTR("=", SCOLOR_SYMBOL)
+                   " "
+                   COLSTR("%c%s", SCOLOR_DNUM),
+                   sign, num);
   }
 }
 

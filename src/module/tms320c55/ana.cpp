@@ -409,7 +409,7 @@ static bool find_insn_suffix(
   ushort i = insn.itype + 1;
   // jump over same instruction names (but eventually different number of params)
   while ( streq(Instructions[i].name, insn_name1)
-       && (!parallel || streq(strchr(Instructions[i].name, 0)+1, insn_name2)) )   //-V575 potential null pointer
+       && (!parallel || streq(strchr(Instructions[i].name, 0)+1, insn_name2)) )
   {
     if ( ++i == itype_last )
       return false;
@@ -815,26 +815,26 @@ static void op_mem(
 }
 
 //--------------------------------------------------------------------------
-static void op_Smem(const mask_t *mask, int64 offset, op_t *op, insn_t &insn, char &optional_op) // AAAAAAAI //-V669 'optional_op' argument is a non-constant reference
+static void op_Smem(const mask_t *mask, int64 offset, op_t *op, insn_t &insn, char &optional_op) // AAAAAAAI
 {
   op_mem(mask, offset, op, dt_word, insn, optional_op);
 }
 
 //--------------------------------------------------------------------------
-static void op_Lmem(const mask_t *mask, int64 offset, op_t *op, insn_t &insn, char &optional_op) // AAAAAAAI //-V669 'optional_op' argument is a non-constant reference
+static void op_Lmem(const mask_t *mask, int64 offset, op_t *op, insn_t &insn, char &optional_op) // AAAAAAAI
 {
   op_mem(mask, offset, op, dt_dword, insn, optional_op);
 }
 
 //--------------------------------------------------------------------------
-static void op_ARn_mod(const mask_t *mask, int64 offset, op_t *op, insn_t &insn, char &optional_op) // AAAAAAAI //-V669 'optional_op' argument is a non-constant reference
+static void op_ARn_mod(const mask_t *mask, int64 offset, op_t *op, insn_t &insn, char &optional_op) // AAAAAAAI
 {
   op_mem(mask, offset, op, dt_word, insn, optional_op, true);
 }
 
 //--------------------------------------------------------------------------
 // @dma = bit number
-static void op_Baddr(const mask_t *mask, int64 offset, op_t *op, insn_t &insn, char &optional_op) // AAAAAAAI //-V669 'optional_op' argument is a non-constant reference
+static void op_Baddr(const mask_t *mask, int64 offset, op_t *op, insn_t &insn, char &optional_op) // AAAAAAAI
 {
   if ( !(offset & 1) ) // @dma
   {

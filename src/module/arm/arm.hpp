@@ -656,7 +656,7 @@ inline uval_t calc_reglist_size(uint32 reglist)
 
 //----------------------------------------------------------------------
 // find out pre- or post-indexed addressing mode of given operand <op>;
-// returns base register or -1
+// \retval the base register or -1
 inline int get_pre_post_delta(const insn_t &insn, const op_t &op)
 {
   if ( (insn.auxpref & (aux_wback | aux_postidx)) != 0
@@ -852,34 +852,28 @@ typedef qvector<pushreg_t> pushregs_t;
 struct pushinfo_t : public pushregs_t
 {
   enum { PUSHINFO_VERSION = 2 };
-  uint32 flags;
 #define APSI_VARARG     0x01      // is vararg function?
 #define APSI_FIRST_VARG_MASK 0x06 // index of the first register in push {rx..r3}
 #define APSI_HAVE_SSIZE 0x08      // pushinfo_t structure contains its own size (field 'cb')
 #define APSI_OFFSET_WO_DELTA 0x10 // do not use delta-coding for <off>
-  inline int get_first_vararg_reg(void) { return (flags & APSI_FIRST_VARG_MASK) >> 1; }
-  uval_t savedregs;     // size of the 'saved regs' area
+  uint32 flags = APSI_HAVE_SSIZE;
+  inline int get_first_vararg_reg() { return (flags & APSI_FIRST_VARG_MASK) >> 1; }
+  uval_t savedregs = 0; // size of the 'saved regs' area
   eavec_t prolog_insns; // additional prolog instruction addresses
                         // (in addition to instructions from pushregs_t)
-  uval_t fpd;           // frame pointer delta
+  uval_t fpd = 0;       // frame pointer delta
 
-  int cb;               // size of this structure (it would be better if
+  int cb = sizeof(*this); // size of this structure (it would be better if
                         // this field was the first one)
 
   // vararg info
-  uval_t gr_top;        // offset from the frame top general registers
+  uval_t gr_top = 0;    // offset from the frame top general registers
                         // vararg save area
-  uval_t vr_top;        // offset from the frame top FP/SIMD registers
+  uval_t vr_top = 0;    // offset from the frame top FP/SIMD registers
                         // vararg save area
-  uval_t gr_width;      // size of general registers vararg save area
-  uval_t vr_width;      // size of FP/SIMD registers vararg save area
+  uval_t gr_width = 0;  // size of general registers vararg save area
+  uval_t vr_width = 0;  // size of FP/SIMD registers vararg save area
 
-  pushinfo_t(void)
-    : flags(APSI_HAVE_SSIZE),
-      savedregs(0), fpd(0),
-      cb(sizeof(pushinfo_t)),
-      gr_top(0), vr_top(0), gr_width(0), vr_width(0)
-  {}
   DECLARE_COMPARISONS(pushinfo_t);
 
   void serialize(bytevec_t *packed, ea_t ea) const;
@@ -951,20 +945,30 @@ enum adv_simd_arch_t
   adv_simd_arch_base = 1, // Use of the Advanced SIMD Architecture (Neon) was permitted
   adv_simd_arch_fma  = 2, // Use of Advanced SIMD Architecture (Neon) with fused MAC operations was permitted
   adv_simd_arch_v8   = 3, // Use of the ARM v8-A Advanced SIMD Architecture (Neon) was permitted
+  adv_simd_arch_v81  = 4, // Use of the ARM v8.1-A Advanced SIMD Architecture (Neon) was permitted
+};
+
+enum mve_arch_t
+{
+  mve_arch_none = 0, // The user did not permit this entity to use the M-profile Vector Extension
+  mve_arch_i    = 1, // Use of the Integer M-profile Vector Extension was permitted
+  mve_arch_f    = 2, // Use of the Integer and Floating Point M-profile Vector Extension was permitted
 };
 
 struct arm_arch_t
 {
-  arm_base_arch_t base_arch;
-  arm_arch_profile_t profile;
-  fp_arch_t fp_arch;
-  adv_simd_arch_t neon_arch;
+  arm_base_arch_t base_arch = arch_ARM_old;
+  arm_arch_profile_t profile = arch_profile_unkn;
+  fp_arch_t fp_arch = fp_arch_none;
+  adv_simd_arch_t neon_arch = adv_simd_arch_none;
+  mve_arch_t mve_arch;
 
   int arm_isa_use = 0;   // 0 = no ARM instructions (e.g. v7-M)
                          // 1 = allow ARM instructions
   int thumb_isa_use = 0; // 0 = no Thumb instructions
                          // 1 = 16-bit Thumb instructions + BL
                          // 2 = plus 32-bit Thumb instructions
+                         // 3 = Thumb instructions permitted (The set of permitted instructions can be determined by the setting of Tag_CPU_arch and Tag_CPU_arch_profile)
   int xscale_arch = 0;   // 0 = no XScale extension
                          // 1 = XScale extension (MAR/MRA etc)
   int wmmx_arch = 0;     // 0 = no WMMX
@@ -972,13 +976,16 @@ struct arm_arch_t
                          // 2 = WMMX v2
   int hp_ext = 0;        // 0 = no half-precision extension
                          // 1 = VFPv3/Advanced SIMD optional half-precision extension
+                         // 2 = Use of the half-precision instructions first
+                         // added as an optional extension to Armv8.2-A
+                         // Floating-Point and Advanced SIMD was permitted, in
+                         // addition to those indicated by Tag_FP_arch and Tag_ASIMD_arch
   int t2_ee = 0;         // 0 = no Thumb2-EE extension
                          // 1 = Thumb2-EE extension (ENTERX and LEAVEX)
   qstring arch_name;     // e.g. ARMv7-M
   qstring core_name;     // e.g. ARM1176JZF-S
 
   bool be8 = false;      // image is BE-8, i.e. little-endian code but big-endian data
-  bool arm64_32 = false; // 32-bit address space, ARM64 instructions
 
   static const char *get_canonical_name(unsigned archno);
   bool set_from_name(const char *name); // arch name or core name
@@ -986,12 +993,7 @@ struct arm_arch_t
   void save_to_idb(arm_t &pm) const;
   bool restore_from_idb(arm_t &pm);
   qstring to_string() const;
-  arm_arch_t()
-    : base_arch(arch_ARM_old),
-      profile(arch_profile_unkn),
-      fp_arch(fp_arch_none),
-      neon_arch(adv_simd_arch_none)
-  {}
+  arm_arch_t() {}
 
   bool is_mprofile() const
   {
@@ -1003,6 +1005,18 @@ struct arm_arch_t
   }
 };
 
+//---------------------------------------------------------------------
+inline bool is_arm64(const insn_t &insn)
+{
+  return insn.is_64bit() || inf_is_ilp32();
+}
+
+inline bool is_arm64(void)
+{
+  return inf_is_64bit() || inf_is_ilp32();
+}
+bool is_arm64_ea(ea_t ea);
+
 //------------------------------------------------------------------
 struct mmtype_t
 {
@@ -1013,7 +1027,7 @@ struct mmtype_t
 };
 
 //------------------------------------------------------------------
-void term_ana(void);
+void term_ana();
 void move_it_blocks(ea_t from, ea_t to, asize_t size);
 int get_it_size(const insn_t &insn);
 
@@ -1027,7 +1041,7 @@ bool is_pop_insn(const insn_t &insn, uint32 *reglist=nullptr, bool allow_ed=fals
 bool is_like_tail_call(const insn_t &insn);
 bool is_indirect_jump(const insn_t &insn);
 int arm_create_switch_xrefs(ea_t insn_ea, const switch_info_t &si);
-void mark_arm_codeseqs(void);
+void mark_arm_codeseqs();
 #if defined(NALT_HPP) && defined(_XREF_HPP)
 int arm_calc_switch_cases(casevec_t *casevec, eavec_t *targets, ea_t insn_ea, const switch_info_t &si);
 #endif
@@ -1185,38 +1199,18 @@ inline bool creglist_is_crn_cref(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
-// tuning parameters for reg_tracker_t
-struct regtrack_info_t
-{
-  uint16 vals_size;       // max number of possible values returned by
-                          // find_op_values, find_reg_values;
-                          // 0 - no limit;
-  uint16 op_recursion;    // max level of recursion when calculating
-                          // operands of the emulated instruction, e.g.
-                          //   LDR R0, =addr
-                          //   LDR R0, [R0,#4]
-                          //   ADD R0, #4
-                          // needs 2 levels (one for addressing, one for
-                          // addition);
-                          // 0 - no limit;
-  uint16 bblk_recursion;  // max level of recursion when reconstructing
-                          // the execution flow;
-                          // 0 - no limit;
-  uint16 cache_size;      // max size of the cache for one register;
-                          // 0 - no limit;
-  uint16 max_xrefs;       // max number of xrefs to analyze
-                          // 0 - no limit;
-};
+// this function returns dr_O if ITYPE is not a supported load/store insn
+dref_t get_ldr_str_dref_type(uint16 itype);
 
 //----------------------------------------------------------------------
 // Since we have to know if an instruction belongs to an IT-block or not,
 // we keep all this information in a map
 struct it_info_t
 {
-  uint8 size;
-  uint8 cond;
-  uint8 mask;
-  it_info_t(void) : size(0), cond(0), mask(0) {}
+  uint8 size = 0;
+  uint8 cond = 0;
+  uint8 mask = 0;
+  it_info_t() {}
   it_info_t(uval_t x) :
     size(x&0xFF),
     cond((x >> 8)&0xFF),
@@ -1224,7 +1218,7 @@ struct it_info_t
   {
   }
   it_info_t(uint8 s, uint8 c, uint8 m) : size(s), cond(c), mask(m) {}
-  operator uval_t(void) const { return size | (cond << 8) | (mask << 16); }
+  operator uval_t() const { return size | (cond << 8) | (mask << 16); }
 };
 using it_blocks_t = std::map<ea_t, it_info_t>;    // first_it_block_ea -> info
 
@@ -1252,20 +1246,30 @@ struct bl_force_flow_ah_t : public action_handler_t
 };
 
 //-------------------------------------------------------------------------
-namespace O
-{
-  struct reg_tracker_t;
-  struct rvi_vec_t;
-  bool can_resolve_seg(ea_t ea);
-  reg_tracker_t *alloc_reg_tracker(arm_t &pm);
-  void free_reg_tracker(reg_tracker_t *rt);
-}
-struct opinfo_helpers_t;
+struct opinfo_helper_t;
 struct cfh_t;
 class calcrel_helper_t;
 
 DECLARE_PROC_LISTENER(pm_idb_listener_t, struct arm_t);
 DECLARE_LISTENER(pm_ui_listener_t, struct arm_t, arm);
+
+//-------------------------------------------------------------------------
+struct alias_info_t
+{
+  range_t range = range_t(BADADDR, BADADDR);
+  int cnt = 0;
+  bool is_sp_alias = false;
+  alias_info_t() {}
+  alias_info_t(const range_t &r, bool b, int c) : range(r), cnt(c), is_sp_alias(b) {}
+};
+
+class sp_alias_cache_t
+{
+  std::map<int, alias_info_t> cache; // regnum -> alias info
+public:
+  alias_info_t &get_cached_info(int reg) { return cache[reg]; }
+  void invalidate() { cache.clear(); }
+};
 
 //-------------------------------------------------------------------------
 struct arm_reg_finder_t;
@@ -1275,9 +1279,6 @@ void free_reg_finder(arm_reg_finder_t *rf);
 #define PROCMOD_T arm_t
 struct arm_t : public procmod_t
 {
-  arm_t();
-  ~arm_t();
-
   pm_idb_listener_t idb_listener = pm_idb_listener_t(*this);
   pm_ui_listener_t ui_listener = pm_ui_listener_t(*this);
   struct eh_parse_t *eh_parse = nullptr;
@@ -1364,6 +1365,8 @@ struct arm_t : public procmod_t
   inline bool has_xscale() const { return arch.xscale_arch != 0; }
   inline bool has_vfp()    const { return arch.fp_arch != fp_arch_none; }
   inline bool has_neon()   const { return arch.neon_arch != adv_simd_arch_none; }
+  inline bool has_mve_i()  const { return arch.mve_arch != mve_arch_none; }
+  inline bool has_mve_f()  const { return arch.mve_arch == mve_arch_f; }
 #ifndef ENABLE_LOWCNDS
   inline bool has_armv5()  const { return arch.base_arch >= arch_ARMv5T; }
   inline bool has_armv7a() const { return arch.base_arch == arch_ARMv7 || arch.base_arch > arch_ARMv7EM; }
@@ -1406,31 +1409,9 @@ struct arm_t : public procmod_t
   bool recursing = false;
 
   it_blocks_t it_blocks;
-
-  //----------------------------------------------------------------------
-  // tuning parameters for reg_tracker_t (set from configuration file by
-  // set_idp_options)
-  regtrack_info_t regtrack_inf =
-  {
-    100,  // vals_size
-    100,  // op_recursion
-    2000, // bblk_recursion
-    5000, // cache_size
-    256,  // max_xrefs
-  };
-  O::reg_tracker_t *reg_tracker = nullptr;
+  sp_alias_cache_t sp_alias_cache;
 
   arm_reg_finder_t *reg_finder = nullptr;
-
-  //----------------------------------------------------------------------
-  // invalidate the cache of calculated register values from <ea> until the
-  // next function;
-  // if <ea> is BADADDR the clear the whole cache
-  void o_invalidate_reg_cache(ea_t ea, int msgid);
-  // clear all
-  void o_term_reg_cache();
-  // find all values loaded into register
-  void find_reg_values(O::rvi_vec_t *ret, ea_t ea, int reg);
 
   //----------------------------------------------------------------------
   mmtype_t *mmtypes = nullptr;
@@ -1444,8 +1425,8 @@ struct arm_t : public procmod_t
         const argloc_t *argloc,
         bool do_create);
   void term_arm_simdtypes();
-  void register_custom_formats(void);
-  void unregister_custom_formats(void);
+  void register_custom_formats();
+  void unregister_custom_formats();
 
   //----------------------------------------------------------------------
   cfh_t *cfh = nullptr;
@@ -1457,13 +1438,12 @@ struct arm_t : public procmod_t
   fixup_type_t cfh_b14_id = 0;
   fixup_type_t cfh_b19_id = 0;
   fixup_type_t cfh_b26_id = 0;
-  int ref_pg21_id = 0;                  // ids of refinfo handlers
+  int ref_pg21_id = 0;           // ids of refinfo handlers
   int ref_hi12_id = 0;
   int ref_lo12_id = 0;
   int ref_lo21_id = 0;
-
-  bool emulate_ldr_str_add_operand(const insn_t &insn, const op_t &op) const;
 #endif
+
   // ids of fixup handlers
   fixup_type_t cfh_prel31_id = 0;
   // ids of refinfo handlers
@@ -1477,17 +1457,14 @@ struct arm_t : public procmod_t
   bool checking_for_switch = false;
 
   //----------------------------------------------------------------------
-  inline bool is_gas(void) const
-  {
-    return (ash.uflag & UAS_GNU) != 0;
-  }
-  inline bool is_ual(void) const
-  {
-    return (ash.uflag & UAS_LEGACY) == 0;
-  }
+  inline bool is_gas() const { return (ash.uflag & UAS_GNU) != 0; }
+  inline bool is_ual() const { return (ash.uflag & UAS_LEGACY) == 0; }
 
   //----------------------------------------------------------------------
   virtual ssize_t idaapi on_event(ssize_t msgid, va_list va) override;
+
+  arm_t();
+  ~arm_t();
 
   void restore_arch();
   void load_from_idb();
@@ -1502,8 +1479,8 @@ struct arm_t : public procmod_t
   void del_function_marks(const func_t *pfn);
   const char *get_regname(int rn);
 
-  void init_ana(void);
-  void term_ana(void);
+  void init_ana();
+  void term_ana();
   int ana64(insn_t &insn, calcrel_helper_t *crh);
   int ana_arm(insn_t &insn, calcrel_helper_t *crh=nullptr);
   int ana_thumb(insn_t &insn, calcrel_helper_t *crh=nullptr);
@@ -1526,11 +1503,9 @@ struct arm_t : public procmod_t
   void move_it_blocks(ea_t from, ea_t to, asize_t size);
   bool build_movl_macro(insn_t *s, const insn_t &insn);
   bool build_adrl_macro(insn_t *s, const insn_t &insn);
+  bool build_mov64_macro(insn_t *s, const insn_t &insn);
   bool simplify_to_mov(insn_t *s);
   bool build_macro(insn_t &insn, bool may_go_forward);
-  bool is_arm64(const insn_t &insn) const;
-  bool is_arm64(void) const;
-  bool is_arm64_ea(ea_t ea) const;
   bool check_for_t_changes(ea_t start, size_t size) const;
   int a64_branch(insn_t &insn, uint32 code, calcrel_helper_t *crh);
   int decode64(insn_t &insn, calcrel_helper_t *crh);
@@ -1549,14 +1524,21 @@ struct arm_t : public procmod_t
   ea_t find_callee(const insn_t &insn, const op_t &x);
   void emulate_ldr_str_base_offset(
         const insn_t &insn,
-        ea_t base,
-        const O::rvi_vec_t &offs,
-        char op_dtyp,
-        bool swap_base_off);
+        const op_t *op,
+        bool is_single_val_base,
+        ea_t single_val,
+        const ::reg_value_info_t &mult_vals,
+        dref_t dref_type,
+        bool target_dxref = true);
   bool emulate_ldr_str_reg_based(const insn_t &insn, const op_t &op);
   bool emulate_ldr_str_with_displ(const insn_t &insn, const op_t &op);
-  bool emulate_ldr_str(const insn_t &insn, const op_t &op);
+  bool check_for_sjlj_setup(
+        const insn_t &insn,
+        ea_t pcval,
+        int reg,
+        const ::reg_value_def_t &reg_rvd);
   bool emulate_add_reg_based(const insn_t &insn, int reg1, int reg2);
+  bool emulate_add_with_imm(const insn_t &insn, int reg, const op_t &immop);
   void arm_splitSRrange1(ea_t from, ea_t to, sel_t v, uchar tag) const;
   bool is_arm_call_insn(const insn_t &insn);
   bool range_uses_lr(ea_t ea1, ea_t ea2);
@@ -1579,7 +1561,7 @@ struct arm_t : public procmod_t
   ea_t calc_next_exec_insn(
         const insn_t &ins,
         const regval_t *regvalues,
-        const opinfo_helpers_t &oh,
+        opinfo_helper_t &oh,
         bool is_mprofile);
 
   //----------------------------------------------------------------------
@@ -1615,7 +1597,7 @@ struct arm_t : public procmod_t
   }
   void set_fptr_info(ea_t func_ea, ushort reg, ea_t addr);
 
-  bool is_sub_rn_fp(const func_t *pfn, const insn_t &insn) const;
+  bool is_add_rn_fp(const func_t *pfn, const insn_t &insn) const;
   sval_t calc_sp_delta(
         func_t *pfn,
         const insn_t &insn,
@@ -1667,8 +1649,17 @@ struct arm_t : public procmod_t
         int asn_flags = ASN_STRICT_CHECK);
   int arm_is_align_insn(ea_t ea) const;
   bool is_rt_switch8(switch_info_t *_si, const insn_t &insn);
-  void convert_dcd(ea_t ea, ea_t callee_ip);
-  bool lr_points_to_next_insn(const insn_t &insn, ea_t *value=nullptr);
+  void convert_dcd(ea_t ea, ea_t callee_ip) const;
+  void convert_dcd(const reg_value_info_t &rvi) const;
+  void convert_dcd(const reg_value_def_t &rvd) const;
+  bool set_offset_for_rvd(
+        const reg_value_def_t &rvd,
+        ea_t target = BADADDR,
+        ea_t base = 0,
+        bool is_signed = false) const;
+  bool lr_points_to_next_insn(const insn_t &insn) const;
+  // trace the switches between thumb and normal modes
+  bool trace_thumb_arm_mode_switch(const insn_t &insn) const;
   bool arm_get_operand_info(
         idd_opinfo_t *opinf,
         ea_t ea,
@@ -1730,7 +1721,7 @@ struct arm_t : public procmod_t
         int reg,
         sval_t spoff) const;
   int is_cfguard_reg(int *reg, ea_t ea, bool is_indirect) const;
-  int is_cfguard_thunk(const insn_t &insn, int *p_reg);
+  int is_cfguard_thunk(const insn_t &insn, int *p_reg) const;
   bool is_chkstk_darwin(ea_t ea) const;
   special_func_t get_spec_func_type(ea_t ea) const;
 
@@ -1741,7 +1732,7 @@ struct arm_t : public procmod_t
         int value_type,
         const void *value,
         bool idb_loaded);
-  void correct_code_sequences(void);
+  void correct_code_sequences();
   bool is_be_proc() const;
 
   ushort basearch_to_field() const;
@@ -1755,6 +1746,7 @@ struct arm_t : public procmod_t
   bool outspec(outctx_t &ctx, uchar stype) const;
   void get_hint(qstring *out, int *important_lines, const char *name);
   void init_sys_regs() const;
+  bool find_sys_reg(qstring *name, const insn_t &ins) const;
 
   // regfinder.cpp
   void invalidate_reg_cache(ea_t to, ea_t from) const;
@@ -1786,6 +1778,11 @@ struct arm_t : public procmod_t
         func_t *pfn, // non-nullptr
         const insn_t &insn,
         const op_t &op) const;
+  // it returns the index of the found register or -1
+  int find_nearest_rvi(
+        reg_value_info_t *rvi,
+        ea_t ea,
+        const int reg[2]) const;
   const op_t *make_canonical_op(
         op_t *op,
         const op_t &arm_op,
@@ -1797,6 +1794,8 @@ struct arm_t : public procmod_t
         const insn_t &insn,
         bool before = true,
         int max_depth = 0) const;
+  void get_rvi_eas(eavec_t *value_eas, const reg_value_info_t &rvi);
+  bool can_resolve_mem(ea_t ea) const;
 
 #ifdef CVT64
   // convert ARM-related supvals/blobs to 64bit database
@@ -1840,10 +1839,9 @@ struct arm_saver_t
   arm_saver_t(arm_t &_pm, const insn_t &insn_) : pm(_pm), insn(insn_), flow(true) {}
 
   void handle_operand(const op_t &x, bool isload);
-  void emulate(void);
+  void emulate();
   void handle_indirect_jump(const op_t &x, bool is_call);
   void handle_code_ref(
-        const op_t &x,
         ea_t ea,
         bool iscall,
         bool and_apply_type = true);
@@ -1864,8 +1862,6 @@ struct arm_saver_t
         size_t *p_glue_size = nullptr);
   bool arm_is_switch();
   bool check_for_switch(switch_info_t *si);
-  // trace the switches between thumb and normal modes
-  bool trace_thumb_arm_mode_switch() const;
 
   DEFINE_EA_HELPER_FUNCS(pm.eah());
 };

@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      Graph type definitions
  *
  *      Due to the use of STL and virtual functions, some parts of this
@@ -361,7 +361,7 @@ struct TPointDouble
     x /= d;
     y /= d;
   }
-  bool operator ==(const TPointDouble &r) const { return x == r.x && y == r.y; }  //-V550 An odd precise comparison: x == r.x
+  bool operator ==(const TPointDouble &r) const { return x == r.x && y == r.y; }
   bool operator !=(const TPointDouble &r) const { return !(*this == r); }
 };
 
@@ -1214,6 +1214,7 @@ enum graph_notification_t
                               ///< For example:
                               ///<   - at graph creation-time
                               ///<   - if a refresh_viewer() call was made
+                              ///<
                               ///< \param g  (::interactive_graph_t *)
                               ///< \return success
 
@@ -1515,6 +1516,7 @@ inline void idaapi viewer_del_node_info(graph_viewer_t *gv, int n)
 ///  - clone the current graph
 ///  - for each group_crinfo_t, attempt creating group in that new graph
 ///  - if all were successful, animate to that new graph.
+///
 /// \note this accepts parameters that allow creating
 /// of multiple groups at once; which means only one graph
 /// animation will be triggered.

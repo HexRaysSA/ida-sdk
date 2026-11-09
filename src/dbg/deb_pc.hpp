@@ -12,11 +12,6 @@
 #define EFLAGS_TRAP_FLAG 0x00000100
 
 //--------------------------------------------------------------------------
-drc_t idaapi x86_read_registers(thid_t thread_id, int clsmask, regval_t *values, qstring *errbuf);
-drc_t idaapi x86_write_register(thid_t thread_id, int regidx, const regval_t *value, qstring *errbuf);
-int is_x86_valid_bpt(bpttype_t type, ea_t ea, int len);
-
-//--------------------------------------------------------------------------
 inline int check_x86_hwbpt(bpttype_t type, ea_t ea, int len)
 {
   if ( type != BPT_RDWR         // type is good?
@@ -40,6 +35,20 @@ inline int check_x86_hwbpt(bpttype_t type, ea_t ea, int len)
   if ( (ea & (len-1)) != 0 )    // is alignment good?
     return BPT_BAD_ALIGN;
 
+  return BPT_OK;
+}
+
+//--------------------------------------------------------------------------
+inline int is_x86_valid_bpt(const debugger_t &_debugger, bpttype_t type, ea_t ea, int len)
+{
+  if ( type != BPT_SOFT )
+  {
+    if ( (_debugger.flags & DBG_FLAG_ANYSIZE_HWBPT) == 0 )
+      return check_x86_hwbpt(type, ea, len);
+
+    if ( type == 0 )
+      return BPT_BAD_TYPE;
+  }
   return BPT_OK;
 }
 

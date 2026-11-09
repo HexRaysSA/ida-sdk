@@ -1,6 +1,6 @@
 /*
  *      Hex-Rays Decompiler project
- *      Copyright (c) 2007-2024 by Hex-Rays, support@hex-rays.com
+ *      Copyright (c) 2007-2025 by Hex-Rays, support@hex-rays.com
  *      ALL RIGHTS RESERVED.
  *
  *      Sample plugin for Hex-Rays Decompiler.
@@ -119,7 +119,7 @@ NOT_UNION_MEMBER:
     tag_remove(&line, get_custom_viewer_curline(vu.ct, false));
     size_t line_len = line.length();
     size_t x = qmax(0, vu.cpos.x - 10);
-    size_t l = qmin(10, line_len - vu.cpos.x) + 10;   //-V658 A value is being subtracted from the unsigned variable
+    size_t l = qmin(10, line_len - vu.cpos.x) + 10;
     qstring text(&line[x], l);
 
     ui_stroff_ops_t ops;

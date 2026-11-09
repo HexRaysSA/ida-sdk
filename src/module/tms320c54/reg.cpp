@@ -267,7 +267,7 @@ fpvalue_error_t idaapi tms_realcvt(void *m, fpvalue_t *e, ushort swt)
         ret = ieee_realcvt(p, e, swt);
         break;
       }
-    case 011:              // float output    //-V536 octal
+    case 011:              // float output
       {
         ret = ieee_realcvt(m, e, swt);
         unsigned char *p = (unsigned char*)m;

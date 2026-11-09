@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -2232,7 +2232,7 @@ NN_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -2531,7 +2531,7 @@ I5_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -2698,7 +2698,7 @@ I860_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -2786,7 +2786,7 @@ I51_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -3080,7 +3080,7 @@ TMS_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -3325,7 +3325,7 @@ enum m65_itype_t
 
 /*
  *      Interactive disassembler (IDA)
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      PDP11 module.
  *      Copyright (c) 1995-2006 by Iouri Kharon.
  *                        E-mail: yjh@styx.cabel.net
@@ -3455,7 +3455,7 @@ pdp_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -3679,7 +3679,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -3849,7 +3849,7 @@ mc8_last
 
 /*
  *      Interactive disassembler (IDA)
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      JVM module.
  *      Copyright (c) 1995-2006 by Iouri Kharon.
  *                        E-mail: yjh@styx.cabel.net
@@ -4110,7 +4110,7 @@ enum name_quick
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -5234,7 +5234,7 @@ ARM_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      TMS320C6xx - VLIW (very long instruction word) architecture
@@ -5480,7 +5480,7 @@ TMS6_unpklu4,   // Unpack 16 LSB Into Two Lower 8-Bit Halfwords of Upper and Low
 TMS6_xormpy,    // Galois Field Multiply With Zero Polynomial
 TMS6_xpnd2,     // Expand Bits to Packed 16-Bit Masks
 TMS6_xpnd4,     // Expand Bits to Packed 8-Bit Masks
-
+TMS6_fphead,    // Special fake instruction to show the fetch packet header
 TMS6_last,
 
     };
@@ -5667,7 +5667,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      Renesas SuperH - RISC with 16bit instructions
@@ -5939,7 +5939,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      Atmel AVR - 8-bit RISC processor
@@ -6092,7 +6092,7 @@ AVR_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -7909,7 +7909,7 @@ MIPS_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -8042,7 +8042,7 @@ H8_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -8249,7 +8249,7 @@ PIC_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -8388,7 +8388,7 @@ PIC16_last,
     };
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -8651,7 +8651,7 @@ SPARC_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -8821,7 +8821,7 @@ HPPA_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9247,7 +9247,7 @@ enum PMNum // Parallel Move enumeration
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9376,7 +9376,7 @@ C166_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9615,7 +9615,7 @@ ST20_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9696,7 +9696,7 @@ ST7_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -9995,7 +9995,7 @@ IA64_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -10248,7 +10248,7 @@ NET_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      HCS12X opcodes added by alexbratovic@bratspeed.com 12/12/2007
@@ -10639,7 +10639,7 @@ MC12_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -10990,7 +10990,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -11274,7 +11274,7 @@ I960_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -11492,7 +11492,7 @@ F2MC_last,
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -11604,7 +11604,7 @@ TMS320C3X_last,                 // last ID
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -11911,7 +11911,7 @@ TMS320C54_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -12257,7 +12257,7 @@ TMS320C55_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -12578,7 +12578,7 @@ NEC_78K_0_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -13211,7 +13211,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      MITSUBISHI 7900 Family
@@ -13730,7 +13730,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -14824,7 +14824,7 @@ mn102_last
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      PowerPC - RISC with very complex instructions
@@ -18456,7 +18456,7 @@ PPC_last,
 
 /*
 *      Interactive disassembler (IDA).
-*      Copyright (c) 1990-2024 Hex-Rays
+*      Copyright (c) 1990-2025 Hex-Rays
 *      ALL RIGHTS RESERVED.
 *
 */
@@ -19434,7 +19434,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -19816,7 +19816,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -22822,7 +22822,7 @@ enum
 
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  *      Risc-V module
@@ -22935,6 +22935,8 @@ enum
   RISCV_amomax,  // Atomic memory operation max
   RISCV_amominu, // Atomic memory operation min unsigned
   RISCV_amomaxu, // Atomic memory operation max unsigned
+  // Zacas extension
+  RISCV_amocas,  // Atomic compare and swap
   // simple precision F(loat) instruction extension
   RISCV_flw,     // Load word (32b)
   RISCV_fsw,     // Store word (32b)
@@ -23392,6 +23394,10 @@ enum
   RISCV_thvpnclipu,     // Similar to vnclipu, presumably involving packed values (undocumented)
   RISCV_thvpwadd,       // Similar to vadd, presumably involving packed values (undocumented)
   RISCV_thvpwaddu,      // Similar to vaddu, presumably involving packed values (undocumented)
+
+  // Pseudo-instruction containing info about unimplemented instructions, such as length
+  RISCV_unk,     // Unsupported instruction
+
   RISCV_last
 };
 

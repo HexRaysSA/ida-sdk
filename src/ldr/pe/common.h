@@ -16,7 +16,6 @@ struct pe_section_visitor_t
 };
 
 //------------------------------------------------------------------------
-//-V:pe_import_visitor_t:730 not all members of a class are initialized inside the constructor
 struct pe_import_visitor_t
 {
   bool withbase;

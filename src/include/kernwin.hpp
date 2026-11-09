@@ -1,6 +1,6 @@
  /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -21,10 +21,6 @@
 
 #ifndef __KERNWIN_HPP
 #define __KERNWIN_HPP
-//-V:DEF_SET_METHOD:524 equivalent function bodies
-//-V:DEF_FIELD_METHOD:524
-//-V:place_t:730 not all members of a class are initialized inside the constructor
-//-V:idaplace_t:730
 
 #ifndef SWIG
 typedef uchar color_t;          ///< see <lines.hpp>
@@ -340,6 +336,7 @@ enum execute_sync_availability_t
   esa_available,
   esa_unavailable,
   esa_release,
+  esa_app_unavailable,
 };
 
 //-------------------------------------------------------------------------
@@ -1061,10 +1058,16 @@ enum ui_notification_t
                           /// \return icon id
   ui_open_builtin2,       ///< ui: open a window of a built-in type. see \ref ui_open_builtin_funcs
                           ///< \param bwn the builtin widget type
-                          ///< \param arg0 the first argument (e.g., ordinal for BWN_TILVIEW)
-                          ///< \param arg1 the second argument (e.g., a tif_cursor_t * for BWN_TILVIEW)
+                          ///< \param arg0 the first argument (e.g., ordinal for BWN_TICSR)
+                          ///< \param arg1 the second argument (e.g., a tif_cursor_t * for BWN_TICSR)
 
   ui_get_last_widget,     ///< ui: see get_last_widget()
+
+  ui_prompt_function_prototype,
+                          ///< ui: open Function Prototype Editor and return new type for function
+
+  ui_parse_tagged_line_sections,
+                          ///< ui: see parse_tagged_line_sections()
   ui_last,              ///< the last notification code
 
   ui_dbg_begin = 1000, ///< debugger callgates. should not be used directly, see dbg.hpp for details
@@ -1288,6 +1291,17 @@ enum ui_notification_t
 
   // added in 7.7
   ui_dbg_enable_bptgrp,
+
+  // added in 9.1
+  ui_dbg_continue_backwards,
+  ui_dbg_request_continue_backwards,
+  ui_dbg_step_into_backwards,
+  ui_dbg_request_step_into_backwards,
+  ui_dbg_step_over_backwards,
+  ui_dbg_request_step_over_backwards,
+  ui_dbg_run_to_backwards,
+  ui_dbg_request_run_to_backwards,
+  ui_dbg_set_suspend_on_event,
 
   ui_dbg_end,
 
@@ -2417,6 +2431,9 @@ struct line_section_t
   bool is_open() const { return length < 0; }
   bool is_closed() const { return !is_open(); }
   bool valid() const { return is_closed(); }
+
+  bool operator==(const line_section_t &r) const { return start == r.start && length == r.length; }
+  bool operator!=(const line_section_t &r) const { return !(*this == r); }
 };
 DECLARE_TYPE_AS_MOVABLE(line_section_t);
 typedef qvector<line_section_t> line_sections_t;
@@ -2440,6 +2457,15 @@ struct tagged_line_section_t : public line_section_t
   color_t tag = 0;
 
   tagged_line_section_t() {}
+
+  bool operator==(const tagged_line_section_t &r) const
+  {
+    return this->line_section_t::operator==(r)
+        && tag == r.tag
+        && byte_offsets.text_start == r.byte_offsets.text_start
+        && byte_offsets.text_end == r.byte_offsets.text_end;
+  }
+  bool operator!=(const tagged_line_section_t &r) const { return !(*this == r); }
 
   bool valid() const
   {
@@ -2481,6 +2507,14 @@ typedef qvector<tagged_line_section_t> tagged_line_section_vec_t;
 // The list of tagged sections corresponding to a line of text in a listing
 struct tagged_line_sections_t : public tagged_line_section_vec_t
 {
+  const tagged_line_section_t *first(color_t tag) const
+  {
+    for ( const auto &one : *this )
+      if ( one.tag == tag )
+        return &one;
+    return nullptr;
+  }
+
   void sections_at(
         tagged_line_sections_t *out,
         cpidx_t x,
@@ -2561,7 +2595,11 @@ struct tagged_line_sections_t : public tagged_line_section_vec_t
   }
 };
 
-//-------------------------------------------------------------------------
+/// Holds (live) data about a location being displayed in a listing
+///
+/// Note that members of this type, are mere references to live data,
+/// and if you intend on consulting them for extended periods of time
+/// should should make a copy of them.
 struct listing_location_t
 {
   int cb;
@@ -2589,7 +2627,7 @@ inline void clear_refresh_request(uint64 mask) { request_refresh(mask, false); }
 
 /// Get a refresh request state
 /// \param mask  \ref IWID_
-/// \returns the state (set or cleared)
+/// \return the state (set or cleared)
 
 idaman bool ida_export is_refresh_requested(uint64 mask);
 
@@ -2611,7 +2649,7 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define BWN_SELS           7 ///< selectors
 #define BWN_SIGNS          8 ///< signatures
 #define BWN_TILS           9 ///< type libraries
-#define BWN_TILVIEW       10 ///< local types
+#define BWN_TICSR         10 ///< type library widget's (e.g., "Local types") chooser
 #define BWN_CALLS         11 ///< function calls
 #define BWN_PROBS         12 ///< problems
 #define BWN_BPTS          13 ///< breakpoints
@@ -2671,7 +2709,7 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define IWID_SELS          (1ULL << BWN_SELS         ) ///< selectors
 #define IWID_SIGNS         (1ULL << BWN_SIGNS        ) ///< signatures
 #define IWID_TILS          (1ULL << BWN_TILS         ) ///< type libraries
-#define IWID_TILVIEW       (1ULL << BWN_TILVIEW      ) ///< local types
+#define IWID_TICSR         (1ULL << BWN_TICSR        ) ///< type library widget's (e.g., "Local types") chooser
 #define IWID_CALLS         (1ULL << BWN_CALLS        ) ///< function calls
 #define IWID_PROBS         (1ULL << BWN_PROBS        ) ///< problems
 #define IWID_BPTS          (1ULL << BWN_BPTS         ) ///< breakpoints
@@ -3437,7 +3475,7 @@ struct chooser_t : public chooser_base_t
   /// \param  n        index of the element to edit
   /// \return idx      index of the selected item (cursor)
   ///         changed  what is changed
-  virtual cbret_t idaapi edit(size_t /*n*/) newapi { return cbret_t(); } //-V524 body is equal to del()
+  virtual cbret_t idaapi edit(size_t /*n*/) newapi { return cbret_t(); }
 
   /// User pressed the enter key.
   /// \param  n        index of the element where <Enter> was pressed
@@ -4519,6 +4557,7 @@ struct action_ctx_base_t
 
   interactive_graph_t *graph; ///< the current graph (if in a graph view)
   screen_graph_selection_t *graph_selection; ///< the current graph selection (if in a graph view)
+  const selection_item_t *hovered; ///< the current item being hovered (if in a graph view)
 
   dirtree_selection_t *dirtree_selection; ///< the current dirtree_t selection (if applicable)
 
@@ -4555,7 +4594,7 @@ struct action_handler_t
   /// This function implements the core behavior of an action.
   /// It is called when the action is triggered, from a menu, from
   /// a popup menu, from the toolbar, or programmatically.
-  /// \returns non-zero: all IDA windows will be refreshed
+  /// \return non-zero: all IDA windows will be refreshed
   virtual int idaapi activate(action_activation_ctx_t *ctx) = 0;
 
   /// Update an action.
@@ -4708,7 +4747,7 @@ public:
 // Convenience functions offered by the user interface
 
 /// Execute a list of UI requests (::ui_execute_ui_requests_list).
-/// \returns a request id: a unique number that can be used to cancel the request
+/// \return a request id: a unique number that can be used to cancel the request
 
 THREAD_SAFE inline int execute_ui_requests(ui_requests_t *reqs)
 {
@@ -5790,9 +5829,9 @@ inline const char *get_custom_viewer_curline(TWidget *custom_viewer, bool mouse)
 /// \param custom_viewer the widget
 /// \param pline a place corresponding to the line
 /// \param pitem a place corresponding to the item
-/// \return -1 if 'pitem' is not included in the line
-/// \return -2 if 'pitem' points at the entire line
-/// \return >= 0 for the X coordinate within the pline, where pitem points
+/// \retval -1 if 'pitem' is not included in the line
+/// \retval -2 if 'pitem' points at the entire line
+/// \retval >= 0 for the X coordinate within the pline, where pitem points
 
 inline int get_custom_viewer_place_xcoord(
         TWidget *custom_viewer,
@@ -5853,6 +5892,34 @@ inline TWidget *get_current_viewer()
 inline TWidget *get_last_widget(uint64 mask=uint64(-1))
 {
   return (TWidget *)callui(ui_get_last_widget, mask).vptr;
+}
+
+/// Open function prototype editor to edit function type and create new type.
+/// Allows to change the function prototype either in the "old" one-liner mode
+/// or in the new multi-line editor, which supports shortcuts, etc.
+/// Note: changes will not apply! It is the caller's job to apply the resulting out_tif.
+/// Parameters:
+/// \param[out] errbuf - (::qstring *) the output string for errors
+/// \param[out] out_tif - (tinfo_t *) tif for created type
+/// \param      pfn - (func_t *) editing function
+/// \param      tif - (tinfo_t *) current function type
+/// \param      name - (const char *) function name
+/// \return     true if new type created successfully
+
+inline bool prompt_function_prototype(qstring *errbuf, tinfo_t *out_tif, func_t *pfn, tinfo_t *tif, const char *name)
+{
+  return callui(ui_prompt_function_prototype, errbuf, out_tif, pfn, tif, name).cnd;
+}
+
+/// Collect tagged sections in a color-tagged line
+/// (produced by `place_t::generate`)
+///
+/// \param out sections storage
+/// \param line input line
+/// \return success
+inline bool parse_tagged_line_sections(tagged_line_sections_t *out, const char *line)
+{
+  return callui(ui_parse_tagged_line_sections, out, line).cnd;
 }
 
 
@@ -6395,7 +6462,7 @@ inline TWidget *open_tils_window(void)
 
 inline TWidget *open_loctypes_window(int ordinal, const tif_cursor_t *cursor=nullptr)
 {
-  return (TWidget *) callui(ui_open_builtin2, BWN_TILVIEW, ordinal, cursor).vptr;
+  return (TWidget *) callui(ui_open_builtin2, BWN_TICSR, ordinal, cursor).vptr;
 }
 
 /// Open the sub-til window (::ui_open_builtin2).
@@ -7413,6 +7480,7 @@ inline TWidget *vopen_form(const char *format, uint32 flags, va_list va)
 /// - by pressing the small 'x' in the window title
 /// - by calling form_actions_t::close() from the form callback
 ///   (\ref form_actions_t)
+///
 /// \note pressing the 'Yes/No/Cancel' buttons does not close the modeless
 ///       form, except if the form callback explicitly calls close().
 /// \param form      dialog box as a string. see \ref FORM_C
@@ -7523,9 +7591,9 @@ struct form_actions_t
   // get/set value of dynamic label (%)
   DEF_STR_FIELD_METHOD(label)
   // get/set string value (X, F, f)
-  DEF_STR_FIELD_METHOD(string) //-V524 body is equal to get_label_value
+  DEF_STR_FIELD_METHOD(string)
   // get/set path value (F, f)
-  DEF_STR_FIELD_METHOD(path)   //-V524 body is equal to get_label_value
+  DEF_STR_FIELD_METHOD(path)
   // get/set string value (q, I, y, p)
   DEF_FIELD_METHOD(string, qstring)
   // get/set identifier value (I)
@@ -7680,6 +7748,7 @@ AS_PRINTF(2, 3) inline int ask_yn(int deflt, const char *format, ...)
 /// \note for all buttons:
 ///   - use "" or nullptr to take the default name for the button.
 ///   - prepend "HIDECANCEL\n" in 'format' to hide the Cancel button
+///
 /// \param Yes     text for the first button
 /// \param No      text for the second button
 /// \param Cancel  text for the third button
@@ -7941,7 +8010,7 @@ struct addon_info_t
   const char *producer;     //< e.g. "Hex-Rays SA"
   const char *version;      //< version string, e.g. 1.5.110408
   const char *url;          //< URL of the product http://www.hex-rays.com/decompiler.shtml
-  const char *freeform;     //< any string, e.g. "Copyright (c) 2007-2024 Hex-Rays"
+  const char *freeform;     //< any string, e.g. "Copyright (c) 2007-2025 Hex-Rays"
   const void *custom_data;  //< custom data (license ID etc). Can be nullptr. Not displayed in UI.
   size_t custom_size;
 
@@ -8065,6 +8134,7 @@ struct strarray_t
 ///                   this character (ignoring leading spaces)
 ///                 - all text after (and including) this character is removed
 ///                   if flag CLNL_FINDCMT is set
+///
 /// \param flags    a combination of \ref CLNL_. defaults to CLNL_TRIM
 /// \return length of line
 

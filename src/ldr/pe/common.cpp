@@ -47,7 +47,7 @@ inline bool pe64_to_pe(peheader_t &pe, const peheader64_t &pe64, bool silent, bo
     case MAGIC_P32:
     case MAGIC_ROM:
     case 0:
-      memcpy(&pe, &pe64, sizeof(pe)); //-V512 underflow of the buffer '& pe64'
+      memcpy(&pe, &pe64, sizeof(pe));
       break;
     case MAGIC_P32_PLUS:
       // Copy the constant part

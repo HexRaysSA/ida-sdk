@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -149,15 +149,6 @@ idaman THREAD_SAFE int ida_export process_zipfile_entry(
 
 extern bool legacy_idb;         ///< for old idb files
 
-/// Upon closing outer linput, perform one of these actions
-enum linput_close_code_t
-{
-  LOC_CLOSE,    ///< close the inner linput
-  LOC_UNMAKE,   ///< unmake the inner linput
-  LOC_KEEP,     ///< do nothing
-};
-
-
 /// Create a linput to read a compressed input stream
 /// \param in      linput with compressed data, seeked to the stream beginning
 /// \param insize  size of compressed data. -1 - unknown
@@ -169,5 +160,6 @@ idaman THREAD_SAFE linput_t *ida_export create_zip_linput(
         linput_t *in,
         ssize_t insize=-1,
         linput_close_code_t loc=LOC_CLOSE);
+
 
 #endif

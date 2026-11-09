@@ -16,22 +16,13 @@ inline drc_t unpack_drc(memory_deserializer_t &mmdsr)
 rpc_debmod_t::rpc_debmod_t(const char *default_platform)
   : dbg_rpc_client_t(nullptr)
 {
-  for ( int i=0; i < debugger.nregisters; i++ )
-  {
-    const register_info_t &ri = debugger.regs(i);
-    if ( (ri.flags & REGISTER_SP) != 0 )
-      sp_idx = i;
-    if ( (ri.flags & REGISTER_IP) != 0 )
-      pc_idx = i;
-  }
-  bpt_code.append(debugger.bpt_bytes, debugger.bpt_size);
   rpc = this;
 
   set_platform(default_platform);
 }
 
 //--------------------------------------------------------------------------
-int idaapi rpc_debmod_t::handle_ioctl(    //-V524 equivalent to 'send_ioctl'
+int idaapi rpc_debmod_t::handle_ioctl(
         int fn,
         const void *buf,
         size_t size,
@@ -103,8 +94,8 @@ FAILURE:
   qstring errstr;
   if ( version != IDD_INTERFACE_VERSION )
     errstr.sprnt("protocol version is %d, expected %d", version, IDD_INTERFACE_VERSION);
-  else if ( remote_debugger_id != debugger.id )
-    errstr.sprnt("debugger id is %d, expected %d (%s)", remote_debugger_id, debugger.id, debugger.name);
+  else if ( remote_debugger_id != debugger_id )
+    errstr.sprnt("debugger id is %d, expected %d (%s)", remote_debugger_id, debugger_id, debugger_name.c_str());
   else if ( easize < get_expected_addrsize() )
     errstr.sprnt("address size is %d bytes, expected at least %d", easize, get_expected_addrsize());
   if ( !errstr.empty() )
@@ -422,14 +413,20 @@ void idaapi rpc_debmod_t::dbg_set_debugging(bool _debug_debugger)
 }
 
 //--------------------------------------------------------------------------
-drc_t idaapi rpc_debmod_t::dbg_init(uint32_t *_flags2, qstring *errbuf)
+drc_t idaapi rpc_debmod_t::dbg_init(uint64 *_add_debugger_flags, qstring *errbuf)
 {
+  auto &_debugger = get_debugger();
+  bpt_code.append(_debugger.bpt_bytes, _debugger.bpt_size);
+
   has_pending_event = false;
   poll_debug_events = false;
 
   bytevec_t req = prepare_rpc_packet(RPC_INIT);
-  req.pack_dd(debugger.flags);
+  req.pack_dq(debugger_flags);
   req.pack_dd(debug_debugger);
+  req.pack_str(debugger_name);
+  req.pack_str(debugger_processor);
+  req.pack_dd(debugger_id);
 
   rpc_packet_t *rp = send_request_and_receive_reply(RPC_INIT, req);
   if ( rp == nullptr )
@@ -437,10 +434,12 @@ drc_t idaapi rpc_debmod_t::dbg_init(uint32_t *_flags2, qstring *errbuf)
 
   memory_deserializer_t mmdsr(rp+1, rp->length);
   drc_t drc = unpack_drc(mmdsr);
-  uint32_t flags2 = mmdsr.unpack_dd();
-  if ( _flags2 != nullptr )
-    *_flags2 = flags2;
-  if ( drc != DRC_OK && errbuf != nullptr )
+  uint64 add_debugger_flags = mmdsr.unpack_dq();
+  if ( _add_debugger_flags != nullptr )
+    *_add_debugger_flags = add_debugger_flags;
+  if ( drc == DRC_OK )
+    load_dynamic_register_set(mmdsr);
+  else if ( errbuf != nullptr )
     *errbuf = mmdsr.unpack_str();
 
   qfree(rp);
@@ -515,7 +514,6 @@ drc_t idaapi rpc_debmod_t::dbg_start_process(
     req.pack_db(true);
     req.pack_dd(0);
   }
-
 
   return process_start_or_attach(req, errbuf);
 }
@@ -659,12 +657,12 @@ drc_t idaapi rpc_debmod_t::dbg_set_resume_mode(thid_t tid, resume_mode_t resmod)
 //--------------------------------------------------------------------------
 // prepare bitmap of registers belonging to the specified classes
 // return size of the bitmap in bits (always the total number of registers)
-static int calc_regmap(bytevec_t *regmap, int clsmask)
+int rpc_debmod_t::calc_regmap(bytevec_t *regmap, int clsmask)
 {
-  int nregs = debugger.nregisters;
+  int nregs = idaregs.ri_vec.size();
   regmap->resize((nregs+7)/8, 0);
   for ( int i=0; i < nregs; i++ )
-    if ( (debugger.regs(i).register_class & clsmask) != 0 )
+    if ( (idaregs.ri_vec[i].register_class & clsmask) != 0 )
       regmap->set_bit(i);
   return nregs;
 }
@@ -978,6 +976,35 @@ drc_t idaapi rpc_debmod_t::dbg_bin_search(
 }
 
 //--------------------------------------------------------------------------
+void rpc_debmod_t::load_dynamic_register_set(memory_deserializer_t &mmdsr)
+{
+  extract_dynamic_register_set(&idaregs, mmdsr);
+  for ( int i=0; i < idaregs.ri_vec.size(); ++i )
+  {
+    const register_info_t &ri = idaregs.ri_vec[i];
+    if ( (ri.flags & REGISTER_SP) != 0 )
+      sp_idx = i;
+    if ( (ri.flags & REGISTER_IP) != 0 )
+      pc_idx = i;
+  }
+}
+
+//--------------------------------------------------------------------------
+drc_t idaapi rpc_debmod_t::dbg_get_register_descriptions()
+{
+  bytevec_t req = prepare_rpc_packet(RPC_GET_DYNREGS);
+  rpc_packet_t *rp = send_request_and_receive_reply(RPC_GET_DYNREGS, req);
+  if ( rp == nullptr )
+    return DRC_NETERR;
+  memory_deserializer_t mmdsr(rp+1, rp->length);
+  drc_t drc = unpack_drc(mmdsr);
+  if ( drc == DRC_OK )
+    load_dynamic_register_set(mmdsr);
+  qfree(rp);
+  return drc;
+}
+
+//--------------------------------------------------------------------------
 drc_t rpc_debmod_t::close_remote()
 {
   bytevec_t req = prepare_rpc_packet(RPC_OK);
@@ -1006,7 +1033,7 @@ drc_t rpc_debmod_t::process_start_or_attach(bytevec_t &req, qstring *errbuf)
   if ( drc > DRC_NONE )
   {
     extract_debapp_attrs(&debapp_attrs, mmdsr);
-    extract_dynamic_register_set(&idaregs, mmdsr);
+    load_dynamic_register_set(mmdsr);
   }
   else if ( errbuf != nullptr )
   {

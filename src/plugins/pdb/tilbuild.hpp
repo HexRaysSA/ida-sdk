@@ -176,6 +176,7 @@ public:
   // returns the type is creating
   bool get_vft_name(qstring *vft_name, uint32 *ord, const char *udt_name, uint32_t offset=0);
   void fix_thisarg_type(const qstring &udt_name);
+  bool fix_ctor_to_return_ptr(func_type_data_t *fti, pdb_sym_t *parent);
 
   virtual HRESULT before_iterating(pdb_sym_t &global_sym);
   virtual HRESULT after_iterating(pdb_sym_t &global_sym);

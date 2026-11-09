@@ -66,7 +66,7 @@ public:
       debuglink_crc32(_debuglink_crc32)
   {
     fullpath[0] = '\0';
-    const char *sep = from_envvar ? DELIMITER : ";";    //-V583
+    const char *sep = from_envvar ? DELIMITER : ";";
     char buf[QMAXPATH];
     qstrncpy(buf, _glbl_deb_dirs, sizeof(buf));
     char *saved_ptr;

@@ -20,7 +20,6 @@ typedef qvector<ida_syntax_highlighter_helper_t *> ida_syntax_highlighter_helper
 #define PREPROC_FLAG  0x10
 
 // Common implementation of syntax_highlighter_t used in different parts of IDA
-//-V:ida_syntax_highlighter_t:730 not all members of a class are initialized inside the constructor
 struct ida_syntax_highlighter_t : syntax_highlighter_t
 {
 protected:

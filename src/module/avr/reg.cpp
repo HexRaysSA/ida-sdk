@@ -203,7 +203,7 @@ void avr_t::setup_avr_device(int resp_info)
     segment_t *s = getseg(node2ea(helper.altval(-1)));
     if ( s == nullptr )
       s = get_first_seg();  // for the old databases
-    if ( s != nullptr )  //-V547 's != 0' is always true
+    if ( s != nullptr )
     {
       if ( s->size() > romsize )
         warning("The input file is bigger than the ROM size of the current device");

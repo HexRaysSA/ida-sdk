@@ -47,7 +47,7 @@ static int idaapi accept_file(
   {
     if ( maj_ver < JDK_MIN_MAJOR )
       goto BADFMT;
-    jdk = maj_ver >= JDK_1_1_MINOR;   //-V547 'maj_ver >= 3' is always true
+    jdk = maj_ver >= JDK_1_1_MINOR;
   }
   else if ( maj_ver > JDK_MAX_MAJOR )
   {

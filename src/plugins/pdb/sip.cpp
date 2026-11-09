@@ -306,7 +306,7 @@ struct dummy_item_t : public source_item_t
     ea_t ea = get_ea();
     if ( ea == BADADDR )
       return false;
-    asize_t size = get_size();    //-V779 Unreachable code detected
+    asize_t size = get_size();
     set->add(range_t(ea, ea+size));
     return true;
   }
@@ -1236,7 +1236,8 @@ bool idaapi pdb_provider_t::apply_module_info(const char *path)
   sval_t load_options = 0;
   setflag(load_options, LOAD_TYPES, (pdbargs.flags & PDBFLG_LOAD_TYPES) != 0);
   setflag(load_options, LOAD_NAMES, (pdbargs.flags & PDBFLG_LOAD_NAMES) != 0);
-  if ( !ask_form(form, pdbargs.input_path.c_str(), &load_options) )
+  const char *input_path = pdbargs.input_path.c_str();
+  if ( !ask_form(form, input_path, &load_options) )
     return false;
   setflag(pdbargs.flags, PDBFLG_LOAD_TYPES, (load_options & LOAD_TYPES) != 0);
   setflag(pdbargs.flags, PDBFLG_LOAD_NAMES, (load_options & LOAD_NAMES) != 0);

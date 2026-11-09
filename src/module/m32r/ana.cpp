@@ -638,7 +638,7 @@ int m32r_t::parse_fp_insn(insn_t &insn, int word)
   };
   int word2 = insn.get_next_word();
   int idx = (word2 & 0x00F0) | (word2 >> 12);
-  if ( idx >= qnumber(fp_itypes) )    //-V547 always false
+  if ( idx >= qnumber(fp_itypes) )
     return 0;
   insn.itype = fp_itypes[idx];
   if ( insn.itype == m32r_null )

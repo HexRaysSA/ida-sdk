@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA)
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  */
 
@@ -12,45 +12,45 @@
 
 /*! \file typeinf.hpp
 
-  \brief Manipulate type information in IDA.
+  \brief Type information in IDA.
 
-  In IDA, types are represented by, and manipulated
-  through ::tinfo_t objects.
+  In IDA, types are represented by and manipulated through ::tinfo_t objects.
 
   A ::tinfo_t can represent a simple type (e.g., `int`, `float`),
-  a complex types (structures, enums, unions, typedefs), or even
-  an arrays, or a function prototype.
+  a complex type (a structure, enum, union, typedef), or even
+  an array, or a function prototype.
 
   The key types in this file are:
 
-  * ::til_t - a type info library. Holds ::tinfo_t objects
-  * ::tinfo_t - information about a type (simple, complex, ...)
+  - ::til_t - a type info library. Holds type information in serialized form.
+  - ::tinfo_t - information about a type (simple, complex, ...)
 
   # Glossary
 
   All throughout this file, there are certain terms that will keep
-  appearing. Let's go through them:
+  appearing:
 
-  * udt: "user-defined type": a structure or union - but not enums. See ::udt_type_data_t
-  * udm: "udt member": i.e., a structure or union member. See ::udm_t
-  * edm: "enum member": i.e., an enumeration member - i.e., an enumerator. See ::edm_t
+  - udt: "user-defined type": a structure or union - but not enums. See ::udt_type_data_t
+  - udm: "udt member": i.e., a structure or union member. See ::udm_t
+  - edm: "enum member": i.e., an enumeration member - i.e., an enumerator. See ::edm_t
 
   # Under the hood
 
   The ::tinfo_t type provides a lot of useful methods already,
-  but it's possible to achieve even more by "unpacking" its
+  but it's possible to achieve even more by retrieving its
   contents into the container classes:
 
-  * ::udt_type_data_t - for structures & unions. See ::tinfo_t::get_udt_details . Essentially, a vector of ::udm_t
-  * ::enum_type_data_t - for enumerations. See ::tinfo_t::get_enum_details . Essentially, a vector of ::edm_t
-  * ::ptr_type_data_t - for pointers. See ::tinfo_t::get_ptr_details
-  * ::array_type_data_t - for arrays. See ::tinfo_t::get_array_details
-  * ::func_type_data_t - for function prototypes. See ::tinfo_t::get_func_details
+  - ::udt_type_data_t - for structures & unions. See ::tinfo_t::get_udt_details . Essentially, a vector of ::udm_t
+  - ::enum_type_data_t - for enumerations. See ::tinfo_t::get_enum_details . Essentially, a vector of ::edm_t
+  - ::ptr_type_data_t - for pointers. See ::tinfo_t::get_ptr_details
+  - ::array_type_data_t - for arrays. See ::tinfo_t::get_array_details
+  - ::func_type_data_t - for function prototypes. See ::tinfo_t::get_func_details
+  - ::bitfield_type_data_t - for bitfields. See ::tinfo_t::get_bitfield_details
 
   # Attached & detached tinfo_t objects
 
-  While a ::til_t hosts ::tinfo_t instances, it's possible to create tinfo_t
-  objects that are not registered in a til_t.
+  ::tinfo_t objects can be attached to a ::til_t library, or can be
+  created without using any til_t.
 
   Here is an example, assigning a function prototype:
 
@@ -73,7 +73,10 @@
          apply_tinfo(ea, tif, TINFO_DEFINITE);
        }
 
-  This code manipulates "detached" ::tinfo_t objects.
+  This code manipulates a "detached" ::tinfo_t object, which does not depend on
+  any ::til_t file. However, any complex type will require a ::til_t file.
+  In IDA, there is always a default til_t file for each idb file.
+  This til_t file can be specified by nullptr.
 
   On the other hand, the following code manipulates an "attached"
   ::tinfo_t object, and any operation that modifies it, will
@@ -85,13 +88,14 @@
        if ( tif.get_named_type(nullptr, "my_struct_t") )
          tif.add_udm("extra_field", "unsigned long long");
 
-  You can check a ::tinfo_t instance is attached, by
-  calling ::tinfo_t::is_typeref
+  You can check if a ::tinfo_t instance is attached to a type in a til_t file
+  by calling ::tinfo_t::is_typeref
 */
 
-/// byte sequence used to describe a type in IDA (see \ref tf)
+/// In serialized form, a type is represented by a byte sequence. (see \ref tf)
+/// We call it a type string.
 typedef uchar type_t;
-/// pascal-like string: dt length, characters
+/// Inside a type string, a pascal-like string: dt length, characters
 typedef uchar p_string;
 /// several ::p_string's
 typedef uchar p_list;
@@ -354,6 +358,7 @@ const bte_t   BTE_BITMASK     = 0x10; ///< 'subarrays'. In this case ANY record
                                       ///<   - 'dt' cnt
                                       ///<   - cnt records of 'de' values
                                       ///<      (cnt CAN be 0)
+                                      ///<
                                       ///< \note delta for ALL subsegment is ONE
 const bte_t   BTE_OUT_MASK    = 0x60; ///< output style mask
 const bte_t   BTE_HEX         = 0x00; ///< hex
@@ -2453,7 +2458,7 @@ idaman bool ida_export apply_named_type(ea_t ea, const char *name);
 /// \param ea      linear address
 /// \param tif     type string in internal format
 /// \param flags   combination of \ref TINFO_
-/// \returns success
+/// \return success
 
 idaman bool ida_export apply_tinfo(
         ea_t ea,
@@ -2745,7 +2750,6 @@ decl bool ida_export value_repr_t__from_opinfo(value_repr_t *_this, flags64_t fl
 decl size_t ida_export value_repr_t__print_(const value_repr_t *_this, qstring *result, bool colored); \
 decl bool ida_export value_repr_t__parse_value_repr(value_repr_t *_this, const qstring &attr, type_t target_type); \
 decl ssize_t ida_export udt_type_data_t__find_member(const udt_type_data_t *_this, udm_t *udm, int strmem_flags); \
-decl bool ida_export udm_t__make_gap(udm_t *_this, uval_t byteoff, uval_t nbytes); \
 decl ssize_t ida_export udt_type_data_t__get_best_fit_member(const udt_type_data_t *_this, asize_t disp); \
 decl uchar ida_export enum_type_data_t__get_max_serial(const enum_type_data_t *ei, uint64 value); \
 decl tinfo_code_t ida_export enum_type_data_t__set_value_repr(enum_type_data_t *ei, const value_repr_t &repr); \
@@ -3051,6 +3055,15 @@ public:
   /// For some UDTs get_unpadded_size() != get_size()
   size_t get_unpadded_size() const { return get_tinfo_property(typid, GTA_UNPADDED_SIZE); }
 
+  /// Get type alignment
+  /// This function returns the effective type alignment. Zero means error.
+  uint32 get_alignment() const
+  {
+    uint32 alignment = 0;
+    get_size(&alignment);
+    return alignment;
+  }
+
   /// Get type sign
   type_sign_t get_sign() const { return get_tinfo_property(typid, GTA_TYPE_SIGN); }
 
@@ -3352,6 +3365,7 @@ public:
   ///   - with the specified index (#STRMEM_INDEX)
   ///   - with the specified type  (#STRMEM_TYPE)
   ///   - with the specified name  (#STRMEM_NAME)
+  ///
   /// \return the index of the found member or -1
   int find_udm(udm_t *udm, int strmem_flags) const { return find_tinfo_udt_member(udm, typid, strmem_flags); }
 /// \defgroup STRMEM_ Find UDT member flags
@@ -5130,7 +5144,6 @@ struct udm_t // #udm
     return name[0] == '_' && name[1] == '_' && type.is_anonymous_udt();
   }
 
-  bool make_gap(uval_t byteoff, uval_t nbytes) { return udm_t__make_gap(this, byteoff, nbytes); }
   void set_value_repr(const value_repr_t &r) { repr = r; }
   bool can_be_dtor() const { return name[0] == '~'; }
   bool can_rename() const

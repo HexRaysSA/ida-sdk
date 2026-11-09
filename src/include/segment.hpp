@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -661,7 +661,7 @@ idaman segment_t *ida_export getseg(ea_t ea);
 /// \warning Obsoleted because it can slow down the debugger (it has to refresh the whole
 /// memory segmentation to calculate the correct answer)
 /// \param n  segment number in the range (0..get_segm_qty()-1)
-/// \returns nullptr or pointer to segment structure
+/// \return nullptr or pointer to segment structure
 
 idaman segment_t *ida_export getnseg(int n);
 
@@ -877,8 +877,8 @@ idaman bool ida_export set_segm_base(segment_t *s, ea_t newbase);
 /// \param sel  common selector of all segments belonging to the segment
 ///             You should create all segments within the group with the
 ///             same selector value.
-/// \return 1   ok
-/// \return 0   too many groups (see #MAX_GROUPS)
+/// \retval 1   ok
+/// \retval 0   too many groups (see #MAX_GROUPS)
 
 idaman int ida_export set_group_selector(sel_t grp, sel_t sel);
 

@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -32,8 +32,8 @@
    __ARM__     - ARM
 */
 
-/// IDA SDK v9.0
-#define IDA_SDK_VERSION      900
+/// IDA SDK v9.1
+#define IDA_SDK_VERSION      910
 
 //---------------------------------------------------------------------------
 #if !defined(__NT__) && !defined(__LINUX__) && !defined(__MAC__)
@@ -77,6 +77,7 @@
 #include <time.h>
 #include <stdint.h>
 #ifdef __cplusplus
+#include <memory>
 #include <new>
 #include <string>
 #endif
@@ -549,12 +550,12 @@ idaman THREAD_SAFE bool ida_export qctime_utc(char *buf, size_t bufsize, qtime32
 /// Converts a time value to a tm structure (local time)
 /// \param[out] _tm  result
 /// \param t         calendar time
-/// \returns success
+/// \return success
 
 idaman THREAD_SAFE bool ida_export qlocaltime(struct tm *_tm, time_t t);
 
 
-/// Same as qlocaltime(struct tm *, qtime32_t), but accepts a 64-bit time value
+/// Same as qlocaltime(struct tm *, time_t), but accepts a 64-bit time value
 
 INLINE THREAD_SAFE bool qlocaltime64(struct tm *_tm, qtime64_t t)
 {
@@ -565,7 +566,7 @@ INLINE THREAD_SAFE bool qlocaltime64(struct tm *_tm, qtime64_t t)
 /// Converts a time value to a tm structure (UTC time)
 /// \param[out] _tm  result
 /// \param t         calendar time
-/// \returns success
+/// \return success
 
 idaman bool ida_export qgmtime(struct tm *_tm, time_t t);
 
@@ -1300,15 +1301,17 @@ idaman THREAD_SAFE int ida_export qchsize(int h, uint64 fsize);
 /// Create an empty directory.
 /// \param file  name (or full path) of directory to be created
 /// \param mode  permissions (only used on unix systems)
-/// \return 0    success
-/// \return -1   otherwise and qerrno is set
+/// \return error code
+/// \retval 0    success
+/// \retval -1   otherwise and qerrno is set
 
 idaman THREAD_SAFE int ida_export qmkdir(const char *file, int mode);
 
 /// Delete a directory.
 /// \param file  name (or full path) of directory to be removed
-/// \return 0    success
-/// \return -1   otherwise and qerrno is set
+/// \return error code
+/// \retval 0    success
+/// \retval -1   otherwise and qerrno is set
 
 idaman THREAD_SAFE int ida_export qrmdir(const char *file);
 
@@ -1324,6 +1327,10 @@ idaman THREAD_SAFE bool ida_export qisdir(const char *file);
 /// Get file status
 idaman THREAD_SAFE int ida_export qstat(const char *path, struct qstatbuf *buf);
 idaman THREAD_SAFE int ida_export qfstat(int fd, struct qstatbuf *buf);
+
+/// touch: set access and modification times of the file to the current time
+
+idaman THREAD_SAFE int ida_export qtouchfile(const char *file_name);
 
 //---------------------------------------------------------------------------
 /// Add a function to be called at exit time
@@ -2916,10 +2923,11 @@ idaman THREAD_SAFE size_t ida_export qstrlen(const wchar16_t *s);
 
 /// \name qstrcmp
 /// Lexical comparison of strings.
-/// \return 0 if two strings are identical
-///         > 0 if 's1' is larger than 's2'
-///         < 0 if 's2' is larger than 's1'
-///         otherwise return first nonzero comparison between chars in 's1' and 's2'
+/// \return code
+/// \retval 0 if two strings are identical
+/// \retval > 0 if 's1' is larger than 's2'
+/// \retval < 0 if 's2' is larger than 's1'
+/// \retval otherwise return first nonzero comparison between chars in 's1' and 's2'
 ///@{
 inline THREAD_SAFE int idaapi qstrcmp(const char *s1, const char *s2) { return strcmp(s1, s2); }
 inline THREAD_SAFE int idaapi qstrcmp(const uchar *s1, const uchar *s2) { return strcmp((const char *)s1, (const char *)s2); }
@@ -2928,10 +2936,11 @@ idaman THREAD_SAFE int ida_export qstrcmp(const wchar16_t *s1, const wchar16_t *
 
 /// \name qstrncmp
 /// Lexical comparison of string prefixes.
-/// \return 0 if two strings are identical
-///         > 0 if 's1' is larger than 's2'
-///         < 0 if 's2' is larger than 's1'
-///         otherwise return first nonzero comparison between chars in 's1' and 's2'
+/// \return code
+/// \retval 0 if two strings are identical
+/// \retval > 0 if 's1' is larger than 's2'
+/// \retval < 0 if 's2' is larger than 's1'
+/// \retval otherwise return first nonzero comparison between chars in 's1' and 's2'
 ///@{
 inline THREAD_SAFE int idaapi qstrncmp(const char *s1, const char *s2, size_t len) { return strncmp(s1, s2, len); }
 inline THREAD_SAFE int idaapi qstrncmp(const uchar *s1, const uchar *s2, size_t len) { return strncmp((const char *)s1, (const char *)s2, len); }
@@ -3643,6 +3652,9 @@ void qstring::split(qstrvec_t *out, const char *sep, uint32 flags) const
       out->push_back().append(p, rem);
     p = psep != nullptr ? psep + seplen : end;
   }
+  // Account for trailing separator sequence
+  if ( ends_with(sep, seplen) && (flags & SSF_DROP_EMPTY) == 0 )
+    out->push_back(); // add an empty string
 }
 
 template <> inline
@@ -4390,6 +4402,15 @@ protected:
   T &resource;
 };
 
+// Custom deleter to be used with std::unique_ptr which calls qfree
+template <typename T>
+struct qfree_deleter_t
+{
+  void operator() ( T *ptr ) { qfree(ptr); }
+};
+
+template <typename T>
+using qalloc_janitor_t = std::unique_ptr<T, qfree_deleter_t<T>>;
 #ifndef SWIG
 //-------------------------------------------------------------------------
 /// Template to compare any 2 values of the same type. Returns -1/0/1
@@ -4583,7 +4604,7 @@ idaman THREAD_SAFE bool ida_export base64_decode(bytevec_t *output, const char *
 /// \param out      output buffer to append to
 /// \param str      input string. cannot be equal to out->c_str()
 /// \param tabsize  tabulation size
-/// \returns true-replaced some tabs
+/// \return true-replaced some tabs
 
 idaman THREAD_SAFE bool ida_export replace_tabs(qstring *out, const char *str, int tabsize);
 
@@ -4607,7 +4628,7 @@ idaman THREAD_SAFE void ida_export user2qstr(qstring *dst, const qstring *src); 
 
 /// Does byte sequence consist of valid UTF-8-encoded codepoints?
 /// \param in the byte sequence
-/// \returns success
+/// \return success
 
 idaman THREAD_SAFE bool ida_export is_valid_utf8(const char *in);
 
@@ -4618,7 +4639,7 @@ idaman THREAD_SAFE bool ida_export is_valid_utf8(const char *in);
 /// \param out the output buffer
 /// \param in the input UTF-8 byte stream
 /// \param nsyms the number of UTF-8-encoded codepoints in the byte stream
-/// \returns success
+/// \return success
 idaman THREAD_SAFE bool ida_export utf8_utf16(qwstring *out, const char *in, int nsyms=-1);
 
 
@@ -4628,7 +4649,7 @@ idaman THREAD_SAFE bool ida_export utf8_utf16(qwstring *out, const char *in, int
 /// \param nsyms the number of 16-bit items in 'in'. This does not necessarily
 ///              correspond to the number of codepoints: each surrogate pair
 ///              will take 2 items.
-/// \returns success
+/// \return success
 idaman THREAD_SAFE bool ida_export utf16_utf8(qstring *out, const wchar16_t *in, int nsyms=-1);
 
 
@@ -4647,7 +4668,7 @@ inline constexpr wchar32_t utf16_surrogates_to_cp(wchar16_t lead_surrogate, wcha
 ///@}
 
 /// IDB default C string encoding -> UTF-8
-/// \returns success (i.e., all bytes converted)
+/// \return success (i.e., all bytes converted)
 
 idaman THREAD_SAFE bool ida_export idb_utf8(qstring *out, const char *in, int nsyms=-1, int flags=0);
 
@@ -4717,7 +4738,7 @@ idaman THREAD_SAFE wchar32_t ida_export get_utf8_char(const char **pptr);
 /// \param out_cp the output codepoint storage. May be nullptr.
 /// \param p      the pointer, pointing in the 'begin' string right after the UTF-8-encoded codepoint we want to retrieve
 /// \param begin  the beginning of the string
-/// \returns success
+/// \return success
 
 idaman THREAD_SAFE bool ida_export prev_utf8_char(wchar32_t *out_cp, const char **p, const char *begin);
 
@@ -4730,7 +4751,7 @@ idaman THREAD_SAFE bool ida_export prev_utf8_char(wchar32_t *out_cp, const char 
 ///
 /// \param putf8 a pointer to the UTF-8 bytes buffer to advance into
 /// \param n     the number of codepoints to advance into the buffer
-/// \returns the number of codepoints that we failed to decode, thus:
+/// \return the number of codepoints that we failed to decode, thus:
 ///          0 - success, >0 - a terminating zero was encountered.
 
 idaman THREAD_SAFE size_t ida_export skip_utf8(const char **putf8, size_t n);
@@ -4739,7 +4760,7 @@ idaman THREAD_SAFE size_t ida_export skip_utf8(const char **putf8, size_t n);
 /// Encode the codepoint into a UTF-8 byte sequence, and add terminating zero
 /// \param out  output buffer (must be at least MAX_UTF8_SEQ_LEN bytes wide)
 /// \param cp   the codepoint to encode
-/// \returns how many bytes were put into the output buffer
+/// \return how many bytes were put into the output buffer
 ///          (without the terminating zero), or size_t(-1) on failure
 
 idaman THREAD_SAFE ssize_t ida_export put_utf8_char(char *out, wchar32_t cp);
@@ -5059,6 +5080,14 @@ typedef qvector<plugin_option_t> plugin_option_vec_t;
 
 struct plugin_options_t : public plugin_option_vec_t
 {
+  const plugin_option_t *find(const qstring &name) const
+  {
+    for ( const auto &one : *this )
+      if ( one.name == name )
+        return &one;
+    return nullptr;
+  }
+
   bool erase(const char *name)
   {
     for ( size_t i = 0; i < size(); ++i )
@@ -5174,7 +5203,7 @@ idaman THREAD_SAFE void *ida_export launch_process(
 
 
 /// Forcibly terminate a running process.
-/// \returns 0-ok, otherwise an error code that can be passed to winerr()
+/// \return 0-ok, otherwise an error code that can be passed to winerr()
 
 idaman THREAD_SAFE int ida_export term_process(void *handle);
 
@@ -5425,6 +5454,22 @@ idaman THREAD_SAFE int ida_export qwait_for_handles(
 /// \return success
 
 idaman THREAD_SAFE bool ida_export get_login_name(qstring *out);
+
+/// Get the total CPU physical core count
+/// \return the physical core count, or -1 on error
+
+idaman THREAD_SAFE int ida_export get_physical_core_count();
+
+/// Get the total CPU logical core count
+/// \return the logical core count, or -1 on error
+
+idaman THREAD_SAFE int ida_export get_logical_core_count();
+
+/// Get the number of logical CPU cores available to the current process
+/// if supported by the OS.
+/// \return the logical core count available for the process, or -1 on error
+
+idaman THREAD_SAFE int ida_export get_available_core_count();
 
 
 #endif /* _PRO_H */

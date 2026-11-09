@@ -2,7 +2,7 @@
         IDA SDK - Interactive Disassembler Module SDK
         =============================================
 
-        This SDK should be used with IDA kernel version 9.0
+        This SDK should be used with IDA kernel version 9.1
 
         This package allows you to write:
                 - processor modules
@@ -205,20 +205,17 @@ LIBRARIES
   This SDK provides import and stub libraries to link against the IDA kernel.
 
   For MS Windows targets, import libraries are provided in:
-    x64_win_vc_32/ida.lib               Visual C++ import libraries for IDA32
-    x64_win_vc_64/ida.lib               Visual C++ import libraries for IDA64
+    x64_win_vc_64/ida.lib               Visual C++ import libraries for IDA
 
   For Linux and Mac OS X targets, you may link directly to the shared library
-  of the IDA kernel (libida[_64].so or libida[_64].dylib), but stub libraries
+  of the IDA kernel (libida.so or libida.dylib), but stub libraries
   are also provided to simplify building of the SDK.
 
   For Linux targets, stub libraries are provided in:
-    x64_linux_gcc_32/libida.so          LLVM/GCC stub libraries for IDA32
-    x64_linux_gcc_64/libida64.so        LLVM/GCC stub libraries for IDA64
+    x64_linux_gcc_64/libida.so        LLVM/GCC stub libraries for IDA
 
   For Mac OS X targets, stub libraries are provided in:
-    x64_mac_gcc_32/libida.dylib         LLVM/GCC stub libraries for IDA32
-    x64_mac_gcc_64/libida64.dylib       LLVM/GCC stub libraries for IDA64
+    x64_mac_gcc_64/libida.dylib       LLVM/GCC stub libraries for IDA
 
   To build the debugger servers, the 'dumb' object are needed. These files are
   provided for the following architectures:

@@ -1,6 +1,6 @@
 /*!
  *      Hex-Rays Decompiler project
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  * \mainpage
  *      There are 2 representations of the binary code in the decompiler:
@@ -254,8 +254,6 @@ class codegen_t;        // helper class to generate the initial microcode
 class mbl_graph_t;      // control flow graph of microcode
 class control_graph_t;  // the result of structural analysis
 class edge_mapper_t;
-class node_bitset_t;
-class array_of_node_bitset_t;
 struct vdui_t;          // widget representing the pseudocode window
 struct hexrays_failure_t; // decompilation failure object, is thrown by exceptions
 struct mba_stats_t;     // statistics about decompilation of a function
@@ -883,7 +881,6 @@ struct vd_printer_t
   /// Print.
   /// This function is called to generate a portion of the output text.
   /// The output text may contain color codes.
-  /// \return the number of printed characters
   /// \param indent  number of spaces to generate as prefix
   /// \param format  printf-style format specifier
   /// \return length of printed string
@@ -910,7 +907,6 @@ struct file_printer_t : public vd_printer_t
   /// Print.
   /// This function is called to generate a portion of the output text.
   /// The output text may contain color codes.
-  /// \return the number of printed characters
   /// \param indent  number of spaces to generate as prefix
   /// \param format  printf-style format specifier
   /// \return length of printed string
@@ -930,7 +926,6 @@ struct qstring_printer_t : public vc_printer_t
   /// Print.
   /// This function is called to generate a portion of the output text.
   /// The output text may contain color codes.
-  /// \return the number of printed characters
   /// \param indent  number of spaces to generate as prefix
   /// \param format  printf-style format specifier
   /// \return length of the printed string
@@ -998,7 +993,7 @@ int hexapi partial_type_num(const tinfo_t &type);
 
 
 /// Get a type of a floating point value with the specified width
-/// \returns type info object
+/// \return type info object
 /// \param width width of the desired type
 
 tinfo_t hexapi get_float_type(int width);
@@ -1858,6 +1853,18 @@ private:
 };
 DECLARE_TYPE_AS_MOVABLE(bitset_t);
 typedef qvector<bitset_t> array_of_bitsets;
+
+//-------------------------------------------------------------------------
+// set of graph nodes as a bitset
+class node_bitset_t : public bitset_t
+{
+public:
+  node_bitset_t() {}
+  node_bitset_t(int node) { add(node); }
+};
+DECLARE_TYPE_AS_MOVABLE(node_bitset_t);
+
+class array_of_node_bitset_t : public qvector<node_bitset_t> {};
 
 //-------------------------------------------------------------------------
 template <class T>
@@ -4262,15 +4269,16 @@ public:
   /// Find the instruction that accesses the specified operand.
   /// This function search inside one block.
   /// \param op     operand to search for
-  /// \param parent ptr to ptr to a top level instruction.
-  ///               denotes the beginning of the search range.
+  /// \param[in,out] parent ptr to ptr to a top level instruction.
+  ///               in: denotes the beginning of the search range.
+  ///               out: denotes the parent of the found instruction.
   /// \param mend   end instruction of the range (must be a top level insn)
   ///               mend is excluded from the range. it can be specified as nullptr.
   ///               parent and mend must belong to the same block.
   /// \param fdflags combination of \ref FD_ bits
   /// \return       the instruction that accesses the operand. this instruction
   ///               may be a sub-instruction. to find out the top level
-  ///               instruction, check out *p_i1.
+  ///               instruction, check out *parent.
   ///               nullptr means 'not found'.
   minsn_t *hexapi find_access(
         const mop_t &op,
@@ -5099,6 +5107,7 @@ public:
   /// In this case R0 generates two different lvars at the same address:
   ///   - one modified by LDM
   ///   - another that represents the return value from the tail call
+  ///
   /// Another example: a third-party plugin makes a copy of an instruction.
   /// This may lead to the generation of two variables at the same address.
   /// Example 3: fictional addresses can be used for new instructions created
@@ -5389,6 +5398,7 @@ public:
   /// on CODE. For example:
   ///   - for m_goto and m_jcnd L is the target address
   ///   - for m_ldc L is the constant value to load
+  ///
   /// \param code  instruction opcode
   /// \param width operand size in bytes
   /// \param l     left operand
@@ -5568,6 +5578,7 @@ vdui_t *hexapi get_widget_vdui(TWidget *f);
 #define VDRUN_CMDLINE 0x00000020  ///< Called from ida's command line
 #define VDRUN_STATS   0x00000040  ///< Print statistics into vd_stats.txt
 #define VDRUN_LUMINA  0x00000080  ///< Use lumina server
+#define VDRUN_PERF    0x00200000  ///< Print performance stats to ida.log
 ///@}
 
 /// Batch decompilation.
@@ -6092,10 +6103,10 @@ struct citem_t
   /// Does the item contain a label?
   bool hexapi contains_label() const;
   /// Find parent of the specified item.
-  /// \param sitem Item to find the parent of. The search will be performed
+  /// \param item Item to find the parent of. The search will be performed
   ///            among the children of the item pointed by \c this.
   /// \return nullptr if not found
-  const citem_t *hexapi find_parent_of(const citem_t *sitem) const;
+  const citem_t *hexapi find_parent_of(const citem_t *item) const;
   citem_t *find_parent_of(const citem_t *item)
   { return CONST_CAST(citem_t*)((CONST_CAST(const citem_t*)(this))->find_parent_of(item)); }
   citem_t *hexapi find_closest_addr(ea_t _ea);
@@ -6690,20 +6701,20 @@ struct ctry_t : public cblock_t
   /// MSVC generates code like the following to keep track of constructed
   /// objects and destroy them upon an exception. Example:
   ///
-  /// /* an object is constructed at this point */
+  /// // an object is constructed at this point
   /// __wind
   /// {
-  ///   /* some other code that may throw an exception */
+  ///   // some other code that may throw an exception
   /// }
   /// __unwind
   /// {
-  ///   /* this code is executed only if there was an exception */
-  ///   /* in the __wind block. normally here we destroy the object */
-  ///   */ after that the exception is passed to the */
-  ///   /* exception handler, regular control flow is interrupted here. */
+  ///   // this code is executed only if there was an exception
+  ///   // in the __wind block. normally here we destroy the object
+  ///   // after that the exception is passed to the
+  ///   // exception handler, regular control flow is interrupted here.
   /// }
-  /// /* regular logic continues here, if there were no exceptions */
-  /// /* also the object's destructor is called */
+  /// // regular logic continues here, if there were no exceptions
+  /// // also the object's destructor is called
   bool is_wind = false; // if false, then try/catch
 
   DECLARE_COMPARISONS(ctry_t);
@@ -7375,7 +7386,6 @@ typedef qvector<cfuncptr_t> cfuncptrs_t;
 #define DECOMP_WARNINGS     0x0008 ///< display warnings in the output window
 #define DECOMP_ALL_BLKS     0x0010 ///< generate microcode for unreachable blocks
 #define DECOMP_NO_HIDE      0x0020 ///< do not close display waitbox. see close_hexrays_waitboxes()
-#define DECOMP_NO_XREFS     0x0040 ///< Obsolete. Use DECOMP_GXREFS_NOUPD
 #define DECOMP_GXREFS_DEFLT 0x0000 ///< the default behavior: do not update the
                                    ///< global xrefs cache upon decompile() call,
                                    ///< but when the pseudocode text is generated
@@ -7383,6 +7393,7 @@ typedef qvector<cfuncptr_t> cfuncptrs_t;
 #define DECOMP_GXREFS_NOUPD 0x0040 ///< do not update the global xrefs cache
 #define DECOMP_GXREFS_FORCE 0x0080 ///< update the global xrefs cache immediately
 #define DECOMP_VOID_MBA     0x0100 ///< return empty mba object (to be used with gen_microcode)
+#define DECOMP_OUTLINE  0x80000000 ///< generate code for an outline
 ///@}
 
 /// Close the waitbox displayed by the decompiler.
@@ -7555,6 +7566,9 @@ enum hexrays_event_t ENUM_SIZE(int)
   hxe_flowchart,        ///< Flowchart has been generated.
                         ///< \param fc (qflow_chart_t *)
                         ///< \param mba (mba_t *)
+                        ///< \param reachable_blocks (bitset_t *)
+                        ///< \param decomp_flags (int)
+                        ///< \return \ref MERR_ code
 
   hxe_stkpnts,          ///< SP change points have been calculated.
                         ///< \param mba (mba_t *)
@@ -7565,7 +7579,7 @@ enum hexrays_event_t ENUM_SIZE(int)
   hxe_prolog,           ///< Prolog analysis has been finished.
                         ///< \param mba (mba_t *)
                         ///< \param fc (qflow_chart_t *)
-                        ///< \param reachable_blocks (bitset_t *)
+                        ///< \param reachable_blocks (const bitset_t *)
                         ///< \param decomp_flags (int)
                         ///< \return \ref MERR_ code
                         ///< This event is generated for each inlined range as well.
@@ -7624,7 +7638,8 @@ enum hexrays_event_t ENUM_SIZE(int)
                         ///< It is forbidden to modify ctree at this event.
 
   hxe_func_printed,     ///< Function text has been generated. Plugins may
-                        ///< modify the text in \ref cfunc_t::sv.
+                        ///< modify the text in \ref cfunc_t::sv. However,
+                        ///< it is too late to modify the ctree or microcode.
                         ///< The text uses regular color codes (see lines.hpp)
                         ///< COLOR_ADDR is used to store pointers to ctree items.
                         ///< \param cfunc (cfunc_t *)
@@ -10765,7 +10780,7 @@ inline int simple_graph_t::depth_first_postorder(node_ordering_t *post) const
 }
 
 //--------------------------------------------------------------------------
-inline int simple_graph_t::goup(int node) const newapi
+inline int simple_graph_t::goup(int node) const
 {
   return (int)(size_t)HEXDSP(hx_simple_graph_t_goup, this, node);
 }
@@ -11951,9 +11966,9 @@ inline bool citem_t::contains_label() const
 }
 
 //--------------------------------------------------------------------------
-inline const citem_t *citem_t::find_parent_of(const citem_t *sitem) const
+inline const citem_t *citem_t::find_parent_of(const citem_t *item) const
 {
-  return (const citem_t *)HEXDSP(hx_citem_t_find_parent_of, this, sitem);
+  return (const citem_t *)HEXDSP(hx_citem_t_find_parent_of, this, item);
 }
 
 //--------------------------------------------------------------------------

@@ -57,19 +57,17 @@ int idaapi nec850_is_sp_based(const insn_t &insn, const op_t &x)
 //----------------------------------------------------------------------
 bool idaapi nec850_create_func_frame(func_t *pfn)
 {
-  asize_t frsize;
+  asize_t frsize = 0;
+  ushort frregs = 0;
 
   insn_t insn;
   if ( decode_insn(&insn, pfn->start_ea) != 0
     && (insn.itype == NEC850_PREPARE_i || insn.itype == NEC850_PREPARE_sp) )
   {
-    frsize = insn.Op2.value * 4;
+    frsize = calc_locals_size(insn.Op2.value);
+    frregs = calc_reglist_size(insn.Op1.value);
   }
-  else
-  {
-    frsize = 0;
-  }
-  return add_frame(pfn, frsize, 0, 0);
+  return add_frame(pfn, frsize, frregs, 0);
 }
 
 //----------------------------------------------------------------------
@@ -345,10 +343,10 @@ bool nec850_t::spoils(const insn_t &insn, uint16 reg) const
       return reg == rSP || reg_in_list12(reg, insn.Op2.value);
 
     case NEC850_PREPARE_sp:
-      return reg == rSP;
+      return reg == rSP || reg == rEP;
 
     case NEC850_PREPARE_i:
-      return reg == rSP || reg == rEP;
+      return reg == rSP;
     case NEC850_MOV_DW:
       {
         const op_t *vec_op = nec850_find_vec_reg(insn);
@@ -490,6 +488,18 @@ static bool spoils_flags(const insn_t &insn)
 }
 
 //----------------------------------------------------------------------
+// does EP == SP?
+inline bool is_ep_equal_to_sp(ea_t ea)
+{
+  sval_t sp_value, ep_value;
+  if ( !find_sp_value(&sp_value, ea, rSP)
+    || !find_sp_value(&ep_value, ea, rEP) )
+    return false;
+
+  return sp_value == ep_value;
+}
+
+//----------------------------------------------------------------------
 void nec850_t::handle_operand(
         const insn_t &insn,
         const op_t &op,
@@ -512,7 +522,7 @@ void nec850_t::handle_operand(
         break; // already handled in handle_call_or_jump()
       if ( !is_defarg(F, op.n) )
       {
-        if ( may_create_stkvars() && op.reg == rSP )
+        if ( may_create_stkvars() && ( op.reg == rSP || ( op.reg == rEP && is_ep_equal_to_sp(insn.ea) ) ) )
         {
           func_t *pfn = get_func(insn.ea);
           if ( pfn != nullptr && insn.create_stkvar(op, op.addr, STKVAR_VALID_SIZE) )
@@ -565,12 +575,12 @@ static void idaapi trace_sp(func_t *pfn, const insn_t &insn)
   {
     case NEC850_PREPARE_i:
     case NEC850_PREPARE_sp:
-      delta = 0-((bitcount(insn.Op1.value) * 4) + (insn.Op2.value << 2));
+      delta = 0 - calc_stack_delta(insn.Op1.value, insn.Op2.value);
       break;
     case NEC850_DISPOSE_r:
     case NEC850_DISPOSE_r0:
       // count registers in LIST12 and use the imm5 for local vars
-      delta = (bitcount(insn.Op2.value) * 4) + (insn.Op1.value << 2);
+      delta = calc_stack_delta(insn.Op2.value, insn.Op1.value);
       break;
     case NEC850_ADD:
     case NEC850_ADDI:
@@ -819,12 +829,13 @@ int nec850_t::nec850_emu(const insn_t &insn) const
     && !is_defarg(F, insn.Op1.n) )
   {
     // movea imm16, sp, reg (reg != sp)
-    if ( insn.Op2.is_reg(rSP)
-      && !insn.Op3.is_reg(rSP)
-      && may_create_stkvars()
-      && insn.create_stkvar(insn.Op1, insn.Op1.value, 0) )
+    // movea imm16, ep, reg (reg != ep && ep == sp)
+    if ( may_create_stkvars()
+      && ( ( insn.Op2.is_reg(rSP) && !insn.Op3.is_reg(rSP) )
+        || ( insn.Op2.is_reg(rEP) && !insn.Op3.is_reg(rEP) && is_ep_equal_to_sp(insn.ea) ) ) )
     {
-      op_stkvar(insn.ea, insn.Op1.n);
+      if ( insn.create_stkvar(insn.Op1, insn.Op1.value, 0) )
+        op_stkvar(insn.ea, insn.Op1.n);
     }
     else if ( insn.Op2.is_reg(rGP)
            && g_gp_ea != BADADDR )

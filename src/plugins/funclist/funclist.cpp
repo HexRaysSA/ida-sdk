@@ -200,7 +200,7 @@ bool idaapi plugin_ctx_t::run(size_t)
   // open the window
   entry_chooser_t *ch = new entry_chooser_t();
   ch->choose();
-  return true; //-V773
+  return true;
 } //lint !e429 'ch' has not been freed or returned
 
 //--------------------------------------------------------------------------

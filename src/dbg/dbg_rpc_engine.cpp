@@ -55,6 +55,7 @@ static const rpc_packet_type_desc_t dbg_rpc_packet_t_descs[] =
   { RPC_GET_IMAGE_UUID,           "RPC_GET_IMAGE_UUID",           nullptr },
   { RPC_GET_SEGM_START,           "RPC_GET_SEGM_START",           nullptr },
   { RPC_BIN_SEARCH,               "RPC_BIN_SEARCH",               nullptr },
+  { RPC_GET_DYNREGS,              "RPC_GET_DYNREGS",              nullptr },
 
   { RPC_SET_DEBUG_NAMES,          "RPC_SET_DEBUG_NAMES",          nullptr },
   { RPC_SYNC_STUB,                "RPC_SYNC_STUB",                nullptr },

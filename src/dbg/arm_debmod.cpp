@@ -4,7 +4,6 @@
 
 #ifdef ENABLE_LOWCNDS
 inline bool has_armv5(void) { return true; }
-static arm_debmod_t *ssmod; // pointer to the current debugger module
 #endif
 
 //-------------------------------------------------------------------------
@@ -26,19 +25,8 @@ arm_debmod_t::arm_debmod_t(void)
   bpt_code.append(bpt, sizeof(bpt));
 
   set_platform("linux");
-  fix_registers();
 
   reset_hwbpts();
-}
-
-//--------------------------------------------------------------------------
-void arm_debmod_t::fix_registers()
-{
-  bool is64 = is_64bit_app();
-  sp_idx = armreg_to_idx(R_SP, is64);
-  pc_idx = armreg_to_idx(R_PC, is64);
-  lr_idx = armreg_to_idx(R_LR, is64);
-  sr_idx = armreg_to_idx(R_PSR, is64);
 }
 
 //--------------------------------------------------------------------------
@@ -246,59 +234,31 @@ int arm_debmod_t::finalize_appcall_stack(
 //--------------------------------------------------------------------------
 int arm_debmod_t::get_regidx(const char *regname, int *clsmask)
 {
-  return arm_get_regidx(clsmask, regname, is_64bit_app());
-}
-
-#ifdef ENABLE_LOWCNDS
-//--------------------------------------------------------------------------
-static const regval_t &idaapi arm_getreg(const char *name, const regval_t *regvals)
-{
-  int idx = ssmod->get_regidx(name, nullptr);
-  QASSERT(30182, idx >= 0 && idx < ssmod->nregs());
-  return regvals[idx];
-}
-
-//--------------------------------------------------------------------------
-static uint32 idaapi arm_get_long(ea_t ea)
-{
-  uint32 v = -1;
-  ssmod->dbg_read_memory(ea, &v, sizeof(v), nullptr);
-  return v;
-}
-
-//--------------------------------------------------------------------------
-static uint16 idaapi arm_get_word(ea_t ea)
-{
-  uint16 v = -1;
-  ssmod->dbg_read_memory(ea, &v, sizeof(v), nullptr);
-  return v;
-}
-
-//--------------------------------------------------------------------------
-static uint8 idaapi arm_get_byte(ea_t ea)
-{
-  uint8 v = -1;
-  ssmod->dbg_read_memory(ea, &v, sizeof(v), nullptr);
-  return v;
-}
-
-//----------------------------------------------------------------------
-// stripped down version of get_dtype_size()
-static size_t idaapi arm_get_dtype_size(op_dtype_t dtype)
-{
-  switch ( dtype )
+  for ( size_t ida_reg_idx=0; ida_reg_idx < idaregs.ri_vec.size(); ++ida_reg_idx )
   {
-    case dt_byte:    return 1;          // 8 bit
-    case dt_word:
-    case dt_half:    return 2;          // 16 bit
-    case dt_dword:
-    case dt_float:   return 4;          // 4 byte
-    case dt_qword:
-    case dt_double:  return 8;          // 8 byte
-    default:         return 0;
+    const auto &ri = idaregs.ri_vec[ida_reg_idx];
+    if ( strieq(regname, ri.name) )
+    {
+      if ( clsmask != nullptr )
+        *clsmask = ri.register_class;
+      return ida_reg_idx;
+    }
+  }
+  return -1;
+}
+
+//--------------------------------------------------------------------------
+void arm_debmod_t::adjust_swbpt(ea_t *p_ea, int *p_len)
+{
+  ea_t &ea = *p_ea;
+  if ( (ea & 1) != 0 ) // T bit is set, use a thumb breakpoint
+  {
+    ea--;
+    *p_len = 2;
   }
 }
 
+#ifdef ENABLE_LOWCNDS
 //--------------------------------------------------------------------------
 // since arm does not have a single step facility, we have to emulate it
 // with a temporary breakpoint.
@@ -311,21 +271,61 @@ drc_t arm_debmod_t::dbg_perform_single_step(debug_event_t *dev, const insn_t &in
   if ( drc <= DRC_NONE )
     return drc;
 
-  static const opinfo_helpers_t oh =
+  struct ida_local oih_t : public opinfo_helper_t
   {
-    arm_getreg,
-    arm_get_byte,
-    arm_get_word,
-    arm_get_long,
-    arm_get_dtype_size,
-    nullptr,               // has_insn_cf_chg not needed
+    arm_debmod_t *dm = nullptr;
+    oih_t(arm_debmod_t *_dm) : dm(_dm) {}
+    ~oih_t() { dm = nullptr; }
+
+    const regval_t &regval_getter(const char *name, const regval_t *regvalues) override
+    {
+      int idx = dm->get_regidx(name, nullptr);
+      QASSERT(30182, idx >= 0 && idx < dm->nregs());
+      return regvalues[idx];
+    }
+
+    uint8 get_byte(ea_t ea) override
+    {
+      uint8 v = -1;
+      dm->dbg_read_memory(ea, &v, sizeof(v), nullptr);
+      return v;
+    }
+
+    uint16 get_word(ea_t ea) override
+    {
+      uint16 v = -1;
+      dm->dbg_read_memory(ea, &v, sizeof(v), nullptr);
+      return v;
+    }
+
+    uint32 get_dword(ea_t ea) override
+    {
+      uint32 v = -1;
+      dm->dbg_read_memory(ea, &v, sizeof(v), nullptr);
+      return v;
+    }
+
+    // stripped down version of get_dtype_size()
+    size_t get_dtype_size(op_dtype_t dtype) override
+    {
+      switch ( dtype )
+      {
+        case dt_byte:    return 1;          // 8 bit
+        case dt_word:
+        case dt_half:    return 2;          // 16 bit
+        case dt_dword:
+        case dt_float:   return 4;          // 4 byte
+        case dt_qword:
+        case dt_double:  return 8;          // 8 byte
+        default:         return 0;
+      }
+    }
   };
+  oih_t oh = oih_t(this);
 
   // calculate the address of the next executed instruction
   lock_begin();
-  ssmod = this;
   ea_t next = calc_next_exec_insn(insn, values.begin(), oh, false); // TODO pass is_mprofile parameter
-  ssmod = nullptr;
   lock_end();
 
   // BADADDR means that the execution flow is linear
@@ -365,16 +365,4 @@ drc_t arm_debmod_t::dbg_perform_single_step(debug_event_t *dev, const insn_t &in
     dev->set_eid(STEP);
   return drc;
 }
-
 #endif // ENABLE_LOWCNDS
-
-//--------------------------------------------------------------------------
-void arm_debmod_t::adjust_swbpt(ea_t *p_ea, int *p_len)
-{
-  ea_t &ea = *p_ea;
-  if ( (ea & 1) != 0 ) // T bit is set, use a thumb breakpoint
-  {
-    ea--;
-    *p_len = 2;
-  }
-}

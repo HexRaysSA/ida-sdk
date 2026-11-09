@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -208,6 +208,58 @@ bool nec850_reg_finder_t::emulate_insn(
         }
       }
       break;
+    case NEC850_PREPARE_sp:
+    case NEC850_PREPARE_i:
+      {
+        if ( reg == rEP )
+        {
+          if ( insn.Op3.is_reg(rSP) )
+          {
+            sval_t sp_value;
+            if ( !_pm.find_sp_value(&sp_value, insn.ea + insn.size) )
+              break;
+            value->set_num(sp_value, insn);
+            return true;
+          }
+          else if ( insn.Op3.type == o_imm )
+          {
+            value->set_num(insn.Op3.value, insn);
+            return true;
+          }
+          else
+          {
+            break;
+          }
+        }
+      }
+    //fall through
+    case NEC850_DISPOSE_r0:
+    case NEC850_DISPOSE_r:
+      {
+        if ( reg == rSP )
+        {
+          uval_t list12;
+          uval_t imm5;
+          rvi_t::arith_op_t aop;
+          if ( insn.itype == NEC850_PREPARE_sp || insn.itype == NEC850_PREPARE_i )
+          {
+            aop = rvi_t::SUB;
+            list12 = insn.Op1.value;
+            imm5 = insn.Op2.value;
+          }
+          else
+          {
+            aop = rvi_t::ADD;
+            list12 = insn.Op2.value;
+            imm5 = insn.Op1.value;
+          }
+          op_t sp, delta;
+          pm.make_op_reg(&sp, rSP);
+          pm.make_op_imm(&delta, calc_stack_delta(list12, imm5));
+          emulate_binary_op(value, aop, sp, delta, insn, flow);
+          return true;
+        }
+      }
   }
 
   // found an unsupported change of REG

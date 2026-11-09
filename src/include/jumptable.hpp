@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -538,7 +538,7 @@ public:
 //======================================================================
 // inline implementation
 //----------------------------------------------------------------------
-//-V:jump_pattern_t:730 not all members of a class are initialized inside the constructor
+
 inline jump_pattern_t::jump_pattern_t(
         switch_info_t *_si,
         const char (*_depends)[4],
@@ -701,8 +701,8 @@ inline cref_t backward_flow_iterator_t<State,Ctrl>::prev_insn()
     if ( has_xref(F) && !is_func(F) ) // do not count jumps to function
     {
       xrefblk_t xb;
-      for ( bool ok = xb.first_to(cur_ea, XREF_FAR);
-            ok && xb.iscode;
+      for ( bool ok = xb.first_to(cur_ea, XREF_NOFLOW|XREF_CODE);
+            ok;
             ok = xb.next_to() )
       {
         // count only xrefs from jumps

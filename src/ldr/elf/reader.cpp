@@ -605,9 +605,6 @@ FAILED:
   switch ( header.e_machine )
   {
     case EM_AARCH64:
-      // AARCH64 files must use 64-bit segments even for ELF32 (ILP32)
-      seg_64 = true;
-      // fallthrough
     case EM_ARM:
       delete arch_specific;
       arch_specific = new arm_arch_specific_t;
@@ -2269,7 +2266,7 @@ bool reader_t::get_name(
     default:
       INTERR(20086);
   }
-  return get_name(out, *strtab, name_idx);  //-V614 Potentially uninitialized pointer 'strtab' used
+  return get_name(out, *strtab, name_idx);
 }
 
 //----------------------------------------------------------------------------
@@ -2910,7 +2907,7 @@ template<> bool buffered_input_t<sym_rel>::read_item(sym_rel &storage)
   // assert: bind <= STB_HIPROC
   if ( bind > STB_WEAK )
   {
-    CASSERT(STB_LOCAL < STB_WEAK && STB_GLOBAL < STB_WEAK);   //-V590 expression is excessive
+    CASSERT(STB_LOCAL < STB_WEAK && STB_GLOBAL < STB_WEAK);
     if ( reader.get_header().e_machine == EM_ARM && bind == STB_LOPROC+1 )
       // codewarrior for arm seems to use this binding type similar to local or weak
       bind = STB_WEAK;

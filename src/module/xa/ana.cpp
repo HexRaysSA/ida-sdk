@@ -931,7 +931,7 @@ int xa_t::ana(insn_t *_insn)
   insn.Op2.dtype = dt_byte;
   insn.Op3.dtype = dt_byte;
 
-  switch ( ptype )    //-V785 Constant expression in switch statement
+  switch ( ptype )
   {
     case prc_xaG3:
       return ana_basic(insn);

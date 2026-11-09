@@ -2419,7 +2419,7 @@ inline ULONG CorSigCompressToken(   // return number of bytes that compressed fo
     RID     rid = RidFromToken(tk);
     ULONG32 ulTyp = TypeFromToken(tk);
 
-    if ( rid > 0x3FFFFFF )    //-V547 'rid > 0x3FFFFFF' is always false
+    if ( rid > 0x3FFFFFF )
         // token is too big to be compressed
         return (ULONG) -1;
 

@@ -6,8 +6,6 @@
 #include "../../ldr/pe/pe.h"
 #include "winbase_debmod.h"
 
-//-V::720 It is advised to utilize the 'SuspendThread' function only when developing a debugger
-
 // Type definitions
 
 class win32_debmod_t;
@@ -232,9 +230,12 @@ public:
   HANDLE broken_event_handle;
   context_helper_t context_helper;
 
+  // number of XMM/YMM registers in the idaregs
+  size_t xmm_ymm_count = 8;
+
   // Module specific methods, to be implemented
   virtual void idaapi dbg_set_debugging(bool _debug_debugger) override;
-  virtual drc_t idaapi dbg_init(uint32_t *flags2, qstring *errbuf) override;
+  virtual drc_t idaapi dbg_init(uint64 *add_debugger_flags, qstring *errbuf) override;
   virtual void idaapi dbg_term(void) override;
   virtual drc_t idaapi dbg_detach_process(void) override;
   virtual drc_t idaapi dbg_start_process(
@@ -419,6 +420,15 @@ protected:
   virtual int dbg_freeze_threads_except(thid_t tid) override;
   virtual int dbg_thaw_threads_except(thid_t tid) override;
 };
+win32_debmod_t &get_win32_debmod();
+
+struct win32_cfg_t
+{
+  uint64 g_code = 0;
+  bool g_subsys_inited = false;
+  bool g_got_debpriv = false;
+};
+win32_cfg_t &get_win32_cfg();
 
 ea_t s0tops(ea_t ea);
 

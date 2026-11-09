@@ -71,7 +71,7 @@ struct tms6_t : public procmod_t
   int nopred(insn_t &insn, uint32 code) const;
   int ana(insn_t *_insn);
   int ana_classic(insn_t *_insn) const;
-  int ana_compact(insn_t *_insn, uint32 fph) const;
+  int ana_compact(insn_t *_insn, uint32 fph);
   void upgrade_tnode(const netnode &old_tnode);
 };
 extern int data_id;
@@ -248,15 +248,15 @@ inline bool is_mvk_scst16_form(ea_t ea)
 }
 
 //------------------------------------------------------------------
-inline bool is_fph(uint32 data)
-{
-  return (data & 0xf0000000) == 0xe0000000;
-}
-
-//------------------------------------------------------------------
 inline ea_t get_fph_pos(ea_t ea)
 {
   return (ea & ~31) + 28;
+}
+
+//------------------------------------------------------------------
+inline bool is_fph(ea_t addr, uint32 data)
+{
+  return addr == get_fph_pos(addr) && (data & 0xf0000000) == 0xe0000000;
 }
 
 //------------------------------------------------------------------
@@ -266,7 +266,7 @@ inline bool get_fph(uint32 *out_fph, ea_t fph_pos)
   if ( out_fph )
     *out_fph = fph;
 
-  return is_fph(fph);
+  return is_fph(fph_pos, fph);
 }
 
 //------------------------------------------------------------------
@@ -308,6 +308,8 @@ int  idaapi ana(insn_t *insn);
 
 int  idaapi is_align_insn(ea_t ea);
 
-ea_t find_first_insn_in_packet(ea_t ea);
+bool idaapi is_first_insn_of_exec_packet(ea_t ea, bool prev = false);
+
+ea_t idaapi get_start_of_exec_packet(ea_t ea);
 
 #endif // _TMS6_HPP

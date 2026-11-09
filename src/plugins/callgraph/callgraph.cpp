@@ -67,16 +67,12 @@ void callgraph_t::add_fathers(
         int level)
 {
   if ( level >= (opt->callers_recurse_limit+2) )
-  {
     return;
-  }
 
   //msg("Level %d, node 0x%08x\n", level, func_start);
   xrefblk_t xb_to;
 
-  for ( bool xb_to_ok = xb_to.first_to(func_start, XREF_FAR);
-        xb_to_ok && xb_to.iscode;
-        xb_to_ok = xb_to.next_to() )
+  for ( bool ok=xb_to.first_to(func_start, XREF_NOFLOW|XREF_CODE); ok; ok=xb_to.next_to() )
   {
     func_t *f_from = get_func(xb_to.from);
     if ( f_from == nullptr )
@@ -114,8 +110,8 @@ int callgraph_t::walk_func(
   for ( bool fi_ok=fii.set(func); fi_ok; fi_ok=fii.next_code() )
   {
     xrefblk_t xb;
-    for ( bool xb_ok = xb.first_from(fii.current(), XREF_FAR);
-          xb_ok && xb.iscode;
+    for ( bool xb_ok = xb.first_from(fii.current(), XREF_NOFLOW|XREF_CODE);
+          xb_ok;
           xb_ok = xb.next_from() )
     {
       bool is_func_lib;
@@ -379,7 +375,7 @@ callgraph_t::funcinfo_t *callgraph_t::get_info(int nid)
 
     fi.ea = it_ea->second;
 
-    it = cached_funcs.insert(cached_funcs.end(), std::make_pair(nid, fi));  //-V783 Dereferencing of the invalid iterator
+    it = cached_funcs.insert(cached_funcs.end(), std::make_pair(nid, fi));
     ret = &it->second;
   } while ( false );
 

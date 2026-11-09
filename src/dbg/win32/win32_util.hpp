@@ -95,7 +95,6 @@ private:
 };
 
 //--------------------------------------------------------------------------
-//-V:win_tool_help_t:730 Not all members of a class are initialized inside the constructor
 class win_tool_help_t
 {
 public:

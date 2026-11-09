@@ -9,19 +9,6 @@
 #include "server.h"
 
 //--------------------------------------------------------------------------
-// another copy of this function (for local debugging) is defined in common_local_impl.cpp
-int send_ioctl(
-        rpc_engine_t *srv,
-        int fn,
-        const void *buf,
-        size_t size,
-        void **poutbuf,
-        ssize_t *poutsize)
-{
-  return srv->send_ioctl(fn, buf, size, poutbuf, poutsize);
-}
-
-//--------------------------------------------------------------------------
 AS_PRINTF(3, 0) ssize_t dvmsg(int code, rpc_engine_t *rpc, const char *format, va_list va)
 {
   if ( code == 0 )
@@ -503,6 +490,7 @@ void dbg_rpc_handler_t::append_start_or_attach(bytevec_t &req, drc_t drc, const 
     debapp_attrs_t attrs;
     dbg_mod->dbg_get_debapp_attrs(&attrs);
     append_debapp_attrs(req, attrs);
+    verb(("RPC: append_start_or_attach idaregs.nregs %" FMT_Z "\n", dbg_mod->idaregs.nregs()));
     append_dynamic_register_set(req, dbg_mod->idaregs);
   }
   else
@@ -544,20 +532,30 @@ bytevec_t dbg_rpc_handler_t::on_send_request_interrupt(const rpc_packet_t *rp)
     {
       case RPC_INIT:
         {
-          dbg_mod->debugger_flags = mmdsr.unpack_dd();
+          dbg_mod->debugger_flags = mmdsr.unpack_dq();
           bool debug_debugger = mmdsr.unpack_dd() != 0;
           if ( debug_debugger )
             verbose = true;
+          dbg_mod->debugger_name = mmdsr.unpack_str();
+          dbg_mod->debugger_processor = mmdsr.unpack_str();
+          dbg_mod->debugger_id = mmdsr.unpack_dd();
 
           dbg_mod->dbg_set_debugging(debug_debugger);
           qstring errbuf;
-          uint32_t flags2 = 0;
-          drc_t drc = dbg_mod->dbg_init(&flags2, &errbuf);
-          verb(("init(debug_debugger=%d) => %d (flags2=%d)\n", debug_debugger, drc, flags2));
+          uint64 add_debugger_flags = 0;
+          drc_t drc = dbg_mod->dbg_init(&add_debugger_flags, &errbuf);
+          verb(("init(debug_debugger=%d) => %d (add_debugger_flags=0x%" FMT_64 "X)\n", debug_debugger, drc, add_debugger_flags));
           req.pack_dd(drc);
-          req.pack_dd(flags2);
-          if ( drc != DRC_OK )
+          req.pack_dq(add_debugger_flags);
+          if ( drc == DRC_OK )
+          {
+            verb(("init() => idaregs.nregs %" FMT_Z "\n", dbg_mod->idaregs.nregs()));
+            append_dynamic_register_set(req, dbg_mod->idaregs);
+          }
+          else
+          {
             req.pack_str(errbuf);
+          }
         }
         break;
 
@@ -635,8 +633,9 @@ bytevec_t dbg_rpc_handler_t::on_send_request_interrupt(const rpc_packet_t *rp)
           req.pack_dd(result);
           if ( result >= GDE_ONE_EVENT )
           {
+            char evbuf[MAXSTR];
             append_debug_event(req, &ev);
-            verb(("got event: %s\n", debug_event_str(&ev)));
+            verb(("got event: %s\n", debug_event_str(&ev, evbuf, sizeof(evbuf))));
           }
           else if ( !has_pending_event )
           {
@@ -1184,6 +1183,18 @@ bytevec_t dbg_rpc_handler_t::on_send_request_interrupt(const rpc_packet_t *rp)
             req.pack_ea64(srch_ea);
           else if ( drc != DRC_FAILED )   // DRC_FAILED means not found
             req.pack_str(errbuf);
+        }
+        break;
+
+      case RPC_GET_DYNREGS:
+        if ( dbg_mod->idaregs.nregs() > 0 )
+        {
+          req.pack_dd(DRC_OK);
+          append_dynamic_register_set(req, dbg_mod->idaregs);
+        }
+        else
+        {
+          req.pack_dd(DRC_NONE);
         }
         break;
 

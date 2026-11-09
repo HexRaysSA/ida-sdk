@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -218,6 +218,12 @@ public:
   /// Return 'true' if we know nothing about a value.
   bool empty() const { return state == UNDEF; }
 
+  void swap(reg_value_info_t &r) noexcept
+  {
+    std::swap(state, r.state);
+    vals.swap(r.vals);
+  }
+
   /// Return the undefined value because of a dead end.
   /// \sa is_dead_end()
   static reg_value_info_t make_dead_end(ea_t dead_end_ea)
@@ -413,13 +419,43 @@ public:
         return false;
     return true;
   }
+  bool has_any_vals_flag(uint16 val_flags) const
+  {
+    for ( auto p : vals )
+      if ( (p.flags & val_flags) != 0 )
+        return true;
+    return false;
+  }
   bool is_all_vals_pc_based() const
   {
     return have_all_vals_flag(val_def_t::PC_BASED);
   }
+  bool is_any_vals_pc_based() const
+  {
+    return has_any_vals_flag(val_def_t::PC_BASED);
+  }
   bool is_all_vals_like_got() const
   {
     return have_all_vals_flag(val_def_t::LIKE_GOT);
+  }
+  bool is_any_vals_like_got() const
+  {
+    return has_any_vals_flag(val_def_t::LIKE_GOT);
+  }
+
+  /// Set the given flag for each value.
+  void set_all_vals_flag(uint16 val_flags)
+  {
+    for ( auto &p : vals )
+      p.flags |= val_flags;
+  }
+  void set_all_vals_pc_based()
+  {
+    return set_all_vals_flag(val_def_t::PC_BASED);
+  }
+  void set_all_vals_got_based()
+  {
+    return set_all_vals_flag(val_def_t::LIKE_GOT);
   }
 
   //-----------------------------------------------------------------------
@@ -747,6 +783,7 @@ decl bool ida_export reg_finder_emulate_mem_read(reg_finder_t *_this, reg_value_
 decl void ida_export reg_finder_emulate_binary_op(reg_finder_t *_this, reg_value_info_t *value, int aop, const op_t *op1, const op_t *op2, const insn_t *insn, ea_t ea, ea_t ds, reg_finder_binary_ops_adjust_fun adjust, void *ud);\
 decl void ida_export reg_finder_emulate_unary_op(reg_finder_t *_this, reg_value_info_t *value, int aop, int reg, const insn_t *insn, ea_t ea, ea_t ds);\
 decl bool ida_export reg_finder_may_modify_stkvar(reg_finder_t *_this, reg_finder_op_t op, const insn_t *insn);\
+decl bool ida_export reg_finder_can_resolve_mem(const reg_finder_t *_this, ea_t ea);\
 decl void ida_export reg_finder_ctr(reg_finder_t *_this);\
 decl void ida_export reg_finder_dtr(reg_finder_t *_this);
 
@@ -968,14 +1005,15 @@ public:
   int find_nearest(
         reg_value_info_t *rvi,
         ea_t ea,
-        const int reg[2])
+        const int reg[2],
+        size_t linear_insns = 10)
   {
     if ( reg[0] == reg[1] )
       return -1;
-    *rvi = find(ea, rfop_t::make_reg(pm, reg[0]), 1);
+    *rvi = find(ea, rfop_t::make_reg(pm, reg[0]), 0, linear_insns);
     if ( rvi->is_known() )
       return 0;
-    *rvi = find(ea, rfop_t::make_reg(pm, reg[1]), 1);
+    *rvi = find(ea, rfop_t::make_reg(pm, reg[1]), 0, linear_insns);
     if ( rvi->is_known() )
       return 1;
     *rvi = find(ea, rfop_t::make_reg(pm, reg[0]), 0);
@@ -1061,6 +1099,12 @@ public:
     reg_finder_emulate_mem_read(this, value, &addr,
                                 width, is_signed,
                                 &insn);
+  }
+
+  // is memory at EA read-only?
+  bool can_resolve_mem(ea_t ea) const
+  {
+    return reg_finder_can_resolve_mem(this, ea);
   }
 
 
@@ -1413,6 +1457,7 @@ private:
         const insn_t &insn,
         flow_t flow);
   bool may_modify_stkvar_impl(rfop_t rfop, const insn_t &insn);
+  bool can_resolve_mem_impl(ea_t ea) const;
 
 };
 
@@ -1928,15 +1973,5 @@ inline uint32 reg_finder_op_t::pack_width(int width)
 //-------------------------------------------------------------------------
 inline int reg_finder_op_t::get_op_width(const op_t &op)
 {
-  switch ( op.dtype )
-  {
-    case dt_byte:   return 1;
-    case dt_word:   return 2;
-    case dt_dword:
-    case dt_float:  return 4;
-    case dt_qword:
-    case dt_double: return 8;
-    case dt_byte16: return 16;
-    default:        return 0;
-  }
+  return get_dtype_size(op.dtype);
 }

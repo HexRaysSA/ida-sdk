@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA)
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      JVM module.
  *      Copyright (c) 1995-2006 by Iouri Kharon.
  *                        E-mail: yjh@styx.cabel.net

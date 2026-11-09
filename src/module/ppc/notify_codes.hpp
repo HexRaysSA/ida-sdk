@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -64,6 +64,8 @@ namespace ppc_module_t
                            //     ea_t func_start
                            //     int flags (reserved)
                            // Returns: 1-ok, otherwise-failed
+
+    ev_get_isaflags,       // returns ISA flags, see ISA_* in ppc.hpp
   };
 
   inline processor_t::event_t idp_ev(event_codes_t ev)
@@ -110,6 +112,11 @@ namespace ppc_module_t
   inline int get_abi()
   {
     return processor_t::notify(idp_ev(ev_get_abi));
+  }
+
+  inline uint32 get_isaflags()
+  {
+    return processor_t::notify(idp_ev(ev_get_isaflags));
   }
 
   inline void set_sda_base(ea_t sda_base)

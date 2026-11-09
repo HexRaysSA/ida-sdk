@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 2005-2024 Hex-Rays SA <support@hex-rays.com>
+ *      Copyright (c) 2005-2025 Hex-Rays SA <support@hex-rays.com>
  *      ALL RIGHTS RESERVED.
  *
  *      Convert 'idb' file to 'i64' file.
@@ -23,7 +23,7 @@
 //-------------------------------------------------------------------------
 // Conversion of 32-bit databases to 64-bit is performed by ida64,
 // only in IDA Pro and IDA Teams
-#if !defined(DEMO_OR_FREE) && !defined(IDAHOME)
+#if !defined(IDAFREE) && !defined(IDAHOME)
 #  if defined(__EA64__)
 #    define CVT64
 #  else

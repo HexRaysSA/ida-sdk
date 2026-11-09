@@ -201,12 +201,12 @@ static bool build_macro(const macro_t *macros, int itype_null, insn_t &build, co
       if ( (mdef+1)->itype == itype_null ) // macro founded
       {
         ea_t ea = cmds.get(0)->ea;
-        // check if an external Xrefs exists
+        // check if an external xrefs exists
         xrefblk_t xb;
         for ( ea_t i = ea; i < ea+size; i++ )
-          for ( int ok = xb.first_to(i,XREF_FAR); ok; ok=xb.next_to() )
+          for ( int ok = xb.first_to(i, XREF_NOFLOW); ok; ok=xb.next_to() )
             if ( xb.from < ea || xb.from >= ea+size )
-              return false; // external Xref founded
+              return false; // external xref founded
 
         // fill resulting insn_t
         build = *cmds.get(macro->cmd-1);

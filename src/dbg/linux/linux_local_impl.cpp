@@ -16,7 +16,6 @@ void idaapi rebase_if_required_to(ea_t new_base)
 }
 
 #ifdef HAVE_UPDATE_CALL_STACK
-static bool g_must_save_cfg = false;
 #define LIBUNWIND_EMPTY_MARKER "\x01"
 
 //--------------------------------------------------------------------------
@@ -31,16 +30,16 @@ struct linux_cfgopt_t
   const char *name;         // parameter name
   char type;                // parameter type (IDPOPT_...)
   linuxopt_idx_t index;     // index in the altval array
-  void *var;                // pointer to variable that will hold the value
+  size_t dm_offset;         // offset to value storage inside linux_dbgmod_t
   size_t size;
 };
 
 //--------------------------------------------------------------------------
 static const linux_cfgopt_t g_cfgopts[] =
 {
-  { "LIBUNWIND_PATH", IDPOPT_STR, LINUX_OPT_LIWUNWIND_PATH, &g_dbgmod.libunwind_path, 0 },
+  { "LIBUNWIND_PATH", IDPOPT_STR, LINUX_OPT_LIWUNWIND_PATH, qoffsetof(LINUX_DEBMOD_T, libunwind_path), 0 },
 };
-CASSERT(IS_QSTRING(g_dbgmod.libunwind_path));
+CASSERT(IS_QSTRING(LINUX_DEBMOD_T::libunwind_path));
 
 //--------------------------------------------------------------------------
 static const linux_cfgopt_t *find_option(const char *name)
@@ -58,67 +57,64 @@ static void load_linux_options()
     return;
 
   netnode node(LINUX_NODE);
+  auto &dbgmod = get_linux_debmod();
   if ( !exist(node) )
   {
-    g_dbgmod.libunwind_path = libunwind_pair_name[0].libx86_64_name;
+    dbgmod.libunwind_path = stkunw_library_name();
 #if defined(TESTABLE_BUILD) && defined(HAVE_UPDATE_CALL_STACK)
     // this is for kernel testing of pc_linux_sigmake
     qstring env;
     if ( qgetenv("IDA_DONTUSE_LIBUNWIND", &env) )
-      g_dbgmod.libunwind_path.clear();
+      dbgmod.libunwind_path.clear();
 #endif
     return;
   }
 
-  for ( int i = 0; i < qnumber(g_cfgopts); i++ )
+  uchar *dm_start = (uchar *)&dbgmod;
+  for ( const auto &opt : g_cfgopts )
   {
-    const linux_cfgopt_t &opt = g_cfgopts[i];
+    uchar *fldptr = dm_start + opt.dm_offset;
     if ( opt.type == IDPOPT_STR )
-      node.supstr((qstring *)opt.var, opt.index);
+      node.supstr((qstring *)fldptr, opt.index);
     else
-      node.supval(opt.index, opt.var, opt.size);
+      node.supval(opt.index, (uval_t *)fldptr, opt.size);
   }
-  if ( g_dbgmod.libunwind_path == LIBUNWIND_EMPTY_MARKER )
-    g_dbgmod.libunwind_path.clear();
+  if ( dbgmod.libunwind_path == LIBUNWIND_EMPTY_MARKER )
+    dbgmod.libunwind_path.clear();
 }
 
 //--------------------------------------------------------------------------
 static void save_linux_options()
 {
-  if ( !g_must_save_cfg || !netnode::inited() )
+  auto &dbgmod = get_linux_debmod();
+  if ( !dbgmod.g_must_save_cfg || !netnode::inited() )
     return;
 
-  if ( g_dbgmod.libunwind_path.empty() )
-    g_dbgmod.libunwind_path = LIBUNWIND_EMPTY_MARKER;
+  if ( dbgmod.libunwind_path.empty() )
+    dbgmod.libunwind_path = LIBUNWIND_EMPTY_MARKER;
 
   netnode node;
   node.create(LINUX_NODE);
   if ( node != BADNODE )
   {
-    for ( int i = 0; i < qnumber(g_cfgopts); i++ )
+    uchar *dm_start = (uchar *)&dbgmod;
+    for ( const auto &opt : g_cfgopts )
     {
-      const linux_cfgopt_t &opt = g_cfgopts[i];
+      uchar *fldptr = dm_start + opt.dm_offset;
       if ( opt.type == IDPOPT_STR )
-        node.supset(opt.index, ((qstring *)opt.var)->c_str(), 0);
+        node.supset(opt.index, ((qstring *)fldptr)->c_str(), 0);
       else
-        node.supset(opt.index, opt.var, opt.size);
+        node.supset(opt.index, (uval_t *)fldptr, opt.size);
     }
   }
 
-  g_must_save_cfg = false;
-}
-
-//--------------------------------------------------------------------------
-static ssize_t idaapi ui_callback(void *, int notification_code, va_list)
-{
-  if ( notification_code == ui_saving )
-    save_linux_options();
-  return 0;
+  dbgmod.g_must_save_cfg = false;
 }
 
 //--------------------------------------------------------------------------
 const char *idaapi set_linux_options(const char *keyword, int pri, int value_type, const void *value)
 {
+  auto &dbgmod = get_linux_debmod();
   // Load linux option with LINUX_NODE defined in user for local and in stub for remote
   if ( keyword == nullptr )
   {
@@ -126,25 +122,14 @@ const char *idaapi set_linux_options(const char *keyword, int pri, int value_typ
       "Linux debugger configuration\n"
       "<#Where is the libunwind leave empty if you don't want to use libunwind#Path to lib~u~nwind:q:" SMAXSTR ":60::>\n\n";
 
-    qstring path = g_dbgmod.libunwind_path;
+    qstring path = dbgmod.libunwind_path;
     while ( true )
     {
       if ( !ask_form(form, &path) )
         return IDPOPT_OK;
       if ( path.empty() )
         break;
-      bool is_correct_libpath = false;
-      for ( int i = 0; i < qnumber(libunwind_pair_name); i++ )
-      {
-        if ( path == libunwind_pair_name[i].libx86_64_name
-          || qisabspath(path.c_str())
-          && streq(libunwind_pair_name[i].libx86_64_name, qbasename(path.c_str())) )
-        {
-          is_correct_libpath = true;
-          break;
-        }
-      }
-      if ( is_correct_libpath )
+      if ( stkunw_get_libraries(path.c_str()) != nullptr )
       {
         break;
       }
@@ -155,8 +140,8 @@ const char *idaapi set_linux_options(const char *keyword, int pri, int value_typ
                 path.c_str());
       }
     }
-    g_dbgmod.libunwind_path = path;
-    g_must_save_cfg = true;
+    dbgmod.libunwind_path = path;
+    dbgmod.g_must_save_cfg = true;
   }
   else
   {
@@ -172,27 +157,27 @@ const char *idaapi set_linux_options(const char *keyword, int pri, int value_typ
     if ( opt->type != value_type )
       return IDPOPT_BADTYPE;
 
+    uchar *fldptr = (uchar *)&dbgmod + opt->dm_offset;
     if ( opt->type == IDPOPT_STR )
     {
-      qstring *pvar = (qstring *)opt->var;
+      qstring *pvar = (qstring *)fldptr;
       *pvar = (char *)value;
     }
 
     if ( pri == IDPOPT_PRI_HIGH )
-      g_must_save_cfg = true;
+      dbgmod.g_must_save_cfg = true;
   }
   return IDPOPT_OK;
 }
+#else
+inline void save_linux_options() {}
+const char *idaapi set_linux_options(const char *, int, int, const void *) { return IDPOPT_OK; }
 #endif // HAVE_UPDATE_CALL_STACK
 
 //--------------------------------------------------------------------------
-static bool init_plugin(void)
+static bool init_linux_plugin(debugger_t *_debugger)
 {
-#ifndef RPC_CLIENT
-  if ( !init_subsystem() )
-    return false;
-#endif
-
+  qnotused(_debugger);
   bool ok = false;
   do
   {
@@ -203,13 +188,13 @@ static bool init_plugin(void)
       return true;
 #else
       // for other systems only the remote debugger is available
-      if ( debugger.is_remote() )
+      if ( _debugger->is_remote() )
         return true;
       break; // failed
 #endif
     }
 
-    if ( inf_get_filetype() != S_FILETYPE )
+    if ( inf_get_filetype() != f_ELF )
       break;
     processor_t &ph = PH;
     if ( ph.id != TARGET_PROCESSOR && ph.id != -1 )
@@ -217,27 +202,7 @@ static bool init_plugin(void)
 
     ok = true;
   } while ( false );
-#ifndef RPC_CLIENT
-  if ( !ok )
-    term_subsystem();
-#endif
-#ifdef HAVE_UPDATE_CALL_STACK
-  if ( ok )
-    hook_to_notification_point(HT_UI, ui_callback);
-#endif
   return ok;
-}
-
-//--------------------------------------------------------------------------
-inline void term_plugin(void)
-{
-#ifndef RPC_CLIENT
-  term_subsystem();
-#endif
-#ifdef HAVE_UPDATE_CALL_STACK
-  unhook_from_notification_point(HT_UI, ui_callback);
-  save_linux_options();
-#endif
 }
 
 //--------------------------------------------------------------------------

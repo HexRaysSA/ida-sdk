@@ -78,7 +78,7 @@ static void handle_operand(const insn_t &insn, const op_t &x, flags64_t F, bool 
     case o_near:
       {
         ea_t ea = to_ea(insn.cs, x.addr);
-        ea_t ref = find_first_insn_in_packet(ea);
+        ea_t ref = get_start_of_exec_packet(ea);
         insn.add_cref(ref, x.offb, fl_JN);
       }
       break;
@@ -89,46 +89,103 @@ badTouch:
 }
 
 //----------------------------------------------------------------------
-ea_t find_first_insn_in_packet(ea_t ea)
+bool insn_has_pbit(ea_t ea)
 {
-  if ( !is_spec_ea(ea) )
+  uint32 fph = 0;
+  if ( get_fph(&fph, get_fph_pos(ea)) )
   {
-    while ( (ea & 0x1F) != 0 )
+    if ( fph_is_compact_insn(fph, get_word_pos(ea, false)) )
+      return fph_has_pbit(fph, fph_layout_pos(fph, ea));
+  }
+
+  return (get_dword(ea) & BIT0) != 0;
+}
+
+//----------------------------------------------------------------------
+ea_t get_prev(ea_t ea)
+{
+  ea_t prev_ea = prev_not_tail(ea);
+  if ( prev_ea == BADADDR || !is_code(get_flags(prev_ea)) )
+    return BADADDR;
+
+  return prev_ea;
+}
+
+//----------------------------------------------------------------------
+bool is_first_insn_of_exec_packet(ea_t ea, bool prev)
+{
+  if ( prev )
+  {
+    ea = get_prev(ea);
+    if ( ea == BADADDR )
+      return 1;
+  }
+
+  // we can't just simply skip the fph above the insn,
+  // because there might be a compact instruction where the p-bit is set
+  // example: .text:00000020 5A A3 20 02       ||      MVK     .L2    8, B4
+  if ( is_fph(ea, get_dword(ea)) )
+  {
+    // skip the fph
+    ea_t above_fph = prev_not_tail(ea);
+    if ( above_fph != BADADDR && is_code(get_flags(above_fph)) )
     {
-      ea_t ea2 = prev_not_tail(ea);
-      if ( ea2 == BADADDR
-        || !is_code(get_flags(ea2))
-        || (get_dword(ea2) & BIT0) == 0 )
-      {
-        break;
-      }
-      ea = ea2;
+      // figure out if its not a compact insn in the fph
+      ea_t above_fph_pos = get_fph_pos(above_fph);
+      if ( above_fph_pos == ea ) // if its the same fph
+        return !insn_has_pbit(above_fph);
     }
   }
+
+  // fixes an issue where the subroutine may end
+  // .text:00000D74 000 62 01 86 01   ||      ADDKPC  .S2    __stub_ret, B3, 0
+  return !insn_has_pbit(ea);
+}
+
+//----------------------------------------------------------------------
+// ea = current fetch packet
+ea_t get_start_of_exec_packet(ea_t ea)
+{
+  if ( is_spec_ea(ea) )
+    return ea;
+
+  if ( !is_fph(ea, get_dword(ea))
+    && is_first_insn_of_exec_packet(ea, true) )
+  {
+    return ea;
+  }
+
+  // execute packets can cross fetch packet bounds
+  for ( size_t i = 8; i != 0; --i )
+  {
+    ea_t prev_ea = prev_not_tail(ea);
+    if ( prev_ea == BADADDR || !is_code(get_flags(prev_ea))
+      || (!is_fph(prev_ea, get_dword(prev_ea))
+       && is_first_insn_of_exec_packet(prev_ea)) )
+    {
+      break;
+    }
+
+    ea = prev_ea;
+  }
+
   return ea;
 }
 
 //----------------------------------------------------------------------
-inline bool is_tms6_nop(uint32 code)
+static int get_delay(const insn_t &insn)
 {
-  return (code & 0x21FFE) == 0;
-}
-
-//----------------------------------------------------------------------
-inline bool is_tms6_bnop(uint32 code)
-{
-  return (code & 0x00001FFC) == 0x00000120      // Branch Using a Displacement With NOP
-      || (code & 0x0F830FFE) == 0x00800362;     // Branch Using a Register With NOP
-}
-
-//----------------------------------------------------------------------
-static int get_delay(uint32 code)
-{
-  if ( is_tms6_nop(code) )                        // NOP
-    return int((code >> 13) & 0xF) + 1;
-  if ( is_tms6_bnop(code) )                       // BNOP
-    return int((code >> 13) & 0x7);
-  return 1;
+  switch ( insn.itype )
+  {
+    case TMS6_nop:
+      return insn.Op1.value;
+    case TMS6_bnop:
+      return insn.Op2.value;
+    case TMS6_callp:
+      return 5;
+    default:
+      return 1;
+  }
 }
 
 //----------------------------------------------------------------------
@@ -140,34 +197,36 @@ struct call_info_t
   int reg;
   call_info_t(ea_t n) : mvk(BADADDR), mvkh(BADADDR), next(n), reg(rB3) {}
   bool call_is_present(void) const { return mvk != BADADDR && mvkh != BADADDR; }
-  void test(ea_t ea, uint32 code);
+  void test(const insn_t &insn);
 };
 
 //----------------------------------------------------------------------
-inline ushort get_mvk_op(uint32 code) { return ushort(code >> 7); }
-
-void call_info_t::test(ea_t ea, uint32 code)
+inline bool is_s_unit(const insn_t &insn)
 {
-  if ( (code & 0xF000007C) == 0x28 && mvk == BADADDR )
-  { // unconditional MVK.S
-    int mvk_reg = int(code >> 23) & 0x1F;
-    if ( code & BIT1 )
-      mvk_reg += rB0;
-    if ( (reg == -1 || reg == mvk_reg) && ushort(next) == get_mvk_op(code) )
+  return insn.funit == FU_S1 || insn.funit == FU_S2;
+}
+
+//----------------------------------------------------------------------
+void call_info_t::test(const insn_t &insn)
+{
+  if ( !is_s_unit(insn) )
+    return;
+
+  if ( mvk == BADADDR && insn.itype == TMS6_mvk )
+  {
+    if ( (reg == -1 || reg == insn.Op2.reg) && ushort(next) == ushort(insn.Op1.value) )
     {
-      reg  = mvk_reg;
-      mvk  = ea;
+      reg = insn.Op2.reg;
+      mvk = insn.ea;
     }
   }
-  else if ( (code & 0xF000007C) == 0x68 && mvkh == BADADDR )
-  { // unconditional MVKH.S
-    int mvk_reg = int(code >> 23) & 0x1F;
-    if ( code & BIT1 )
-      mvk_reg += rB0;
-    if ( (reg == -1 || reg == mvk_reg) && ushort(next>>16) == get_mvk_op(code) )
+
+  if ( mvkh == BADADDR && insn.itype == TMS6_mvkh )
+  {
+    if ( (reg == -1 || reg == insn.Op2.reg) && ushort(next >> 16) == ushort(insn.Op1.value >> 16) )
     {
-      reg  = mvk_reg;
-      mvkh = ea;
+      reg = insn.Op2.reg;
+      mvkh = insn.ea;
     }
   }
 }
@@ -176,19 +235,21 @@ void call_info_t::test(ea_t ea, uint32 code)
 static int calc_packet_delay(ea_t ea, call_info_t *ci)
 {
   int delay = 1;
-  while ( true )
+
+  insn_t insn;
+  while ( decode_insn(&insn, ea) > 0 )
   {
-    uint32 code = get_dword(ea);
-    int d2 = get_delay(code);
+    int d2 = get_delay(insn);
     if ( d2 > delay )
       delay = d2;
-    ci->test(ea, code);
-    if ( (code & BIT0) == 0 )
+
+    ci->test(insn);
+    if ( (insn.cflags & aux_para) == 0 )
       break;
-    ea += 4;
-    if ( !is_code(get_flags(ea)) )
-      break;
+
+    ea += insn.size;
   }
+
   return delay;
 }
 
@@ -196,54 +257,50 @@ static int calc_packet_delay(ea_t ea, call_info_t *ci)
 static ea_t find_prev_packet(ea_t ea)
 {
   ea_t res = BADADDR;
-  while ( 1 )
+
+  while ( true )
   {
     ea_t ea2 = prev_not_tail(res != BADADDR ? res : ea);
     if ( ea2 == BADADDR )
       break;
+
     if ( !is_code(get_flags(ea2)) )
       break;
+
     res = ea2;
-    if ( (get_dword(ea2) & BIT0) == 0 )
+
+    if ( !insn_has_pbit(ea2) )
       break;
   }
+
   return res;
 }
 
 //----------------------------------------------------------------------
+// returns the branch instruction
 static ea_t get_branch_ea(ea_t ea)
 {
-  while ( 1 )
+  insn_t insn;
+  while ( decode_insn(&insn, ea) > 0 )
   {
-    uint32 code = get_dword(ea);
-    if ( (code >> 28) == cAL )
+    if ( insn.cond == cAL )
     {
-      switch ( (code >> 2) & 0x1F )
+      if ( insn.itype == TMS6_b
+        || insn.itype == TMS6_bnop // sunit check needed?_
+        || insn.itype == TMS6_bdec
+        || insn.itype == TMS6_bpos )
       {
-        case 0x04:                      // bcond()
-          return ea;
-        case 0x08:                      // S unit
-        case 0x18:
-          {
-            int opcode = int(code >> 6) & 0x3F;
-            switch ( opcode )
-            {
-              case 0:           // bdec/bpos
-              case 3:           // b irp
-              case 4:           // bnop
-              case 13:          // b
-                return ea;
-            }
-          }
-          break;
+        return insn.ea;
       }
     }
-    if ( (code & BIT0) == 0 )
+
+    // looks downwards inside the packet until the bottom
+    if ( (insn.cflags & aux_para) == 0 )
       break;
-    ea += 4;
-    if ( !is_code(get_flags(ea)) )
-      break;
+
+    ea += insn.size;
   }
+
   return BADADDR;
 }
 
@@ -257,7 +314,7 @@ int tms6_t::emu(const insn_t &insn)
   {
     flow = false;
   }
-  else if ( (insn.cflags & aux_para) == 0 )           // the last instruction of packet
+  else if ( (insn.cflags & aux_para) == 0 && insn.itype != TMS6_fphead ) // the last instruction of packet
   {
     // From spru732j.pdf:
     // Although branch instructions take one execute phase, there are five
@@ -266,11 +323,10 @@ int tms6_t::emu(const insn_t &insn)
 
     // We look backwards for five delay slots to check for an unconditionnal
     // branch instruction.
-
-    ea_t ea = find_first_insn_in_packet(insn.ea);
+    ea_t ea = get_start_of_exec_packet(insn.ea);
     int delay = 0;
     call_info_t ci(insn.ea+insn.size);
-    while ( 1 )
+    while ( true )
     {
       // If there are any crefs to this address, we cannot guarantee that
       // the branch instruction really got executed.
@@ -282,36 +338,45 @@ int tms6_t::emu(const insn_t &insn)
       if ( delay > 5 )
         break;
 
+      insn_t ea_insn;
+      if ( decode_insn(&ea_insn, ea) <= 0 )
+        break;
+
       // Unless we have a bnop instruction, seek to the previous packet.
-      bool is_bnop = is_tms6_bnop(get_dword(ea));
+      bool is_bnop = ea_insn.itype == TMS6_bnop;
       if ( !is_bnop )
       {
-        ea = find_prev_packet(ea);
+        ea = find_prev_packet(ea); // returns the bottom of the previous packet
         if ( ea == BADADDR )
           break;
-        ea = find_first_insn_in_packet(ea);
+        ea = get_start_of_exec_packet(ea);
       }
 
       ea_t brea;
       if ( delay == 5 && (brea=get_branch_ea(ea)) != BADADDR )
       {
+        if ( decode_insn(&ea_insn, ea) <= 0 )
+          break;
+
         // We seeked to the previous packet and it was a bnop. The check
         // for delay == 5 is no longer correct, since we did not take into
         // account the delays of the bnop instruction itself.
-        if ( is_tms6_bnop(get_dword(ea)) && !is_bnop )
+        if ( ea_insn.itype == TMS6_bnop && !is_bnop )
           break;
 
         insn_t brins;
         calc_packet_delay(ea, &ci);      // just to test for MVK/MVKH
         bool iscall = ci.call_is_present();
-        decode_insn(&brins, brea);
+        if ( decode_insn(&brins, brea) <= 0 )
+          break;
+
         tgtinfo_t tgt;
         if ( brins.Op1.type == o_near )
         {
           ea_t target = to_ea(brins.cs, brins.Op1.addr);
           if ( iscall )
           {
-            target = find_first_insn_in_packet(target);
+            target = get_start_of_exec_packet(target);
             brins.add_cref(target, brins.Op1.offb, fl_CN);
             if ( !func_does_return(target) )
               flow = false;
@@ -360,7 +425,9 @@ int tms6_t::emu(const insn_t &insn)
 int idaapi is_align_insn(ea_t ea)
 {
   insn_t insn;
-  decode_insn(&insn, ea);
+  if ( decode_insn(&insn, ea) <= 0 )
+    return 0;
+
   switch ( insn.itype )
   {
     case TMS6_mv:

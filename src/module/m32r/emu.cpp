@@ -74,6 +74,8 @@ int m32r_calc_switch_cases(casevec_t *casevec, eavec_t *targets, ea_t insn_ea, c
 //----------------------------------------------------------------------
 static bool handle_switch(const insn_t &insn)
 {
+  if ( !inf_create_jump_tables() )
+    return false;
   switch_info_t si;
   bool was_switch = (get_flags(insn.ea) & FF_JUMP) != 0
                  && get_switch_info(&si, insn.ea) > 0;

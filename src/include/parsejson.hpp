@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -153,6 +153,19 @@ struct jobj_t : public qvector<kvp_t>
       v = &kvp.value;
     }
     return v;
+  }
+
+  bool del_value(const char *k)
+  {
+    for ( size_t i = 0, _n = size(); i < _n; ++i )
+    {
+      if ( at(i).key == k )
+      {
+        erase(begin() + i);
+        return true;
+      }
+    }
+    return false;
   }
 
   int64 get_num(const char *k) const { return get_value_or_fail(k)->num(); }

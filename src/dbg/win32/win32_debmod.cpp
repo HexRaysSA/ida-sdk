@@ -92,7 +92,7 @@ regctx_t::regctx_t(dynamic_register_set_t &_idaregs, win32_debmod_t &_debmod)
   memset(&cpu, 0, sizeof(cpu));
   memset(&fpu, 0, sizeof(fpu));
 
-  idaregs.set_regclasses(x86_register_classes);
+  idaregs.set_regclasses(x86_register_classes, X86_RC_GENERAL);
 }
 
 //--------------------------------------------------------------------------
@@ -446,8 +446,6 @@ void context_helper_t::clear()
 #else
 #define NODISTURB_ASSERT(x)
 #endif
-
-static int g_code = 0;
 
 //--------------------------------------------------------------------------
 void win32_debmod_t::check_thread(bool must_be_main_thread) const
@@ -975,94 +973,84 @@ void win32_debmod_t::init_reg_ctx()
 
   // ST*
   size_t offset = qoffsetof2(fpu, __fpu_stmm);
-  for ( size_t i = R_ST0; i <= R_ST7; i++, offset += 16 )
-    reg_ctx->add_fval(x86_registers[i], offset, 10);
+  for ( size_t i=0; i <= 7; ++i, offset += 16 )
+    reg_ctx->add_fval(pc_ri_st[i], offset, 10);
 
   // FPU control
-  reg_ctx->add_ival(x86_registers[R_CTRL], offset_size(fpu, __fpu_fcw));
-  reg_ctx->add_ival(x86_registers[R_STAT], offset_size(fpu, __fpu_fsw));
-  reg_ctx->add_ival(x86_registers[R_TAGS], offset_size(fpu, __fpu_ftw));
+  reg_ctx->add_ival(pc_ri_ctrl, offset_size(fpu, __fpu_fcw));
+  reg_ctx->add_ival(pc_ri_stat, offset_size(fpu, __fpu_fsw));
+  reg_ctx->add_ival(pc_ri_tags, offset_size(fpu, __fpu_ftw));
 
-  cs_idx = reg_ctx->add_ival(x86_registers[R_CS], offset_size(cpu, __cs));
+  cs_idx = reg_ctx->add_ival(pc_ri_cs, offset_size(cpu, __cs));
   if ( is64 )
   {
-    ds_idx = reg_ctx->add_func(x86_registers[R_DS], clear_ival, nop_write);
-    es_idx = reg_ctx->add_func(x86_registers[R_ES], clear_ival, nop_write);
+    ds_idx = reg_ctx->add_func(pc_ri_ds, clear_ival, nop_write);
+    es_idx = reg_ctx->add_func(pc_ri_es, clear_ival, nop_write);
   }
   else
   {
-    ds_idx = reg_ctx->add_ival(x86_registers[R_DS], offset_size(cpu, __ds));
-    es_idx = reg_ctx->add_ival(x86_registers[R_ES], offset_size(cpu, __es));
+    ds_idx = reg_ctx->add_ival(pc_ri_ds, offset_size(cpu, __ds));
+    es_idx = reg_ctx->add_ival(pc_ri_es, offset_size(cpu, __es));
   }
-  fs_idx = reg_ctx->add_ival(x86_registers[R_FS], offset_size(cpu, __fs));
-  gs_idx = reg_ctx->add_ival(x86_registers[R_GS], offset_size(cpu, __gs));
+  fs_idx = reg_ctx->add_ival(pc_ri_fs, offset_size(cpu, __fs));
+  gs_idx = reg_ctx->add_ival(pc_ri_gs, offset_size(cpu, __gs));
   if ( is64 )
-    ss_idx = reg_ctx->add_func(x86_registers[R_SS], clear_ival, nop_write);
+    ss_idx = reg_ctx->add_func(pc_ri_ss, clear_ival, nop_write);
   else
-    ss_idx = reg_ctx->add_ival(x86_registers[R_SS], offset_size(cpu, __ss));
+    ss_idx = reg_ctx->add_ival(pc_ri_ss, offset_size(cpu, __ss));
 
 #ifdef __EA64__
   if ( is64 )
   {
-    reg_ctx->add_ival(r_rax, offset_size(cpu, __eax));
-    reg_ctx->add_ival(r_rbx, offset_size(cpu, __ebx));
-    reg_ctx->add_ival(r_rcx, offset_size(cpu, __ecx));
-    reg_ctx->add_ival(r_rdx, offset_size(cpu, __edx));
-    reg_ctx->add_ival(r_rsi, offset_size(cpu, __esi));
-    reg_ctx->add_ival(r_rdi, offset_size(cpu, __edi));
-    reg_ctx->add_ival(r_rbp, offset_size(cpu, __ebp));
-    sp_idx = reg_ctx->add_ival(r_rsp, offset_size(cpu, __esp));
-    pc_idx = reg_ctx->add_ival(r_rip, offset_size(cpu, __eip));
-    reg_ctx->add_ival(r_r8, offset_size(cpu, __r8));
-    reg_ctx->add_ival(r_r9, offset_size(cpu, __r9));
-    reg_ctx->add_ival(r_r10, offset_size(cpu, __r10));
-    reg_ctx->add_ival(r_r11, offset_size(cpu, __r11));
-    reg_ctx->add_ival(r_r12, offset_size(cpu, __r12));
-    reg_ctx->add_ival(r_r13, offset_size(cpu, __r13));
-    reg_ctx->add_ival(r_r14, offset_size(cpu, __r14));
-    reg_ctx->add_ival(r_r15, offset_size(cpu, __r15));
+    reg_ctx->add_ival(pc_ri_rax, offset_size(cpu, __eax));
+    reg_ctx->add_ival(pc_ri_rbx, offset_size(cpu, __ebx));
+    reg_ctx->add_ival(pc_ri_rcx, offset_size(cpu, __ecx));
+    reg_ctx->add_ival(pc_ri_rdx, offset_size(cpu, __edx));
+    reg_ctx->add_ival(pc_ri_rsi, offset_size(cpu, __esi));
+    reg_ctx->add_ival(pc_ri_rdi, offset_size(cpu, __edi));
+    reg_ctx->add_ival(pc_ri_rbp, offset_size(cpu, __ebp));
+    sp_idx = reg_ctx->add_ival(pc_ri_rsp, offset_size(cpu, __esp));
+    pc_idx = reg_ctx->add_ival(pc_ri_rip, offset_size(cpu, __eip));
+    reg_ctx->add_ival(pc_ri_r8, offset_size(cpu, __r8));
+    reg_ctx->add_ival(pc_ri_r9, offset_size(cpu, __r9));
+    reg_ctx->add_ival(pc_ri_r10, offset_size(cpu, __r10));
+    reg_ctx->add_ival(pc_ri_r11, offset_size(cpu, __r11));
+    reg_ctx->add_ival(pc_ri_r12, offset_size(cpu, __r12));
+    reg_ctx->add_ival(pc_ri_r13, offset_size(cpu, __r13));
+    reg_ctx->add_ival(pc_ri_r14, offset_size(cpu, __r14));
+    reg_ctx->add_ival(pc_ri_r15, offset_size(cpu, __r15));
   }
   else
 #endif
   {
-    reg_ctx->add_ival(r_eax, offset_size(cpu, __eax));
-    reg_ctx->add_ival(r_ebx, offset_size(cpu, __ebx));
-    reg_ctx->add_ival(r_ecx, offset_size(cpu, __ecx));
-    reg_ctx->add_ival(r_edx, offset_size(cpu, __edx));
-    reg_ctx->add_ival(r_esi, offset_size(cpu, __esi));
-    reg_ctx->add_ival(r_edi, offset_size(cpu, __edi));
-    reg_ctx->add_ival(r_ebp, offset_size(cpu, __ebp));
-    sp_idx = reg_ctx->add_ival(r_esp, offset_size(cpu, __esp));
-    pc_idx = reg_ctx->add_ival(r_eip, offset_size(cpu, __eip));
+    reg_ctx->add_ival(pc_ri_eax, offset_size(cpu, __eax));
+    reg_ctx->add_ival(pc_ri_ebx, offset_size(cpu, __ebx));
+    reg_ctx->add_ival(pc_ri_ecx, offset_size(cpu, __ecx));
+    reg_ctx->add_ival(pc_ri_edx, offset_size(cpu, __edx));
+    reg_ctx->add_ival(pc_ri_esi, offset_size(cpu, __esi));
+    reg_ctx->add_ival(pc_ri_edi, offset_size(cpu, __edi));
+    reg_ctx->add_ival(pc_ri_ebp, offset_size(cpu, __ebp));
+    sp_idx = reg_ctx->add_ival(pc_ri_esp, offset_size(cpu, __esp));
+    pc_idx = reg_ctx->add_ival(pc_ri_eip, offset_size(cpu, __eip));
   }
-  sr_idx = reg_ctx->add_ival(x86_registers[R_EFLAGS], offset_size(cpu, __eflags));
+  sr_idx = reg_ctx->add_ival(pc_ri_efl, offset_size(cpu, __eflags));
+
+  xmm_ymm_count = is64 ? 16 : 8;
 
   // XMM*
   offset = qoffsetof2(fpu, __fpu_xmm);
-  for ( size_t i = R_XMM0; i <= R_LAST_XMM; i++, offset += 16 )
-  {
-#ifdef __EA64__
-    if ( !is64 && i >= R_XMM8 )
-      break;
-#endif
-    reg_ctx->add_data(x86_registers[i], offset, 16);
-  }
-  reg_ctx->add_ival(x86_registers[R_MXCSR], offset_size(fpu, __fpu_mxcsr));
+  for ( size_t i=0; i < xmm_ymm_count; ++i, offset += 16 )
+    reg_ctx->add_data(pc_ri_xmm[i], offset, 16);
+  reg_ctx->add_ival(pc_ri_mxcsr, offset_size(fpu, __fpu_mxcsr));
 
   // MMX*
   offset = qoffsetof2(fpu, __fpu_stmm);
-  for ( size_t i = R_MMX0; i <= R_MMX7; i++, offset += 16 )
-    reg_ctx->add_data(x86_registers[i], offset, 8);
+  for ( size_t i=0; i <= 7; ++i, offset += 16 )
+    reg_ctx->add_data(pc_ri_mm[i], offset, 8);
 
   // YMM*
-  for ( size_t i = R_YMM0; i <= R_LAST_YMM; i++ )
-  {
-#ifdef __EA64__
-    if ( !is64 && i >= R_YMM8 )
-      break;
-#endif
-    reg_ctx->add_func(x86_registers[i], ymm_read, ymm_write, (void *) (i - R_YMM0));
-  }
+  for ( size_t i=0; i < xmm_ymm_count; ++i )
+    reg_ctx->add_func(pc_ri_ymm[i], ymm_read, ymm_write, (void *)i);
 }
 
 //--------------------------------------------------------------------------
@@ -1160,7 +1148,7 @@ bool win32_debmod_t::get_thread_state(
   if ( (clsmask & (X86_RC_XMM|X86_RC_YMM)) != 0 )
   {
     const uchar *xptr = XMMREG_PTR;
-    memcpy(&out_floats->__fpu_xmm[0], xptr, (R_MXCSR - R_XMM0) * sizeof(xmm_reg_t));
+    memcpy(&out_floats->__fpu_xmm[0], xptr, xmm_ymm_count * sizeof(xmm_reg_t));
     out_floats->__fpu_mxcsr = XMMREG_MXCSR;
   }
 
@@ -1264,7 +1252,7 @@ bool win32_debmod_t::set_thread_state(
   if ( (clsmask & (X86_RC_XMM|X86_RC_YMM)) != 0 )
   {
     uchar *xptr = XMMREG_PTR;
-    memcpy(xptr, &floats.__fpu_xmm[0], (R_MXCSR - R_XMM0) * sizeof(xmm_reg_t));
+    memcpy(xptr, &floats.__fpu_xmm[0], xmm_ymm_count * sizeof(xmm_reg_t));
     XMMREG_MXCSR = floats.__fpu_mxcsr;
   }
 
@@ -2204,15 +2192,17 @@ void idaapi win32_debmod_t::dbg_set_debugging(bool _debug_debugger)
 }
 
 //--------------------------------------------------------------------------
-drc_t idaapi win32_debmod_t::dbg_init(uint32_t *flags2, qstring * /*errbuf*/)
+drc_t idaapi win32_debmod_t::dbg_init(uint64 *add_debugger_flags, qstring * /*errbuf*/)
 {
   check_thread(true);
 
   cleanup();
 
-  if ( flags2 != nullptr )
-    *flags2 = g_code;
+  auto &cfg = get_win32_cfg();
+  if ( add_debugger_flags != nullptr )
+    *add_debugger_flags = cfg.g_code;
 
+  init_dynamic_regs();  // needs register set for UI
   return DRC_OK;
 }
 
@@ -3071,7 +3061,7 @@ drc_t idaapi win32_debmod_t::dbg_continue_after_event(const debug_event_t *event
   if ( events.empty() )
   {
     bool done = false;
-    if ( !done )    //-V547 '!done' is always true
+    if ( !done )
     {
       // check if we need to install the workaround for single stepping over callgates
       thread_info_t *ti = threads.get(event->tid);
@@ -3351,12 +3341,11 @@ bool win32_debmod_t::reopen_threads(void)
 
 //--------------------------------------------------------------------------
 static bool enable_privilege(LPCTSTR privilege, bool enable);
-static bool g_subsys_inited = false;
-static bool g_got_debpriv = false;
 
 bool init_subsystem()
 {
-  if ( g_subsys_inited )
+  auto &cfg = get_win32_cfg();
+  if ( cfg.g_subsys_inited )
     return true;
 
   if ( !win32_debmod_t::winver.ok() )
@@ -3364,14 +3353,14 @@ bool init_subsystem()
 
   win_tool_help_t *wth = win32_debmod_t::get_tool_help();
   if ( wth->ok() )
-    g_code |= DBG_HAS_GET_PROCESSES;
+    cfg.g_code |= DBG_HAS_GET_PROCESSES;
 
   // DebugActiveProcessStop() is only available on XP/2K3
   if ( wth->use_debug_detach_process() )
-    g_code |= DBG_HAS_DETACH_PROCESS;
+    cfg.g_code |= DBG_HAS_DETACH_PROCESS;
 
-  g_got_debpriv = enable_privilege(SE_DEBUG_NAME, true);
-  if ( !g_got_debpriv )
+  cfg.g_got_debpriv = enable_privilege(SE_DEBUG_NAME, true);
+  if ( !cfg.g_got_debpriv )
     msg("Cannot set debug privilege: %s.\n"
         "Debugging of processes owned by another account won't be possible.\n",
         winerr(GetLastError()));
@@ -3389,22 +3378,23 @@ bool init_subsystem()
   *(FARPROC*)&_Wow64GetThreadSelectorEntry = GetProcAddress(h, TEXT("Wow64GetThreadSelectorEntry"));
 #endif
 
-  g_subsys_inited = g_code != 0;
-  return g_subsys_inited;
+  cfg.g_subsys_inited = cfg.g_code != 0;
+  return cfg.g_subsys_inited;
 }
 
 //--------------------------------------------------------------------------
 bool term_subsystem()
 {
-  if ( !g_subsys_inited )
+  auto &cfg = get_win32_cfg();
+  if ( !cfg.g_subsys_inited )
     return true;
 
-  g_subsys_inited = false;
+  cfg.g_subsys_inited = false;
 
-  if ( g_got_debpriv )
+  if ( cfg.g_got_debpriv )
   {
     enable_privilege(SE_DEBUG_NAME, false);
-    g_got_debpriv = false;
+    cfg.g_got_debpriv = false;
   }
 
   term_win32_subsystem();

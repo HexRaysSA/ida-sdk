@@ -1,6 +1,6 @@
 /*
  *      Interactive disassembler (IDA).
- *      Copyright (c) 1990-2024 Hex-Rays
+ *      Copyright (c) 1990-2025 Hex-Rays
  *      ALL RIGHTS RESERVED.
  *
  */
@@ -20,7 +20,7 @@
 */
 
 /// The IDD interface version number
-#define         IDD_INTERFACE_VERSION   30
+#define         IDD_INTERFACE_VERSION   31
 
 class idc_value_t;
 struct fpvalue_t;
@@ -129,6 +129,8 @@ struct dynamic_register_set_t
   qstrvec_t                 strvec;
   const_char_vec_t          classname_ptrs;
   qvector<const_char_vec_t> bit_strings_ptrs_vec;
+  int default_regclasses = 1; ///< Mask of default printed register classes,
+                              ///< 1 is the general register set
 
   void clear()
   {
@@ -136,6 +138,16 @@ struct dynamic_register_set_t
     strvec.clear();
     classname_ptrs.clear();
     bit_strings_ptrs_vec.clear();
+  }
+
+  void add_register(const register_info_t &ri)
+  {
+    add_register(ri.name,
+                 ri.flags,
+                 ri.dtype,
+                 ri.register_class,
+                 ri.bit_strings,
+                 ri.default_bit_strings_mask);
   }
 
   void add_register(
@@ -183,7 +195,7 @@ struct dynamic_register_set_t
     ri.default_bit_strings_mask = bits_mask;
   }
 
-  void set_regclasses(const char **register_classes)
+  void set_regclasses(const char **register_classes, int default_regcls)
   {
     while ( *register_classes != nullptr )
     {
@@ -192,6 +204,7 @@ struct dynamic_register_set_t
       classname_ptrs.push_back(register_class.begin());
     }
     classname_ptrs.push_back(nullptr);
+    default_regclasses = default_regcls;
   }
 
   // Values for debugger_t.
@@ -269,36 +282,39 @@ struct launch_env_t : public qstrvec_t
 /// Debug event codes
 enum event_id_t
 {
-  NO_EVENT         = 0x00000000, ///< Not an interesting event. This event can be
-                                 ///< used if the debugger module needs to return
-                                 ///< an event but there are no valid events.
-  PROCESS_STARTED  = 0x00000001, ///< New process has been started.
-  PROCESS_EXITED   = 0x00000002, ///< Process has been stopped.
-  THREAD_STARTED   = 0x00000004, ///< New thread has been started.
-  THREAD_EXITED    = 0x00000008, ///< Thread has been stopped.
-  BREAKPOINT       = 0x00000010, ///< Breakpoint has been reached. IDA will complain
-                                 ///< about unknown breakpoints, they should be reported
-                                 ///< as exceptions.
-  STEP             = 0x00000020, ///< One instruction has been executed. Spurious
-                                 ///< events of this kind are silently ignored by IDA.
-  EXCEPTION        = 0x00000040, ///< Exception.
-  LIB_LOADED       = 0x00000080, ///< New library has been loaded.
-  LIB_UNLOADED     = 0x00000100, ///< Library has been unloaded.
-  INFORMATION      = 0x00000200, ///< User-defined information.
-                                 ///< This event can be used to return empty information
-                                 ///< This will cause IDA to call get_debug_event()
-                                 ///< immediately once more.
-  PROCESS_ATTACHED = 0x00000400, ///< Successfully attached to running process.
-  PROCESS_DETACHED = 0x00000800, ///< Successfully detached from process.
-  PROCESS_SUSPENDED= 0x00001000, ///< Process has been suspended.
-                                 ///< This event can be used by the debugger module
-                                 ///< to signal if the process spontaneously gets
-                                 ///< suspended (not because of an exception,
-                                 ///< breakpoint, or single step). IDA will silently
-                                 ///< switch to the 'suspended process' mode without
-                                 ///< displaying any messages.
-  TRACE_FULL       = 0x00002000, ///< The trace buffer of the tracer module is full
-                                 ///< and IDA needs to read it before continuing
+  NO_EVENT         =  0, ///< Not an interesting event. This event can be
+                         ///< used if the debugger module needs to return
+                         ///< an event but there are no valid events.
+  PROCESS_STARTED  =  1, ///< New process has been started.
+  PROCESS_EXITED   =  2, ///< Process has been stopped.
+  THREAD_STARTED   =  3, ///< New thread has been started.
+  THREAD_EXITED    =  4, ///< Thread has been stopped.
+  BREAKPOINT       =  5, ///< Breakpoint has been reached. IDA will complain
+                         ///< about unknown breakpoints, they should be reported
+                         ///< as exceptions.
+  STEP             =  6, ///< One instruction has been executed. Spurious
+                         ///< events of this kind are silently ignored by IDA.
+  EXCEPTION        =  7, ///< Exception.
+  LIB_LOADED       =  8, ///< New library has been loaded.
+  LIB_UNLOADED     =  9, ///< Library has been unloaded.
+  INFORMATION      = 10, ///< User-defined information.
+                         ///< This event can be used to return empty information
+                         ///< This will cause IDA to call get_debug_event()
+                         ///< immediately once more.
+  PROCESS_ATTACHED = 11, ///< Successfully attached to running process.
+  PROCESS_DETACHED = 12, ///< Successfully detached from process.
+  PROCESS_SUSPENDED= 13, ///< Process has been suspended.
+                         ///< This event can be used by the debugger module
+                         ///< to signal if the process spontaneously gets
+                         ///< suspended (not because of an exception,
+                         ///< breakpoint, or single step). IDA will silently
+                         ///< switch to the 'suspended process' mode without
+                         ///< displaying any messages.
+  TRACE_FULL       = 14, ///< The trace buffer of the tracer module is full
+                         ///< and IDA needs to read it before continuing
+
+  STATUS_MASK      = 0xF0000000, ///< additional info about process state
+  BITNESS_CHANGED  = 0x80000000, ///< Debugger detected the process bitness changing.
 };
 
 // helper functions:
@@ -354,7 +370,6 @@ private:
   event_id_t _eid = NO_EVENT;
 #ifndef SWIG
   char bytes[qmax(sizeof(modinfo_t), sizeof(excinfo_t))];
-  void check_usage(uint32 req) { QASSERT(1502, (_eid & req) != 0); }
 #endif
 
 public:
@@ -377,7 +392,7 @@ public:
   }
 
   /// Event code
-  event_id_t eid() const { return _eid; }
+  event_id_t eid() const { return event_id_t(_eid & ~STATUS_MASK); }
 
   /// Set event code.
   /// If the new event code is compatible with the old one
@@ -385,18 +400,22 @@ public:
   /// Otherwise the event will be cleared and the new event code will be set.
   void set_eid(event_id_t id) { set_debug_event_code(this, id); }
 
+  /// process bitness
+  bool is_bitness_changed() const { return (_eid & BITNESS_CHANGED) != 0; }
+  void set_bitness_changed(bool on=true) { setflag(_eid, BITNESS_CHANGED, on); }
+
   /// Information that depends on the event code:
 
   ///< ::PROCESS_STARTED, ::PROCESS_ATTACHED, ::LIB_LOADED
   modinfo_t &modinfo()
   {
-    check_usage(PROCESS_STARTED | PROCESS_ATTACHED | LIB_LOADED);
+    QASSERT(3295, eid() == PROCESS_STARTED || eid() == PROCESS_ATTACHED || eid() == LIB_LOADED);
     return *(modinfo_t *)bytes;
   }
   ///< ::PROCESS_EXITED, ::THREAD_EXITED
   int &exit_code()
   {
-    check_usage(PROCESS_EXITED | THREAD_EXITED);
+    QASSERT(3296, eid() == PROCESS_EXITED || eid() == THREAD_EXITED);
     return *(int *)bytes;
   }
   ///< ::THREAD_STARTED (thread name)
@@ -404,19 +423,19 @@ public:
   ///< ::INFORMATION (will be displayed in the output window if not empty)
   qstring &info()
   {
-    check_usage(THREAD_STARTED | LIB_UNLOADED | INFORMATION);
+    QASSERT(3297, eid() == THREAD_STARTED || eid() == LIB_UNLOADED || eid() == INFORMATION);
     return *(qstring *)bytes;
   }
   ///< ::BREAKPOINT
   bptaddr_t &bpt()
   {
-    check_usage(BREAKPOINT);
+    QASSERT(3298, eid() == BREAKPOINT);
     return *(bptaddr_t *)bytes;
   }
   ///< ::EXCEPTION
   excinfo_t &exc()
   {
-    check_usage(EXCEPTION);
+    QASSERT(3299, eid() == EXCEPTION);
     return *(excinfo_t *)bytes;
   }
 
@@ -468,6 +487,30 @@ public:
   friend THREAD_SAFE void ida_export set_debug_event_code(debug_event_t *ev, event_id_t id);
 };
 DECLARE_TYPE_AS_MOVABLE(debug_event_t);
+
+/// get debug event name
+inline const char *get_debug_event_name(const debug_event_t &dev)
+{
+  switch ( dev.eid() )
+  {
+    case NO_EVENT:          return "NO_EVENT";
+    case THREAD_STARTED:    return "THREAD_STARTED";
+    case STEP:              return "STEP";
+    case PROCESS_DETACHED:  return "PROCESS_DETACHED";
+    case PROCESS_STARTED:   return "PROCESS_STARTED";
+    case PROCESS_ATTACHED:  return "PROCESS_ATTACHED";
+    case PROCESS_SUSPENDED: return "PROCESS_SUSPENDED";
+    case LIB_LOADED:        return "LIB_LOADED";
+    case PROCESS_EXITED:    return "PROCESS_EXITED";
+    case THREAD_EXITED:     return "THREAD_EXITED";
+    case BREAKPOINT:        return "BREAKPOINT";
+    case EXCEPTION:         return "EXCEPTION";
+    case LIB_UNLOADED:      return "LIB_UNLOADED";
+    case INFORMATION:       return "INFORMATION";
+    case TRACE_FULL:        return "TRACE_FULL";
+    default: return "???";
+  }
+}
 
 typedef int bpttype_t; ///< hardware breakpoint type (see \ref BPT_H)
 
@@ -856,15 +899,16 @@ typedef qvector<thread_name_t> thread_name_vec_t; ///< vector of thread names
 /// must be set in order to use a resume mode.
 enum resume_mode_t
 {
-  RESMOD_NONE,    ///< no stepping, run freely
-  RESMOD_INTO,    ///< step into call (the most typical single stepping)
-  RESMOD_OVER,    ///< step over call
-  RESMOD_OUT,     ///< step out of the current function (run until return)
-  RESMOD_SRCINTO, ///< until control reaches a different source line
-  RESMOD_SRCOVER, ///< next source line in the current stack frame
-  RESMOD_SRCOUT,  ///< next source line in the previous stack frame
-  RESMOD_USER,    ///< step out to the user code
-  RESMOD_HANDLE,  ///< step into the exception handler
+  RESMOD_NONE,     ///< no stepping, run freely
+  RESMOD_INTO,     ///< step into call (the most typical single stepping)
+  RESMOD_OVER,     ///< step over call
+  RESMOD_OUT,      ///< step out of the current function (run until return)
+  RESMOD_SRCINTO,  ///< until control reaches a different source line
+  RESMOD_SRCOVER,  ///< next source line in the current stack frame
+  RESMOD_SRCOUT,   ///< next source line in the previous stack frame
+  RESMOD_USER,     ///< step out to the user code
+  RESMOD_HANDLE,   ///< step into the exception handler
+  RESMOD_BACKINTO, ///< step backwards into call (in time-travel debugging)
   RESMOD_MAX,
 };
 
@@ -931,102 +975,98 @@ struct debugger_t
                           ///< Used for instant debugging to load the correct
                           ///< processor module
 
-  uint32 flags;           /// \ref DBG_FLAG_
-  uint32 flags2;          /// \ref DBG_FLAG2_
+  uint64 flags;           /// \ref DBG_FLAG_
                           /// may be set inside debugger_t::init_debugger() except of the severals
 
   /// \defgroup DBG_FLAG_ Debugger module features
   /// Used by debugger_t::flags
   ///@{
-  #define DBG_FLAG_REMOTE         0x00000001  ///< Remote debugger (requires remote host name unless #DBG_FLAG_NOHOST)
-  #define DBG_FLAG_NOHOST         0x00000002  ///< Remote debugger with does not require network params (host/port/pass).
-                                              ///< (a unique device connected to the machine)
-  #define DBG_FLAG_FAKE_ATTACH    0x00000004  ///< ::PROCESS_ATTACHED is a fake event
-                                              ///< and does not suspend the execution
-  #define DBG_FLAG_HWDATBPT_ONE   0x00000008  ///< Hardware data breakpoints are
-                                              ///< one byte size by default
-  #define DBG_FLAG_CAN_CONT_BPT   0x00000010  ///< Debugger knows to continue from a bpt.
-                                              ///< This flag also means that the debugger module
-                                              ///< hides breakpoints from ida upon read_memory
-  #define DBG_FLAG_NEEDPORT       0x00000020  ///< Remote debugger requires port number (to be used with DBG_FLAG_NOHOST)
-  #define DBG_FLAG_DONT_DISTURB   0x00000040  ///< Debugger can handle only
-                                              ///<   get_debug_event(),
-                                              ///<   request_pause(),
-                                              ///<   exit_process()
-                                              ///< when the debugged process is running.
-                                              ///< The kernel may also call service functions
-                                              ///< (file I/O, map_address, etc)
-  #define DBG_FLAG_SAFE           0x00000080  ///< The debugger is safe (probably because it just emulates the application
-                                              ///< without really running it)
-  #define DBG_FLAG_CLEAN_EXIT     0x00000100  ///< IDA must suspend the application and remove
-                                              ///< all breakpoints before terminating the application.
-                                              ///< Usually this is not required because the application memory
-                                              ///< disappears upon termination.
-  #define DBG_FLAG_USE_SREGS      0x00000200  ///< Take segment register values into account (non flat memory)
-  #define DBG_FLAG_NOSTARTDIR     0x00000400  ///< Debugger module doesn't use startup directory
-  #define DBG_FLAG_NOPARAMETERS   0x00000800  ///< Debugger module doesn't use commandline parameters
-  #define DBG_FLAG_NOPASSWORD     0x00001000  ///< Remote debugger doesn't use password
-  #define DBG_FLAG_CONNSTRING     0x00002000  ///< Display "Connection string" instead of "Hostname" and hide the "Port" field
-  #define DBG_FLAG_SMALLBLKS      0x00004000  ///< If set, IDA uses 256-byte blocks for caching memory contents.
-                                              ///< Otherwise, 1024-byte blocks are used
-  #define DBG_FLAG_MANMEMINFO     0x00008000  ///< If set, manual memory region manipulation commands
-                                              ///< will be available. Use this bit for debugger modules
-                                              ///< that cannot return memory layout information
-  #define DBG_FLAG_EXITSHOTOK     0x00010000  ///< IDA may take a memory snapshot at ::PROCESS_EXITED event
-  #define DBG_FLAG_VIRTHREADS     0x00020000  ///< Thread IDs may be shuffled after each debug event.
-                                              ///< (to be used for virtual threads that represent cpus for windbg kmode)
-  #define DBG_FLAG_LOWCNDS        0x00040000  ///< Low level breakpoint conditions are supported.
-  #define DBG_FLAG_DEBTHREAD      0x00080000  ///< Supports creation of a separate thread in ida
-                                              ///< for the debugger (the debthread).
-                                              ///< Most debugger functions will be called from debthread (exceptions are marked below)
-                                              ///< The debugger module may directly call only #THREAD_SAFE functions.
-                                              ///< To call other functions please use execute_sync().
-                                              ///< The debthread significantly increases debugging
-                                              ///< speed, especially if debug events occur frequently.
-  #define DBG_FLAG_DEBUG_DLL      0x00100000  ///< Can debug standalone DLLs.
-                                              ///< For example, Bochs debugger can debug any snippet of code
-  #define DBG_FLAG_FAKE_MEMORY    0x00200000  ///< get_memory_info()/read_memory()/write_memory() work with the idb.
-                                              ///< (there is no real process to read from, as for the replayer module)
-                                              ///< the kernel will not call these functions if this flag is set.
-                                              ///< however, third party plugins may call them, they must be implemented.
-  #define DBG_FLAG_ANYSIZE_HWBPT  0x00400000  ///< The debugger supports arbitrary size hardware breakpoints.
-  #define DBG_FLAG_TRACER_MODULE  0x00800000  ///< The module is a tracer, not a full featured debugger module
-  #define DBG_FLAG_PREFER_SWBPTS  0x01000000  ///< Prefer to use software breakpoints
-  #define DBG_FLAG_LAZY_WATCHPTS  0x02000000  ///< Watchpoints are triggered before the offending instruction is executed.
-                                              ///< The debugger must temporarily disable the watchpoint and single-step
-                                              ///< before resuming.
-  #define DBG_FLAG_FAST_STEP      0x04000000  ///< Do not refresh memory layout info after single stepping
-  #define DBG_FLAG_ADD_ENVS       0x08000000  ///< The debugger supports launching processes with environment variables
-  #define DBG_FLAG_MERGE_ENVS     0x10000000  ///< The debugger supports merge or replace setting for environment variables
-                                              ///< (only makes sense if DBG_FLAG_ADD_ENVS is set)
-  #define DBG_FLAG_DISABLE_ASLR   0x20000000  ///< The debugger support ASLR disabling
-                                              ///< (Address space layout randomization)
-  ///@}
-
-  /// \defgroup DBG_FLAG2_ Debugger module features
-  /// Used by debugger_t::flags2
-  ///@{
-  #define DBG_HAS_GET_PROCESSES   0x00000001  ///< supports ev_get_processes
-  #define DBG_HAS_ATTACH_PROCESS  0x00000002  ///< supports ev_attach_process
-  #define DBG_HAS_DETACH_PROCESS  0x00000004  ///< supports ev_detach_process
-  #define DBG_HAS_REQUEST_PAUSE   0x00000008  ///< supports ev_request_pause
+  #define DBG_FLAG_REMOTE         0x0000000000000001ULL  ///< Remote debugger (requires remote host name unless #DBG_FLAG_NOHOST)
+  #define DBG_FLAG_NOHOST         0x0000000000000002ULL  ///< Remote debugger with does not require network params (host/port/pass).
+                                                         ///< (a unique device connected to the machine)
+  #define DBG_FLAG_FAKE_ATTACH    0x0000000000000004ULL  ///< ::PROCESS_ATTACHED is a fake event
+                                                         ///< and does not suspend the execution
+  #define DBG_FLAG_HWDATBPT_ONE   0x0000000000000008ULL  ///< Hardware data breakpoints are
+                                                         ///< one byte size by default
+  #define DBG_FLAG_CAN_CONT_BPT   0x0000000000000010ULL  ///< Debugger knows to continue from a bpt.
+                                                         ///< This flag also means that the debugger module
+                                                         ///< hides breakpoints from ida upon read_memory
+  #define DBG_FLAG_NEEDPORT       0x0000000000000020ULL  ///< Remote debugger requires port number (to be used with DBG_FLAG_NOHOST)
+  #define DBG_FLAG_DONT_DISTURB   0x0000000000000040ULL  ///< Debugger can handle only
+                                                         ///<   get_debug_event(),
+                                                         ///<   request_pause(),
+                                                         ///<   exit_process()
+                                                         ///< when the debugged process is running.
+                                                         ///< The kernel may also call service functions
+                                                         ///< (file I/O, map_address, etc)
+  #define DBG_FLAG_SAFE           0x0000000000000080ULL  ///< The debugger is safe (probably because it just emulates the application
+                                                         ///< without really running it)
+  #define DBG_FLAG_CLEAN_EXIT     0x0000000000000100ULL  ///< IDA must suspend the application and remove
+                                                         ///< all breakpoints before terminating the application.
+                                                         ///< Usually this is not required because the application memory
+                                                         ///< disappears upon termination.
+  #define DBG_FLAG_USE_SREGS      0x0000000000000200ULL  ///< Take segment register values into account (non flat memory)
+  #define DBG_FLAG_NOSTARTDIR     0x0000000000000400ULL  ///< Debugger module doesn't use startup directory
+  #define DBG_FLAG_NOPARAMETERS   0x0000000000000800ULL  ///< Debugger module doesn't use commandline parameters
+  #define DBG_FLAG_NOPASSWORD     0x0000000000001000ULL  ///< Remote debugger doesn't use password
+  #define DBG_FLAG_CONNSTRING     0x0000000000002000ULL  ///< Display "Connection string" instead of "Hostname" and hide the "Port" field
+  #define DBG_FLAG_SMALLBLKS      0x0000000000004000ULL  ///< If set, IDA uses 256-byte blocks for caching memory contents.
+                                                         ///< Otherwise, 1024-byte blocks are used
+  #define DBG_FLAG_MANMEMINFO     0x0000000000008000ULL  ///< If set, manual memory region manipulation commands
+                                                         ///< will be available. Use this bit for debugger modules
+                                                         ///< that cannot return memory layout information
+  #define DBG_FLAG_EXITSHOTOK     0x0000000000010000ULL  ///< IDA may take a memory snapshot at ::PROCESS_EXITED event
+  #define DBG_FLAG_VIRTHREADS     0x0000000000020000ULL  ///< Thread IDs may be shuffled after each debug event.
+                                                         ///< (to be used for virtual threads that represent cpus for windbg kmode)
+  #define DBG_FLAG_LOWCNDS        0x0000000000040000ULL  ///< Low level breakpoint conditions are supported.
+  #define DBG_FLAG_DEBTHREAD      0x0000000000080000ULL  ///< Supports creation of a separate thread in ida
+                                                         ///< for the debugger (the debthread).
+                                                         ///< Most debugger functions will be called from debthread (exceptions are marked below)
+                                                         ///< The debugger module may directly call only #THREAD_SAFE functions.
+                                                         ///< To call other functions please use execute_sync().
+                                                         ///< The debthread significantly increases debugging
+                                                         ///< speed, especially if debug events occur frequently.
+  #define DBG_FLAG_DEBUG_DLL      0x0000000000100000ULL  ///< Can debug standalone DLLs.
+                                                         ///< For example, Bochs debugger can debug any snippet of code
+  #define DBG_FLAG_FAKE_MEMORY    0x0000000000200000ULL  ///< get_memory_info()/read_memory()/write_memory() work with the idb.
+                                                         ///< (there is no real process to read from, as for the replayer module)
+                                                         ///< the kernel will not call these functions if this flag is set.
+                                                         ///< however, third party plugins may call them, they must be implemented.
+  #define DBG_FLAG_ANYSIZE_HWBPT  0x0000000000400000ULL  ///< The debugger supports arbitrary size hardware breakpoints.
+  #define DBG_FLAG_TRACER_MODULE  0x0000000000800000ULL  ///< The module is a tracer, not a full featured debugger module
+  #define DBG_FLAG_PREFER_SWBPTS  0x0000000001000000ULL  ///< Prefer to use software breakpoints
+  #define DBG_FLAG_LAZY_WATCHPTS  0x0000000002000000ULL  ///< Watchpoints are triggered before the offending instruction is executed.
+                                                         ///< The debugger must temporarily disable the watchpoint and single-step
+                                                         ///< before resuming.
+  #define DBG_FLAG_FAST_STEP      0x0000000004000000ULL  ///< Do not refresh memory layout info after single stepping
+  #define DBG_FLAG_ADD_ENVS       0x0000000008000000ULL  ///< The debugger supports launching processes with environment variables
+  #define DBG_FLAG_MERGE_ENVS     0x0000000010000000ULL  ///< The debugger supports merge or replace setting for environment variables
+                                                         ///< (only makes sense if DBG_FLAG_ADD_ENVS is set)
+  #define DBG_FLAG_DISABLE_ASLR   0x0000000020000000ULL  ///< The debugger support ASLR disabling
+                                                         ///< (Address space layout randomization)
+  #define DBG_FLAG_TTD            0x0000000040000000ULL  ///< The debugger is a time travel debugger and supports continuing backwards
+  #define DBG_FLAG_FULL_INSTR_BPT 0x0000000080000000ULL  ///< Setting a breakpoint in the middle of an instruction will also break
+  #define DBG_HAS_GET_PROCESSES   0x0000000100000000ULL  ///< supports ev_get_processes
+  #define DBG_HAS_ATTACH_PROCESS  0x0000000200000000ULL  ///< supports ev_attach_process
+  #define DBG_HAS_DETACH_PROCESS  0x0000000400000000ULL  ///< supports ev_detach_process
+  #define DBG_HAS_REQUEST_PAUSE   0x0000000800000000ULL  ///< supports ev_request_pause
   #define DBG_HAS_SET_EXCEPTION_INFO \
-                                  0x00000010  ///< supports ev_set_exception_info
-  #define DBG_HAS_THREAD_SUSPEND  0x00000020  ///< supports ev_thread_suspend
-  #define DBG_HAS_THREAD_CONTINUE 0x00000040  ///< supports ev_thread_continue
-  #define DBG_HAS_SET_RESUME_MODE 0x00000080  ///< supports ev_set_resume_mode.
-                                              ///< Cannot be set inside the debugger_t::init_debugger()
+                                  0x0000001000000000ULL  ///< supports ev_set_exception_info
+  #define DBG_HAS_THREAD_SUSPEND  0x0000002000000000ULL  ///< supports ev_thread_suspend
+  #define DBG_HAS_THREAD_CONTINUE 0x0000004000000000ULL  ///< supports ev_thread_continue
+  #define DBG_HAS_SET_RESUME_MODE 0x0000008000000000ULL  ///< supports ev_set_resume_mode.
+                                                         ///< Cannot be set inside the debugger_t::init_debugger()
   #define DBG_HAS_THREAD_GET_SREG_BASE \
-                                  0x00000100  ///< supports ev_thread_get_sreg_base
-  #define DBG_HAS_CHECK_BPT       0x00000200  ///< supports ev_check_bpt
-  #define DBG_HAS_OPEN_FILE       0x00000400  ///< supports ev_open_file, ev_close_file, ev_read_file, ev_write_file
+                                  0x0000010000000000ULL  ///< supports ev_thread_get_sreg_base
+  #define DBG_HAS_CHECK_BPT       0x0000020000000000ULL  ///< supports ev_check_bpt
+  #define DBG_HAS_OPEN_FILE       0x0000040000000000ULL  ///< supports ev_open_file, ev_close_file, ev_read_file, ev_write_file
   #define DBG_HAS_UPDATE_CALL_STACK \
-                                  0x00000800  ///< supports ev_update_call_stack
-  #define DBG_HAS_APPCALL         0x00001000  ///< supports ev_appcall, ev_cleanup_appcall
-  #define DBG_HAS_REXEC           0x00002000  ///< supports ev_rexec
-  #define DBG_HAS_MAP_ADDRESS     0x00004000  ///< supports ev_map_address.
-                                              ///< Avoid using this bit, especially together with DBG_FLAG_DEBTHREAD
-                                              ///< because it may cause big slow downs
+                                  0x0000080000000000ULL  ///< supports ev_update_call_stack
+  #define DBG_HAS_APPCALL         0x0000100000000000ULL  ///< supports ev_appcall, ev_cleanup_appcall
+  #define DBG_HAS_REXEC           0x0000200000000000ULL  ///< supports ev_rexec
+  #define DBG_HAS_MAP_ADDRESS     0x0000400000000000ULL  ///< supports ev_map_address.
+                                                         ///< Avoid using this bit, especially together with DBG_FLAG_DEBTHREAD
+                                                         ///< because it may cause big slow downs
   ///@}
 
   bool is_remote() const { return (flags & DBG_FLAG_REMOTE) != 0; }
@@ -1056,37 +1096,39 @@ struct debugger_t
     { return (flags & DBG_FLAG_DEBUG_DLL) != 0; }
   bool fake_memory() const
     { return (flags & DBG_FLAG_FAKE_MEMORY) != 0; }
+  bool is_ttd() const
+    { return (flags & DBG_FLAG_TTD) != 0; }
 
   bool has_get_processes() const
-    { return (flags2 & DBG_HAS_GET_PROCESSES) != 0; }
+    { return (flags & DBG_HAS_GET_PROCESSES) != 0; }
   bool has_attach_process() const
-    { return (flags2 & DBG_HAS_ATTACH_PROCESS) != 0; }
+    { return (flags & DBG_HAS_ATTACH_PROCESS) != 0; }
   bool has_detach_process() const
-    { return (flags2 & DBG_HAS_DETACH_PROCESS) != 0; }
+    { return (flags & DBG_HAS_DETACH_PROCESS) != 0; }
   bool has_request_pause() const
-    { return (flags2 & DBG_HAS_REQUEST_PAUSE) != 0; }
+    { return (flags & DBG_HAS_REQUEST_PAUSE) != 0; }
   bool has_set_exception_info() const
-    { return (flags2 & DBG_HAS_SET_EXCEPTION_INFO) != 0; }
+    { return (flags & DBG_HAS_SET_EXCEPTION_INFO) != 0; }
   bool has_thread_suspend() const
-    { return (flags2 & DBG_HAS_THREAD_SUSPEND) != 0; }
+    { return (flags & DBG_HAS_THREAD_SUSPEND) != 0; }
   bool has_thread_continue() const
-    { return (flags2 & DBG_HAS_THREAD_CONTINUE) != 0; }
+    { return (flags & DBG_HAS_THREAD_CONTINUE) != 0; }
   bool has_set_resume_mode() const
-    { return (flags2 & DBG_HAS_SET_RESUME_MODE) != 0; }
+    { return (flags & DBG_HAS_SET_RESUME_MODE) != 0; }
   bool has_thread_get_sreg_base() const
-    { return (flags2 & DBG_HAS_THREAD_GET_SREG_BASE) != 0; }
+    { return (flags & DBG_HAS_THREAD_GET_SREG_BASE) != 0; }
   bool has_check_bpt() const
-    { return (flags2 & DBG_HAS_CHECK_BPT) != 0; }
+    { return (flags & DBG_HAS_CHECK_BPT) != 0; }
   bool has_open_file() const
-    { return (flags2 & DBG_HAS_OPEN_FILE) != 0; }
+    { return (flags & DBG_HAS_OPEN_FILE) != 0; }
   bool has_update_call_stack() const
-    { return (flags2 & DBG_HAS_UPDATE_CALL_STACK) != 0; }
+    { return (flags & DBG_HAS_UPDATE_CALL_STACK) != 0; }
   bool has_appcall() const
-    { return (flags2 & DBG_HAS_APPCALL) != 0; }
+    { return (flags & DBG_HAS_APPCALL) != 0; }
   bool has_rexec() const
-    { return (flags2 & DBG_HAS_REXEC) != 0; }
+    { return (flags & DBG_HAS_REXEC) != 0; }
   bool has_map_address() const
-    { return (flags2 & DBG_HAS_MAP_ADDRESS) != 0; }
+    { return (flags & DBG_HAS_MAP_ADDRESS) != 0; }
   bool has_soft_bpt() const
     { return bpt_bytes != nullptr && bpt_size > 0; }
 
@@ -1119,6 +1161,7 @@ struct debugger_t
   #define DBG_RESMOD_STEP_SRCOUT    0x0020   ///< ::RESMOD_SRCOUT is available
   #define DBG_RESMOD_STEP_USER      0x0040   ///< ::RESMOD_USER is available
   #define DBG_RESMOD_STEP_HANDLE    0x0080   ///< ::RESMOD_HANDLE is available
+  #define DBG_RESMOD_STEP_BACKINTO  0x0100   ///< ::RESMOD_BACKINTO is available
   ///@}
   bool is_resmod_avail(int resmod) const
     { return (resume_modes & (1 << (resmod - 1))) != 0; }
@@ -1129,24 +1172,6 @@ struct debugger_t
 #else
 #define DEBUGGER_PORT_NUMBER 23946
 #endif
-
-  /// Set debugger options (parameters that are specific to the debugger module).
-  /// \param keyword     keyword encountered in IDA.CFG/user config file.
-  ///                    if nullptr, then an interactive dialog form should be displayed
-  /// \param pri         option priority, one of \ref IDAOPT_PRIO values
-  /// \param value_type  type of value of the keyword - one of \ref IDPOPT_T
-  /// \param value       pointer to value
-  /// \return one of \ref IDPOPT_RET, otherwise a pointer to an error message
-  /// See the convenience function in dbg.hpp if you need to call it.
-  /// The kernel will generate this event after reading the debugger specific
-  /// config file (arguments are: keyword="", type=#IDPOPT_STR, value="")
-  /// This event is optional.
-  /// This event is generated in the main thread
-  const char *(idaapi *set_dbg_options)(
-        const char *keyword,
-        int pri,
-        int value_type,
-        const void *value);
 
   /// Callback notification codes.
   ///
@@ -1272,6 +1297,11 @@ struct debugger_t
     /// \param event (::debug_event_t *)
     /// \return ::DRC_OK, ::DRC_FAILED, ::DRC_NETERR
     ev_resume,
+
+    /// Set whether the debugger should continue backwards or forwards.
+    /// This event is generated in debthread.
+    /// Available if \ref DBG_FLAG_TTD is set
+    ev_set_backwards,
 
     /// Set exception handling.
     /// This event is generated in debthread or the main thread.
@@ -1619,15 +1649,32 @@ struct debugger_t
     /// \retval ::DRC_NONE    not implemented
     /// \retval ::DRC_NETERR, ::DRC_ERROR
     ev_bin_search,
-  };
 
-  /// Event notification callback.
-  /// It will be hooked to the HT_IDD notification point
-  /// when the debugger is loaded and unhooked during
-  /// the debugger unloading.
-  /// The debugger plugin will be the last one
-  /// who will receive the notification.
-  hook_cb_t *callback;
+    /// Ask debuger to send dynamic register set
+    /// \param[out] regset    (::dynamic_register_set_t *) dynamic register set
+    /// \return ::DRC_OK      REGSET is ready
+    /// \retval ::DRC_NETERR, ::DRC_ERROR
+    ev_get_dynamic_register_set,
+
+    /// Set debugger options (parameters that are specific to the debugger module).
+    /// \param[out] code   (const char **) one of \ref IDPOPT_RET,
+    ///                     otherwise a pointer to an error message,
+    ///                     may be nullptr
+    /// \param keyword     (const char *) keyword encountered in IDA.CFG/user config file.
+    ///                    if nullptr, then an interactive dialog form should be displayed
+    /// \param pri         (int) option priority, one of \ref IDAOPT_PRIO values
+    /// \param value_type  (int) type of value of the keyword - one of \ref IDPOPT_T
+    /// \param value       (const void *) pointer to value
+    /// \return ::DRC_OK   event is implemented
+    /// \return ::DRC_NONE event is not implemented
+    /// See the convenience function in dbg.hpp if you need to call it.
+    /// The kernel will generate this event after reading the debugger specific
+    /// config file (arguments are: keyword="", type=#IDPOPT_STR, value="")
+    /// The kernel uses this event with keyword=" " to detect implementation.
+    /// This event is optional.
+    /// This event is generated in the main thread
+    ev_set_dbg_options,
+  };
 
   /// Event notification handler
   ssize_t notify(event_t event_code, ...)
@@ -1711,6 +1758,7 @@ struct debugger_t
   inline drc_t exit_process(qstring *errbuf=nullptr);
   inline gdecode_t get_debug_event(debug_event_t *event, int timeout_ms);
   inline drc_t resume(const debug_event_t *event, qstring *errbuf=nullptr);
+  inline drc_t set_backwards(bool backwards);
   inline void set_exception_info(const exception_info_t *info, int qty);
   inline void suspended(bool dlls_added, thread_name_vec_t *thr_names=nullptr);
   inline drc_t thread_suspend(thid_t tid, qstring *errbuf=nullptr);
@@ -1757,13 +1805,10 @@ struct debugger_t
           const compiled_binpat_vec_t &data,
           int srch_flags,
           qstring *errbuf=nullptr);
+  inline bool get_dynamic_register_set(dynamic_register_set_t *regset);
+  inline drc_t set_dbg_options(const char **res, const char *keyword, int pri, int value_type, const void *value);
+  inline bool have_set_options() const;
 };
-
-#ifndef __X86__
-  CASSERT(sizeof(debugger_t) == 104);
-#else
-  CASSERT(sizeof(debugger_t) == 60);
-#endif
 
 
 #define RQ_MASKING  0x0001  ///< masking step handler: unless errors, tmpbpt handlers won't be generated
@@ -1783,6 +1828,7 @@ struct debugger_t
 #define RQ_RESMOD   0xF000  ///< resume_mode_t
 #define RQ_RESMOD_SHIFT 12
 #define RQ_INTO (RESMOD_INTO << RQ_RESMOD_SHIFT)
+#define RQ_BACKINTO (RESMOD_BACKINTO << RQ_RESMOD_SHIFT)
 
 inline bool debugger_t::init_debugger(const char *hostname, int portnum, const char *password, qstring *errbuf)
 {
@@ -1841,6 +1887,10 @@ inline gdecode_t debugger_t::get_debug_event(debug_event_t *event, int timeout_m
 inline drc_t debugger_t::resume(const debug_event_t *event, qstring *errbuf)
 {
   return notify_drc(ev_resume, event, errbuf);
+}
+inline drc_t debugger_t::set_backwards(bool backwards)
+{
+  return notify_drc(ev_set_backwards, backwards);
 }
 inline void debugger_t::set_exception_info(const exception_info_t *info, int qty)
 {
@@ -1990,6 +2040,18 @@ inline drc_t debugger_t::bin_search(
         qstring *errbuf)
 {
   return notify_drc(ev_bin_search, out, start_ea, end_ea, &data, srch_flags, errbuf);
+}
+inline bool debugger_t::get_dynamic_register_set(dynamic_register_set_t *regset)
+{
+  return notify_drc(ev_get_dynamic_register_set, regset) == DRC_OK;
+}
+inline drc_t debugger_t::set_dbg_options(const char **res, const char *keyword, int pri, int value_type, const void *value)
+{
+  return notify_drc(ev_set_dbg_options, res, keyword, pri, value_type, value);
+}
+inline bool debugger_t::have_set_options() const
+{
+  return const_cast<debugger_t *>(this)->notify_drc(ev_set_dbg_options, nullptr, " ", 0, 0, nullptr) != DRC_NONE;
 }
 
 /// Convert a floating point number in CPU native format to IDA's internal format.

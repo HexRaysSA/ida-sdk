@@ -156,7 +156,7 @@ bool idaapi plugin_ctx_t::run(size_t)
   // now open the window
   calls_chooser_t *ch = new calls_chooser_t(title.c_str(), ok, &fii);
   ch->choose(); // the default cursor position is 0 (first row)
-  return true; //-V773
+  return true;
 }
 
 //--------------------------------------------------------------------------

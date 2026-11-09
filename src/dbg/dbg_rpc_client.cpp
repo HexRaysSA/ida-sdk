@@ -5,6 +5,7 @@
 #include <name.hpp>
 #include <diskio.hpp>
 #include <idp.hpp>
+#include <dbg.hpp>
 
 #include "dbg_rpc_client.h"
 #include "dbg_rpc_hlp.h"
@@ -91,7 +92,7 @@ bytevec_t dbg_rpc_client_t::on_send_request_interrupt(const rpc_packet_t *rp)
 
   switch ( rp->code )
   {
-    // send_debug_names_to_ida() is thread safe
+    // do_set_debug_names() is thread safe
     case RPC_SET_DEBUG_NAMES:
       {
         my_update_wait_dialog("Downloading Symbols", rp);
@@ -115,7 +116,7 @@ bytevec_t dbg_rpc_client_t::on_send_request_interrupt(const rpc_packet_t *rp)
             INTERR(1294);
           names[i] = qstrdup(name.c_str());
         }
-        int result = send_debug_names_to_ida(addrs, names, qty);
+        int result = do_set_debug_names(addrs, names, qty);
         verb(("set_debug_name(qty=%d) => %d\n", qty, result));
         req.pack_dd(result);
         for ( int i=0; i < qty; i++ )
@@ -140,13 +141,13 @@ bytevec_t dbg_rpc_client_t::on_send_request_interrupt(const rpc_packet_t *rp)
       }
       break;
 
-    // send_debug_event_to_ida() is thread safe
+    // handle_debug_event() is thread safe
     case RPC_HANDLE_DEBUG_EVENT:
       {
         debug_event_t ev;
         extract_debug_event(&ev, mmdsr);
         int rqflags = mmdsr.unpack_dd();
-        int code = send_debug_event_to_ida(&ev, rqflags);
+        int code = handle_debug_event(&ev, rqflags);
         req.pack_dd(code);
       }
       break;

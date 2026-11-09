@@ -1,6 +1,6 @@
 /*
  *      Hex-Rays Decompiler project
- *      Copyright (c) 2007-2024 by Hex-Rays, support@hex-rays.com
+ *      Copyright (c) 2007-2025 by Hex-Rays, support@hex-rays.com
  *      ALL RIGHTS RESERVED.
  *
  *      Sample plugin for Hex-Rays Decompiler.
@@ -260,7 +260,7 @@ ssize_t idaapi xref_chooser_t::get_item_index(const void *item_data) const
 //-------------------------------------------------------------------------
 void xref_chooser_t::get_xrefed_name(qstring *buf, ea_t ref)
 {
-  int f2 = GNCN_NOCOLOR; //-V688
+  int f2 = GNCN_NOCOLOR;
   if ( !inf_show_xref_fncoff() )
     f2 |= GNCN_NOFUNC;
   if ( !inf_show_xref_seg() )

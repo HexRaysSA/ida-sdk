@@ -813,7 +813,7 @@ static void Unpack(void)
   uint32 fsize;
   FILE *fo;
 
-  CASSERT(sizeof(lc) - qoffsetof(local_data, nlm) > 0x196);   //-V658 value is being subtracted from the unsigned
+  CASSERT(sizeof(lc) - qoffsetof(local_data, nlm) > 0x196);
   CASSERT(qoffsetof(local_data,buf) == qoffsetof(local_data,nlm)+sizeof(lc.nlm));
 
   if ( qlread(lc.li, lc.buf, 0x196-sizeof(lc.nlm)) != (0x196-sizeof(lc.nlm)) )

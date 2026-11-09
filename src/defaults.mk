@@ -4,6 +4,9 @@
 ifdef __NT__
   PROGRAMFILES_X86 ?= ${ProgramFiles(x86)}
 
+  #force use of cygwin tar
+  TAR = $(shell cygpath -m /bin/tar)
+
   # The following variables may have been set by vcvars.bat. You may
   # also set them manually. The default installation directories are
   # defined below in case these variables are not set.
@@ -64,22 +67,39 @@ endif
 # Qt
 #
 
-# Use the debug build of Qt on linux (`export DEBUG_QT=1`)
+# Use the debug build of Qt on linux/macOS (`export DEBUG_QT=1`)
+# on macOS macdeployqt takes care of it
+THIRD_PARTY_QT?=$(THIRD_PARTY)
 ifdef __LINUX__
   ifndef NDEBUG
     ifeq ($(QTVER),)
       ifneq ($(DEBUG_QT),)
-        QTDEBUG?=-debug
+        ifneq ($(DEBUG_THIRD_PARTY),)
+          THIRD_PARTY_QT=$(DEBUG_THIRD_PARTY)
+          QTDEBUG=-debug
+        else
+          $(error 'DEBUG_THIRD_PARTY' should point at a repository when using 'DEBUG_QT')
+        endif
       endif
     endif
   endif
 endif
-QTVER?=5.15.2-$(HOST_ARCH)$(QTDEBUG)
+QTVER?=5.15.2
+QT_VERSION_MAJOR=5
+# QTVER?=6.8.0
+# QT_VERSION_MAJOR=6
+# CC_DEFS += QT6=1
 
-QTDIR-$(__LINUX__) = /usr/local/Qt/$(QTVER)/
-QTDIR-$(__MAC__)   = /Users/Shared/Qt/$(QTVER)/
-QTDIR-$(__NT__)    = $(SYSTEMDRIVE)/Qt/$(QTVER)/
+QTDIR-$(__LINUX__) = $(THIRD_PARTY_QT)/Qt/$(QTVER)/$(HOST_ARCH)linux$(QTDEBUG)/
+QTDIR-$(__MAC__)   = $(THIRD_PARTY_QT)/Qt/$(QTVER)/$(HOST_ARCH)mac$(QTDEBUG)/
+QTDIR-$(__NT__)    = $(THIRD_PARTY_QT)/Qt/$(QTVER)/$(HOST_ARCH)win$(QTDEBUG)/
 QTDIR ?= $(QTDIR-1)
+
+ifeq ($(QT_VERSION_MAJOR),6)
+  QT_LIBEXEC=$(QTDIR)/libexec/
+else
+  QT_LIBEXEC=$(QTDIR)/bin/
+endif
 
 ifdef __NT__
   ifdef NDEBUG
@@ -90,7 +110,7 @@ ifdef __NT__
   QTLIBDIR=bin
 else ifdef __LINUX__
   QTPREF=lib
-  QTSUFF=.so.5
+  QTSUFF=.so.$(QT_VERSION_MAJOR)
   QTLIBDIR=lib
 endif
 
@@ -104,7 +124,8 @@ Z3_INCLUDE ?= $(THIRD_PARTY)z3/z3-z3-4.11.2/src/api/
 
 # SWiG
 #SWIG_VERSION?=4.2.0
-SWIG_VERSION?=240215
+#SWIG_VERSION?=240215
+SWIG_VERSION?=4.3.0
 ifdef __NT__
   SWIG_DIR_SUFFIX?=-cygwin
 endif
@@ -125,7 +146,7 @@ ifeq ($(SWIG_DISTRIBUTION_HAS_UNIX_LAYOUT),1)
   else
     SWIG?=$(SWIG_HOME)/bin/swig
   endif
-  SWIG_INCLUDES?=-I$(SWIG_HOME)/share/swig/4.2.1/python -I$(SWIG_HOME)/share/swig/4.2.1
+  SWIG_INCLUDES?=-I$(SWIG_HOME)/share/swig/$(SWIG_VERSION)/python -I$(SWIG_HOME)/share/swig/$(SWIG_VERSION)
 else
   SWIG?=$(SWIG_HOME)/swig.exe
   SWIG_INCLUDES?=-I$(SWIG_HOME)/Lib/python -I$(SWIG_HOME)/Lib

@@ -84,18 +84,17 @@ struct elf_ehdr_t : public Elf64_Ehdr
 
   bool has_shstrtab() const { return real_shstrndx != 0; }
 
-  bool is_64bit_machine() const
+  bool is_64bit_machine(bool is_reader_64) const
   {
     switch ( e_machine )
     {
-      case EM_AARCH64:
       case EM_PPC64:
       case EM_X86_64:
       case EM_ALPHA:
       case EM_IA64:
         return true;
       default:
-        return false;
+        return is_reader_64; // LP64 or ILP32
     }
   }
 };
@@ -717,6 +716,13 @@ struct proc_def_t
         ea_t name_ea,
         const char *_prefix = ".",
         const char *_postfix = "");
+
+  // IFUNCs (indirect functions) are special symbols that resolve at runtime.
+  // When used for relocations, the symbol's address is determined by
+  // invoking a resolver function, which returns the actual function pointer
+  // based on the runtime environment (e.g., hardware capabilities).
+  // The resolver function is invoked at runtime, acting like an entry point.
+  void add_ifunc_ep(ea_t ea) const;
 };
 
 //----------------------------------------------------------------------------
@@ -1390,6 +1396,7 @@ struct elf_riscv_t : public hexrays_procdef_t
   fixup_type_t lo12s_reltype = FIXUP_CUSTOM;
   fixup_type_t call_reltype = FIXUP_CUSTOM;
   std::map<ea_t,ea_t> symtable;
+  int last_rtype = 0;
 
   elf_riscv_t(elf_loader_t &ldr, reader_t &reader);
 
@@ -1405,6 +1412,12 @@ struct elf_riscv_t : public hexrays_procdef_t
         const elf_shdr_t &sh,
         const qstring &name,
         ea_t *sa) override;
+
+  void handle_add_sub_reloc(
+      uchar type,
+      ea_t P,
+      ea_t S,
+      adiff_t A);
 
   fixup_type_t get_hi20_reltype();
   fixup_type_t get_got20_reltype();
@@ -2182,7 +2195,6 @@ public:
 };
 
 //----------------------------------------------------------------------------
-//-V:reader_t:730 Not all members of a class are initialized inside the constructor
 class reader_t
 {
 public:

@@ -1,6 +1,6 @@
 /*
  *      Hex-Rays Decompiler project
- *      Copyright (c) 2007-2024 by Hex-Rays, support@hex-rays.com
+ *      Copyright (c) 2007-2025 by Hex-Rays, support@hex-rays.com
  *      ALL RIGHTS RESERVED.
  *
  *      Sample plugin for Hex-Rays Decompiler.
@@ -65,7 +65,7 @@ struct vds3_t : public plugmod_t
   virtual bool idaapi run(size_t) override { return false; }
 
   void do_invert_if(cinsn_t *i); //lint !e818 could be declared as const*
-  void add_inverted_if(ea_t ea);
+  void toggle_inverted_if(ea_t ea);
   cinsn_t *find_if_statement(const vdui_t &vu);
   void convert_marked_ifs(cfunc_t *cfunc);
 };
@@ -150,6 +150,7 @@ void vds3_t::do_invert_if(cinsn_t *i) //lint !e818 could be declared as const*
 {
   QASSERT(30198, i->op == cit_if);
   cif_t &cif = *i->cif;
+  QASSERT(30816, cif.ielse != nullptr);
   // create an inverted condition and swap it with the if-condition
   cexpr_t *notcond = lnot(new cexpr_t(cif.expr));
   notcond->swap(cif.expr);
@@ -159,7 +160,7 @@ void vds3_t::do_invert_if(cinsn_t *i) //lint !e818 could be declared as const*
 }
 
 //--------------------------------------------------------------------------
-void vds3_t::add_inverted_if(ea_t ea)
+void vds3_t::toggle_inverted_if(ea_t ea)
 {
   eavec_t::iterator p = inverted_ifs.find(ea);
   if ( p != inverted_ifs.end() ) // already present?
@@ -234,7 +235,20 @@ void vds3_t::convert_marked_ifs(cfunc_t *cfunc)
     int idaapi visit_insn(cinsn_t *i) override
     {
       if ( i->op == cit_if && self->inverted_ifs.has(i->ea) )
-        self->do_invert_if(i);
+      {
+        if ( i->cif->ielse == nullptr )
+        {
+          // something is going wrong: EA marked for inverting but
+          // there is no 'else' part of the if-statement.
+          // For that we call toggle_inverted_if() that removes entry from
+          // inverted_ifs if it is already present there
+          self->toggle_inverted_if(i->ea);
+        }
+        else
+        {
+          self->do_invert_if(i);
+        }
+      }
       return 0; // continue enumeration
     }
   };
@@ -250,7 +264,7 @@ int idaapi invert_if_ah_t::activate(action_activation_ctx_t *ctx)
 {
   vdui_t &vu = *get_widget_vdui(ctx->widget);
   cinsn_t *i = plugmod->find_if_statement(vu);
-  plugmod->add_inverted_if(i->ea);
+  plugmod->toggle_inverted_if(i->ea);
   // we manually invert this if and recreate text.
   // this is faster than rebuilding ctree from scratch.
   plugmod->do_invert_if(i);

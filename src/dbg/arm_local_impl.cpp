@@ -1,15 +1,7 @@
-#include <idp.hpp>
-#include <dbg.hpp>
-#include <loader.hpp>
-#include <segregs.hpp>
-#include <segment.hpp>
-
-#include "deb_arm.hpp"
-
 #include "arm_regs.cpp"
 
 //--------------------------------------------------------------------------
-int is_arm_valid_bpt(bpttype_t type, ea_t ea, int len)
+int is_arm_valid_bpt(const debugger_t &, bpttype_t type, ea_t ea, int len)
 {
   switch ( type )
   {
@@ -46,24 +38,22 @@ static void handle_arm_thumb_modes(ea_t ea)
 }
 
 //--------------------------------------------------------------------------
-static easet_t pending_addresses;
-
-static ssize_t idaapi dbg_callback(void *, int code, va_list)
+ssize_t idaapi dbg_listener_t::on_event(ssize_t code, va_list)
 {
   // we apply thumb/arm switches when the process is suspended.
   // it is quite late (normally we should do it as soon as the corresponding
   // segment is created) but i did not manage to make it work.
   // in the segm_added event the addresses are not enabled yet,
   // so switching modes fails.
-  if ( code == dbg_suspend_process && !pending_addresses.empty() )
+  if ( code == dbg_suspend_process && !pm.pending_addresses.empty() )
   {
-    for ( easet_t::iterator p=pending_addresses.begin();
-          p != pending_addresses.end();
+    for ( easet_t::iterator p=pm.pending_addresses.begin();
+          p != pm.pending_addresses.end();
           ++p )
     {
       handle_arm_thumb_modes(*p);
     }
-    pending_addresses.clear();
+    pm.pending_addresses.clear();
   }
   return 0;
 }
@@ -74,28 +64,16 @@ static ssize_t idaapi dbg_callback(void *, int code, va_list)
 // in IDA database according to bit0. It also resets bit0 for all addresses.
 void set_arm_thumb_modes(ea_t *addrs, int qty)
 {
+  auto *pm = get_dbg_plugmod();
   for ( int i=0; i < qty; i++ )
   {
     ea_t ea = addrs[i];
     segment_t *s = getseg(ea);
     if ( s == nullptr )
-      pending_addresses.insert(ea);
+      pm->pending_addresses.insert(ea);
     else
       handle_arm_thumb_modes(ea);
 
     addrs[i] = ea & ~1;
   }
-}
-
-//--------------------------------------------------------------------------
-void processor_specific_init(void)
-{
-  hook_to_notification_point(HT_DBG, dbg_callback);
-}
-
-//--------------------------------------------------------------------------
-void processor_specific_term(void)
-{
-  unhook_from_notification_point(HT_DBG, dbg_callback);
-  pending_addresses.clear();
 }

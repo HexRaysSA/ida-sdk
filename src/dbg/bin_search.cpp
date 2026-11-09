@@ -181,12 +181,7 @@ private:
   }
 };
 
-typedef janitor_t<matcher_t *> matcher_janitor_t;
-template <> inline matcher_janitor_t::~janitor_t()
-{
-  delete resource;
-  resource = nullptr;
-}
+typedef std::unique_ptr<matcher_t> matcher_janitor_t;
 
 //--------------------------------------------------------------------------
 class forward_matcher_t : public matcher_t
@@ -643,7 +638,7 @@ drc_t idaapi debmod_t::dbg_bin_search(
 
   drc_t drc = matcher->walk_memory_ranges(start_ea, end_ea);
   if ( drc != DRC_ERROR )
-    return drc;   //-V773 without releasing the 'matcher' pointer
+    return drc;
 
   ea_t failed_ea = matcher->get_failed_address();
   if ( failed_ea != BADADDR )

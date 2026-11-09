@@ -3183,6 +3183,33 @@ static bool is_reg_used_after_ea(ea_t ea, uint16_t reg)
   return false;
 }
 
+static const uint16_t cmd_insns[] =
+{
+  NEC850_ADD, NEC850_OR, NEC850_AND, NEC850_XOR,
+  NEC850_ADDI, NEC850_ORI, NEC850_ANDI, NEC850_XORI
+};
+constexpr size_t cmd_insns_half_size = qnumber(cmd_insns) / 2;
+
+//------------------------------------------------------------------------
+static uint16 get_cmdi_itype(uint16 non_i_itype)
+{
+  for ( size_t i = 0; i < cmd_insns_half_size; ++i )
+    if ( cmd_insns[i] == non_i_itype )
+      return cmd_insns[i + cmd_insns_half_size];
+
+  return NEC850_NULL;
+}
+
+//------------------------------------------------------------------------
+static uint16 get_bit_cmd_itype(uint16 i_itype)
+{
+  for ( size_t i = cmd_insns_half_size + 1; i < qnumber(cmd_insns); ++i )
+    if ( cmd_insns[i] == i_itype )
+      return cmd_insns[(i / 2) - 1];
+
+  return NEC850_NULL;
+}
+
 //------------------------------------------------------------------------
 // Handles cases where there is a movhi directly above a load/store instruction
 // movhi hi1(label), reg1, r1
@@ -3199,11 +3226,6 @@ bool nec850_t::ld_case(insn_t *insn, const insn_t &one_more_insn)
   op_t &new_displ_op = swapped_ops ? insn->Op2 : insn->Op1;
   if ( !insn->Op3.is_reg(displ_op.reg) )
     return false;
-
-  range_t search_range(one_more_insn.ea, inf_get_max_ea());
-  func_t *func = get_func(search_range.start_ea);
-  if ( func )
-    search_range.end_ea = func->end_ea;
 
   if ( one_more_insn.Op1.reg != one_more_insn.Op2.reg && is_reg_used_after_ea(one_more_insn.ea, insn->Op3.reg) )
     return false;
@@ -3229,7 +3251,7 @@ bool nec850_t::ld_case(insn_t *insn, const insn_t &one_more_insn)
 }
 
 //------------------------------------------------------------------------
-// Handles cases where there is no movhi directly above or multiple loads and stores in series e.g.
+// Handles cases where there is no movhi directly above or multiple loads and stores in series
 // 1.
 // movhi hi1(label), reg1, r1
 // ...
@@ -3306,53 +3328,79 @@ bool nec850_t::basereg_ld_case(insn_t *insn)
 }
 
 //------------------------------------------------------------------------
-// Merges imm32 add cases where there is only a high part
-// movhi hi1(imm32), r0, r1
-// add r1, reg (low bits are 0)
+// Combines the different mov types (movhi,+ movea) into one singular mov
+// 1. movea/movhi imm16, r0, r10 -> mov imm16, r10
+// 2.
+// movhi hi1(imm32), r0, r10
+// movea lo1(imm32), r10, r10
 // ->
-// add imm32, reg
-bool nec850_t::add_imm32_low_case(insn_t *insn, const insn_t &one_more_insn)
+// mov imm32, r10
+bool nec850_t::combine_movs(insn_t *insn, const insn_t &one_more_insn, bool may_go_forward) const
 {
-  if ( !insn->Op2.is_reg(rZERO) || !insn->Op3.is_reg(rR1) )
-    return false;
+  uint16 original_itype = insn->itype;
 
-  if ( one_more_insn.itype != NEC850_ADD || !one_more_insn.Op1.is_reg(rR1) )
-    return false;
+  // movhi hi1(imm32), r0, ...
+  if ( (original_itype == NEC850_MOVHI || original_itype == NEC850_MOVEA) && insn->Op2.is_reg(rZERO) )
+  {
+    insn->itype = NEC850_MOV;
+    insn->Op1.specflag1 |= N850F_VAL32;
 
-  uint32_t new_value = insn->Op1.value << 16;
-  insn->itype = one_more_insn.itype;
-  for ( size_t i = 0; i < 3; ++i )
-    insn->ops[i] = one_more_insn.ops[i];
+    set_opreg(&insn->Op2, insn->Op3.reg, insn->Op3.dtype);
+    insn->Op3.type = o_void;
 
-  set_opimm(&insn->Op1, new_value);
-  insn->Op1.specflag1 |= N850F_VAL32;
+    // movea lo(imm32), reg, reg
+    if ( may_go_forward
+      && original_itype != NEC850_MOVEA
+      && one_more_insn.itype == NEC850_MOVEA
+      && one_more_insn.Op2.is_reg(insn->Op3.reg) )
+    {
+      set_opimm(&insn->Op1, sign_extended_val(insn->Op1.value, one_more_insn.Op1.value));
 
-  insn->size += one_more_insn.size;
-  return true;
+      // movea lo(imm32), r1, reg2
+      if ( !one_more_insn.Op3.is_reg(insn->Op3.reg) )
+        set_opreg(&insn->Op2, one_more_insn.Op3.reg, one_more_insn.Op3.dtype);
+
+      insn->size += one_more_insn.size;
+      return true;
+    }
+
+    if ( original_itype == NEC850_MOVHI )
+      set_opimm(&insn->Op1, insn->Op1.value << 16);
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------
-// Merges imm32 mov case, where there is a low and high part
-// movhi hi1(imm32), r0, reg
-// movea lo(imm32), reg, reg
+// Handles cases where a bcond is encoded as a brcond/jmp pair
+// 1.
+// brcond Label
+// jr disp22-2
+// Label:
+// remaining code...
 // ->
-// mov imm32, reg
-bool nec850_t::movhi_movea_imm32_case(insn_t *insn, const insn_t &one_more_insn)
+// brcond disp22
+// remaining code...
+bool nec850_t::bcond_case(insn_t *insn, uint32 insn_w, const insn_t &one_more_insn) const
 {
-  if ( !insn->Op2.is_reg(rZERO) || !one_more_insn.Op2.is_reg(insn->Op3.reg) || !one_more_insn.Op3.is_reg(insn->Op3.reg) )
+  if ( insn->itype == NEC850_BSA || insn->itype == NEC850_BR )
     return false;
 
-  if ( one_more_insn.itype != NEC850_MOVEA )
+  if ( std::find(std::begin(bcond_map), std::end(bcond_map), insn->itype) == std::end(bcond_map) )
     return false;
 
-  uint32_t new_value = sign_extended_val(insn->Op1.value, one_more_insn.Op1.value);
+  if ( one_more_insn.itype != NEC850_JR || one_more_insn.Op1.type != o_near )
+    return false;
 
-  insn->itype = NEC850_MOV;
-  set_opimm(&insn->Op1, new_value);
-  insn->Op1.specflag1 |= N850F_VAL32;
+  uint32 possible_loc = one_more_insn.ea + one_more_insn.size;
+  if ( possible_loc != insn->Op1.addr )
+    return false;
 
-  set_opreg(&insn->Op2, insn->Op3.reg, insn->Op3.dtype);
-  insn->Op3 = {};
+  uint8 cond = (insn_w & 0xF) ^ 0b1000;
+  uint16 inverse_cond_itype = bcond_map[cond];
+
+  insn->itype = inverse_cond_itype;
+  insn->Op1.addr = one_more_insn.Op1.addr;
 
   insn->size += one_more_insn.size;
   return true;
@@ -3362,34 +3410,112 @@ bool nec850_t::movhi_movea_imm32_case(insn_t *insn, const insn_t &one_more_insn)
 bool nec850_t::build_macro(insn_t *insn, bool may_go_forward, uint32 insn_w)
 {
   qnotused(insn_w);
-
-  if ( !may_go_forward )
-    return false;
+  insn_t original_insn = *insn;
 
   insn_t one_more_insn;
-  if ( decode_insn(&one_more_insn, insn->ea + insn->size) <= 0 )
-    return false;
-
-  if ( basereg_ld_case(insn) )
-    return false;
-
-  if ( insn->itype == NEC850_MOVHI )
+  if ( may_go_forward )
   {
-    // ld, st, tst1, set1, clr1:
-    // ld.w label[reg1], reg2 -> movhi hi1(label), reg1, r1; ld.w lo(label)[r1], reg2
-    if ( ld_case(insn, one_more_insn) )
+    if ( decode_insn(&one_more_insn, insn->ea + insn->size) <= 0 )
+      return false;
+
+    if ( basereg_ld_case(insn) )
+      return false;
+
+    if ( insn->itype == NEC850_MOVHI && ld_case(insn, one_more_insn) )
       return true;
 
-    // add imm32, reg -> movhi hi1(imm32), r0, r1; add r1, reg (low bits are 0)
-    if ( add_imm32_low_case(insn, one_more_insn) )
-      return true;
-
-    // mov imm32, reg; -> movhi hi1(imm32), r0, reg; movea lo(imm32), reg, reg;
-    if ( movhi_movea_imm32_case(insn, one_more_insn) )
+    // bcond disp22 -> brcond Label; jr disp22-2;Label: (brcond is the reverse condition branch of bcond)
+    if ( bcond_case(insn, insn_w, one_more_insn) )
       return true;
   }
 
-  return false;
+  // Combine all the movXX combinations into a normal mov
+  bool result = combine_movs(insn, one_more_insn, may_go_forward);
+  if ( may_go_forward )
+  {
+    decode_insn(&one_more_insn, insn->ea + insn->size);
+
+    // movea imm32, reg1, reg2 -> movhi hi1(imm32), reg1, r1; movea lo(imm32), r1, reg2
+    if ( insn->itype == NEC850_MOVHI
+      && one_more_insn.itype == NEC850_MOVEA
+      && insn->Op3.is_reg(one_more_insn.Op2.reg)
+      && one_more_insn.Op2.is_reg(one_more_insn.Op3.reg) )
+    {
+      insn->itype = one_more_insn.itype;
+
+      set_opimm(&insn->Op1, sign_extended_val(insn->Op1.value, one_more_insn.Op1.value));
+      insn->Op1.specflag1 |= N850F_VAL32;
+
+      insn->Op3 = one_more_insn.Op3;
+
+      insn->size += one_more_insn.size;
+      return true;
+    }
+
+    if ( insn->itype == NEC850_MOV && insn->Op1.type == o_imm )
+    {
+      // add/cmp/sub/not imm32, reg -> mov imm32, r1; add/cmp/sub/not r1, reg
+      if ( (one_more_insn.itype == NEC850_ADD
+         || one_more_insn.itype == NEC850_CMP
+         || one_more_insn.itype == NEC850_SUB
+         || one_more_insn.itype == NEC850_NOT )
+        && one_more_insn.Op1.is_reg(insn->Op2.reg)
+        && !is_reg_used_after_ea(one_more_insn.ea, insn->Op2.reg) )
+      {
+        insn->itype = one_more_insn.itype;
+        insn->Op2 = one_more_insn.Op2;
+        insn->size += one_more_insn.size;
+        return true;
+      }
+
+      if ( insn->Op2.is_reg(one_more_insn.Op2.reg) )
+      {
+        // CMDi imm32, reg1, reg2 -> mov imm32, reg2; CMD reg1, reg2
+        if ( one_more_insn.Op1.type == o_reg )
+        {
+          uint16_t cmdi = get_cmdi_itype(one_more_insn.itype);
+          if ( cmdi != NEC850_NULL && !one_more_insn.Op1.is_reg(one_more_insn.Op2.reg) ) // don't combine if it ors by itself for example
+          {
+            insn->itype = cmdi;
+
+            insn->Op2 = one_more_insn.Op1;
+            insn->Op3 = one_more_insn.Op2;
+            insn->size += one_more_insn.size;
+            return true;
+          }
+        }
+
+        // addi imm32, reg -> mov imm32, r1; add r1, reg
+        if ( insn->Op2.is_reg(one_more_insn.Op3.reg) && one_more_insn.itype == NEC850_ADDI )
+        {
+          insn->itype = one_more_insn.itype;
+
+          set_opimm(&insn->Op1, insn->Op1.value + one_more_insn.Op1.value);
+          insn->Op1.specflag1 |= N850F_VAL32;
+
+          insn->Op2 = original_insn.Op2.is_reg(rZERO) ? original_insn.Op2 : one_more_insn.Op2;
+          insn->Op3 = one_more_insn.Op3;
+
+          insn->size += one_more_insn.size;
+          return true;
+        }
+      }
+    }
+  }
+
+  // CMD imm16, reg -> CMDi imm16, reg, reg
+  if ( insn->Op2.is_reg(insn->Op3.reg) )
+  {
+    uint16_t cmd = get_bit_cmd_itype(insn->itype);
+    if ( cmd != NEC850_NULL )
+    {
+      insn->itype = cmd;
+      insn->Op3.type = o_void;
+      return false;
+    }
+  }
+
+  return result;
 }
 
 //------------------------------------------------------------------------
