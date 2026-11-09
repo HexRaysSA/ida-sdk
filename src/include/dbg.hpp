@@ -1964,13 +1964,13 @@ inline void idaapi set_remote_debugger(const char *host, const char *pass, int p
 inline void idaapi get_process_options(
         qstring *path,
         qstring *args,
-        launch_env_t *envs,
+        launch_env_t *out_envs,
         qstring *sdir,
         qstring *host,
         qstring *pass,
         int *port)
 {
-  callui(ui_dbg_get_process_options, path, args, sdir, host, pass, port, envs);
+  callui(ui_dbg_get_process_options, path, args, sdir, host, pass, port, out_envs);
 }
 
 
@@ -1980,7 +1980,7 @@ inline void idaapi get_process_options(
 inline void idaapi set_process_options(
         const char *path,
         const char *args,
-        launch_env_t *envs,
+        const launch_env_t *envs,
         const char *sdir,
         const char *host,
         const char *pass,

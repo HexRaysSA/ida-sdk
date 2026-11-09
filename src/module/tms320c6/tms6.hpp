@@ -248,6 +248,55 @@ inline bool is_mvk_scst16_form(ea_t ea)
 }
 
 //------------------------------------------------------------------
+inline bool is_fph(uint32 data)
+{
+  return (data & 0xf0000000) == 0xe0000000;
+}
+
+//------------------------------------------------------------------
+inline ea_t get_fph_pos(ea_t ea)
+{
+  return (ea & ~31) + 28;
+}
+
+//------------------------------------------------------------------
+inline bool get_fph(uint32 *out_fph, ea_t fph_pos)
+{
+  uint32 fph = get_dword(fph_pos);
+  if ( out_fph )
+    *out_fph = fph;
+
+  return is_fph(fph);
+}
+
+//------------------------------------------------------------------
+inline int get_word_pos(ea_t ea, bool align16)
+{
+  return (ea & 31) >> (align16 ? 1 : 2);
+}
+
+//------------------------------------------------------------------
+inline bool fph_is_compact_insn(uint32 fph, int layout_pos)
+{
+  return fph & (1 << (21 + layout_pos));
+}
+
+//------------------------------------------------------------------
+inline bool fph_has_pbit(uint32 fph, int layout_pos)
+{
+  return fph & (1 << layout_pos);
+}
+
+//------------------------------------------------------------------
+inline int fph_layout_pos(uint32 fph, ea_t ea)
+{
+  int full_insn_pos = get_word_pos(ea, false);
+  return fph_is_compact_insn(fph, full_insn_pos) ? get_word_pos(ea, true) : full_insn_pos;
+}
+
+//------------------------------------------------------------------
+//
+//------------------------------------------------------------------
 void idaapi header(outctx_t &ctx);
 
 void idaapi segstart(outctx_t &ctx, segment_t *seg);

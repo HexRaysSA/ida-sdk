@@ -344,12 +344,11 @@ static bool apply_signatures(const char *fname, int &matches, qstring &title)
 /// \brief Local structure used to pass user data to IDB hook
 struct idb_callback_user_data
 {
-  std::set<ea_t> functions;
-  std::set<ea_t> names;
+  std::map<ea_t, qstring> matches;
 };
 
 //-------------------------------------------------------------------------
-/// \brief Callback function used to collect siganture information
+/// \brief Callback function used to collect signature information
 /// \param user_data user data passed by the caller when callback was registered
 /// \param notification_code internal notification code describing the database event
 /// \param va the variable arguments list specific to each notification code
@@ -361,24 +360,12 @@ static ssize_t idaapi idb_signatures_callback(
 {
   switch ( notification_code )
   {
-    case idb_event::thunk_func_created:
-    case idb_event::func_updated:
-    case idb_event::func_added:
+    case idb_event::idasgn_matched_ea:
       {
-        // Get function pointer passed by caller, if is lib function then retain it
-        func_t *pfn = va_arg(va, func_t *);
-        if ( pfn->flags & FUNC_LIB )
-        {
-          idb_callback_user_data *found_items = reinterpret_cast<idb_callback_user_data*>(user_data);
-          found_items->functions.insert(pfn->start_ea);
-        }
-      }
-      break;
-    case idb_event::renamed:
-      {
-        ea_t ea = va_arg(va, ea_t);
         idb_callback_user_data *found_items = reinterpret_cast<idb_callback_user_data*>(user_data);
-        found_items->names.insert(ea);
+        ea_t ea = va_arg(va, ea_t);
+        const char *name = va_arg(va, const char*);
+        found_items->matches[ea] = name;
       }
       break;
 
@@ -489,9 +476,7 @@ static void apply_signatures_from_path(
       std::cout << "Failed to create undo point before applying sig file " << signature_file_name.c_str() << "..." << std::endl;
 
     // Clear functions collection after each file, we want them by file
-    found_items.functions.clear();
-    found_items.names.clear();
-
+    found_items.matches.clear();
     int matches = 0;
     qstring sig_title;
     if ( apply_signatures(signature_file_name.c_str(), matches, sig_title) )
@@ -511,44 +496,18 @@ static void apply_signatures_from_path(
     jsonFileObj.put("matches", matches);
 
     // Dump all collected functions in the json report
-    jsonFileObj.put("functions", new jarr_t());
-    jvalue_t *functions = jsonFileObj.get_value("functions");
+    jsonFileObj.put("matches", new jarr_t());
+    jvalue_t *matches_node = jsonFileObj.get_value("matches");
 
-    for ( ea_t fiea : found_items.functions )
+    for ( auto it : found_items.matches )
     {
-      func_t *pfn = get_func(fiea);
-      if ( pfn )
-      {
-        // Obtain function name
-        qstring fn;
-        get_func_name(&fn, pfn->start_ea);
 
-        // Fill the function json structure
-        jvalue_t function_value;
-        function_value.set_obj(new jobj_t());
-        function_value.obj().put("name", fn);
-        function_value.obj().put("start_ea", dump_address(pfn->start_ea).c_str());
-        function_value.obj().put("end_ea", dump_address(pfn->end_ea).c_str());
-        functions->arr().values.push_back(function_value);
-      }
-    }
-
-    // Dump all collected names in the json report
-    jsonFileObj.put("names", new jarr_t());
-    jvalue_t *names = jsonFileObj.get_value("names");
-
-    for ( ea_t nea : found_items.names )
-    {
-      qstring name;
-      if ( get_visible_name(&name, nea) )
-      {
-        // Fill the function json structure
-        jvalue_t name_value;
-        name_value.set_obj(new jobj_t());
-        name_value.obj().put("name", name);
-        name_value.obj().put("start_ea", dump_address(nea).c_str());
-        names->arr().values.push_back(name_value);
-      }
+      // Fill the function json structure
+      jvalue_t match_value;
+      match_value.set_obj(new jobj_t());
+      match_value.obj().put("ea", dump_address(it.first).c_str());
+      match_value.obj().put("name", it.second);
+      matches_node->arr().values.push_back(match_value);
     }
 
     // list the total number of functions in the program after the sig was applied and compute few stats

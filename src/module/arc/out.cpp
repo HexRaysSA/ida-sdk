@@ -454,13 +454,12 @@ void out_arc_t::out_insn(void)
 
   for ( int i = 1; i < PROC_MAXOP; ++i )
   {
+    if ( insn.ops[i].type == o_reg && insn.ops[i].regpair )
+      continue; // show only the first register of the pair
     if ( insn.ops[i].type != o_void )
     {
-      if ( !(insn.ops[i].type == o_reg && insn.ops[i].regpair) )
-      {
-        out_symbol(',');
-        out_char(' ');
-      }
+      out_symbol(',');
+      out_char(' ');
       out_one_operand(i);   // output the current operand
     }
   }

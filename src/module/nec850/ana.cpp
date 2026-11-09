@@ -3271,8 +3271,11 @@ bool nec850_t::basereg_ld_case(insn_t *insn)
     }
   }
 
+  // look for the first defining insn in the linear flow (linear_insn=20)
   reg_value_info_t info;
-  if ( !find_reg_value_info(&info, insn->ea, displ_op.reg, 1) )
+  if ( !find_rvi(&info, insn->ea, displ_op.reg, 0, 20) )
+    return false;
+  if ( !info.is_num() || !info.is_value_unique() )
     return false;
 
   uint16 def_itype = info.get_def_itype();

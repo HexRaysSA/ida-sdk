@@ -551,7 +551,7 @@ idaman THREAD_SAFE bool ida_export qctime_utc(char *buf, size_t bufsize, qtime32
 /// \param t         calendar time
 /// \returns success
 
-idaman THREAD_SAFE bool ida_export qlocaltime(struct tm *_tm, qtime32_t t);
+idaman THREAD_SAFE bool ida_export qlocaltime(struct tm *_tm, time_t t);
 
 
 /// Same as qlocaltime(struct tm *, qtime32_t), but accepts a 64-bit time value
@@ -567,10 +567,10 @@ INLINE THREAD_SAFE bool qlocaltime64(struct tm *_tm, qtime64_t t)
 /// \param t         calendar time
 /// \returns success
 
-idaman bool ida_export qgmtime(struct tm *_tm, qtime32_t t);
+idaman bool ida_export qgmtime(struct tm *_tm, time_t t);
 
 
-/// Same as qgmtime(struct tm *, qtime32_t), but accepts a 64-bit time value
+/// Same as qgmtime(struct tm *, time_t), but accepts a 64-bit time value
 
 INLINE THREAD_SAFE bool qgmtime64(struct tm *_tm, qtime64_t t)
 {
@@ -580,10 +580,10 @@ INLINE THREAD_SAFE bool qgmtime64(struct tm *_tm, qtime64_t t)
 
 // Inverse of qgmtime()
 
-idaman qtime32_t ida_export qtimegm(const struct tm *ptm);
+idaman time_t ida_export qtimegm(const struct tm *ptm);
 
 
-/// Get string representation of a qtime32_t (local time)
+/// Get string representation of a time_t (local time)
 /// Copies into 'buf' the content of 'format', expanding its format specifiers into the
 /// corresponding values that represent the time described in 't', with a limit of 'bufsize' characters
 /// see http://www.cplusplus.com/reference/ctime/strftime/ for more
@@ -598,7 +598,7 @@ idaman AS_STRFTIME(3) THREAD_SAFE size_t ida_export qstrftime(
         char *buf,
         size_t bufsize,
         const char *format,
-        qtime32_t t);
+        time_t t);
 
 
 /// Same as qstrftime(), but accepts a 64-bit time value

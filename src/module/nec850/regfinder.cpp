@@ -301,12 +301,13 @@ bool nec850_t::find_rvi(
         reg_value_info_t *rvi,
         ea_t ea,
         int reg,
-        int max_depth) const
+        int max_depth,
+        size_t linear_insns) const
 {
   if ( reg == rSP || reg_finder == nullptr )
     return false;
   auto rfop = reg_finder_op_t::make_reg(*this, reg);
-  *rvi = reg_finder->find(ea, rfop, max_depth);
+  *rvi = reg_finder->find(ea, rfop, max_depth, linear_insns);
   return true;
 }
 

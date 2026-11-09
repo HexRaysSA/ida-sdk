@@ -2655,6 +2655,7 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define BWN_SCRIPTS_CSR   56 ///< the "Recent scripts" chooser
 #define BWN_BOOKMARKS     57 ///< a persistent 'Bookmarks' widget
 #define BWN_TILIST        58 ///< a type listing widget
+#define BWN_TIL_VIEW      59 ///< a type library's toplevel widget
 ///@}
 
 /// \defgroup IWID_ Window refresh flags
@@ -2714,6 +2715,7 @@ typedef int twidget_type_t; ///< \ref BWN_
 #define IWID_SCRIPTS_CSR   (1ULL << BWN_SCRIPTS_CSR  ) ///< recent scripts
 #define IWID_BOOKMARKS     (1ULL << BWN_BOOKMARKS    ) ///< bookmarks list
 #define IWID_TILIST        (1ULL << BWN_TILIST       ) ///< type listing
+#define IWID_TIL_VIEW      (1ULL << BWN_TIL_VIEW     ) ///< type library's toplevel widget
 
 #define IWID_ANY_LISTING   (IWID_DISASM|IWID_HEXVIEW|IWID_TILIST|IWID_FRAME|IWID_PSEUDOCODE|IWID_CUSTVIEW) ///< anything that uses a listing widget
 #define IWID_EA_LISTING    (IWID_DISASM|IWID_HEXVIEW|IWID_PSEUDOCODE) ///< anything that can be used to represent data/code at an address
@@ -6386,7 +6388,7 @@ inline TWidget *open_tils_window(void)
 }
 
 
-/// Open the local types window (::ui_open_builtin).
+/// Open the local types window (::ui_open_builtin2).
 /// \param ordinal ordinal of type to select by default
 /// \param cursor  cursor to the type member
 /// \return pointer to resulting window
@@ -6396,6 +6398,15 @@ inline TWidget *open_loctypes_window(int ordinal, const tif_cursor_t *cursor=nul
   return (TWidget *) callui(ui_open_builtin2, BWN_TILVIEW, ordinal, cursor).vptr;
 }
 
+/// Open the sub-til window (::ui_open_builtin2).
+/// \param tif  tif to open
+/// \param cursor  cursor to the type member
+/// \return pointer to resulting window
+
+inline TWidget *open_til_view_window(tinfo_t *tif, const tif_cursor_t *cursor=nullptr)
+{
+  return (TWidget *) callui(ui_open_builtin2, BWN_TIL_VIEW, tif, cursor).vptr;
+}
 
 /// Open the function calls window (::ui_open_builtin).
 /// \return pointer to resulting window

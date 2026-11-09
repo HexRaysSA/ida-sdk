@@ -48,6 +48,7 @@ struct call_stack_t;
 struct stkarg_area_info_t;
 struct reg_finder_t;
 class merge_data_t;
+class idasgn_t;
 
 /// The interface version number.
 /// \note see also #IDA_SDK_VERSION from pro.h
@@ -2633,7 +2634,10 @@ inline reg_finder_t *processor_t::get_regfinder()
   return (reg_finder_t *)notify(ev_get_regfinder);
 }
 
-idaman int ida_export str2reg(const char *p);     ///< Get any reg number (-1 on error)
+idaman int ida_export str2reg(const char *p);     ///< Get any register number (-1 on error)
+
+
+idaman int ida_export str2sreg(const char *p);    ///< Get the segment register number (-1 on error)
 
 
 /// If the instruction at 'ea' looks like an alignment instruction,
@@ -3219,6 +3223,10 @@ namespace idb_event
                             ///< \param udm_tid (::tid_t) the gap was added/removed before this member
                             ///< \param delta (::adiff_t) number of added/removed bytes
 
+    idasgn_matched_ea,      ///< A FLIRT match has been found
+                            ///< \param ea (::ea_t) the matching address
+                            ///< \param name (::const char *) the matched name
+                            ///< \param lib_name (::const char *) library name extracted from signature file
   };
 }
 

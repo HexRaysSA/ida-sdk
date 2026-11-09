@@ -255,7 +255,7 @@ DECLARE_TYPE_AS_MOVABLE(jarr_t);
 //---------------------------------------------------------------------------
 // Note: If 'ungot_tokens' is not nullptr, its contents will be used before fetching tokens from the lexer
 idaman THREAD_SAFE error_t ida_export parse_json(jvalue_t *out, lexer_t *lx, tokenstack_t *ungot_tokens = nullptr);
-idaman THREAD_SAFE error_t ida_export parse_json_string(jvalue_t *out, const char *s, qstring *errbuf = nullptr);
+idaman THREAD_SAFE error_t ida_export parse_json_string(jvalue_t *out, const char *s, qstring *errbuf = nullptr, const char *file_path = nullptr);
 idaman THREAD_SAFE error_t ida_export parse_json_file(jvalue_t *out, const char *path, qstring *errbuf = nullptr);
 
 //-------------------------------------------------------------------------

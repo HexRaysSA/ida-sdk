@@ -38,9 +38,41 @@ static bool is_first_insn_in_exec_packet(ea_t ea)
 //  if ( (ea & 0x1F) == 0 )
 //    return 1;
   ea = prev_not_tail(ea);
-  return ea == BADADDR
-      || !is_code(get_flags(ea))
-      || (get_dword(ea) & BIT0) == 0;
+  if ( ea == BADADDR || !is_code(get_flags(ea)) )
+    return 1;
+
+  // we can't just simply skip the fph above the insn,
+  // because there might be a compact instruction where bit0 is set
+  // example: .text:00000020 5A A3 20 02       ||      MVK     .L2    8, B4
+  if ( is_fph(get_dword(ea)) )
+  {
+    // skip the fph
+    ea_t above_fph = prev_not_tail(ea);
+    if ( above_fph != BADADDR && is_code(get_flags(above_fph)) )
+    {
+      ea_t above_fph_pos = get_fph_pos(above_fph);
+
+      // figure out if its not a compact insn in the fph
+      uint32 fph = 0;
+      if ( get_fph(&fph, above_fph_pos) && above_fph_pos == ea ) // if its the same fph
+      {
+        if ( !fph_is_compact_insn(fph, get_word_pos(above_fph, false)) )
+          return (get_dword(above_fph) & BIT0) == 0;
+      }
+    }
+  }
+
+  // handles cases for parallel insns in the fph
+  uint32 fph = 0;
+  if ( get_fph(&fph, get_fph_pos(ea)) )
+  {
+    // fixes an issue where the subroutine may end
+    // .text:00000D74 000 62 01 86 01   ||      ADDKPC  .S2    __stub_ret, B3, 0
+    if ( fph_is_compact_insn(fph, get_word_pos(ea, false)) )
+      return !fph_has_pbit(fph, fph_layout_pos(fph, ea));
+  }
+
+  return (get_dword(ea) & BIT0) == 0;
 }
 
 //----------------------------------------------------------------------
@@ -290,7 +322,7 @@ void out_tms320c6_t::out_insn(void)
 //      Parallel instructions
 //
   ea_t ea = insn.ea;
-  if ( !is_first_insn_in_exec_packet(ea) )
+  if ( !is_fph(get_dword(ea)) && !is_first_insn_in_exec_packet(ea) )
   {
     out_symbol('|');
     out_symbol('|');

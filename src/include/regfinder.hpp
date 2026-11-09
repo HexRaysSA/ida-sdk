@@ -148,17 +148,20 @@ protected:
     UNDEF,    // we know nothing about a value
     DEADEND,  // no execution flow to the insn
     ABORTED,  // the tracking process was aborted because the maximal
-              // tracking depth is not enough to find a value
+              // tracking depth is not enough to find a value or it found
+              // the huge basic block
     BADINSN,  // the insn cannot be decoded
     UNKINSN,  // the result of the insn execution is unknown
     UNKFUNC,  // the register comes from the function start
     UNKLOOP,  // the register is changed in a loop
     UNKMULT,  // the register has incompatible values
               // (a number and SP delta)
-    NUMINSN,  // the value is a number after executing a insn
-    NUMADDR,  // the value is a number before an address
-    SPDINSN,  // the value is a SP delta after executing a insn
-    SPDADDR,  // the value is a SP delta before an address
+    UNKXREF,  // too many xrefs to the address
+    UNKVALS,  // the register has too many values at the address
+    NUMINSN,  // the value is a number after executing the insn
+    NUMADDR,  // the value is a number before the address
+    SPDINSN,  // the value is a SP delta after executing the insn
+    SPDADDR,  // the value is a SP delta before the address
   };
   // the SP delta is the value of SP minus the initial value of SP at the
   // function start.
@@ -174,6 +177,8 @@ protected:
   // UNKFUNC  B  the function start address
   // UNKLOOP  B  the address of the changing insn
   // UNKMULT  B  the address of the joint point
+  // UNKXREF  B  the address with a lot of xrefs
+  // UNKVALS  B  the address with a lot of values
   // the states below allow multiple values
   // NUMINSN  A  the address of the defining insn
   // NUMADDR  B  the address after which the value became known
@@ -262,6 +267,20 @@ public:
     return reg_value_info_t(UNKMULT, bblk_ea);
   }
 
+  /// Return the unknown value if there are too many xrefs.
+  /// \sa is_unkxref()
+  static reg_value_info_t make_unkxref(ea_t bblk_ea)
+  {
+    return reg_value_info_t(UNKXREF, bblk_ea);
+  }
+
+  /// Return the unknown value if the register has too many values.
+  /// \sa is_unkvals()
+  static reg_value_info_t make_unkvals(ea_t bblk_ea)
+  {
+    return reg_value_info_t(UNKVALS, bblk_ea);
+  }
+
   /// Return the value that is the RVAL number.
   /// \sa is_num()
   static reg_value_info_t make_num(
@@ -309,6 +328,11 @@ public:
   /// Return 'true' if the value is unknown because the register has
   /// incompatible values (a number and SP delta).
   bool is_unkmult() const { return state == UNKMULT; }
+  /// Return 'true' if the value is unknown because there are too many xrefs.
+  bool is_unkxref() const { return state == UNKXREF; }
+  /// Return 'true' if the value is unknown because the register has too
+  /// many values.
+  bool is_unkvals() const { return state == UNKVALS; }
   /// Return 'true' if the value is unknown.
   bool is_unknown() const
   {
@@ -316,7 +340,9 @@ public:
         || state == UNKINSN
         || state == UNKFUNC
         || state == UNKLOOP
-        || state == UNKMULT;
+        || state == UNKMULT
+        || state == UNKXREF
+        || state == UNKVALS;
   }
 
   /// Return 'true' if the value is a constant.
@@ -449,6 +475,24 @@ public:
   void set_unkmult(ea_t bblk_ea)
   {
     state = UNKMULT;
+    vals.qclear();
+    vals.push_back(val_def_t(BADADDR, bblk_ea));
+  }
+
+  /// Set the value to be unknown because there are too many xrefs.
+  /// \sa is_unkxref()
+  void set_unkxref(ea_t bblk_ea)
+  {
+    state = UNKXREF;
+    vals.qclear();
+    vals.push_back(val_def_t(BADADDR, bblk_ea));
+  }
+
+  /// Set the value to be unknown because the register has too many values.
+  /// \sa is_unkvals()
+  void set_unkvals(ea_t bblk_ea)
+  {
+    state = UNKVALS;
     vals.qclear();
     vals.push_back(val_def_t(BADADDR, bblk_ea));
   }
@@ -696,7 +740,7 @@ typedef void (*reg_finder_binary_ops_adjust_fun)(
 
 #define DECLARE_REG_FINDER_HELPERS(decl)\
 decl void ida_export reg_finder_invalidate_cache(reg_finder_t *_this, ea_t to, ea_t from);\
-decl void ida_export reg_finder_find(reg_finder_t *_this, reg_value_info_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth);\
+decl void ida_export reg_finder_find(reg_finder_t *_this, reg_value_info_t *out, ea_t ea, ea_t ds, reg_finder_op_t op, int max_depth, size_t linear_insn);\
 decl void ida_export reg_finder_make_rfop(reg_finder_t *_this, reg_finder_op_t *rfop, const op_t *op, const insn_t *insn, func_t *pfn);\
 decl bool ida_export reg_finder_calc_op_addr(reg_finder_t *_this, reg_value_info_t *addr, const op_t *memop, const insn_t *insn, ea_t ea, ea_t ds, int max_depth);\
 decl bool ida_export reg_finder_emulate_mem_read(reg_finder_t *_this, reg_value_info_t *value, const reg_value_info_t *addr, int width, bool is_signed, const insn_t *insn);\
@@ -734,12 +778,15 @@ protected:
   // the data members below are set by the each call of find()
   func_t *cur_func = nullptr;   // function to search in
   size_t initial_block_idx = 0;
+  bool fixed_max_depth = false; // is the initial MAX_DEPTH specified by the
+                                // caller (not taken from ida.cfg) ?
   int cur_max_depth = 0;        // maximum search depth
-  bool auto_max_depth = true;   // is the initial CUR_MAX_DEPTH taken
-                                // from ida.cfg?
+  int cur_call_depth = 0;       // the current depth of recursive calls
+  size_t linear_flow_cnt = 0;   // the number of insn to search in the
+                                // linear flow (if != 0)
+  bool only_linear_flow() const { return linear_flow_cnt != 0; }
+  size_t bblk_cnt = 0;          // the number of insn in a basic block
   ea_t aborting_ea = BADADDR;   // to make tracking aborting easier
-  bool tracking_aborted() const { return aborting_ea != BADADDR; }
-  void abort_tracking(ea_t ea) { aborting_ea = ea; }
   rvi_t standalone_value;       // to return a value for the initial block
                                 // without addresses
 
@@ -894,10 +941,27 @@ public:
   //                   REGTRACK_FUNC_MAX_DEPTH from ida.cfg depending on the
   //                   register,
   //                   -1 means always the value of REGTRACK_FUNC_MAX_DEPTH.
-  rvi_t find(ea_t ea, rfop_t rfop, int max_depth = 0)
+  //                   A value greater than 1 cannot be used in recursive
+  //                   calls of find() (e.g. from emulate_insn()).
+  // \param linear_insns  a non-zero value causes switching to the linear
+  //                      flow search mode. In this mode the search stops at
+  //                      the first xref or when LINEAR_INSNS insns are
+  //                      tracked. The number of instructions tracked is
+  //                      counted from the address of the first call with a
+  //                      non-zero argument, i.e. recursive calls to find()
+  //                      after switching to this mode ignore this argument.
+  rvi_t find(
+        ea_t ea,
+        rfop_t rfop,
+        int max_depth = 0,
+        size_t linear_insns = 0)
   {
+    rvi_t ret;
     flow_t flow = process_delay_slot(pm.trunc_uval(ea), fl_U);
-    return find(flow, rfop, max_depth);
+    reg_finder_find(this, &ret,
+                    flow.ea, flow.ds, rfop,
+                    max_depth, linear_insns);
+    return ret;
   }
 
   // find the value of any of the two registers
@@ -1166,15 +1230,10 @@ protected:
   // get values of the operand from emulate_insn()
   // \param flow       the control flow to get a starting insn
   // \param rfop       the operand to find a value of
-  // \param max_depth  the maximum search depth.
-  //                   when find is called recursively, MAX_DEPTH is added
-  //                   to the current search depth, but the new maximum
-  //                   depth cannot exceed the maximum depth set on the
-  //                   first call to find().
-  rvi_t find(flow_t flow, rfop_t rfop, int max_depth = 0)
+  rvi_t find(flow_t flow, rfop_t rfop)
   {
     rvi_t ret;
-    reg_finder_find(this, &ret, flow.ea, flow.ds, rfop, max_depth);
+    reg_finder_find(this, &ret, flow.ea, flow.ds, rfop, 0, 0);
     return ret;
   }
 
@@ -1185,7 +1244,7 @@ protected:
   {
     rvi_t ret;
     rfop_t rfop = rfop_t::make_reg(pm, reg);
-    reg_finder_find(this, &ret, flow.ea, flow.ds, rfop, 0);
+    reg_finder_find(this, &ret, flow.ea, flow.ds, rfop, 0, 0);
     return ret;
   }
 
@@ -1242,6 +1301,7 @@ private:
   // implementation methods
   rvi_t find_chain(flow_t flow, rfop_t rfop);
   void create_initial_block(flow_t flow, rfop_t rfop);
+  // these 2 methods may set ABORTING_EA to abort tracking
   bool create_new_block(vref_t *res_vref, const pred_t &pred);
   bool handle_block_pred(size_t chain_num, vref_t pred_vref);
   vref_t finalize_block();
@@ -1264,6 +1324,7 @@ private:
          ? func_contains(cur_func, ea)
          : get_fchunk(ea) == nullptr;
   }
+  rvi_t make_aborted();
 
   // what to do after move handling?
   enum handle_move_res_t
@@ -1316,11 +1377,12 @@ private:
 
   // helper implementation
   void invalidate_cache_impl(ea_t to, ea_t from);
-  rvi_t find_impl(flow_t flow, rfop_t rfop, int max_depth);
+  rvi_t find_impl(flow_t flow, rfop_t rfop, int max_depth, size_t linear_insns);
+  rvi_t find_impl2(flow_t flow, rfop_t rfop, int max_depth, size_t linear_insns);
   rvi_t find_impl(flow_t flow, const op_t &op);
   rvi_t find_impl(flow_t flow, int reg, int max_depth = 0)
   {
-    return find_impl(flow, rfop_t::make_reg(pm, reg), max_depth);
+    return find_impl(flow, rfop_t::make_reg(pm, reg), max_depth, 0);
   }
   rfop_t make_rfop_impl(const op_t &op, const insn_t &insn, func_t *pfn);
   bool calc_op_addr_impl(

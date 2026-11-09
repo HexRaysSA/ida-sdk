@@ -2256,7 +2256,7 @@ int tms6_t::ana_compact(insn_t *_insn, uint32 fph) const
   if ( insn.ip & 1 )
     return 0;           // alignment error
 
-  int n = (insn.ea & 31) >> 1;
+  int n = get_word_pos(insn.ea, true);
   ushort code = get_word(insn.ea);
   insn.size = 2;
 
@@ -2273,8 +2273,8 @@ int tms6_t::ana_compact(insn_t *_insn, uint32 fph) const
       && ((exp & cinsn->exp_mask) == cinsn->exp_val) )
     {
       cinsn->handler(insn, fph, code);
-      msg("%d: %08a\n", i, insn.ea);  // FIXME
-      break;
+      if ( insn.itype != TMS6_null )
+        break;
     }
   }
 
@@ -2287,18 +2287,17 @@ int tms6_t::ana_compact(insn_t *_insn, uint32 fph) const
 
 int tms6_t::ana(insn_t *_insn)
 {
-  uint32 fph;
+  uint32 fph = 0;
   int rv = 0;
 
   insn_t &insn = *_insn;
 
   // Get (potential) header (last dword of a 8 dword fetch packet)
-  fph = get_dword((insn.ea & ~31) + 28);
 
   // Are we in a "Header based fetch packet"? (see SPRU732J Section 3.9)
-  if ( (fph & 0xf0000000) == 0xe0000000 )
+  if ( get_fph(&fph, get_fph_pos(insn.ea)) )
   {
-    int n = (insn.ea & 31) >> 2;
+    int n = get_word_pos(insn.ea, false);
 
     // Is it the header word itself?
     if ( n == 7 )
@@ -2309,7 +2308,7 @@ int tms6_t::ana(insn_t *_insn)
       rv = insn.size;
     }
     // Is it a compact instruction?
-    else if ( fph & (1 << (21 + n)) ) // check the layout field
+    else if ( fph_is_compact_insn(fph, n) ) // check the layout field
     {
       rv = ana_compact(&insn, fph);
     }

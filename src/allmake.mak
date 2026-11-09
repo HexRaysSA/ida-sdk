@@ -802,7 +802,7 @@ _link_dll=$(strip $(QCCL)$(CCL) $(OUTDLL) $(DLLFLAGS) $(OUTSW)$(1) $(2) $(3) $(L
 link_dll=$(call _link_dll,$@,$(1),$(2))
 
 # to be used like this: $(call link_dumb, target, libs, objs)
-link_dumb=$(3) $(patsubst %,$(L)%$(A),$(2)); $(strip $(QCCLf)$(CCL) $(OUTSW)$(1) $(LDFLAGS) $(3) $(patsubst %,$(L)%$(A),$(2)) $(STDLIBS))
+link_dumb=$(3) $(patsubst %,$(L)%$(A),$(2)); $(strip $(QCCLf)$(CCL) $(OUTSW)$(1) $(LDFLAGS) $(3) $(patsubst %,$(L)%$(A),$(2)) $(STDLIBS) $(LDPIE))
 
 # to be used like this:
 # target: $(call dumb_target, libs, objs) extra_ldflags

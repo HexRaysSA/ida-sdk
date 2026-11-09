@@ -264,7 +264,8 @@ struct nec850_t : public procmod_t
         reg_value_info_t *rvi,
         ea_t ea,
         int reg,
-        int max_depth = 0) const;
+        int max_depth = 0,
+        size_t linear_insns = 0) const;
 
   // debugger functions
   ea_t nec850_next_exec_insn(

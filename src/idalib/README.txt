@@ -41,7 +41,7 @@ Using the ida library Python Module
 Example Script
 --------------
 
-   - To give you an idea of how to use the `ida` module, you can check the `idalib/examples` folder in the IDA Pro installation directory
+   - To give you an idea of how to use the `idapro` module, you can check the `idalib/examples` folder in the IDA Pro installation directory
 
 Note
 ----
